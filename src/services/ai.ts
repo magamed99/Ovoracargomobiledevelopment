@@ -1,4 +1,5 @@
 import { Trip, Location } from '../types';
+import { calculateDistance } from '@/utils/geolocation';
 
 class AIService {
   async suggestPrice(from: Location, to: Location, date: string): Promise<number> {
@@ -61,23 +62,7 @@ class AIService {
   }
 
   private calculateDistance(from: Location, to: Location): number {
-    const R = 6371;
-    const dLat = this.toRad(to.lat - from.lat);
-    const dLng = this.toRad(to.lng - from.lng);
-    
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(this.toRad(from.lat)) *
-        Math.cos(this.toRad(to.lat)) *
-        Math.sin(dLng / 2) *
-        Math.sin(dLng / 2);
-    
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  }
-
-  private toRad(degrees: number): number {
-    return degrees * (Math.PI / 180);
+    return calculateDistance(from, to);
   }
 }
 

@@ -1,0 +1,7162 @@
+import { Hono } from "npm:hono";
+import { setupAviaRoutes } from "./aviaRoutes.tsx";
+import * as bcryptAvia from "npm:bcryptjs"; // used by legacy dead-code block below
+import { cors } from "npm:hono/cors";
+import { logger } from "npm:hono/logger";
+import { createClient } from "npm:@supabase/supabase-js";
+import webpush from "npm:web-push";
+import * as kv from "./kv_store.tsx";
+import { handleSendOtp, handleVerifyOtp } from "./otp.tsx";
+import { handleGenerateBackup, handleVerifyBackup, handleBackupExists } from "./backup.tsx";
+import { handleEmailCheck, handleSetCode, handleVerifyPermCode, handleResetCode, handleAdminListCodes } from "./permCode.tsx";
+import {
+  sendEmail, throttleEmail,
+  welcomeTemplate, newOfferTemplate,
+  offerAcceptedTemplate, offerRejectedTemplate,
+  tripCompletedTemplate, newMessageTemplate,
+} from "./email.tsx";
+
+const app = new Hono();
+app.use('*', logger(console.log));
+app.use("/*", cors({
+  origin: "*",
+  allowHeaders: ["Content-Type", "Authorization", "X-Admin-Code"],
+  allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  exposeHeaders: ["Content-Length"],
+  maxAge: 600,
+}));
+
+// ── Admin Middleware — защита всех /admin/* и /kv/* маршрутов ─────────────────
+async function requireAdmin(c: any, next: any) {
+  const adminCode = (c.req.header('X-Admin-Code') || '').trim();
+  const envCode = (Deno.env.get('ADMIN_ACCESS_CODE') || '').trim();
+  
+  if (!envCode) {
+    console.error('[requireAdmin] ADMIN_ACCESS_CODE not configured in environment');
+    return c.json({ error: 'Server configuration error: Admin access code not set' }, 500);
+  }
+  
+  if (!adminCode || adminCode !== envCode) {
+    console.warn('[requireAdmin] Unauthorized access attempt:', c.req.path, '| code provided:', adminCode ? 'yes' : 'no');
+    return c.json({ error: 'Unauthorized: Admin access required' }, 401);
+  }
+  
+  console.log('[requireAdmin] Admin access granted for:', c.req.path);
+  return await next();
+}
+
+// Применяем middleware ко всем /admin/* и /kv/* маршрутам (КРОМЕ /admin/auth)
+app.use('/make-server-4e36197a/admin/*', async (c, next) => {
+  // Пропускаем /admin/auth — он нужен для получения токена
+  if (c.req.path === '/make-server-4e36197a/admin/auth') {
+    return await next();
+  } else {
+    return await requireAdmin(c, next);
+  }
+});
+
+// Защищаем все /kv/* маршруты (они очень опасны — прямой доступ к БД)
+app.use('/make-server-4e36197a/kv/*', requireAdmin);
+
+// ── Supabase client (for storage) ─────────────────────────────────────────────
+const supabase = createClient(
+  Deno.env.get('SUPABASE_URL')!,
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+);
+
+// ── Bucket setup (idempotent) ─────────────────────────────────────────────────
+const BUCKET = 'make-4e36197a-documents';
+const AVATAR_BUCKET = 'make-4e36197a-avatars';
+const ADS_BUCKET = 'make-4e36197a-ads';
+const AVIA_PASSPORT_BUCKET = 'make-4e36197a-avia-passports';
+const POD_BUCKET = 'make-4e36197a-pod';
+(async () => {
+  const { data: buckets } = await supabase.storage.listBuckets();
+  if (!buckets?.some(b => b.name === BUCKET)) {
+    await supabase.storage.createBucket(BUCKET);
+  }
+  if (!buckets?.some(b => b.name === AVATAR_BUCKET)) {
+    await supabase.storage.createBucket(AVATAR_BUCKET, { public: true });
+  }
+  if (!buckets?.some(b => b.name === ADS_BUCKET)) {
+    await supabase.storage.createBucket(ADS_BUCKET, { public: true });
+    console.log('[Startup] Created ads bucket:', ADS_BUCKET);
+  }
+  if (!buckets?.some(b => b.name === AVIA_PASSPORT_BUCKET)) {
+    await supabase.storage.createBucket(AVIA_PASSPORT_BUCKET);
+    console.log('[Startup] Created AVIA passport bucket:', AVIA_PASSPORT_BUCKET);
+  }
+  if (!buckets?.some(b => b.name === POD_BUCKET)) {
+    await supabase.storage.createBucket(POD_BUCKET);
+    console.log('[Startup] Created POD (Proof of Delivery) bucket:', POD_BUCKET);
+  }
+})();
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  WEB PUSH / VAPID — push notifications to browser/phone
+//  KV: ovora:vapid:keys               → { publicKey, privateKey }
+//  KV: ovora:push:sub:{email}:{subId} → PushSubscription JSON
+// ══════════════════════════════════════════════════════════════════════════════
+
+let vapidPublicKey = '';
+let vapidPrivateKey = '';
+let vapidReady = false;
+
+async function initVapid(attempt = 1) {
+  const MAX_ATTEMPTS = 10;
+  // Slow back-off for non-transient errors: 4 s, 8 s, 15 s, 25 s, 35 s, 50 s, 60 s …
+  const SLOW_DELAYS = [4000, 8000, 15000, 25000, 35000, 50000, 60000];
+  try {
+    const stored: any = await kv.get('ovora:vapid:keys');
+    if (stored?.publicKey && stored?.privateKey) {
+      vapidPublicKey = stored.publicKey;
+      vapidPrivateKey = stored.privateKey;
+      console.log('[VAPID] Keys loaded from KV');
+    } else {
+      const keys = webpush.generateVAPIDKeys();
+      vapidPublicKey = keys.publicKey;
+      vapidPrivateKey = keys.privateKey;
+      await kv.set('ovora:vapid:keys', { publicKey: vapidPublicKey, privateKey: vapidPrivateKey });
+      console.log('[VAPID] New VAPID keys generated and stored');
+    }
+    webpush.setVapidDetails('mailto:support@ovora.app', vapidPublicKey, vapidPrivateKey);
+    vapidReady = true;
+    console.log('[VAPID] Ready');
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    // "broken pipe" / "stream closed" = HTTP/2 connection reset on cold start — transient.
+    const isBrokenPipe = msg.includes('broken pipe') || msg.includes('stream closed') ||
+      msg.includes('SendRequest') || msg.includes('connection error');
+    const isTransient = isBrokenPipe || msg.includes('network') || msg.includes('ECONNRESET');
+
+    if (attempt < MAX_ATTEMPTS) {
+      // Broken-pipe: re-dial after just 1 s (the TCP stack recovers immediately).
+      // Other transient / permanent errors: use slow exponential back-off with ±10 % jitter.
+      const base = isBrokenPipe ? 1000 : (SLOW_DELAYS[attempt - 1] ?? 60000);
+      const delay = base + Math.floor(base * 0.2 * (Math.random() - 0.5));
+
+      // Use console.warn (not error) for expected cold-start noise.
+      console.warn(
+        `[VAPID] Init attempt ${attempt}/${MAX_ATTEMPTS} failed` +
+        (isTransient ? ` (transient — ${isBrokenPipe ? 'broken-pipe' : 'network'})` : '') +
+        `. Retrying in ${Math.round(delay / 1000)} s…`,
+      );
+      setTimeout(() => initVapid(attempt + 1), delay);
+    } else {
+      console.error('[VAPID] All retry attempts exhausted. Push notifications disabled.', msg);
+    }
+  }
+}
+// Cold-start: wait 12 s so Supabase HTTP/2 connections have time to stabilise
+// before the first KV fetch (reduces broken-pipe frequency on attempt 1).
+setTimeout(() => initVapid(), 12000);
+
+/** Send a Web Push notification to ALL subscribed devices of a user */
+async function sendPushToUser(
+  email: string,
+  payload: { title: string; body: string; url?: string; tag?: string; icon?: string },
+): Promise<void> {
+  if (!vapidReady || !email) return;
+  try {
+    const subs: any[] = await kv.getByPrefix(`ovora:push:sub:${email}:`);
+    if (!subs.length) return;
+
+    const payloadStr = JSON.stringify({
+      title: payload.title,
+      body: payload.body,
+      icon: payload.icon || '/icon-192.png',
+      badge: '/icon-192.png',
+      tag: payload.tag || 'notification',
+      url: payload.url || '/notifications',
+    });
+
+    for (const sub of subs) {
+      if (!sub?.endpoint) continue;
+      try {
+        await webpush.sendNotification(sub, payloadStr);
+        console.log(`[Push] Sent "${payload.title}" to ${email}`);
+      } catch (err: any) {
+        if (err?.statusCode === 410 || err?.statusCode === 404) {
+          // Подписка истекла — удаляем
+          const subId = btoa(sub.endpoint).replace(/[^a-zA-Z0-9]/g, '').substring(0, 40);
+          await kv.del(`ovora:push:sub:${email}:${subId}`).catch(() => {});
+          console.log(`[Push] Removed expired subscription for ${email}`);
+        } else {
+          console.warn(`[Push] Error sending to ${email}:`, err?.message || err);
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[Push] sendPushToUser error:', err);
+  }
+}
+
+// ── Push Routes ───────────────────────────────────────────────────────────────
+
+/** Отдать публичный VAPID-ключ фронтенду */
+app.get("/make-server-4e36197a/push/vapid-key", (c) => {
+  if (!vapidReady || !vapidPublicKey) {
+    return c.json({ error: 'VAPID not ready yet, try again' }, 503);
+  }
+  return c.json({ publicKey: vapidPublicKey });
+});
+
+/** Сохранить push-подписку устройства для пользователя */
+app.post("/make-server-4e36197a/push/subscribe", async (c) => {
+  try {
+    const { email, subscription } = await c.req.json();
+    if (!email || !subscription?.endpoint) {
+      return c.json({ error: 'email and subscription.endpoint required' }, 400);
+    }
+    const subId = btoa(subscription.endpoint).replace(/[^a-zA-Z0-9]/g, '').substring(0, 40);
+    await kv.set(`ovora:push:sub:${email}:${subId}`, { ...subscription, email, savedAt: new Date().toISOString() });
+    console.log(`[Push] Subscription saved for ${email}, subId=${subId}`);
+    return c.json({ success: true });
+  } catch (err) {
+    console.log('Error POST /push/subscribe:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+/** Удалить push-подписку (при выходе или ручном отключении) */
+app.post("/make-server-4e36197a/push/unsubscribe", async (c) => {
+  try {
+    const { email, endpoint } = await c.req.json();
+    if (!email) return c.json({ error: 'email required' }, 400);
+    if (endpoint) {
+      const subId = btoa(endpoint).replace(/[^a-zA-Z0-9]/g, '').substring(0, 40);
+      await kv.del(`ovora:push:sub:${email}:${subId}`);
+    } else {
+      // Удалить все подписки пользователя
+      const subs: any[] = await kv.getByPrefix(`ovora:push:sub:${email}:`);
+      for (const sub of subs) {
+        if (!sub?.endpoint) continue;
+        const subId = btoa(sub.endpoint).replace(/[^a-zA-Z0-9]/g, '').substring(0, 40);
+        await kv.del(`ovora:push:sub:${email}:${subId}`);
+      }
+    }
+    console.log(`[Push] Unsubscribed ${email}`);
+    return c.json({ success: true });
+  } catch (err) {
+    console.log('Error POST /push/unsubscribe:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── Health ────────────────────────────────────────────────────────────────────
+app.get("/make-server-4e36197a/health", (c) => c.json({ status: "ok" }));
+
+// ── Admin Auth — проверка кода из env ─────────────────────────────────────────
+app.post("/make-server-4e36197a/admin/auth", async (c) => {
+  try {
+    const { code } = await c.req.json();
+    const envCode = Deno.env.get('ADMIN_ACCESS_CODE') || '';
+
+    if (!envCode) {
+      console.log('[AdminAuth] ADMIN_ACCESS_CODE not set in env');
+      return c.json({ success: false, error: 'Код доступа не настроен на серве��е' }, 500);
+    }
+
+    if (!code || typeof code !== 'string') {
+      return c.json({ success: false, error: 'Код обязателен' }, 400);
+    }
+
+    if (code.trim() === envCode.trim()) {
+      console.log('[AdminAuth] Admin access granted');
+      return c.json({ success: true });
+    }
+
+    console.log('[AdminAuth] Wrong admin code attempt');
+    return c.json({ success: false, error: 'Неверный код доступа' });
+  } catch (err) {
+    console.log('Error POST /admin/auth:', err);
+    return c.json({ success: false, error: `${err}` }, 500);
+  }
+});
+
+// ── Config: Yandex API Key ────────────────────────────────────────────────────
+app.get("/make-server-4e36197a/config/yandex-key", (c) => {
+  try {
+    const apiKey = Deno.env.get('YANDEX_GEOCODER_API_KEY') || '';
+    if (!apiKey) {
+      console.warn('[Config] YANDEX_GEOCODER_API_KEY not found in environment');
+    }
+    return c.json({ apiKey });
+  } catch (err) {
+    console.log("Error /config/yandex-key:", err);
+    return c.json({ error: `${err}`, apiKey: '' }, 500);
+  }
+});
+
+// ── Config: OCR API Key Status ────────────────────────────────────────────────
+app.get("/make-server-4e36197a/config/ocr-status", (c) => {
+  try {
+    const apiKey = Deno.env.get('OCR_SPACE_API_KEY');
+    
+    if (!apiKey) {
+      return c.json({ 
+        status: 'missing',
+        message: 'OCR_SPACE_API_KEY не настроен',
+        configured: false,
+      });
+    }
+
+    // Показываем частичный ключ для верификации
+    const maskedKey = apiKey.substring(0, 4) + '...' + apiKey.substring(apiKey.length - 6);
+    
+    return c.json({ 
+      status: 'configured',
+      message: 'OCR API ключ настроен',
+      configured: true,
+      keyPreview: maskedKey,
+      keyLength: apiKey.length,
+    });
+  } catch (err) {
+    console.log("Error /config/ocr-status:", err);
+    return c.json({ error: `${err}`, configured: false }, 500);
+  }
+});
+
+// ── Direct OCR API Test (admin only) ─────────────────────────────────────────
+app.get("/make-server-4e36197a/config/test-ocr-direct", requireAdmin, async (c) => {
+  const apiKey = Deno.env.get('OCR_SPACE_API_KEY');
+  
+  console.log('[TEST] Starting direct OCR.space API test...');
+  
+  if (!apiKey) {
+    return c.json({ 
+      success: false,
+      error: 'OCR_SPACE_API_KEY not found',
+      message: 'API ключ не настроен в Environment Variables'
+    });
+  }
+
+  console.log('[TEST] API Key found:', apiKey.substring(0, 4) + '...' + apiKey.substring(apiKey.length - 4));
+
+  try {
+    // Простейшее тестовое изображение (1x1 белый пиксель PNG в base64)
+    const testImageBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';
+    
+    const formData = new FormData();
+    formData.append('base64Image', `data:image/png;base64,${testImageBase64}`);
+    formData.append('language', 'eng');
+    formData.append('apikey', apiKey);
+
+    console.log('[TEST] Sending test request to OCR.space...');
+
+    const response = await fetch('https://api.ocr.space/parse/image', {
+      method: 'POST',
+      body: formData,
+    });
+
+    console.log('[TEST] Response status:', response.status);
+
+    const data = await response.json();
+    console.log('[TEST] Full response:', JSON.stringify(data, null, 2));
+
+    if (!response.ok) {
+      return c.json({
+        success: false,
+        httpStatus: response.status,
+        error: 'OCR.space API returned error',
+        details: data,
+        message: `HTTP ${response.status}: Возможно, API ключ недействителен`
+      });
+    }
+
+    if (data.IsErroredOnProcessing) {
+      return c.json({
+        success: false,
+        error: 'OCR processing error',
+        errorMessage: data.ErrorMessage,
+        errorDetails: data.ErrorDetails,
+        message: 'OCR.space вернул ошибку обработки'
+      });
+    }
+
+    return c.json({
+      success: true,
+      message: 'OCR.space API работает. Ключ валидный.',
+      apiResponse: data,
+      keyPreview: apiKey.substring(0, 4) + '...' + apiKey.substring(apiKey.length - 4)
+    });
+
+  } catch (error) {
+    console.error('[TEST] Exception:', error);
+    return c.json({
+      success: false,
+      error: 'Exception during test',
+      message: error?.message || String(error),
+      stack: error?.stack
+    });
+  }
+});
+
+// ── OCR: Pre-scan document (client-side preview before upload) ────────────────
+app.post("/make-server-4e36197a/ocr/scan-document", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { imageBase64, documentType } = body;
+
+    if (!imageBase64) {
+      return c.json({ error: 'imageBase64 is required' }, 400);
+    }
+
+    console.log('[OCR Prescan] Starting pre-scan for document type:', documentType);
+
+    const result = await extractDocumentData(imageBase64, documentType || 'passport');
+
+    console.log('[OCR Prescan] Result:', JSON.stringify(result));
+
+    // Convert birthDate from DD.MM.YYYY → YYYY-MM-DD for frontend date input
+    let birthDateISO: string | null = null;
+    if (result.birthDate) {
+      const parts = result.birthDate.split(/[.\/-]/);
+      if (parts.length === 3) {
+        const [dd, mm, yyyy] = parts;
+        if (yyyy && yyyy.length === 4) {
+          birthDateISO = `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
+        } else {
+          birthDateISO = result.birthDate;
+        }
+      }
+    }
+
+    // Всегда success:true если OCR отработал — даже если парсер не нашёл данные,
+    // пользователь увидит поля для ручного ввода, а не ошибку
+    return c.json({
+      success: true,
+      fullName: result.fullName || null,
+      birthDate: birthDateISO,
+      detectedType: result.detectedType || null,
+      rawBirthDate: result.birthDate || null,
+      documentNumber: result.documentNumber || null,
+    });
+  } catch (err) {
+    console.log('[OCR Prescan] Error:', err);
+    return c.json({ error: `OCR pre-scan failed: ${err}`, success: false }, 500);
+  }
+});
+
+// ═══════════���════════════════════���═════════════════════════════════════════════
+//  AUTH ROUTES
+//  KV: ovora:user:email:{email} / ovora:user:phone:{phone} → email
+// ���═════════════════════════════════════════════════════════════════════════════
+
+app.post("/make-server-4e36197a/auth/register", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { email, firstName, lastName, phone, role, vehicle } = body;
+    if (!email || !role) return c.json({ error: "email and role are required" }, 400);
+
+    const key = `ovora:user:email:${email.toLowerCase().trim()}`;
+    const existing: any = await kv.get(key) || {};
+    const now = new Date().toISOString();
+    const isNewUser = !existing.createdAt; // первая регистрация
+
+    const user = {
+      ...existing,
+      email: email.toLowerCase().trim(),
+      firstName: firstName?.trim() || existing.firstName || "",
+      lastName: lastName?.trim() || existing.lastName || "",
+      phone: phone?.trim() || existing.phone || "",
+      role,
+      vehicle: vehicle || existing.vehicle || null,
+      createdAt: existing.createdAt || now,
+      updatedAt: now,
+    };
+    await kv.set(key, user);
+    if (user.phone) {
+      const clean = user.phone.replace(/\D/g, "");
+      if (clean.length >= 7) await kv.set(`ovora:user:phone:${clean}`, user.email);
+    }
+
+    // ── Приветственное письмо — только для НОВЫХ пользователей ───────────────
+    if (isNewUser && user.email && user.firstName) {
+      (async () => {
+        const throttled = await throttleEmail(user.email, 'welcome', 86_400_000); // 1 раз в сутки
+        if (!throttled) {
+          const tpl = welcomeTemplate({ firstName: user.firstName, role: user.role });
+          await sendEmail({ to: user.email, subject: tpl.subject, html: tpl.html });
+        }
+      })().catch(e => console.warn('[Email] welcome failed:', e));
+    }
+
+    return c.json({ success: true, user });
+  } catch (err) {
+    console.log("Error /auth/register:", err);
+    return c.json({ error: `Register failed: ${err}` }, 500);
+  }
+});
+
+app.post("/make-server-4e36197a/auth/login-email", async (c) => {
+  try {
+    const { email } = await c.req.json();
+    if (!email) return c.json({ error: "email required" }, 400);
+    const user = await kv.get(`ovora:user:email:${email.toLowerCase().trim()}`);
+    if (!user) return c.json({ found: false });
+    // ── Проверка блокировки ────────────────────────────────────────────────
+    if ((user as any)?.status === "blocked") {
+      console.log(`[auth/login-email] Blocked user: ${email}`);
+      return c.json({ found: false, blocked: true, error: "Ваш аккаунт заблокирован. Обратитесь в поддержку." }, 403);
+    }
+    return c.json({ found: true, user });
+  } catch (err) {
+    console.log("Error /auth/login-email:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.post("/make-server-4e36197a/auth/login-phone", async (c) => {
+  try {
+    const { phone } = await c.req.json();
+    if (!phone) return c.json({ error: "phone required" }, 400);
+    const clean = phone.replace(/\D/g, "");
+    const emailRef: any = await kv.get(`ovora:user:phone:${clean}`);
+    if (!emailRef) return c.json({ found: false });
+    const user = await kv.get(`ovora:user:email:${emailRef}`);
+    if (!user) return c.json({ found: false });
+    // ── Проверка блокировки ────────────────────────────────────────────────
+    if ((user as any)?.status === "blocked") {
+      console.log(`[auth/login-phone] Blocked user: ${emailRef}`);
+      return c.json({ found: false, blocked: true, error: "Ваш аккаунт заблокирован. Обратитесь в поддержку." }, 403);
+    }
+    return c.json({ found: true, user });
+  } catch (err) {
+    console.log("Error /auth/login-phone:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.put("/make-server-4e36197a/auth/user", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { email, ...updates } = body;
+    if (!email) return c.json({ error: "email required" }, 400);
+    const key = `ovora:user:email:${email.toLowerCase().trim()}`;
+    const existing: any = await kv.get(key);
+    if (!existing) return c.json({ error: "User not found" }, 404);
+    const updated = { ...existing, ...updates, email: existing.email, updatedAt: new Date().toISOString() };
+    await kv.set(key, updated);
+    const newPhone = updated.phone?.replace(/\D/g, "");
+    if (newPhone?.length >= 7) await kv.set(`ovora:user:phone:${newPhone}`, existing.email);
+    return c.json({ success: true, user: updated });
+  } catch (err) {
+    console.log("Error PUT /auth/user:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.get("/make-server-4e36197a/auth/user/:email", async (c) => {
+  try {
+    const email = decodeURIComponent(c.req.param("email"));
+    const user: any = await kv.get(`ovora:user:email:${email.toLowerCase().trim()}`);
+    if (!user) return c.json({ found: false });
+    // ✅ FIX N-1: скрываем чувствительные поля в публичном профиле
+    const { phone: _ph, birthDate: _bd, ...safeUser } = user;
+    return c.json({ found: true, user: safeUser });
+  } catch (err) {
+    console.log("Error GET /auth/user:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  TRIPS ROUTES
+//  KV: ovora:trip:{id} → trip object
+// ══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * 🗺️ Очистка адреса - оставляет только город/район/область
+ * Убирает страны и лишние данные перед сохранением в БД
+ */
+function cleanAddress(address: string): string {
+  if (!address) return address;
+  
+  // Список стран для исключения
+  const countries = ['Таджикистан', 'Россия', 'Узбекистан', 'Казахстан', 'Кыргызстан', 'Туркменистан'];
+  
+  // Если адрес - это просто страна, возвращаем как есть
+  if (countries.includes(address.trim())) {
+    return address;
+  }
+  
+  // Разбиваем по запятым
+  const parts = address.split(',').map(p => p.trim());
+  
+  // Фильтруем ст��аны
+  const filtered = parts.filter(part => !countries.includes(part));
+  
+  // Возвращаем первую часть (город/район/область) или оригинальный адрес
+  return filtered[0] || address;
+}
+
+app.post("/make-server-4e36197a/trips", async (c) => {
+  try {
+    const body = await c.req.json();
+    const id = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const now = new Date().toISOString();
+    
+    // 🗺️ Очищаем адреса перед сохранением в БД
+    const cleanedFrom = cleanAddress(body.from || '');
+    const cleanedTo = cleanAddress(body.to || '');
+    
+    const trip = { 
+      ...body, 
+      from: cleanedFrom,  // ✅ Сохраняем очищенный адрес
+      to: cleanedTo,      // ✅ Сохраняем очищенный адрес
+      id, 
+      createdAt: now, 
+      updatedAt: now, 
+      status: body.status || 'active' 
+    };
+    
+    // ✅ Log capacity fields for debugging
+    console.log(`[POST /trips] Creating trip ${id}:`, {
+      route: `${trip.from} → ${trip.to}`,
+      originalRoute: `${body.from} → ${body.to}`,
+      cleaned: cleanedFrom !== body.from || cleanedTo !== body.to,
+      coordinates: {
+        from: { lat: trip.fromLat, lng: trip.fromLng },
+        to: { lat: trip.toLat, lng: trip.toLng }
+      },
+      availableSeats: trip.availableSeats,
+      childSeats: trip.childSeats,
+      cargoCapacity: trip.cargoCapacity,
+      pricePerSeat: trip.pricePerSeat,
+      pricePerKg: trip.pricePerKg,
+    });
+    
+    await kv.set(`ovora:trip:${id}`, trip);
+
+    // ✅ FIX S-2: вторичный индекс — быстрый поиск по водителю без полного KV-скана
+    if (trip.driverEmail) {
+      await kv.set(`ovora:drivertrips:${trip.driverEmail}:${id}`, { tripId: id, driverEmail: trip.driverEmail }).catch(() => {});
+    }
+
+    return c.json({ success: true, trip });
+  } catch (err) {
+    console.log("Error POST /trips:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.get("/make-server-4e36197a/trips", async (c) => {
+  try {
+    const trips: any[] = await kv.getByPrefix("ovora:trip:");
+    const sorted = trips
+      .filter(t => t && !t.deletedAt && t.status !== 'cancelled' && t.status !== 'completed' && t.status !== 'deleted')
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .map(trip => {
+        // 🗺️ Очищаем адреса при загрузке (для старых данных из БД)
+        return {
+          ...trip,
+          from: cleanAddress(trip.from || ''),
+          to: cleanAddress(trip.to || ''),
+        };
+      });
+    
+    // ✅ Log first trip for debugging
+    if (sorted.length > 0) {
+      console.log(`[GET /trips] Returning ${sorted.length} trips. First trip:`, {
+        id: sorted[0].id,
+        route: `${sorted[0].from} → ${sorted[0].to}`,
+        availableSeats: sorted[0].availableSeats,
+        childSeats: sorted[0].childSeats,
+        cargoCapacity: sorted[0].cargoCapacity,
+        // Old fields (for compatibility check)
+        seats: sorted[0].seats,
+        cargo: sorted[0].cargo,
+      });
+    }
+    
+    return c.json({ trips: sorted });
+  } catch (err) {
+    console.log("Error GET /trips:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── Batch: get trips by IDs (includes completed/cancelled) ──
+app.post("/make-server-4e36197a/trips/batch", async (c) => {
+  try {
+    const { ids } = await c.req.json();
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return c.json({ trips: [] });
+    }
+    const results: any[] = [];
+    for (const id of ids) {
+      const trip: any = await kv.get(`ovora:trip:${id}`);
+      if (trip && !trip.deletedAt && trip.status !== 'deleted') {
+        results.push({
+          ...trip,
+          from: cleanAddress(trip.from || ''),
+          to: cleanAddress(trip.to || ''),
+        });
+      }
+    }
+    console.log(`[POST /trips/batch] Requested ${ids.length} IDs, returning ${results.length} trips`);
+    return c.json({ trips: results });
+  } catch (err) {
+    console.log("Error POST /trips/batch:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── All trips for a specific user (driver) — includes completed/cancelled ──
+app.get("/make-server-4e36197a/trips/my/:email", async (c) => {
+  try {
+    const email = decodeURIComponent(c.req.param("email"));
+
+    // ✅ FIX S-2: читаем вторичный индекс вместо полного KV-скана
+    const indexEntries: any[] = await kv.getByPrefix(`ovora:drivertrips:${email}:`);
+    let userTrips: any[] = [];
+
+    if (indexEntries.length > 0) {
+      // Есть индекс — читаем только нужные поездки
+      const tripIds = indexEntries.map((e: any) => e.tripId).filter(Boolean);
+      for (const tripId of tripIds) {
+        const trip: any = await kv.get(`ovora:trip:${tripId}`);
+        if (trip && !trip.deletedAt && trip.status !== 'deleted') {
+          userTrips.push({ ...trip, from: cleanAddress(trip.from || ''), to: cleanAddress(trip.to || '') });
+        }
+      }
+    } else {
+      // Индекс ещё не построен (legacy) — fallback на full-scan
+      console.log(`[GET /trips/my] No index for ${email}, falling back to full scan`);
+      const allTrips: any[] = await kv.getByPrefix("ovora:trip:");
+      userTrips = allTrips
+        .filter(t => t && !t.deletedAt && t.status !== 'deleted' && t.driverEmail === email)
+        .map(trip => ({ ...trip, from: cleanAddress(trip.from || ''), to: cleanAddress(trip.to || '') }));
+      // Восстанавливаем и��декс для найденных поездок
+      for (const t of userTrips) {
+        if (t.id) {
+          await kv.set(`ovora:drivertrips:${email}:${t.id}`, { tripId: t.id, driverEmail: email }).catch(() => {});
+        }
+      }
+      console.log(`[GET /trips/my] Rebuilt index: ${userTrips.length} trips for ${email}`);
+    }
+
+    userTrips.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    console.log(`[GET /trips/my] Returning ${userTrips.length} trips for ${email}`);
+    return c.json({ trips: userTrips });
+  } catch (err) {
+    console.log("Error GET /trips/my/:email:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.get("/make-server-4e36197a/trips/:id", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const trip: any = await kv.get(`ovora:trip:${id}`);
+    
+    if (!trip) {
+      return c.json({ found: false });
+    }
+    
+    // 🗺️ Очищаем адреса при загрузке
+    const cleanedTrip = {
+      ...trip,
+      from: cleanAddress(trip.from || ''),
+      to: cleanAddress(trip.to || ''),
+    };
+    
+    return c.json({ found: true, trip: cleanedTrip });
+  } catch (err) {
+    console.log("Error GET /trips/:id:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.put("/make-server-4e36197a/trips/:id", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const body = await c.req.json();
+    const existing: any = await kv.get(`ovora:trip:${id}`);
+    if (!existing) return c.json({ error: "Trip not found" }, 404);
+
+    // ✅ FIX C-2: проверка владельца (пропускаем для admin-запросов с X-Admin-Code)
+    const adminCode = (c.req.header('X-Admin-Code') || '').trim();
+    const envCode   = (Deno.env.get('ADMIN_ACCESS_CODE') || '').trim();
+    const isAdmin   = envCode && adminCode === envCode;
+    if (!isAdmin) {
+      const { callerEmail } = body;
+      if (!callerEmail) {
+        return c.json({ error: 'callerEmail required' }, 400);
+      }
+      if (existing.driverEmail && callerEmail !== existing.driverEmail) {
+        console.warn(`[PUT /trips/${id}] Forbidden: caller=${callerEmail}, owner=${existing.driverEmail}`);
+        return c.json({ error: 'Forbidden: you are not the owner of this trip' }, 403);
+      }
+    }
+
+    // 🗺️ Очищаем адреса если они обновляются
+    // ✅ Удаляем callerEmail из данных — служебное поле, не должно храниться в KV
+    const { callerEmail: _ignored, ...cleanedBody } = body as any;
+    if (body.from) {
+      cleanedBody.from = cleanAddress(body.from);
+    }
+    if (body.to) {
+      cleanedBody.to = cleanAddress(body.to);
+    }
+    
+    const updated = { ...existing, ...cleanedBody, id, updatedAt: new Date().toISOString() };
+    
+    console.log(`[PUT /trips/${id}] Updating trip:`, {
+      from: { original: body.from, cleaned: cleanedBody.from },
+      to: { original: body.to, cleaned: cleanedBody.to },
+    });
+    
+    await kv.set(`ovora:trip:${id}`, updated);
+
+    // ── Email обоим участникам при завершении поездки ─────────────────────────
+    if (updated.status === 'completed' && existing.status !== 'completed') {
+      ;(async () => {
+        try {
+          const tripRoute = `${updated.from} → ${updated.to}`;
+          const tripDate = updated.date;
+          const tripOffers: any[] = await kv.getByPrefix(`ovora:offer:${id}:`);
+          const acceptedOffers = tripOffers.filter(o => o && o.status === 'accepted' && o.senderEmail);
+          for (const offer of acceptedOffers) {
+            const [senderUser, driverUser]: [any, any] = await Promise.all([
+              kv.get(`ovora:user:email:${offer.senderEmail}`).catch(() => null),
+              updated.driverEmail ? kv.get(`ovora:user:email:${updated.driverEmail}`).catch(() => null) : null,
+            ]);
+            const senderFirstName = senderUser?.firstName || 'Клиент';
+            const driverFirstName = driverUser?.firstName || 'Водитель';
+            const driverFullName  = driverUser ? `${driverUser.firstName} ${driverUser.lastName}`.trim() : 'Водитель';
+            const senderFullName  = senderUser ? `${senderUser.firstName} ${senderUser.lastName}`.trim() : 'Клиент';
+            // Email отправителю
+            if (offer.senderEmail) {
+              const throttled = await throttleEmail(offer.senderEmail, `trip-completed-${id}`, 3_600_000);
+              if (!throttled) {
+                const tpl = tripCompletedTemplate({ recipientName: senderFirstName, recipientRole: 'sender', partnerName: driverFullName, tripRoute, tripDate });
+                sendEmail({ to: offer.senderEmail, subject: tpl.subject, html: tpl.html }).catch(() => {});
+              }
+            }
+            // Email водителю (однажды)
+            if (updated.driverEmail) {
+              const throttled = await throttleEmail(updated.driverEmail, `trip-completed-${id}`, 3_600_000);
+              if (!throttled) {
+                const tpl = tripCompletedTemplate({ recipientName: driverFirstName, recipientRole: 'driver', partnerName: senderFullName, tripRoute, tripDate });
+                sendEmail({ to: updated.driverEmail, subject: tpl.subject, html: tpl.html }).catch(() => {});
+              }
+            }
+          }
+          console.log(`[Email] trip-completed emails dispatched for trip ${id}`);
+        } catch (e) { console.warn('[Email] trip-completed failed:', e); }
+      })();
+    }
+
+    return c.json({ success: true, trip: updated });
+  } catch (err) {
+    console.log("Error PUT /trips/:id:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.delete("/make-server-4e36197a/trips/:id", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const existing: any = await kv.get(`ovora:trip:${id}`);
+    if (!existing) return c.json({ error: "Trip not found" }, 404);
+
+    // ✅ FIX C-2: проверка владельца (пропускаем для admin-запросов с X-Admin-Code)
+    const adminCode = (c.req.header('X-Admin-Code') || '').trim();
+    const envCode   = (Deno.env.get('ADMIN_ACCESS_CODE') || '').trim();
+    const isAdmin   = envCode && adminCode === envCode;
+    if (!isAdmin) {
+      let callerEmail = '';
+      try { callerEmail = (await c.req.json()).callerEmail || ''; } catch { /* тело может отсутствовать */ }
+      if (!callerEmail) {
+        return c.json({ error: 'callerEmail required' }, 400);
+      }
+      if (existing.driverEmail && callerEmail !== existing.driverEmail) {
+        console.warn(`[DELETE /trips/${id}] Forbidden: caller=${callerEmail}, owner=${existing.driverEmail}`);
+        return c.json({ error: 'Forbidden: you are not the owner of this trip' }, 403);
+      }
+    }
+
+    await kv.set(`ovora:trip:${id}`, { ...existing, deletedAt: new Date().toISOString(), status: 'cancelled' });
+
+    // ✅ FIX #1: Удаляем вторичный индекс водителя при soft-delete
+    if (existing.driverEmail) {
+      await kv.del(`ovora:drivertrips:${existing.driverEmail}:${id}`).catch(() => {});
+      console.log(`[DELETE /trips] Removed driver index for ${existing.driverEmail}:${id}`);
+    }
+
+    return c.json({ success: true });
+  } catch (err) {
+    console.log("Error DELETE /trips/:id:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  CARGOS ROUTES (Created by Senders)
+//  KV: ovora:cargo:{id} → cargo object
+// ══════════════════════════════════════════════════════════════════════════════
+
+app.post("/make-server-4e36197a/cargos", async (c) => {
+  try {
+    const body = await c.req.json();
+    const id = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const now = new Date().toISOString();
+    
+    // Очищаем адреса
+    const cleanedFrom = cleanAddress(body.from || '');
+    const cleanedTo = cleanAddress(body.to || '');
+    
+    const cargo = { 
+      ...body, 
+      from: cleanedFrom,
+      to: cleanedTo,
+      id, 
+      createdAt: now, 
+      updatedAt: now, 
+      status: body.status || 'active' 
+    };
+    
+    console.log(`[POST /cargos] Creating cargo ${id}:`, `${cargo.from} → ${cargo.to}`);
+    await kv.set(`ovora:cargo:${id}`, cargo);
+
+    if (cargo.senderEmail) {
+      await kv.set(`ovora:sendercargos:${cargo.senderEmail}:${id}`, { cargoId: id, senderEmail: cargo.senderEmail }).catch(() => {});
+    }
+
+    return c.json({ success: true, cargo });
+  } catch (err) {
+    console.log("Error POST /cargos:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.get("/make-server-4e36197a/cargos", async (c) => {
+  try {
+    const cargos: any[] = await kv.getByPrefix("ovora:cargo:");
+    const sorted = cargos
+      .filter(t => t && !t.deletedAt && t.status !== 'cancelled' && t.status !== 'completed' && t.status !== 'deleted')
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return c.json({ cargos: sorted });
+  } catch (err) {
+    console.log("Error GET /cargos:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.get("/make-server-4e36197a/cargos/my/:email", async (c) => {
+  try {
+    const email = decodeURIComponent(c.req.param("email"));
+    const indexEntries: any[] = await kv.getByPrefix(`ovora:sendercargos:${email}:`);
+    let userCargos: any[] = [];
+
+    if (indexEntries.length > 0) {
+      const cargoIds = indexEntries.map((e: any) => e.cargoId).filter(Boolean);
+      for (const cid of cargoIds) {
+        const cargo: any = await kv.get(`ovora:cargo:${cid}`);
+        if (cargo && !cargo.deletedAt && cargo.status !== 'deleted') {
+          userCargos.push(cargo);
+        }
+      }
+    } else {
+      const allCargos: any[] = await kv.getByPrefix("ovora:cargo:");
+      userCargos = allCargos.filter(t => t && !t.deletedAt && t.status !== 'deleted' && t.senderEmail === email);
+      for (const t of userCargos) {
+        if (t.id) await kv.set(`ovora:sendercargos:${email}:${t.id}`, { cargoId: t.id, senderEmail: email }).catch(() => {});
+      }
+    }
+
+    userCargos.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return c.json({ cargos: userCargos });
+  } catch (err) {
+    console.log("Error GET /cargos/my/:email:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.get("/make-server-4e36197a/cargos/:id", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const cargo: any = await kv.get(`ovora:cargo:${id}`);
+    if (!cargo) return c.json({ found: false });
+    return c.json({ found: true, cargo });
+  } catch (err) {
+    console.log("Error GET /cargos/:id:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.put("/make-server-4e36197a/cargos/:id", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const body = await c.req.json();
+    const existing: any = await kv.get(`ovora:cargo:${id}`);
+    if (!existing) return c.json({ error: "Cargo not found" }, 404);
+
+    const { callerEmail: _ignored, ...cleanedBody } = body as any;
+    if (body.from) cleanedBody.from = cleanAddress(body.from);
+    if (body.to) cleanedBody.to = cleanAddress(body.to);
+    
+    const updated = { ...existing, ...cleanedBody, id, updatedAt: new Date().toISOString() };
+    await kv.set(`ovora:cargo:${id}`, updated);
+    return c.json({ success: true, cargo: updated });
+  } catch (err) {
+    console.log("Error PUT /cargos/:id:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.delete("/make-server-4e36197a/cargos/:id", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const existing: any = await kv.get(`ovora:cargo:${id}`);
+    if (!existing) return c.json({ error: "Cargo not found" }, 404);
+
+    await kv.set(`ovora:cargo:${id}`, { ...existing, deletedAt: new Date().toISOString(), status: 'cancelled' });
+    if (existing.senderEmail) {
+      await kv.del(`ovora:sendercargos:${existing.senderEmail}:${id}`).catch(() => {});
+    }
+    return c.json({ success: true });
+  } catch (err) {
+    console.log("Error DELETE /cargos/:id:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  OFFERS ROUTES
+//  KV: ovora:offer:{tripId}:{offerId} → offer object
+// ══════════════════════════════════════════════════════════════════════════════
+
+app.post("/make-server-4e36197a/offers", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { tripId, senderEmail, senderName } = body;
+
+    // ✅ FIX #7: Валидация обязательных полей
+    if (!tripId) return c.json({ error: "tripId required" }, 400);
+    if (!senderEmail) return c.json({ error: "senderEmail required" }, 400);
+    if (!senderName) return c.json({ error: "senderName required" }, 400);
+
+    const offerId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const now = new Date().toISOString();
+    const offer = { ...body, offerId, createdAt: now, updatedAt: now, status: 'pending' };
+    await kv.set(`ovora:offer:${tripId}:${offerId}`, offer);
+
+    // Вторичный индекс: быстрый поиск офертов по водителю без full-scan
+    if (offer.driverEmail) {
+      await kv.set(`ovora:driveroffers:${offer.driverEmail}:${offerId}`, { tripId, offerId }).catch(() => {});
+    }
+    // ✅ Вторичный индекс для отправителя — быстрый поиск без full-scan
+    if (offer.senderEmail) {
+      await kv.set(`ovora:senderoffers:${offer.senderEmail}:${offerId}`, { tripId, offerId }).catch(() => {});
+    }
+
+    // ✅ Создать уведомление водителю о новой оферте
+    try {
+      if (offer.driverEmail && offer.senderName) {
+        const trip: any = await kv.get(`ovora:trip:${tripId}`);
+        const tripRoute = trip ? `${trip.from} → ${trip.to}` : 'вашу поездку';
+        const notificationId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        await kv.set(`ovora:notification:${offer.driverEmail}:${notificationId}`, {
+          id: notificationId,
+          userEmail: offer.driverEmail,
+          type: 'offer',
+          iconName: 'Package',
+          iconBg: 'bg-blue-500/10 text-blue-500',
+          title: 'Новая оферта на перевозку',
+          description: `${offer.senderName} отправил оферту на маршрут ${tripRoute}`,
+          isUnread: true,
+          createdAt: now,
+        });
+        console.log(`[offers] Notification created for driver ${offer.driverEmail}`);
+        sendPushToUser(offer.driverEmail, {
+          title: 'Новая оферта на перевозку',
+          body: `${offer.senderName} отправил оферту на маршрут ${tripRoute}`,
+          url: '/trips',
+          tag: 'offer-new',
+        }).catch(() => {});
+
+        // ── Email водителю о новой оферте ────────────────────────────────────
+        const driverUser: any = await kv.get(`ovora:user:email:${offer.driverEmail}`).catch(() => null);
+        const driverFirstName = driverUser?.firstName || 'Водитель';
+        ;(async () => {
+          const throttled = await throttleEmail(offer.driverEmail, `new-offer-${tripId}`, 1_800_000); // 30 мин
+          if (!throttled) {
+            const tpl = newOfferTemplate({
+              driverName: driverFirstName,
+              senderName: offer.senderName,
+              tripRoute,
+              tripDate: trip?.date,
+              cargoWeight: offer.cargoWeight || offer.requestedCargo,
+              price: offer.price || offer.totalPrice,
+              currency: offer.currency || 'TJS',
+              notes: offer.notes,
+            });
+            await sendEmail({ to: offer.driverEmail, subject: tpl.subject, html: tpl.html });
+          }
+        })().catch(e => console.warn('[Email] new-offer failed:', e));
+      }
+    } catch (notifErr) {
+      console.log('[offers] Error creating notification:', notifErr);
+    }
+
+    return c.json({ success: true, offer });
+  } catch (err) {
+    console.log("Error POST /offers:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.get("/make-server-4e36197a/offers/trip/:tripId", async (c) => {
+  try {
+    const tripId = c.req.param("tripId");
+    const offers: any[] = await kv.getByPrefix(`ovora:offer:${tripId}:`);
+    const sorted = offers
+      .filter(o => o)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return c.json({ offers: sorted });
+  } catch (err) {
+    console.log("Error GET /offers/trip/:tripId:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.get("/make-server-4e36197a/offers/user/:email", async (c) => {
+  try {
+    const email = decodeURIComponent(c.req.param("email"));
+
+    // ✅ Используем вторичный индекс — без full-scan всех офертов
+    const indexEntries: any[] = await kv.getByPrefix(`ovora:senderoffers:${email}:`);
+    let userOffers: any[] = [];
+
+    if (indexEntries.length > 0) {
+      const offerKeys = indexEntries
+        .filter((e: any) => e?.tripId && e?.offerId)
+        .map((e: any) => `ovora:offer:${e.tripId}:${e.offerId}`);
+      if (offerKeys.length > 0) {
+        const fetched: any[] = await kv.mget(offerKeys);
+        userOffers = fetched.filter((o: any) => o != null);
+      }
+      console.log(`[GET /offers/user] ${email}: index hit, ${userOffers.length} offers`);
+    } else {
+      // Fallback: full-scan + восстановление индекса
+      console.log(`[GET /offers/user] ${email}: index empty, falling back to full scan`);
+      const allOffers: any[] = await kv.getByPrefix(`ovora:offer:`);
+      userOffers = allOffers.filter(o => o && o.senderEmail === email);
+      // Восстанавливаем индекс
+      const buildIndex = userOffers
+        .filter((o: any) => o.offerId && o.tripId)
+        .map((o: any) =>
+          kv.set(`ovora:senderoffers:${email}:${o.offerId}`, { tripId: o.tripId, offerId: o.offerId }).catch(() => {})
+        );
+      Promise.all(buildIndex).catch(() => {});
+      console.log(`[GET /offers/user] ${email}: rebuilt index for ${userOffers.length} offers`);
+    }
+
+    // ✅ FIX #5: Фильтрация статусов — согласованно с GET /offers/driver
+    const filtered = userOffers.filter((o: any) =>
+      o.status !== 'cancelled' && o.status !== 'declined' && o.status !== 'deleted' && o.status !== 'rejected'
+    );
+    const sorted = filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return c.json({ offers: sorted });
+  } catch (err) {
+    console.log("Error GET /offers/user:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// Получить все оферты на рейсы водителя (по driverEmail)
+// Использует вторичный индекс ovora:driveroffers:{email}: для скорости.
+// Fallback на full-scan если индекс пуст (backward compat + попутно заполняет индекс).
+app.get("/make-server-4e36197a/offers/driver/:email", async (c) => {
+  try {
+    const email = decodeURIComponent(c.req.param("email"));
+
+    // ── Шаг 1: читаем вторичный индекс ──────────────────────────────────────
+    const indexEntries: any[] = await kv.getByPrefix(`ovora:driveroffers:${email}:`);
+    let driverOffers: any[] = [];
+
+    if (indexEntries.length > 0) {
+      // Индекс есть — читаем оферты по конкретным ключам (без full-scan)
+      const offerKeys = indexEntries
+        .filter((e: any) => e?.tripId && e?.offerId)
+        .map((e: any) => `ovora:offer:${e.tripId}:${e.offerId}`);
+      if (offerKeys.length > 0) {
+        const fetched: any[] = await kv.mget(offerKeys);
+        driverOffers = fetched.filter((o: any) => o != null);
+      }
+      console.log(`[GET /offers/driver] ${email}: index hit, ${driverOffers.length} offers fetched by keys`);
+    } else {
+      // Индекс пуст — fallback: полный скан (для старых данных)
+      console.log(`[GET /offers/driver] ${email}: index empty, falling back to full scan`);
+      const [allOffers, allTrips]: [any[], any[]] = await Promise.all([
+        kv.getByPrefix(`ovora:offer:`),
+        kv.getByPrefix(`ovora:trip:`),
+      ]);
+      const driverTripIds = new Set(
+        allTrips
+          .filter((t: any) => t && !t.deletedAt && t.driverEmail === email)
+          .map((t: any) => String(t.id))
+      );
+      driverOffers = allOffers.filter((o: any) =>
+        o && (o.driverEmail === email || driverTripIds.has(String(o.tripId)))
+      );
+      // Заполняем индекс для будущих запросов
+      const buildIndex: Promise<void>[] = driverOffers
+        .filter((o: any) => o.offerId && o.tripId)
+        .map((o: any) =>
+          kv.set(`ovora:driveroffers:${email}:${o.offerId}`, { tripId: o.tripId, offerId: o.offerId }).then(() => {})
+        );
+      Promise.all(buildIndex).catch(() => {});
+    }
+
+    // ── Шаг 2: фильтрация активных ──────────────────────────────────────────
+    // ✅ FIX #4: GET больше не пишет в KV — чистый read-only запрос
+    const activeOffers = driverOffers
+      .filter((o: any) =>
+        o.status !== 'cancelled' && o.status !== 'declined' && o.status !== 'deleted' && o.status !== 'rejected'
+      )
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    console.log(`[GET /offers/driver] ${email}: ${activeOffers.length} active offers`);
+    return c.json({ offers: activeOffers });
+  } catch (err) {
+    console.log("Error GET /offers/driver:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ✅ FIX #4: Авто-отмена осиротевших offers вынесена в POST (не побочный эффект GET)
+app.post("/make-server-4e36197a/offers/cleanup", async (c) => {
+  try {
+    const { driverEmail } = await c.req.json();
+    if (!driverEmail) return c.json({ error: 'driverEmail required' }, 400);
+
+    // Все pending offers водителя
+    const indexEntries: any[] = await kv.getByPrefix(`ovora:driveroffers:${driverEmail}:`);
+    if (indexEntries.length === 0) return c.json({ cancelled: 0 });
+
+    const offerKeys = indexEntries
+      .filter((e: any) => e?.tripId && e?.offerId)
+      .map((e: any) => `ovora:offer:${e.tripId}:${e.offerId}`);
+    const offers: any[] = offerKeys.length > 0 ? await kv.mget(offerKeys) : [];
+    const pendingOffers = offers.filter(o => o && o.status === 'pending' && o.senderEmail);
+
+    if (pendingOffers.length === 0) return c.json({ cancelled: 0 });
+
+    // Проверяем наличие чатов
+    const allChatMeta: any[] = await kv.getByPrefix(`ovora:chatmeta:`);
+    const activeChatPairs = new Set<string>();
+    for (const meta of allChatMeta) {
+      if (!meta?.participants) continue;
+      const parts: string[] = meta.participants;
+      if (parts.length >= 2) activeChatPairs.add([...parts].sort().join('|'));
+    }
+
+    let cancelledCount = 0;
+    for (const offer of pendingOffers) {
+      const pairKey = [driverEmail, offer.senderEmail].sort().join('|');
+      if (!activeChatPairs.has(pairKey)) {
+        const offerKey = `ovora:offer:${offer.tripId}:${offer.offerId}`;
+        await kv.set(offerKey, {
+          ...offer,
+          status: 'cancelled',
+          cancelledAt: new Date().toISOString(),
+          cancelReason: 'chat_not_found',
+        });
+        // ✅ FIX #6: Чистим индексы для отменённых offers
+        await kv.del(`ovora:driveroffers:${driverEmail}:${offer.offerId}`).catch(() => {});
+        if (offer.senderEmail) {
+          await kv.del(`ovora:senderoffers:${offer.senderEmail}:${offer.offerId}`).catch(() => {});
+        }
+        cancelledCount++;
+        console.log(`[offers/cleanup] Auto-cancelled orphaned offer ${offer.offerId}`);
+      }
+    }
+
+    console.log(`[POST /offers/cleanup] ${driverEmail}: cancelled ${cancelledCount} orphaned offers`);
+    return c.json({ cancelled: cancelledCount });
+  } catch (err) {
+    console.log("Error POST /offers/cleanup:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.put("/make-server-4e36197a/offers/:tripId/:offerId", async (c) => {
+  try {
+    const tripId = c.req.param("tripId");
+    const offerId = c.req.param("offerId");
+    const body = await c.req.json();
+    const key = `ovora:offer:${tripId}:${offerId}`;
+    const existing: any = await kv.get(key);
+    if (!existing) return c.json({ error: "Offer not found" }, 404);
+
+    // Проверка участника: только senderEmail или driverEmail вправе менять оферту
+    const callerEmail: string | undefined = body.callerEmail;
+    if (callerEmail) {
+      const isSender = existing.senderEmail && existing.senderEmail === callerEmail;
+      const isDriver = existing.driverEmail && existing.driverEmail === callerEmail;
+      if (!isSender && !isDriver) {
+        console.warn(`[PUT /offers] Unauthorized update attempt by ${callerEmail} for offer ${offerId}`);
+        return c.json({ error: "Forbidden: you are not a participant of this offer" }, 403);
+      }
+    }
+
+    const { callerEmail: _drop, ...safeBody } = body;
+    const updated = { ...existing, ...safeBody, tripId, offerId, updatedAt: new Date().toISOString() };
+    await kv.set(key, updated);
+
+    // ✅ FIX #6: При cancelled/declined/deleted — удаляем индексы, иначе обновляем
+    const isFinalStatus = ['cancelled', 'declined', 'deleted', 'rejected'].includes(updated.status);
+    if (isFinalStatus) {
+      if (existing.driverEmail) {
+        await kv.del(`ovora:driveroffers:${existing.driverEmail}:${offerId}`).catch(() => {});
+      }
+      if (existing.senderEmail) {
+        await kv.del(`ovora:senderoffers:${existing.senderEmail}:${offerId}`).catch(() => {});
+      }
+      console.log(`[PUT /offers] Cleaned up indexes for final status: ${updated.status}`);
+    } else {
+      if (existing.driverEmail) {
+        await kv.set(`ovora:driveroffers:${existing.driverEmail}:${offerId}`, { tripId, offerId }).catch(() => {});
+      }
+      if (existing.senderEmail) {
+        await kv.set(`ovora:senderoffers:${existing.senderEmail}:${offerId}`, { tripId, offerId }).catch(() => {});
+      }
+    }
+
+    // ✅ FIX #2: Уведомление отправителю при accept/reject
+    try {
+      const newStatus = updated.status;
+      if ((newStatus === 'accepted' || newStatus === 'rejected') && existing.senderEmail) {
+        const trip: any = await kv.get(`ovora:trip:${tripId}`);
+        const tripRoute = trip ? `${trip.from} → ${trip.to}` : 'поездку';
+        const driverName = existing.driverName || trip?.driverName || 'Водитель';
+        const isAccepted = newStatus === 'accepted';
+        const notifId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        await kv.set(`ovora:notification:${existing.senderEmail}:${notifId}`, {
+          id: notifId,
+          userEmail: existing.senderEmail,
+          type: isAccepted ? 'offer_accepted' : 'offer_rejected',
+          iconName: isAccepted ? 'CheckCircle2' : 'XCircle',
+          iconBg: isAccepted ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500',
+          title: isAccepted ? 'Оферта принята!' : 'Оферта отклонена',
+          description: isAccepted
+            ? `${driverName} принял вашу оферту на маршрут ${tripRoute}`
+            : `${driverName} отклонил вашу оферту на маршрут ${tripRoute}`,
+          isUnread: true,
+          createdAt: new Date().toISOString(),
+        });
+        sendPushToUser(existing.senderEmail, {
+          title: isAccepted ? 'Оферта принята!' : 'Оферта отклонена',
+          body: isAccepted
+            ? `${driverName} принял вашу оферту на маршрут ${tripRoute}`
+            : `${driverName} отклонил вашу оферту на маршрут ${tripRoute}`,
+          url: '/my-trips',
+          tag: `offer-${newStatus}`,
+        }).catch(() => {});
+        console.log(`[PUT /offers] Notification sent to sender ${existing.senderEmail}: ${newStatus}`);
+
+        // ── Email отправителю при принятии / отклонении ───────────────────────
+        ;(async () => {
+          const throttled = await throttleEmail(existing.senderEmail, `offer-${newStatus}-${offerId}`, 3_600_000);
+          if (!throttled) {
+            const senderUser: any = await kv.get(`ovora:user:email:${existing.senderEmail}`).catch(() => null);
+            const senderFirstName = senderUser?.firstName || 'Клиент';
+            const driverUser: any = existing.driverEmail
+              ? await kv.get(`ovora:user:email:${existing.driverEmail}`).catch(() => null)
+              : null;
+            const driverPhone = driverUser?.phone;
+            const tpl = isAccepted
+              ? offerAcceptedTemplate({
+                  senderName: senderFirstName,
+                  driverName,
+                  driverPhone,
+                  tripRoute,
+                  tripDate: trip?.date,
+                  price: existing.price || existing.totalPrice,
+                  currency: existing.currency || 'TJS',
+                })
+              : offerRejectedTemplate({
+                  senderName: senderFirstName,
+                  driverName,
+                  tripRoute,
+                });
+            await sendEmail({ to: existing.senderEmail, subject: tpl.subject, html: tpl.html });
+          }
+        })().catch(e => console.warn('[Email] offer-status failed:', e));
+      }
+    } catch (notifErr) {
+      console.log('[PUT /offers] Error creating notification for sender:', notifErr);
+    }
+
+    console.log(`[PUT /offers] ${offerId} updated by ${callerEmail || 'unknown'}, status=${updated.status}`);
+    return c.json({ success: true, offer: updated });
+  } catch (err) {
+    console.log("Error PUT /offers:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ══════════════════════��═══════════════════════════════════════════════════════
+//  REVIEWS ROUTES
+//  KV: ovora:review:{reviewId} → review object
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  CARGO-OFFERS ROUTES (Driver → Sender's Cargo)
+//  KV: ovora:cargo-offer:{cargoId}:{offerId}
+//  Indexes: ovora:drivercargooffers:{email}:{offerId}
+//           ovora:sendercargooffers:{email}:{offerId}
+// ══════════════════════════════════════════════════════════════════════════════
+
+app.post("/make-server-4e36197a/cargo-offers", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { cargoId, driverEmail, driverName } = body;
+    if (!cargoId) return c.json({ error: "cargoId required" }, 400);
+    if (!driverEmail) return c.json({ error: "driverEmail required" }, 400);
+    if (!driverName) return c.json({ error: "driverName required" }, 400);
+
+    const cargo: any = await kv.get(`ovora:cargo:${cargoId}`);
+    if (!cargo) return c.json({ error: "Cargo not found" }, 404);
+
+    // Prevent duplicate pending offer from same driver on same cargo
+    const existingIdx: any[] = await kv.getByPrefix(`ovora:drivercargooffers:${driverEmail}:`);
+    for (const idx of existingIdx) {
+      if (idx?.cargoId === cargoId && idx?.offerId) {
+        const existing: any = await kv.get(`ovora:cargo-offer:${cargoId}:${idx.offerId}`);
+        if (existing?.status === 'pending') return c.json({ error: "Вы уже отправили отклик на этот груз" }, 409);
+      }
+    }
+
+    const offerId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const now = new Date().toISOString();
+    const offer = {
+      ...body, offerId, cargoId,
+      senderEmail: cargo.senderEmail || '', senderName: cargo.senderName || '',
+      createdAt: now, updatedAt: now, status: 'pending',
+    };
+    await kv.set(`ovora:cargo-offer:${cargoId}:${offerId}`, offer);
+    await kv.set(`ovora:drivercargooffers:${driverEmail}:${offerId}`, { cargoId, offerId }).catch(() => {});
+    if (cargo.senderEmail) {
+      await kv.set(`ovora:sendercargooffers:${cargo.senderEmail}:${offerId}`, { cargoId, offerId }).catch(() => {});
+      try {
+        const notifId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        await kv.set(`ovora:notification:${cargo.senderEmail}:${notifId}`, {
+          id: notifId, userEmail: cargo.senderEmail, type: 'cargo_offer', iconName: 'Truck',
+          iconBg: 'bg-blue-500/10 text-blue-500', title: 'Новый отклик на груз',
+          description: `${driverName} откликнулся на ваш груз ${cargo.from} → ${cargo.to}`,
+          isUnread: true, createdAt: now,
+        });
+        sendPushToUser(cargo.senderEmail, {
+          title: 'Новый отклик на груз',
+          body: `${driverName} откликнулся на ваш груз ${cargo.from} → ${cargo.to}`,
+          url: '/trips', tag: 'cargo-offer-new',
+        }).catch(() => {});
+      } catch {}
+    }
+    console.log(`[POST /cargo-offers] ${offerId} by ${driverEmail} on ${cargoId}`);
+    return c.json({ success: true, offer });
+  } catch (err) {
+    console.log("Error POST /cargo-offers:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.get("/make-server-4e36197a/cargo-offers/cargo/:cargoId", async (c) => {
+  try {
+    const cargoId = c.req.param("cargoId");
+    const offers: any[] = await kv.getByPrefix(`ovora:cargo-offer:${cargoId}:`);
+    return c.json({ offers: offers.filter(Boolean).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) });
+  } catch (err) {
+    console.log("Error GET /cargo-offers/cargo/:cargoId:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.get("/make-server-4e36197a/cargo-offers/driver/:email", async (c) => {
+  try {
+    const email = decodeURIComponent(c.req.param("email"));
+    const idx: any[] = await kv.getByPrefix(`ovora:drivercargooffers:${email}:`);
+    let offers: any[] = [];
+    if (idx.length > 0) {
+      const keys = idx.filter((e: any) => e?.cargoId && e?.offerId).map((e: any) => `ovora:cargo-offer:${e.cargoId}:${e.offerId}`);
+      if (keys.length) { const fetched: any[] = await kv.mget(keys); offers = fetched.filter(Boolean); }
+    } else {
+      const all: any[] = await kv.getByPrefix("ovora:cargo-offer:");
+      offers = all.filter(o => o && o.driverEmail === email);
+    }
+    return c.json({ offers: offers.filter(o => !['cancelled','declined','deleted'].includes(o.status)).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) });
+  } catch (err) {
+    console.log("Error GET /cargo-offers/driver/:email:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.get("/make-server-4e36197a/cargo-offers/sender/:email", async (c) => {
+  try {
+    const email = decodeURIComponent(c.req.param("email"));
+    const idx: any[] = await kv.getByPrefix(`ovora:sendercargooffers:${email}:`);
+    let offers: any[] = [];
+    if (idx.length > 0) {
+      const keys = idx.filter((e: any) => e?.cargoId && e?.offerId).map((e: any) => `ovora:cargo-offer:${e.cargoId}:${e.offerId}`);
+      if (keys.length) { const fetched: any[] = await kv.mget(keys); offers = fetched.filter(Boolean); }
+    } else {
+      const all: any[] = await kv.getByPrefix("ovora:cargo-offer:");
+      offers = all.filter(o => o && o.senderEmail === email);
+    }
+    return c.json({ offers: offers.filter(o => !['cancelled','deleted'].includes(o.status)).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) });
+  } catch (err) {
+    console.log("Error GET /cargo-offers/sender/:email:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.put("/make-server-4e36197a/cargo-offers/:cargoId/:offerId", async (c) => {
+  try {
+    const cargoId = c.req.param("cargoId");
+    const offerId = c.req.param("offerId");
+    const body = await c.req.json();
+    const key = `ovora:cargo-offer:${cargoId}:${offerId}`;
+    const existing: any = await kv.get(key);
+    if (!existing) return c.json({ error: "Offer not found" }, 404);
+
+    const { callerEmail: _drop, ...safeBody } = body;
+    const updated = { ...existing, ...safeBody, cargoId, offerId, updatedAt: new Date().toISOString() };
+    await kv.set(key, updated);
+
+    if (['cancelled','declined','deleted','rejected'].includes(updated.status)) {
+      if (existing.driverEmail) await kv.del(`ovora:drivercargooffers:${existing.driverEmail}:${offerId}`).catch(() => {});
+      if (existing.senderEmail) await kv.del(`ovora:sendercargooffers:${existing.senderEmail}:${offerId}`).catch(() => {});
+    }
+
+    // Notify driver on accept/reject
+    try {
+      if ((updated.status === 'accepted' || updated.status === 'rejected') && existing.driverEmail) {
+        const cargo: any = await kv.get(`ovora:cargo:${cargoId}`);
+        const cargoRoute = cargo ? `${cargo.from} → ${cargo.to}` : 'груз';
+        const isAccepted = updated.status === 'accepted';
+        const notifId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        await kv.set(`ovora:notification:${existing.driverEmail}:${notifId}`, {
+          id: notifId, userEmail: existing.driverEmail,
+          type: isAccepted ? 'cargo_offer_accepted' : 'cargo_offer_rejected',
+          iconName: isAccepted ? 'CheckCircle2' : 'XCircle',
+          iconBg: isAccepted ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500',
+          title: isAccepted ? 'Отклик принят!' : 'Отклик отклонён',
+          description: isAccepted
+            ? `Отправитель принял ваш отклик на груз ${cargoRoute}`
+            : `Отправитель отклонил ваш отклик на груз ${cargoRoute}`,
+          isUnread: true, createdAt: new Date().toISOString(),
+        });
+        sendPushToUser(existing.driverEmail, {
+          title: isAccepted ? 'Отклик принят!' : 'Отклик отклонён',
+          body: cargoRoute, url: '/trips', tag: 'cargo-offer-update',
+        }).catch(() => {});
+      }
+    } catch {}
+
+    return c.json({ success: true, offer: updated });
+  } catch (err) {
+    console.log("Error PUT /cargo-offers/:cargoId/:offerId:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.post("/make-server-4e36197a/reviews", async (c) => {
+  try {
+    const body = await c.req.json();
+
+    // ✅ FIX #3: Защита от дублирования отзывов (authorEmail + targetEmail + tripId)
+    if (body.authorEmail && body.targetEmail && body.tripId) {
+      const authorIndex: any[] = await kv.getByPrefix(`ovora:userreviews:author:${body.authorEmail}:`);
+      if (authorIndex.length > 0) {
+        const existingKeys = authorIndex.filter(e => e?.reviewId).map(e => `ovora:review:${e.reviewId}`);
+        if (existingKeys.length > 0) {
+          const existingReviews: any[] = await kv.mget(existingKeys);
+          const duplicate = existingReviews.find(r =>
+            r && r.targetEmail === body.targetEmail && r.tripId === body.tripId
+          );
+          if (duplicate) {
+            console.log(`[POST /reviews] Duplicate blocked: author=${body.authorEmail}, target=${body.targetEmail}, trip=${body.tripId}`);
+            return c.json({ error: 'Вы уже оставили отзыв на эту поездку', duplicate: true }, 409);
+          }
+        }
+      }
+    }
+
+    const reviewId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const now = new Date().toISOString();
+    const review = { ...body, reviewId, createdAt: now };
+    await kv.set(`ovora:review:${reviewId}`, review);
+
+    // ✅ Вторичные индексы — быстрый поиск без full-scan
+    if (review.targetEmail) {
+      await kv.set(`ovora:userreviews:target:${review.targetEmail}:${reviewId}`, { reviewId }).catch(() => {});
+    }
+    if (review.authorEmail) {
+      await kv.set(`ovora:userreviews:author:${review.authorEmail}:${reviewId}`, { reviewId }).catch(() => {});
+    }
+
+    return c.json({ success: true, review });
+  } catch (err) {
+    console.log("Error POST /reviews:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.get("/make-server-4e36197a/reviews/user/:email", async (c) => {
+  try {
+    const email = decodeURIComponent(c.req.param("email"));
+
+    // ✅ Используем вторичный индекс — без full-scan
+    const [targetEntries, authorEntries]: [any[], any[]] = await Promise.all([
+      kv.getByPrefix(`ovora:userreviews:target:${email}:`),
+      kv.getByPrefix(`ovora:userreviews:author:${email}:`),
+    ]);
+
+    const allEntries = [...targetEntries, ...authorEntries];
+
+    if (allEntries.length > 0) {
+      const reviewIds = [...new Set(allEntries.filter(e => e?.reviewId).map((e: any) => e.reviewId))];
+      const keys = reviewIds.map(id => `ovora:review:${id}`);
+      const fetched: any[] = await kv.mget(keys);
+      const userReviews = fetched
+        .filter(r => r != null)
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      console.log(`[GET /reviews/user] ${email}: index hit, ${userReviews.length} reviews`);
+      return c.json({ reviews: userReviews });
+    }
+
+    // Fallback: full-scan + восстановление индекса
+    console.log(`[GET /reviews/user] ${email}: index empty, falling back to full scan`);
+    const all: any[] = await kv.getByPrefix(`ovora:review:`);
+    const userReviews = all
+      .filter(r => r && (r.targetEmail === email || r.authorEmail === email))
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    // Восстановление индекса
+    for (const r of userReviews) {
+      if (!r.reviewId) continue;
+      if (r.targetEmail) await kv.set(`ovora:userreviews:target:${r.targetEmail}:${r.reviewId}`, { reviewId: r.reviewId }).catch(() => {});
+      if (r.authorEmail) await kv.set(`ovora:userreviews:author:${r.authorEmail}:${r.reviewId}`, { reviewId: r.reviewId }).catch(() => {});
+    }
+    console.log(`[GET /reviews/user] ${email}: rebuilt index for ${userReviews.length} reviews`);
+    return c.json({ reviews: userReviews });
+  } catch (err) {
+    console.log("Error GET /reviews/user:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.get("/make-server-4e36197a/reviews", async (c) => {
+  try {
+    const all: any[] = await kv.getByPrefix(`ovora:review:`);
+    const sorted = all
+      .filter(r => r)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return c.json({ reviews: sorted });
+  } catch (err) {
+    console.log("Error GET /reviews:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.delete("/make-server-4e36197a/reviews/:reviewId", async (c) => {
+  try {
+    const reviewId = c.req.param("reviewId");
+    const existing: any = await kv.get(`ovora:review:${reviewId}`);
+    if (!existing) return c.json({ error: "Review not found" }, 404);
+
+    // Только автор может удалять свой отзыв
+    const { callerEmail } = await c.req.json().catch(() => ({})) as any;
+    if (callerEmail && existing.authorEmail && existing.authorEmail !== callerEmail) {
+      console.warn(`[DELETE /reviews] Unauthorized: ${callerEmail} tried to delete review by ${existing.authorEmail}`);
+      return c.json({ error: "Forbidden: you are not the author of this review" }, 403);
+    }
+
+    await kv.del(`ovora:review:${reviewId}`);
+    // Чистим вторичные индексы
+    if (existing.targetEmail) await kv.del(`ovora:userreviews:target:${existing.targetEmail}:${reviewId}`).catch(() => {});
+    if (existing.authorEmail) await kv.del(`ovora:userreviews:author:${existing.authorEmail}:${reviewId}`).catch(() => {});
+    console.log(`[DELETE /reviews] Deleted review ${reviewId} by ${callerEmail || 'unknown'}`);
+    return c.json({ success: true });
+  } catch (err) {
+    console.log("Error DELETE /reviews/:reviewId:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ════════════════════════════���═════════════════════════════════════════════════
+//  CHAT ROUTES — полная поддержка text / proposal / system с��общений
+//  KV: ovora:chat:{chatId}:{msgId}   → message
+//  KV: ovora:chatmeta:{chatId}       → chat metadata (participants, contact info, unread)
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Init / upsert chat room
+app.post("/make-server-4e36197a/chat/init", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { chatId, participants, tripId, tripRoute, contactInfo, senderInfo, tripData } = body;
+    if (!chatId) return c.json({ error: "chatId required" }, 400);
+    const metaKey = `ovora:chatmeta:${chatId}`;
+    const existing: any = await kv.get(metaKey) || {};
+
+    // ✅ FIX: Keep ALL tripIds this pair has discussed (not just the latest one).
+    // pair-based chat = one chat per driver↔sender pair, can discuss multiple trips.
+    const existingTripIds: string[] = existing.tripIds || (existing.tripId ? [existing.tripId] : []);
+    const newTripIds = tripId && !existingTripIds.includes(String(tripId))
+      ? [...existingTripIds, String(tripId)]
+      : existingTripIds;
+
+    await kv.set(metaKey, {
+      ...existing,
+      chatId,
+      participants: participants || existing.participants || [],
+      tripId: tripId || existing.tripId,      // keep for backward compat
+      tripIds: newTripIds,                    // ✅ array of ALL tripIds discussed
+      tripRoute: tripRoute || existing.tripRoute,
+      tripData: tripData || existing.tripData,
+      contactInfo: { ...(existing.contactInfo || {}), ...(contactInfo || {}) },
+      senderInfo: { ...(existing.senderInfo || {}), ...(senderInfo || {}) },
+      lastMessage: existing.lastMessage || null,
+      lastMessageAt: existing.lastMessageAt || null,
+      unreadByEmail: existing.unreadByEmail || {},
+      createdAt: existing.createdAt || new Date().toISOString(),
+    });
+    return c.json({ success: true });
+  } catch (err) {
+    console.log("Error POST /chat/init:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// Send a message (text | proposal | system)
+app.post("/make-server-4e36197a/chat/message", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { chatId, senderId, senderName, senderAvatar, text, type, proposal, from, participants } = body;
+    if (!chatId || !senderId) return c.json({ error: "chatId, senderId required" }, 400);
+
+    // Проверка: senderId должен быть участником чата
+    const metaCheck: any = await kv.get(`ovora:chatmeta:${chatId}`);
+    if (metaCheck?.participants && Array.isArray(metaCheck.participants) && metaCheck.participants.length > 0) {
+      if (!metaCheck.participants.includes(senderId)) {
+        console.warn(`[chat/message] Unauthorized: ${senderId} is not a participant of chat ${chatId}`);
+        return c.json({ error: "Forbidden: you are not a participant of this chat" }, 403);
+      }
+    }
+
+    const msgId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const now = new Date().toISOString();
+    const message = {
+      chatId, msgId, senderId, senderName, senderAvatar,
+      text: text || null,
+      type: type || 'text',
+      proposal: proposal || null,
+      from: from || 'sender',
+      ts: Date.now(),
+      createdAt: now,
+      read: false,
+    };
+    await kv.set(`ovora:chat:${chatId}:${msgId}`, message);
+
+    // Update chat metadata: lastMessage + increment unread for OTHER participants
+    const metaKey = `ovora:chatmeta:${chatId}`;
+    const meta: any = await kv.get(metaKey) || {};
+    const allParticipants: string[] = meta.participants || participants || [];
+    const unreadByEmail: Record<string, number> = meta.unreadByEmail || {};
+    for (const email of allParticipants) {
+      if (email !== senderId) {
+        unreadByEmail[email] = (unreadByEmail[email] || 0) + 1;
+      }
+    }
+    const preview = type === 'proposal' ? 'Новая оферта на перевозку' : (text || '');
+    await kv.set(metaKey, {
+      ...meta,
+      chatId,
+      lastMessage: preview,
+      lastMessageAt: now,
+      lastSenderId: senderId,
+      participants: allParticipants,
+      unreadByEmail,
+      hasProposal: type === 'proposal' ? true : (meta.hasProposal || false),
+      proposalStatus: type === 'proposal' ? 'pending' : (meta.proposalStatus || null),
+    });
+
+    // ✅ Создать уведомление о новом сообщении для получателей (только для обычных текстовых сообщений)
+    if (type === 'text' && text) {
+      try {
+        for (const recipientEmail of allParticipants) {
+          if (recipientEmail !== senderId) {
+            const notificationId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+            await kv.set(`ovora:notification:${recipientEmail}:${notificationId}`, {
+              id: notificationId,
+              userEmail: recipientEmail,
+              type: 'message',
+              iconName: 'Bell',
+              iconBg: 'bg-purple-500/10 text-purple-500',
+              title: `Новое сообщение от ${senderName || 'пользователя'}`,
+              description: text.substring(0, 100),
+              isUnread: true,
+              createdAt: now,
+            });
+            console.log(`[chat] Notification created for recipient ${recipientEmail}`);
+            sendPushToUser(recipientEmail, {
+              title: `Новое сообщение ��т ${senderName || 'пользователя'}`,
+              body: text.substring(0, 100),
+              url: `/chat/${chatId}`,
+              tag: `chat-${chatId}`,
+            }).catch(() => {});
+
+            // ── Email получателю (throttled: 1 раз в 30 мин на чат) ──────────
+            ;(async () => {
+              const throttled = await throttleEmail(recipientEmail, `msg-${chatId}`, 1_800_000);
+              if (!throttled) {
+                const recipientUser: any = await kv.get(`ovora:user:email:${recipientEmail}`).catch(() => null);
+                const recipientFirstName = recipientUser?.firstName || 'Пользователь';
+                const chatMeta: any = await kv.get(`ovora:chatmeta:${chatId}`).catch(() => null);
+                const tripRoute = chatMeta?.tripRoute;
+                const tpl = newMessageTemplate({
+                  recipientName: recipientFirstName,
+                  senderName: senderName || 'Пользователь',
+                  messagePreview: text.substring(0, 120),
+                  tripRoute,
+                });
+                await sendEmail({ to: recipientEmail, subject: tpl.subject, html: tpl.html });
+              }
+            })().catch(e => console.warn('[Email] new-message failed:', e));
+          }
+        }
+      } catch (notifErr) {
+        console.log('[chat] Error creating notification:', notifErr);
+      }
+    }
+
+    return c.json({ success: true, message });
+  } catch (err) {
+    console.log("Error POST /chat/message:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// Get messages for a chat
+app.get("/make-server-4e36197a/chat/:chatId/messages", async (c) => {
+  try {
+    const chatId = c.req.param("chatId");
+    const messages: any[] = await kv.getByPrefix(`ovora:chat:${chatId}:`);
+    const sorted = messages
+      .filter(m => m && m.msgId) // exclude metadata
+      .sort((a, b) => (a.ts || 0) - (b.ts || 0));
+    return c.json({ messages: sorted });
+  } catch (err) {
+    console.log("Error GET /chat/:chatId/messages:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// Mark all messages in a chat as read for a user; reset unread count
+app.put("/make-server-4e36197a/chat/:chatId/read", async (c) => {
+  try {
+    const chatId = c.req.param("chatId");
+    const { userEmail } = await c.req.json();
+    if (!userEmail) return c.json({ error: "userEmail required" }, 400);
+    // Update metadata unread count
+    const metaKey = `ovora:chatmeta:${chatId}`;
+    const meta: any = await kv.get(metaKey) || {};
+    const unreadByEmail = { ...(meta.unreadByEmail || {}), [userEmail]: 0 };
+    await kv.set(metaKey, { ...meta, unreadByEmail });
+    return c.json({ success: true });
+  } catch (err) {
+    console.log("Error PUT /chat/:chatId/read:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// Update proposal status in a specific message
+app.put("/make-server-4e36197a/chat/:chatId/proposal/:proposalId", async (c) => {
+  try {
+    const chatId = c.req.param("chatId");
+    const proposalId = c.req.param("proposalId");
+    const { status, senderId } = await c.req.json();
+    if (!status) return c.json({ error: "status required" }, 400);
+
+    console.log(`[proposal] Updating proposal status:`, {
+      chatId,
+      proposalId,
+      status,
+      senderId,
+    });
+
+    // Find the message containing this proposal
+    const messages: any[] = await kv.getByPrefix(`ovora:chat:${chatId}:`);
+    const msg = messages.find(m => m && m.proposal?.id === proposalId);
+    if (!msg) return c.json({ error: "Proposal message not found" }, 404);
+
+    const updatedMsg = { ...msg, proposal: { ...msg.proposal, status } };
+    await kv.set(`ovora:chat:${chatId}:${msg.msgId}`, updatedMsg);
+
+    // Update chat metadata
+    const metaKey = `ovora:chatmeta:${chatId}`;
+    const meta: any = await kv.get(metaKey) || {};
+    const preview = status === 'accepted' 
+      ? 'Оферта принята' 
+      : status === 'declined'
+      ? 'Оферта отменена'
+      : 'Оферта отклонена';
+    await kv.set(metaKey, {
+      ...meta,
+      proposalStatus: status,
+      lastMessage: preview,
+      lastMessageAt: new Date().toISOString(),
+    });
+
+    // ── When driver ACCEPTS: reduce trip capacity & update offer status in KV ──
+    if (status === 'accepted') {
+      try {
+        // ── Step 1: resolve tripId ──────────────────────────────────────────
+        // Priority: tripId embedded in the proposal message > chatmeta tripId
+        const tripId: string | undefined = msg.proposal?.tripId || meta.tripId;
+
+        // ── Step 2: resolve sender email ────────────────────────────────────
+        // Priority: senderEmail in proposal message > senderId of message > participants
+        const participants: string[] = meta.participants || [];
+        const senderEmailFromMsg: string | null =
+          msg.proposal?.senderEmail || msg.senderId || null;
+        const senderEmailFromParticipants: string | null =
+          participants.find((p: string) => p !== senderId) || null;
+        const senderEmail = senderEmailFromMsg || senderEmailFromParticipants;
+
+        console.log(`[accept] tripId=${tripId}, senderEmail=${senderEmail}, senderId=${senderId}`);
+
+        if (!tripId) {
+          console.log(`[accept] No tripId found in proposal or chatmeta — skipping capacity reduction`);
+        } else {
+          // ── Step 3: find the pending offer ──────────────────────────────
+          const allOffers: any[] = await kv.getByPrefix(`ovora:offer:`);
+
+          // Pass 1: strict match — tripId + senderEmail
+          let matchingOffer = allOffers.find((o: any) =>
+            o &&
+            String(o.tripId) === String(tripId) &&
+            o.status === 'pending' &&
+            senderEmail && o.senderEmail === senderEmail
+          );
+
+          // Pass 2: fallback — tripId only (in case senderEmail differs)
+          if (!matchingOffer) {
+            matchingOffer = allOffers.find((o: any) =>
+              o &&
+              String(o.tripId) === String(tripId) &&
+              o.status === 'pending'
+            );
+            if (matchingOffer) {
+              console.log(`[accept] Found offer via fallback (tripId only), senderEmail=${matchingOffer.senderEmail}`);
+            }
+          }
+
+          if (matchingOffer) {
+            // 1. Mark offer as accepted
+            const offerKey = `ovora:offer:${matchingOffer.tripId}:${matchingOffer.offerId}`;
+            await kv.set(offerKey, { ...matchingOffer, status: 'accepted', acceptedAt: new Date().toISOString() });
+
+            // ✅ Создать уведомление отправителю о принятии оферты
+            try {
+              if (senderEmail) {
+                const trip: any = await kv.get(`ovora:trip:${tripId}`);
+                const tripRoute = trip ? `${trip.from} → ${trip.to}` : 'вашу поездку';
+                const driverUser: any = await kv.get(`ovora:user:email:${senderId}`);
+                const driverName = driverUser ? `${driverUser.firstName} ${driverUser.lastName}` : 'Водитель';
+                const notificationId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+                await kv.set(`ovora:notification:${senderEmail}:${notificationId}`, {
+                  id: notificationId,
+                  userEmail: senderEmail,
+                  type: 'offer',
+                  iconName: 'UserCheck',
+                  iconBg: 'bg-emerald-500/10 text-emerald-500',
+                  title: 'Оферта принята!',
+                  description: `${driverName} принял вашу оферту на маршрут ${tripRoute}`,
+                  isUnread: true,
+                  createdAt: new Date().toISOString(),
+                });
+                console.log(`[accept] Notification created for sender ${senderEmail}`);
+                sendPushToUser(senderEmail, {
+                  title: 'Оферта принята',
+                  body: `${driverName} принял вашу оферту на маршрут ${tripRoute}`,
+                  url: '/trips',
+                  tag: 'offer-accepted',
+                }).catch(() => {});
+              }
+            } catch (notifErr) {
+              console.log('[accept] Error creating notification:', notifErr);
+            }
+
+            // 2. Reduce trip capacity — use correct field names matching SearchPage
+            const trip: any = await kv.get(`ovora:trip:${tripId}`);
+            if (trip) {
+              const updatedTrip = {
+                ...trip,
+                // ✅ Field name: availableSeats (adult seats)
+                availableSeats: Math.max(0, (trip.availableSeats || 0) - (matchingOffer.requestedSeats || 0)),
+                // ✅ BUG FIX: was 'childrenSeats', correct field is 'childSeats'
+                childSeats: Math.max(0, (trip.childSeats || 0) - (matchingOffer.requestedChildren || 0)),
+                // ✅ cargoCapacity is correct
+                cargoCapacity: Math.max(0, (trip.cargoCapacity || 0) - (matchingOffer.requestedCargo || 0)),
+              };
+              await kv.set(`ovora:trip:${tripId}`, updatedTrip);
+              console.log(`[accept] Trip ${tripId} capacity reduced:`, {
+                seats: `${trip.availableSeats} → ${updatedTrip.availableSeats}`,
+                childSeats: `${trip.childSeats} → ${updatedTrip.childSeats}`,
+                cargo: `${trip.cargoCapacity} → ${updatedTrip.cargoCapacity}`,
+              });
+            } else {
+              console.log(`[accept] Trip ${tripId} not found in KV — capacity not reduced`);
+            }
+          } else {
+            console.log(`[accept] No pending offer found for tripId=${tripId}, senderEmail=${senderEmail}`);
+          }
+        }
+      } catch (err) {
+        console.log("[accept] Error reducing trip capacity:", err);
+        // Non-fatal — proposal status was already updated
+      }
+    }
+
+    // ── When driver REJECTS/DECLINES: update offer status in KV ──
+    if (status === 'rejected' || status === 'declined') {
+      try {
+        // ── Step 1: resolve tripId ──────────────────────────────────────────
+        const tripId: string | undefined = msg.proposal?.tripId || meta.tripId;
+
+        // ── Step 2: resolve sender email ────────────────────────────────────
+        const participants: string[] = meta.participants || [];
+        const senderEmailFromMsg: string | null =
+          msg.proposal?.senderEmail || msg.senderId || null;
+        const senderEmailFromParticipants: string | null =
+          participants.find((p: string) => p !== senderId) || null;
+        const senderEmail = senderEmailFromMsg || senderEmailFromParticipants;
+
+        console.log(`[reject] tripId=${tripId}, senderEmail=${senderEmail}, senderId=${senderId}`);
+
+        if (!tripId) {
+          console.log(`[reject] No tripId found in proposal or chatmeta — skipping offer update`);
+        } else {
+          // ── Step 3: find the pending offer ──────────────────────────────
+          const allOffers: any[] = await kv.getByPrefix(`ovora:offer:`);
+
+          // Pass 1: strict match — tripId + senderEmail
+          let matchingOffer = allOffers.find((o: any) =>
+            o &&
+            String(o.tripId) === String(tripId) &&
+            o.status === 'pending' &&
+            senderEmail && o.senderEmail === senderEmail
+          );
+
+          // Pass 2: fallback — tripId only (in case senderEmail differs)
+          if (!matchingOffer) {
+            matchingOffer = allOffers.find((o: any) =>
+              o &&
+              String(o.tripId) === String(tripId) &&
+              o.status === 'pending'
+            );
+            if (matchingOffer) {
+              console.log(`[reject] Found offer via fallback (tripId only), senderEmail=${matchingOffer.senderEmail}`);
+            }
+          }
+
+          if (matchingOffer) {
+            // Mark offer as declined (using 'declined' to match TripDetail expectations)
+            const offerKey = `ovora:offer:${matchingOffer.tripId}:${matchingOffer.offerId}`;
+            await kv.set(offerKey, { 
+              ...matchingOffer, 
+              status: 'declined', 
+              declinedAt: new Date().toISOString() 
+            });
+            console.log(`[reject] Offer ${matchingOffer.offerId} marked as declined`);
+
+            // ✅ Создать уведомление отправителю об отклонении оферты
+            try {
+              if (senderEmail) {
+                const trip: any = await kv.get(`ovora:trip:${tripId}`);
+                const tripRoute = trip ? `${trip.from} → ${trip.to}` : 'вашу поездку';
+                const driverUser: any = await kv.get(`ovora:user:email:${senderId}`);
+                const driverName = driverUser?.name || 'Водитель';
+
+                const notif = {
+                  id: `notif_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+                  userEmail: senderEmail,
+                  type: 'offer',
+                  iconName: 'XCircle',
+                  iconBg: 'bg-rose-500/10 text-rose-500',
+                  title: 'Оферта отклонена',
+                  description: `${driverName} отклонил вашу оферту на поездку ${tripRoute}`,
+                  isUnread: true,
+                  createdAt: new Date().toISOString(),
+                };
+                await kv.set(`ovora:notification:${senderEmail}:${notif.id}`, notif);
+                console.log(`[reject] Notification created for ${senderEmail}`);
+                sendPushToUser(senderEmail, {
+                  title: 'Оферта отклонена',
+                  body: `${driverName} отклонил вашу оферту на маршрут ${tripRoute}`,
+                  url: '/trips',
+                  tag: 'offer-declined',
+                }).catch(() => {});
+              }
+            } catch (notifErr) {
+              console.log('[reject] Error creating notification:', notifErr);
+            }
+          } else {
+            console.log(`[reject] No pending offer found for tripId=${tripId}, senderEmail=${senderEmail}`);
+          }
+        }
+      } catch (err) {
+        console.log("[reject] Error updating offer status:", err);
+        // Non-fatal — proposal status was already updated
+      }
+    }
+
+    // NOTE: duplicate decline block removed — the rejected/declined block above handles both driver-reject and sender-decline
+
+    return c.json({ success: true, message: updatedMsg });
+  } catch (err) {
+    console.log("Error PUT /chat/proposal:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// Get all chats for a user (enriched list)
+app.get("/make-server-4e36197a/chats/user/:email", async (c) => {
+  try {
+    const email = decodeURIComponent(c.req.param("email"));
+    const allMeta: any[] = await kv.getByPrefix(`ovora:chatmeta:`);
+    const userChats = allMeta
+      .filter(m => m && Array.isArray(m.participants) && m.participants.includes(email))
+      .filter(m => !m.chatId?.startsWith('demo_')) // никогда не возвращать демо-чаты
+      .map(m => ({
+        ...m,
+        unread: m.unreadByEmail?.[email] || 0,
+      }))
+      .sort((a, b) => new Date(b.lastMessageAt || b.createdAt).getTime() - new Date(a.lastMessageAt || a.createdAt).getTime());
+    return c.json({ chats: userChats });
+  } catch (err) {
+    console.log("Error GET /chats/user:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// Одноразовая очистка демо-чатов из KV
+app.delete("/make-server-4e36197a/chats/cleanup-demo", async (c) => {
+  try {
+    const allMeta: any[] = await kv.getByPrefix(`ovora:chatmeta:`);
+    const demoMetas = allMeta.filter(m => m?.chatId?.startsWith('demo_'));
+    for (const m of demoMetas) {
+      // Удаляем метаданные чата
+      await kv.del(`ovora:chatmeta:${m.chatId}`);
+      // Удаляем все сообщения этого чата
+      const msgs: any[] = await kv.getByPrefix(`ovora:chat:${m.chatId}:`);
+      for (const msg of msgs) {
+        if (msg?.msgId) await kv.del(`ovora:chat:${m.chatId}:${msg.msgId}`);
+      }
+    }
+    console.log(`[cleanup-demo] Удалено демо-чатов: ${demoMetas.length}`);
+    return c.json({ deleted: demoMetas.length });
+  } catch (err) {
+    console.log("Error DELETE /chats/cleanup-demo:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── Sync user name across all their chat metadata ────────────────────────────
+// Called after profile update or passport OCR verification
+app.put("/make-server-4e36197a/users/:email/sync-chats", async (c) => {
+  try {
+    const email = decodeURIComponent(c.req.param("email"));
+    const body = await c.req.json();
+    const { firstName, lastName, middleName, fullName, avatarUrl } = body;
+
+    if (!email) return c.json({ error: "email required" }, 400);
+
+    const displayName = fullName || [firstName, lastName, middleName].filter(Boolean).join(' ') || '';
+    if (!displayName) return c.json({ success: true, updated: 0, message: "No name to sync" });
+
+    console.log(`[sync-chats] Syncing name "${displayName}" for user ${email}`);
+
+    // Get all chats where this user is a participant
+    const allMeta: any[] = await kv.getByPrefix(`ovora:chatmeta:`);
+    const userChats = allMeta.filter(m => m && Array.isArray(m.participants) && m.participants.includes(email));
+
+    let updatedCount = 0;
+    for (const meta of userChats) {
+      const chatId = meta.chatId;
+      if (!chatId) continue;
+
+      let changed = false;
+      const updatedMeta = { ...meta };
+
+      // Update senderInfo (when this user is the sender who initiated the chat)
+      if (updatedMeta.senderInfo?.[email]) {
+        updatedMeta.senderInfo = {
+          ...updatedMeta.senderInfo,
+          [email]: {
+            ...updatedMeta.senderInfo[email],
+            name: displayName,
+            ...(avatarUrl ? { avatar: avatarUrl } : {}),
+          },
+        };
+        changed = true;
+      }
+
+      // Update contactInfo (when this user appears as a contact for other participants)
+      if (updatedMeta.contactInfo) {
+        const newContactInfo: Record<string, any> = {};
+        for (const [viewerEmail, contactData] of Object.entries(updatedMeta.contactInfo as Record<string, any>)) {
+          // contactInfo[viewerEmail] = the contact shown to viewerEmail
+          // If the stored contact's email matches our user, update their name
+          if (contactData?.email === email) {
+            newContactInfo[viewerEmail] = {
+              ...contactData,
+              name: displayName,
+              ...(avatarUrl ? { avatar: avatarUrl } : {}),
+            };
+            changed = true;
+          } else {
+            newContactInfo[viewerEmail] = contactData;
+          }
+        }
+        if (changed) updatedMeta.contactInfo = newContactInfo;
+      }
+
+      if (changed) {
+        await kv.set(`ovora:chatmeta:${chatId}`, updatedMeta);
+        updatedCount++;
+        console.log(`[sync-chats] Updated chat ${chatId}`);
+      }
+    }
+
+    console.log(`[sync-chats] Updated ${updatedCount} chats for user ${email}`);
+    return c.json({ success: true, updated: updatedCount });
+  } catch (err) {
+    console.log("Error PUT /users/:email/sync-chats:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── Sync user name across all trips and proposals ────────────────────────────
+// Called after profile update or passport OCR verification
+app.put("/make-server-4e36197a/users/:email/sync-trips", async (c) => {
+  try {
+    const email = decodeURIComponent(c.req.param("email"));
+    const body = await c.req.json();
+    const { firstName, lastName, middleName, fullName, avatarUrl } = body;
+
+    if (!email) return c.json({ error: "email required" }, 400);
+
+    const displayName = fullName || [firstName, lastName, middleName].filter(Boolean).join(' ') || '';
+    if (!displayName) return c.json({ success: true, updated: 0, message: "No name to sync" });
+
+    console.log(`[sync-trips] Syncing name "${displayName}" for user ${email}`);
+
+    let updatedTrips = 0;
+    let updatedOffers = 0;
+
+    // 1. Update trips where this user is the driver
+    const allTrips: any[] = await kv.getByPrefix(`ovora:trip:`);
+    const userTrips = allTrips.filter(t => t && !t.deletedAt && t.driverEmail === email);
+
+    for (const trip of userTrips) {
+      if (!trip.id) continue;
+      const updatedTrip = {
+        ...trip,
+        driverName: displayName,
+        ...(avatarUrl ? { driverAvatar: avatarUrl } : {}),
+        updatedAt: new Date().toISOString(),
+      };
+      await kv.set(`ovora:trip:${trip.id}`, updatedTrip);
+      updatedTrips++;
+      console.log(`[sync-trips] Updated trip ${trip.id}`);
+    }
+
+    // 2. Update offers where this user is the sender
+    const allOffers: any[] = await kv.getByPrefix(`ovora:offer:`);
+    const userOffers = allOffers.filter(o => o && o.senderEmail === email);
+
+    for (const offer of userOffers) {
+      if (!offer.id) continue;
+      const updatedOffer = {
+        ...offer,
+        senderName: displayName,
+        updatedAt: new Date().toISOString(),
+      };
+      await kv.set(`ovora:offer:${offer.id}`, updatedOffer);
+      updatedOffers++;
+      console.log(`[sync-trips] Updated offer ${offer.id}`);
+    }
+
+    console.log(`[sync-trips] Updated ${updatedTrips} trips and ${updatedOffers} offers for user ${email}`);
+    return c.json({ success: true, updatedTrips, updatedOffers });
+  } catch (err) {
+    console.log("Error PUT /users/:email/sync-trips:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// Delete entire chat (hard delete from DB)
+app.delete("/make-server-4e36197a/chat/:chatId", async (c) => {
+  try {
+    const chatId = c.req.param("chatId");
+    if (!chatId) return c.json({ error: "chatId required" }, 400);
+
+    console.log(`[delete-chat] Deleting chat: ${chatId}`);
+
+    // 0. Read chatmeta BEFORE deleting — need tripIds + participants to reset offers
+    const metaKey = `ovora:chatmeta:${chatId}`;
+    const meta: any = await kv.get(metaKey) || {};
+    const tripId: string | undefined = meta.tripId;
+    const tripIds: Set<string> = new Set([
+      ...(meta.tripIds || []),
+      ...(meta.tripId ? [String(meta.tripId)] : []),
+    ]);
+    const participants: string[] = meta.participants || [];
+
+    // 0a. Cancel ALL pending offers between this pair of participants (chat_deleted = cancellation)
+    // ✅ FIX: pair-based chat stores only the LAST tripId in chatmeta.
+    // We must cancel offers for ALL trips between this driver↔sender pair, not just the last tripId.
+    if (participants.length >= 2) {
+      try {
+        const allOffers: any[] = await kv.getByPrefix(`ovora:offer:`);
+        const allTrips: any[] = await kv.getByPrefix(`ovora:trip:`);
+
+        let cancelledCount = 0;
+        for (const offer of allOffers) {
+          if (!offer || offer.status !== 'pending') continue;
+
+          // Offer's sender must be one of the chat participants
+          const senderIsParticipant = participants.includes(offer.senderEmail);
+          if (!senderIsParticipant) continue;
+
+          // The driver = the other participant
+          const driverEmail = participants.find((p: string) => p !== offer.senderEmail);
+          if (!driverEmail) continue;
+
+          const driverOwnsTrip =
+            // Option 1: offer stores driverEmail and it matches
+            (offer.driverEmail && offer.driverEmail === driverEmail) ||
+            // Option 2: look up the trip in KV to check ownership
+            allTrips.some((t: any) =>
+              t && String(t.id) === String(offer.tripId) && t.driverEmail === driverEmail
+            ) ||
+            // Option 3: tripIds array fallback (covers ALL trips discussed in this chat)
+            tripIds.has(String(offer.tripId));
+
+          if (driverOwnsTrip) {
+            const offerKey = `ovora:offer:${offer.tripId}:${offer.offerId}`;
+            await kv.set(offerKey, {
+              ...offer,
+              status: 'cancelled',
+              cancelledAt: new Date().toISOString(),
+              cancelReason: 'chat_deleted',
+            });
+            cancelledCount++;
+            console.log(`[delete-chat] Cancelled offer ${offer.offerId} trip=${offer.tripId} sender=${offer.senderEmail} driver=${driverEmail}`);
+          }
+        }
+        console.log(`[delete-chat] Cancelled ${cancelledCount} offers for chat ${chatId} (participants: ${participants.join(', ')})`);
+      } catch (offerErr) {
+        console.log('[delete-chat] Error cancelling offers:', offerErr);
+      }
+    }
+
+    // 1. Delete all messages
+    const msgs: any[] = await kv.getByPrefix(`ovora:chat:${chatId}:`);
+    for (const msg of msgs) {
+      if (msg?.msgId) {
+        await kv.del(`ovora:chat:${chatId}:${msg.msgId}`);
+      }
+    }
+
+    // 2. Delete chat metadata
+    await kv.del(metaKey);
+
+    console.log(`[delete-chat] Deleted chat ${chatId}: ${msgs.length} messages`);
+    return c.json({ success: true, deletedMessages: msgs.length });
+  } catch (err) {
+    console.log("Error DELETE /chat/:chatId:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// Delete single message from chat
+app.delete("/make-server-4e36197a/chat/:chatId/message/:msgId", async (c) => {
+  try {
+    const chatId = c.req.param("chatId");
+    const msgId = c.req.param("msgId");
+    if (!chatId || !msgId) return c.json({ error: "chatId and msgId required" }, 400);
+
+    console.log(`[delete-message] Deleting message ${msgId} from chat ${chatId}`);
+
+    // Delete the message
+    await kv.del(`ovora:chat:${chatId}:${msgId}`);
+
+    // Update chat metadata: find new lastMessage
+    const remainingMsgs: any[] = await kv.getByPrefix(`ovora:chat:${chatId}:`);
+    const sorted = remainingMsgs
+      .filter(m => m && m.msgId)
+      .sort((a, b) => (b.ts || 0) - (a.ts || 0)); // newest first
+
+    const metaKey = `ovora:chatmeta:${chatId}`;
+    const meta: any = await kv.get(metaKey) || {};
+
+    if (sorted.length > 0) {
+      const lastMsg = sorted[0];
+      const preview = lastMsg.type === 'proposal' ? 'Новая оферта на перевозку' : (lastMsg.text || '');
+      await kv.set(metaKey, {
+        ...meta,
+        lastMessage: preview,
+        lastMessageAt: lastMsg.createdAt,
+        lastSenderId: lastMsg.senderId,
+      });
+    } else {
+      // No messages left → set empty state
+      await kv.set(metaKey, {
+        ...meta,
+        lastMessage: 'Новый чат',
+        lastMessageAt: null,
+      });
+    }
+
+    console.log(`[delete-message] Deleted message ${msgId}, remaining: ${sorted.length}`);
+    return c.json({ success: true, remainingMessages: sorted.length });
+  } catch (err) {
+    console.log("Error DELETE /chat/:chatId/message/:msgId:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  DOCUMENT VERIFICATION ROUTES (Supabase Storage + KV)
+//  KV: ovora:document:{userEmail}:{documentId} → document object
+// ══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * 📄 Анализ качества фото документа
+ * ⚠️ ТОЛЬКО ДЛЯ СТАТИСТИКИ! НЕ влияет на результат верификации!
+ * Симулирует проверку качества изображения
+ */
+function analyzePhotoQuality(fileSize: number): number {
+  // Симуляция анализа качества на основе размера файла
+  // Большие файлы обычно = лучше качество
+  // ❌ ЭТО ЗНАЧЕНИЕ НЕ ИСПОЛЬЗУЕТСЯ ДЛЯ ОТКАЗА В ВЕРИФИКАЦИИ!
+  if (fileSize > 2000000) return 85 + Math.floor(Math.random() * 10); // 85-95
+  if (fileSize > 1000000) return 75 + Math.floor(Math.random() * 15); // 75-90
+  if (fileSize > 500000) return 65 + Math.floor(Math.random() * 15);  // 65-80
+  return 45 + Math.floor(Math.random() * 20); // 45-65
+}
+
+/**
+ * 🔍 OCR.space API - извлечение текста из изображения
+ * Использует OCR.space для чтения кириллицы, таджикского и латинского алфавита
+ */
+async function extractTextFromImage(imageBase64: string): Promise<string> {
+  const apiKey = Deno.env.get('OCR_SPACE_API_KEY');
+  
+  if (!apiKey) {
+    console.error('[OCR] OCR_SPACE_API_KEY not configured - using simulation mode');
+    return simulateOCR();
+  }
+
+  console.log('[OCR] API Key found:', apiKey.substring(0, 4) + '...' + apiKey.substring(apiKey.length - 4));
+  console.log('[OCR] Starting dual OCR request (rus + eng)...');
+
+  try {
+    // Определяем тип изображения по base64
+    let imageType = 'jpeg';
+    if (imageBase64.startsWith('/9j/')) imageType = 'jpeg';
+    else if (imageBase64.startsWith('iVBOR')) imageType = 'png';
+    else if (imageBase64.startsWith('R0lGOD')) imageType = 'gif';
+
+    console.log('[OCR] Detected image type:', imageType);
+    console.log('[OCR] Base64 length:', imageBase64.length);
+
+    const imageDataUrl = `data:image/${imageType};base64,${imageBase64}`;
+    const savedKey = apiKey; // capture for inner function
+
+    // ── Вспомогательная функция для одного OCR-запроса ───────────────────────
+    // Таймаут 25 сек — OCR.space иногда долго отвечает
+    async function ocrRequest(language: string, engine: string): Promise<string> {
+      const fd = new FormData();
+      fd.append('base64Image', imageDataUrl);
+      fd.append('language', language);
+      fd.append('isOverlayRequired', 'false');
+      fd.append('detectOrientation', 'false'); // Отключаем, чтобы сэкономить ресурсы
+      fd.append('scale', 'false');             // Отключаем, чтобы избежать System Resource Exhaustion (E500)
+      fd.append('isTable', 'false');
+      fd.append('OCREngine', engine);
+      fd.append('apikey', savedKey);
+      try {
+        console.log(`[OCR] Sending lang=${language} engine=${engine}, imageDataUrl length=${imageDataUrl.length}...`);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 25000);
+        const res = await fetch('https://api.ocr.space/parse/image', {
+          method: 'POST',
+          body: fd,
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        console.log(`[OCR] Status [${language}]:`, res.status);
+        if (!res.ok) {
+          const errText = await res.text().catch(() => '');
+          console.error(`[OCR] HTTP ${res.status} [${language}]: ${errText.substring(0, 200)}`);
+          return '';
+        }
+        const json = await res.json();
+        if (json.IsErroredOnProcessing) {
+          console.error(`[OCR] Processing error [${language}]:`, json.ErrorMessage, json.ErrorDetails);
+          return '';
+        }
+        if (json.ParsedResults && json.ParsedResults.length > 0) {
+          const txt: string = json.ParsedResults[0].ParsedText || '';
+          console.log(`[OCR] [${language}] ${txt.length} chars. Preview:`, txt.substring(0, 400));
+          return txt;
+        }
+        console.warn(`[OCR] [${language}] No ParsedResults in response`, JSON.stringify(json).substring(0, 300));
+      } catch (e: any) {
+        if (e?.name === 'AbortError') {
+          console.error(`[OCR] Timeout (25s) exceeded [${language}]`);
+        } else {
+          console.error(`[OCR] Exception [${language}]:`, e);
+        }
+      }
+      return '';
+    }
+
+    // ── Два параллельных запроса: русский (кириллица) + английский (MRZ) ─────
+    console.log('[OCR] Running dual OCR (rus Engine1 + eng Engine2) in parallel...');
+    const [rusText, engText] = await Promise.all([
+      ocrRequest('rus', '1'),   // Engine 1 (Tesseract) — лучше для русского печатного
+      ocrRequest('eng', '2'),   // Engine 2 — лучше для MRZ-латиницы
+    ]);
+
+    // Объединяем результаты
+    const combined = [rusText, engText].filter(t => t && t.trim()).join('\n---ENG---\n');
+
+    if (!combined.trim()) {
+      console.error('[OCR] Both passes returned empty — falling back to simulation');
+      return simulateOCR();
+    }
+
+    console.log('[OCR] Combined text length:', combined.length);
+    return combined;
+
+  } catch (error) {
+    console.error('[OCR] Exception during OCR API call:', error);
+    console.error('[OCR] Error name:', (error as any)?.name);
+    console.error('[OCR] Error message:', (error as any)?.message);
+    console.error('[OCR] Falling back to simulation mode');
+    return simulateOCR();
+  }
+}
+
+/**
+ * 🎭 Симуляция OCR для тестирования (когда API недоступен)
+ * ⚠️ ВАЖНО: Возвращаем ПУСТУЮ строку чтобы не создавать ложные данные!
+ * Раньше здесь был фиктивный текст паспорта - это приводило к тому что
+ * ЛЮБОЙ документ загруженный в раздел "Паспорт" одобрялся автоматически
+ * (OCR симулировал паспорт → тип совпадал → документ проходил)
+ */
+function simulateOCR(): string {
+  console.log('[OCR] Simulation mode: returning empty string to avoid false document type approvals');
+  // Пустая строка = OCR не смог прочитать → detectedType = unknown → тип не проверяется
+  // Документ будет одобрен, но профиль НЕ обновится без реальных данных
+  return '';
+}
+
+/**
+ * 🔍 Определение типа документа по содержимому OCR текста
+ * Возвращает: 'passport' | 'driver_license' | 'vehicle_registration' | 'unknown'
+ */
+function detectDocumentType(text: string): string {
+  if (!text) return 'unknown';
+  
+  const lowerText = text.toLowerCase();
+  
+  console.log('[DocumentTypeDetector] Analyzing text for document type detection...');
+  
+  // ═══════════════════════════════════════════════════════════════════
+  // 🚗 ТЕХПАСПОРТ (Vehicle Registration / Technical Passport)
+  // ═══════════════════════════════════════════════════════════════════
+  const vehicleKeywords = [
+    'техпаспорт',
+    'технический паспорт',
+    'свидетельство о регистрации',
+    'vehicle registration',
+    'registration certificate',
+    'гувоҳнома',
+    'шиноснома',
+    'марка',
+    'модель',
+    'двигатель',
+    'engine',
+    'vin',
+    'кузов',
+    'chassis',
+    'год выпуска',
+    'цвет',
+    'color',
+    'мощность',
+    'объем двигателя',
+    'тип тс',
+    'категория тс',
+  ];
+  
+  const vehicleMatchCount = vehicleKeywords.filter(keyword => lowerText.includes(keyword)).length;
+  
+  // ═══════════════════════════════════════════════════════════════════
+  // 🪪 ВОДИТЕЛЬСКОЕ УДОСТОВЕРЕНИЕ (Driver's License)
+  // ═══════════════════════════════════════════════════════════════════
+  const driverLicenseKeywords = [
+    'водительское удостоверение',
+    'driving license',
+    'driver license',
+    "driver's license",
+    'гувоҳномаи ронандагӣ',
+    'категория',
+    'category',
+    'class',
+    'a b c d',
+    'разрешенные категории',
+    'действительно до',
+    'valid until',
+    'место выдачи',
+    'issued by',
+  ];
+  
+  const driverLicenseMatchCount = driverLicenseKeywords.filter(keyword => lowerText.includes(keyword)).length;
+  
+  // ═══════════════════════════════════════════════════════════════════
+  // 📘 ПАСПОРТ (Passport / ID Card)
+  // ═══════════════════════════════════════════════════════════════════
+  const passportKeywords = [
+    'паспорт',
+    'passport',
+    'гражданство',
+    'citizenship',
+    'nationality',
+    'шаҳрванд',
+    'таджикистан',
+    'tajikistan',
+    'российская федерация',
+    'russian federation',
+    'пол',
+    'sex',
+    'ҷинс',
+    'место рождения',
+    'place of birth',
+    'мвд',
+    'mvd',
+    'код подразделения',
+    'кем выдан',
+  ];
+  
+  const passportMatchCount = passportKeywords.filter(keyword => lowerText.includes(keyword)).length;
+  
+  console.log('[DocumentTypeDetector] Match counts:', {
+    passport: passportMatchCount,
+    driverLicense: driverLicenseMatchCount,
+    vehicle: vehicleMatchCount,
+  });
+  
+  // Определяем тип по максимальному количеству совпадений
+  if (vehicleMatchCount >= 3) {
+    console.log('[DocumentTypeDetector] Detected: VEHICLE_REGISTRATION (техпаспорт)');
+    return 'vehicle_registration';
+  }
+  
+  if (driverLicenseMatchCount >= 3) {
+    console.log('[DocumentTypeDetector] Detected: DRIVER_LICENSE (водительское)');
+    return 'driver_license';
+  }
+  
+  if (passportMatchCount >= 3) {
+    console.log('[DocumentTypeDetector] Detected: PASSPORT (паспорт)');
+    return 'passport';
+  }
+  
+  console.log('[DocumentTypeDetector] Could not reliably detect document type');
+  return 'unknown';
+}
+
+/**
+ * 📝 Парсинг данных из OCR текста
+ * Извлекает ФИО, даты, номер документа из распознанного текста
+ * ✅ Поддерживает: MRZ зону, таджикский/русский паспорт, двуязычные метки
+ */
+function parseDocumentText(text: string, documentType: string): {
+  fullName: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  birthDate: string | null;
+  issueDate: string | null;
+  expiryDate: string | null;
+  documentNumber: string | null;
+} {
+  if (!text) {
+    return {
+      fullName: null,
+      firstName: null,
+      lastName: null,
+      birthDate: null,
+      issueDate: null,
+      expiryDate: null,
+      documentNumber: null,
+    };
+  }
+
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  console.log('[Parser] Processing', lines.length, 'lines for', documentType);
+  console.log('[Parser] Full text preview (first 800):', text.substring(0, 800));
+
+  let firstName: string | null = null;
+  let lastName: string | null = null;
+  let patronymic: string | null = null;
+  let birthDate: string | null = null;
+  let issueDate: string | null = null;
+  let expiryDate: string | null = null;
+  let documentNumber: string | null = null;
+
+  // Паттерны для поиска дат (DD.MM.YYYY, DD/MM/YYYY, DD-MM-YYYY)
+  const datePattern = /(\d{2})[.\/-](\d{2})[.\/-](\d{4})/g;
+  
+  // Паттерны для номеров документов
+  // Российский паспорт: серия 4 цифры + номер 6 цифр (с пробелом или без)
+  // Таджикский паспорт: буквы + цифры
+  const docNumberPattern = /([A-ZА-Я]{1,3}[\s-]?\d{6,9})|(\d{2}\s?\d{2}\s?\d{6})/gi;
+
+  // Регекс для кириллического/латинского имени
+  const nameCharRx = /[а-яёА-ЯЁәӣқҳҷӯa-zA-Z-]/;
+  function isNameWord(w: string): boolean {
+    return w.length >= 2 && nameCharRx.test(w) && !/\d/.test(w);
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // 🔍 MRZ ПАРСИНГ — более гибкий: допускаем пробелы и мелкие искажения
+  // Таджикский паспорт: P<TJK... / Российский паспорт: P<RUS...
+  // ══════════════════════════════════════════════════════════════
+  const mrzLines = lines.filter(line => {
+    const clean = line.replace(/\s/g, '');
+    // МРЗ: >=20 символов, >=70% символов из набора A-Z0-9< (снижен порог для OCR-артефактов)
+    const mrzChars = (clean.match(/[A-Z0-9<]/g) || []).length;
+    return clean.length >= 20 && mrzChars / clean.length >= 0.70;
+  });
+  console.log('[Parser] Found', mrzLines.length, 'potential MRZ lines:', mrzLines);
+  
+  for (const mrzLine of mrzLines) {
+    const clean = mrzLine.replace(/\s/g, '').toUpperCase();
+
+    // Строка 1: P<TJK / P<RUS + имена через <<
+    if (/^P.{1}[A-Z]{3}/.test(clean) && clean.length >= 25) {
+      const nameSection = clean.substring(5); // after P<XXX
+      const doubleChevronIdx = nameSection.indexOf('<<');
+      if (doubleChevronIdx > 0) {
+        const rawLast = nameSection.substring(0, doubleChevronIdx).replace(/</g, ' ').trim();
+        const afterLast = nameSection.substring(doubleChevronIdx + 2);
+        // Имя и отчество разделены одним <
+        const nameParts = afterLast.split('<').filter(p => p.length > 1);
+        if (rawLast && rawLast.length > 1 && !lastName) {
+          lastName = rawLast;
+          console.log('[Parser] MRZ lastName:', lastName);
+        }
+        if (nameParts.length > 0 && !firstName) {
+          firstName = nameParts[0];
+          console.log('[Parser] MRZ firstName:', firstName);
+        }
+        if (nameParts.length > 1 && !patronymic) {
+          patronymic = nameParts[1];
+          console.log('[Parser] MRZ patronymic:', patronymic);
+        }
+      }
+    }
+
+    // Строка 2: дата рождения на позиции 13-18 (YYMMDD формат)
+    if (/^\d/.test(clean) && clean.length >= 28) {
+      // Пробуем стандартную позицию ИКАО
+      const dobMatch = clean.match(/^.{13}(\d{6})/);
+      if (dobMatch && !birthDate) {
+        const yy = parseInt(dobMatch[1].substring(0, 2));
+        const mm = dobMatch[1].substring(2, 4);
+        const dd = dobMatch[1].substring(4, 6);
+        const year = yy > 30 ? 1900 + yy : 2000 + yy;
+        // Базовая санити-проверка
+        if (parseInt(mm) >= 1 && parseInt(mm) <= 12 && parseInt(dd) >= 1 && parseInt(dd) <= 31) {
+          birthDate = `${dd}.${mm}.${year}`;
+          console.log('[Parser] MRZ birthDate:', birthDate);
+        }
+      }
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // 🔍 Основной парсинг по строкам
+  // Обрабатываем два варианта:
+  //   A) Метка на строке N, значение на строке N+1 (классика)
+  //   B) Метка и значение на одной строке: "Фамилия САБУРОВ"
+  // ══════════════════════════════════════════════════════════════
+  // Индексы строк, относящихся к "Место рождения" — исключаем из имён
+  const birthplaceLineIndices = new Set<number>();
+  let inBirthplaceCtx = false;
+  for (let bi = 0; bi < lines.length; bi++) {
+    const bll = lines[bi].toLowerCase();
+    // Начало контекста места рождения
+    if (bll.includes('место рождения') || bll.includes('place of birth') ||
+        bll.includes('мавзаи таваллуд') || bll.includes('таваллудгох') ||
+        (bll === 'место' && bi + 1 < lines.length && lines[bi + 1].toLowerCase().includes('рождения'))) {
+      inBirthplaceCtx = true;
+      birthplaceLineIndices.add(bi);
+    }
+    // Конец контекста — следующая именная метка или дата
+    if (inBirthplaceCtx) {
+      birthplaceLineIndices.add(bi);
+      if (bi > 0 && (
+        bll.includes('выдан') || bll.includes('серия') || bll.includes('номер') ||
+        bll.includes('пол') || bll.includes('дата выдачи') || bll.includes('срок') ||
+        bll.includes('код подразд') || /^\d{2}[./-]\d{2}[./-]\d{4}$/.test(lines[bi].trim())
+      )) {
+        inBirthplaceCtx = false;
+      }
+    }
+  }
+  console.log('[Parser] Birthplace line indices:', [...birthplaceLineIndices]);
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const lowerLine = line.toLowerCase();
+    const nextLine = i + 1 < lines.length ? lines[i + 1] : '';
+    const nextNextLine = i + 2 < lines.length ? lines[i + 2] : '';
+
+    // ── ФАМИЛИЯ ─────────────────────────────────────────────────
+    if (!lastName) {
+      const isSurnameLabel = (
+        lowerLine.includes('фамил') ||
+        lowerLine === 'surname' ||
+        lowerLine.includes('насаб') ||
+        lowerLine.includes('nasab') ||
+        lowerLine.includes('last name') ||
+        lowerLine.includes('/surname') ||
+        lowerLine.includes('насаб/фамили')
+      );
+      if (isSurnameLabel) {
+        // Вариант B: метка + значение на одной строке
+        // "Фамилия САБУРОВ" → берём слово после метки
+        const sameLineMatch = line.match(/(?:фамили[яь]|surname|насаб)[:\s]+([А-ЯЁа-яёA-Za-z][А-ЯЁа-яёA-Za-z-]+)/i);
+        if (sameLineMatch && sameLineMatch[1].length > 1) {
+          lastName = sameLineMatch[1].trim();
+          console.log('[Parser] Found lastName (same line):', lastName);
+        } else {
+          // Вариант A: значение на следующей строке
+          const cleanSurname = nextLine.replace(/[^а-яёА-ЯЁәӣқҳҷӯa-zA-Z\s-]/g, '').trim();
+          if (cleanSurname && cleanSurname.length > 1) {
+            lastName = cleanSurname.split(/\s+/)[0]; // первое слово
+            console.log('[Parser] Found lastName (next line):', lastName);
+          }
+        }
+      }
+    }
+
+    // ── ИМЯ (+ Отчество на той же строке) ────────────────────────
+    if (!firstName) {
+      // ⚠️ ВАЖНО:
+      // - Таджикский «Падарнома» содержит «ном» → нужно исключить из isNameLabel
+      // - Российский «Имя Отчество» содержит «отчеств» — НО это метка ИМЯ, не отчества!
+      //   Поэтому исключаем «отчеств» ТОЛЬКО если на строке НЕТ «имя»
+      const isPatronymicContext = (
+        // «Отчество» без «Имя» на той же строке — чисто метка отчества
+        (lowerLine.includes('отчеств') && !lowerLine.includes('имя')) ||
+        lowerLine.includes('падарнома') ||
+        lowerLine.includes('падарном') ||
+        lowerLine.includes('patronymic') ||
+        lowerLine.includes('middle name')
+      );
+      const isNameLabel = !isPatronymicContext && (
+        (lowerLine.includes('имя') && !lowerLine.includes('фамил')) ||
+        lowerLine === 'name' ||
+        // «ном» = тадж. «имя», НО не «падарнома»/«нома» (отчество) и не «номер»
+        (lowerLine.includes('ном') && !lowerLine.includes('насаб') && !lowerLine.includes('номер') && !lowerLine.includes('нома')) ||
+        lowerLine.includes('nom/') ||
+        lowerLine.includes('/name') ||
+        lowerLine === 'ном/имя' ||
+        lowerLine.includes('first name')
+      );
+      if (isNameLabel) {
+        // Вариант B: "Имя МУХАММАДЖОН" на одной строке
+        const sameLineMatch = line.match(/(?:имя|first\s*name|ном)[:\s]+([А-ЯЁа-яёA-Za-z][А-ЯЁа-яёA-Za-z-]+)/i);
+        if (sameLineMatch && sameLineMatch[1].length > 1) {
+          firstName = sameLineMatch[1].trim();
+          console.log('[Parser] Found firstName (same line):', firstName);
+        } else {
+          // Вариант A: значение на следующей строке
+          // Российский паспорт: строка «Имя Отчество» содержит оба слова разделённы�� пробелом
+          const cleanName = nextLine.replace(/[^а-яёА-ЯЁәӣқҳҷӯa-zA-Z\s-]/g, '').trim();
+          const nameParts = cleanName.split(/\s+/).filter(w => w.length > 1);
+          if (nameParts.length >= 1) {
+            firstName = nameParts[0];
+            console.log('[Parser] Found firstName (next line):', firstName);
+            // Если на следующей строке 2 слова — второе это отчество (российский паспорт)
+            if (!patronymic && nameParts.length >= 2) {
+              patronymic = nameParts[1];
+              console.log('[Parser] Found patronymic (inline with firstName):', patronymic);
+            }
+          }
+        }
+      }
+    }
+
+    // ── ОТЧЕСТВО ─────────────────────────────────────────────────
+    if (!patronymic) {
+      const isPatronymicLabel = (
+        lowerLine.includes('отчеств') ||
+        lowerLine.includes('patronymic') ||
+        lowerLine.includes('middle name') ||
+        // Таджикский: «Падарнома» / «Падарном» = «отчество» (документ отца)
+        lowerLine.includes('падарнома') ||
+        lowerLine.includes('падарном')
+      );
+      if (isPatronymicLabel) {
+        const sameLineMatch = line.match(/(?:отчество|patronymic|middle\s*name|падарнома?)[:\s]+([А-ЯЁа-яёA-Za-z][А-ЯЁа-яёA-Za-z-]+)/i);
+        if (sameLineMatch && sameLineMatch[1].length > 1) {
+          patronymic = sameLineMatch[1].trim();
+          console.log('[Parser] Found patronymic (same line):', patronymic);
+        } else {
+          const cleanPat = nextLine.replace(/[^а-яёА-ЯЁa-zA-Z\s-]/g, '').trim();
+          if (cleanPat && cleanPat.length > 1) {
+            patronymic = cleanPat.split(/\s+/)[0];
+            console.log('[Parser] Found patronymic (next line):', patronymic);
+          }
+        }
+      }
+    }
+
+    // ── ДАТЫ ────────────────────────────────────────────────────
+    const dates = [...line.matchAll(datePattern)];
+    
+    if (dates.length > 0) {
+      // Дата рождения (на той же строке, что и метка)
+      if (!birthDate && (
+        lowerLine.includes('рож') ||
+        lowerLine.includes('birth') ||
+        lowerLine.includes('таваллуд') ||
+        lowerLine.includes('сана') ||
+        lowerLine.includes('санаи')
+      )) {
+        birthDate = dates[0][0];
+        console.log('[Parser] Found birthDate (inline):', birthDate);
+      }
+      // Срок действия
+      if (!expiryDate && (
+        lowerLine.includes('срок') ||
+        lowerLine.includes('действ') ||
+        lowerLine.includes('expir') ||
+        lowerLine.includes('муҳлат') ||
+        lowerLine.includes('valid') ||
+        lowerLine.includes('амал')
+      )) {
+        expiryDate = dates[0][0];
+        console.log('[Parser] Found expiryDate:', expiryDate);
+      }
+      // Дата выдачи
+      if (!issueDate && (
+        lowerLine.includes('выдан') ||
+        lowerLine.includes('issue') ||
+        lowerLine.includes('дода') ||
+        lowerLine.includes('берилган')
+      )) {
+        issueDate = dates[0][0];
+        console.log('[Parser] Found issueDate:', issueDate);
+      }
+    }
+    
+    // Дата рождения может быть на следующих строках после метки
+    if (!birthDate && (
+      lowerLine.includes('рождения') || lowerLine === 'date of birth' || lowerLine.includes('таваллуд')
+    )) {
+      for (const checkLine of [nextLine, nextNextLine]) {
+        const nd = [...checkLine.matchAll(datePattern)];
+        if (nd.length > 0) {
+          birthDate = nd[0][0];
+          console.log('[Parser] Found birthDate (next lines):', birthDate);
+          break;
+        }
+      }
+    }
+
+    // ── НОМЕР ДОКУМЕНТА ─────────────────────────────────────────
+    if (!documentNumber) {
+      const numMatches = [...line.matchAll(docNumberPattern)];
+      if (numMatches.length > 0 && (
+        lowerLine.includes('№') ||
+        lowerLine.includes('серия') ||
+        lowerLine.includes('series') ||
+        lowerLine.includes('паспорт') ||
+        lowerLine.includes('passport') ||
+        lowerLine.includes('шиноснома')
+      )) {
+        documentNumber = numMatches[0][0].replace(/\s+/g, ' ').trim();
+        console.log('[Parser] Found documentNumber:', documentNumber);
+      }
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // 🔍 ФОЛБЭК: если имя/фамилия не найдены через метки —
+  //    ищем паттерн "ФАМИЛИЯ ИМЯ ОТЧЕСТВО" (заглавные кириллические слова)
+  //    ⚠️ Исключаем госорганы, географические и служебные термины
+  // ══════════════════════════════════════════════════════════════
+  const NAME_STOPWORDS = new Set<string>([
+    // Госорганы
+    'МВД','УМВД','ГУВД','ФМС','МВС','МФЦ','УФМС','РОВД','ОТДЕЛ','УПРАВЛЕНИЕ',
+    'ГЛАВНОЕ','МИНИСТЕРСТВО','ДЕПАРТАМЕНТ','СЛУЖБА','ОТДЕЛЕНИЕ','ПОДРАЗДЕЛЕНИЕ',
+    // Страны
+    'РОССИЯ','РОССИЙСКОЙ','РОССИЙСКАЯ','РОССИЙСКОЕ','ФЕДЕРАЦИИ','ФЕДЕРАЦИЯ',
+    'ТАДЖИКИСТАН','УЗБЕКИСТАН','КАЗАХСТАН','КЫРГЫЗСТАН','БЕЛАРУСЬ',
+    'ТАДЖИКСКОЙ','ТАДЖИКСКАЯ','СОВЕТСКОЙ','СОВЕТСКАЯ','СОЦИАЛИСТИЧЕСКОЙ',
+    // Регионы и административные РФ
+    'ОБЛАСТЬ','ОБЛАСТНОЙ','КРАЯ','КРАЙ','РЕСПУБЛИКИ','РЕСПУБЛИКА',
+    'РАЙОНА','РАЙОН','ГОРОДА','ГОРОД','ОКРУГА','ОКРУГ','РАЙОНЕ','ПОСЕЛОК',
+    'ЧЕЛЯБИНСКОЙ','МОСКОВСКОЙ','СВЕРДЛОВСКОЙ','НОВОСИБИРСКОЙ',
+    'ЛЕНИНГРАДСКОЙ','КРАСНОЯРСКОГО','ПЕРМСКОГО','КРАСНОДАРСКОГО',
+    'САРАТОВСКОЙ','САМАРСКОЙ','РОСТОВСКОЙ','ОМСКОЙ','ТЮМЕНСКОЙ',
+    'ИРКУТСКОЙ','ВОЛГОГРАДСКОЙ','ВОРОНЕЖСКОЙ','НИЖЕГОРОДСКОЙ',
+    'КЕМЕРОВСКОЙ','БАШКОРТОСТАН','ТАТАРСТАН','МОРДОВИИ','УДМУРТИИ',
+    // Алтайский край и падежные формы региональных слов (паспорт Бусоргина)
+    'АЛТАЙ','АЛТАЙСКОМУ','АЛТАЙСКОГО','АЛТАЙСКОЙ','АЛТАЙСКОМ','АЛТАЙСКИЙ',
+    'БАРНАУЛ','БАРНАУЛА','БАРНАУЛЕ','БАРНАУЛЬСКОГО','БАРНАУЛЬСКОМ',
+    'ЛЕНИНСКОМ','ЛЕНИНСКОГО','ЛЕНИНСКОМУ','ЛЕНИНСКИЙ',
+    'КРАЮ','КРАЕМ','РАЙОНЕ','РАЙОНОМ','РЕСПУБЛИКЕ','ГОРОДЕ','ГОРОДОМ',
+    'ОКРУГЕ','ОКРУГОМ','ОБЛАСТЬЮ','ПОСЕЛКЕ',
+    // Города и районы Таджикистана (чтобы не путать с именами людей!)
+    'ДУШАНБЕ','ХУДЖАНД','КУЛЯБ','ХОРОГ','БОХТАР','ПЕНДЖИКЕНТ',
+    'ИСТАРАВШАН','ГАРМ','ГАРМСКИЙ','��АРМСКАЯ','ГАРМСКОМ','ГАРМСКОГО',
+    'ЛЕНИНАБАД','ВАНЧ','РАШТ','РАШТА','ХИСОР','ТУРСУНЗОДА','ВАХДАТ',
+    'ЯВАН','ЁВОН','ШАХРИНАВ','ТАВИЛДАРА','ДЖИРГАТАЛЬ','ФАЙЗАБАД',
+    'НУРОБОД','МУМИНОБОД','САРБАНД','ВОСЕ','ШААРТУЗ','ДУСТИ',
+    'КОФАРНИХОН','РУДАКИ','ВАРЗОБ','НАВДИ','ГИССАР','МАТЧА',
+    'АЙНИ','ЗАФАРАБАД','ГОНЧИ','СПИТАМЕН','БУСТОН','КАНИБАДАМ',
+    'ИСФАРА','КОНИБОДОМ','МАСТЧОХ','ШАХРИСТОН','УРОТЕППА',
+    // Документные поля
+    'ПАСПОРТ','СЕРИЯ','НОМЕР','ВЫДАН','ГРАЖДАНИН','ГРАЖДАНСТВА',
+    'ГРАЖДАНСТВО','МЕСТО','РОЖДЕНИЯ','ДАТА','ПОЛ','МУЖ','ЖЕН',
+    'ЛИЧНОСТИ','УДОСТОВЕРЕНИЕ','СВИДЕТЕЛЬСТВО','РЕГИСТРАЦИЯ',
+    'ВЫДАНО','КОДПОДРАЗДЕЛЕНИЯ','ССР','АССР',
+  ]);
+
+  if (!lastName || !firstName) {
+    console.log('[Parser] Fallback: searching for ALL-CAPS Cyrillic name (with stopword filter)...');
+
+    // Собираем ВСЕ подходящие заглавные кириллические слова из всех строк
+    const allCapsNameWords: string[] = [];
+    for (let fi = 0; fi < lines.length; fi++) {
+      const line = lines[fi];
+      if (/[<>]/.test(line) || /^P[<A-Z]/.test(line)) continue; // Пропускаем MRZ
+      if (birthplaceLineIndices.has(fi)) continue; // Пропускаем место рождения
+      const lowerL = line.toLowerCase();
+      if (
+        lowerL.includes('выдан') || lowerL.includes('место рождения') ||
+        lowerL.includes('мвд') || lowerL.includes('умвд') ||
+        lowerL.includes('гувд') || lowerL.includes('фмс') ||
+        lowerL.includes('россия') || lowerL.includes('российск') ||
+        lowerL.includes('паспорт') || lowerL.includes('гражданин') ||
+        lowerL.includes('федерац') || lowerL.includes('кем выдан') ||
+        lowerL.includes('серия') || lowerL.includes('номер') ||
+        lowerL.includes('код подраздел')
+      ) continue;
+
+      const wordsInLine = line.split(/\s+/);
+      const capsWordsInLine = wordsInLine.filter(w =>
+        /^[А-ЯЁ]{3,}$/.test(w) && !NAME_STOPWORDS.has(w)
+      );
+
+      // Вариант 1: на одной строке 2+ имённых слова → берём сразу
+      if (capsWordsInLine.length >= 2) {
+        if (!lastName) { lastName = capsWordsInLine[0]; console.log('[Parser] Fallback lastName (same-line):', lastName); }
+        if (!firstName) { firstName = capsWordsInLine[1]; console.log('[Parser] Fallback firstName (same-line):', firstName); }
+        if (!patronymic && capsWordsInLine.length >= 3) { patronymic = capsWordsInLine[2]; console.log('[Parser] Fallback patronymic (same-line):', patronymic); }
+        break;
+      }
+
+      // Вариант 2: одно заглавное слово на строке → накапливаем (рос. паспорт)
+      if (capsWordsInLine.length === 1) {
+        allCapsNameWords.push(capsWordsInLine[0]);
+      }
+    }
+
+    // Если отдельные строки дали 2+ слова — собираем ФИО
+    if ((!lastName || !firstName) && allCapsNameWords.length >= 2) {
+      if (!lastName) { lastName = allCapsNameWords[0]; console.log('[Parser] Fallback lastName (multi-line):', lastName); }
+      if (!firstName) { firstName = allCapsNameWords[1]; console.log('[Parser] Fallback firstName (multi-line):', firstName); }
+      if (!patronymic && allCapsNameWords.length >= 3) { patronymic = allCapsNameWords[2]; console.log('[Parser] Fallback patronymic (multi-line):', patronymic); }
+    }
+  }
+
+  // ── Фолбэк для дат: если birthDate не нашли через метки — берём первую подходящую дату ──
+  if (!birthDate) {
+    const allDates: string[] = [];
+    for (const line of lines) {
+      if (/[<>]/.test(line)) continue; // пропускаем MRZ
+      const found = [...line.matchAll(/(\d{2})[.\/-](\d{2})[.\/-](\d{4})/g)];
+      for (const m of found) {
+        const yyyy = parseInt(m[3]);
+        const mm = parseInt(m[2]);
+        if (yyyy >= 1930 && yyyy <= new Date().getFullYear() - 10 && mm >= 1 && mm <= 12) {
+          allDates.push(m[0]);
+        }
+      }
+    }
+    if (allDates.length > 0) {
+      // Берём самую раннюю дату как дату рождения
+      allDates.sort((a, b) => {
+        const [da, ma, ya] = a.split(/[.\/-]/);
+        const [db, mb, yb] = b.split(/[.\/-]/);
+        return parseInt(ya) - parseInt(yb) || parseInt(ma) - parseInt(mb);
+      });
+      birthDate = allDates[0];
+      console.log('[Parser] Fallback birthDate (earliest valid date):', birthDate);
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // 🔄 Лингвистическая проверка Имя ↔ Отчество
+  // Отчества в русском/таджикском языке ВСЕГДА заканчиваются на:
+  //   -ович, -евич (мужской род)  |  -овна, -евна (женский род)
+  // Если firstName выглядит как отчество — значит OCR перепутал порядок.
+  // ══════════════════════════════════════════════════════════════
+  {
+    // Паттерн окончаний отчества (кириллица + латиница, регистронезависимо)
+    // Кирилл.: -ович/-евич (муж.) | -овна/-евна (жен.)
+    // Латин.:  -OVICH/-EVICH (муж.) | -OVNA/-EVNA (жен.)
+    const patronymicSuffixRx = /[оОеЕ][вВ][иИ][чЧ]$|[оОеЕ][вВ][нН][аА]$|OVICH$|EVICH$|OVNA$|EVNA$/i;
+    const firstIsPatronymic  = firstName  ? patronymicSuffixRx.test(firstName)  : false;
+    const patronIsPatronymic = patronymic ? patronymicSuffixRx.test(patronymic) : false;
+
+    if (firstName && patronymic && firstIsPatronymic && !patronIsPatronymic) {
+      // Имя и отчество явно перепутаны — меняем местами
+      const tmp = firstName;
+      firstName  = patronymic;
+      patronymic = tmp;
+      console.log('[Parser] Swap firstName<->patronymic (patronymic suffix on firstName detected):', firstName, '->', patronymic);
+    } else if (firstName && !patronymic && firstIsPatronymic) {
+      // firstName содержит отчество, реальное имя не найдено — перемещаем
+      patronymic = firstName;
+      firstName  = null;
+      console.log('[Parser] firstName moved to patronymic (patronymic suffix, no firstName found):', patronymic);
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // 🔍 Поиск «потерянного» имени
+  // Запускается ТОЛЬКО если firstName = null или является топонимом из стоп-слов
+  // (например НАВДИ — деревня в Таджикистане, попала в firstName после swap).
+  // Настоящее имя (МУХАМАДДЖОН) лежит в документе без привязки к метке.
+  // ⚠️ НЕ запускается если firstName уже валидное имя (АЛЕКСЕЙ, АЛЕКСЕQ и т.д.)
+  // ══════════════════════════════════════════════════════════════
+  {
+    // Условие запуска: firstName отсутствует или является стоп-словом (топоним)
+    const firstNameNeedsReplacement = !firstName || NAME_STOPWORDS.has(firstName);
+    if (firstNameNeedsReplacement) {
+      console.log(`[Parser] Lost-name search triggered (firstName="${firstName}" needs replacement=${firstNameNeedsReplacement})`);
+
+      const patronymicSuffixRx2 = /[оОеЕ][вВ][иИ][чЧ]$|[оОеЕ][вВ][нН][аА]$|OVICH$|EVICH$|OVNA$|EVNA$/i;
+      // Прилагательные-окончания мест (АЛТАЙСКОМУ, ЛЕНИНСКОГО, МОСКОВСКОМ и т.д.) — не имена!
+      const adjPlaceSuffixRx = /СКОМ[УЕ]?$|СКОГО$|СКОЙ$|СКОМ$|НОМУ$|НСКОМУ$|НСКОГО$|НСКОЙ$/i;
+
+      const assignedSet = new Set<string>(
+        [lastName, firstName, patronymic].filter(Boolean) as string[]
+      );
+
+      // Собираем все заглавные кириллические слова из документа
+      // Исключаем: MRZ, место рождения, строки органа выдачи
+      const allDocCapsWords: string[] = [];
+      for (let di = 0; di < lines.length; di++) {
+        const dl = lines[di];
+        if (/[<>]/.test(dl) || /^P[<A-Z]/.test(dl)) continue;
+        if (birthplaceLineIndices.has(di)) continue;
+        const dLower = dl.toLowerCase();
+        if (
+          dLower.includes('выдан') || dLower.includes('федерац') ||
+          dLower.includes('уфмс') || dLower.includes('мвд') ||
+          dLower.includes('гувд') || dLower.includes('фмс') ||
+          dLower.includes('отдел') || dLower.includes('управлен') ||
+          dLower.includes('краю') || dLower.includes('районе') ||
+          dLower.includes('республике') || dLower.includes('областью') ||
+          dLower.includes('паспорт') || dLower.includes('серия') ||
+          dLower.includes('номер') || dLower.includes('код подраздел') ||
+          dLower.includes('алтайскому') || dLower.includes('барнаул') ||
+          dLower.includes('ленинском')
+        ) continue;
+        for (const w of dl.split(/\s+/)) {
+          if (
+            /^[А-ЯЁ]{4,}$/.test(w) &&
+            !NAME_STOPWORDS.has(w) &&
+            !adjPlaceSuffixRx.test(w) &&
+            !assignedSet.has(w)
+          ) {
+            allDocCapsWords.push(w);
+          }
+        }
+      }
+
+      // Кандидаты: не патроним, не прилагательное-место
+      const candidates = allDocCapsWords.filter(w =>
+        !patronymicSuffixRx2.test(w) &&
+        !adjPlaceSuffixRx.test(w)
+      );
+
+      if (candidates.length > 0) {
+        // Берём самое длинное (наиболее вероятное настоящее имя)
+        const best = candidates.reduce((a, b) => a.length >= b.length ? a : b);
+        console.log(`[Parser] Lost-name promoted: "${best}" (replaced "${firstName}")`);
+        firstName = best;
+      } else {
+        console.log('[Parser] Lost-name search found no candidates.');
+      }
+    } else {
+      console.log(`[Parser] Lost-name search SKIPPED — firstName="${firstName}" is valid (not a stopword).`);
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // 📋 Формируем полное имя (Фамилия Имя Отчество)
+  // ══════════════════════════════════════════════════════════════
+  const fullName = [lastName, firstName, patronymic].filter(Boolean).join(' ') || null;
+
+  const result = {
+    fullName,
+    firstName,
+    lastName,
+    birthDate,
+    issueDate,
+    expiryDate,
+    documentNumber,
+  };
+
+  console.log('[Parser] Final extraction result:', JSON.stringify(result));
+  return result;
+}
+
+/**
+ * 📝 Извлечение данных из документа с помощью Google Vision OCR
+ */
+async function extractDocumentData(
+  imageBase64: string,
+  documentType: string
+): Promise<{
+  fullName: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  birthDate: string | null;
+  issueDate: string | null;
+  expiryDate: string | null;
+  documentNumber: string | null;
+  detectedType: string | null;
+}> {
+  console.log(`[OCR] Starting text extraction for ${documentType}...`);
+  
+  // 1. Извлекаем текст через Google Vision API
+  const extractedText = await extractTextFromImage(imageBase64);
+  
+  if (!extractedText) {
+    console.log('[OCR] No text extracted - returning empty data');
+    return {
+      fullName: null,
+      firstName: null,
+      lastName: null,
+      birthDate: null,
+      issueDate: null,
+      expiryDate: null,
+      documentNumber: null,
+      detectedType: null,
+    };
+  }
+  
+  // 2. Определяем тип документа по содержимому
+  const detectedType = detectDocumentType(extractedText);
+  
+  // 3. Парсим извлеченный текст
+  const parsedData = parseDocumentText(extractedText, documentType);
+  
+  return {
+    ...parsedData,
+    detectedType,
+  };
+}
+
+/**
+ * 🤖 Автоматическая верификация документа
+ * Проверяет ТОЛЬКО срок действия и соответствие ФИО
+ * ❌ Качество фото НЕ проверяется - если данные читаются, документ проходит!
+ */
+async function autoVerifyDocument(
+  photoQualityScore: number,
+  expiryDate: string | null,
+  documentType: string,
+  userEmail: string,
+  extractedFullName: string | null
+): Promise<{ 
+  status: 'verified' | 'rejected'; 
+  rejectionReason?: string;
+  needsProfileUpdate?: boolean;
+}> {
+  const today = new Date();
+  
+  // ✅ 1. ОСНОВНАЯ ПРОВЕРКА: Срок действия документа (просрочен или нет)
+  if (expiryDate) {
+    const expiry = new Date(expiryDate);
+    const daysLeft = Math.floor((expiry.getTime() - today.getTime()) / 86400000);
+    
+    if (daysLeft < 0) {
+      return {
+        status: 'rejected',
+        rejectionReason: `Документ просрочен. Срок действия истек ${Math.abs(daysLeft)} дней назад. Обновите документ.`
+      };
+    }
+    
+    // Если срок истекает через 30 дней или меньше - одобряем, но отправим уведомление
+    if (daysLeft <= 30) {
+      console.log(`[autoVerify] Document ${documentType} expires in ${daysLeft} days - will send notification`);
+    }
+  }
+  
+  // ✅ 2. Проверка соответствия ФИО с другими документами
+  // 🔑 ВАЖНО: Паспорт = эталонный документ, он ВСЕГДА обновляет профиль без проверки
+  // Для других документов проверяем соответствие с паспортом
+  if (extractedFullName && documentType !== 'passport') {
+    // Получаем все документы пользователя
+    const allDocs: any[] = await kv.getByPrefix(`ovora:document:${userEmail}:`);
+    const verifiedDocs = allDocs.filter(d => d && d.status === 'verified' && d.extractedFullName);
+    
+    // Ищем паспорт среди одобренных документов
+    const passportDoc = verifiedDocs.find(d => d.type === 'passport');
+    
+    if (passportDoc) {
+      // Если паспорт уже есть - проверяем соответствие ФИО с паспортом
+      const passportName = passportDoc.extractedFullName?.trim().toLowerCase();
+      const newName = extractedFullName.trim().toLowerCase();
+      
+      if (passportName && newName && passportName !== newName) {
+        return {
+          status: 'rejected',
+          rejectionReason: `ФИО в документе "${extractedFullName}" не совпадает с паспортом "${passportDoc.extractedFullName}". Все документы должны быть на одно лицо.`
+        };
+      }
+    }
+  }
+  
+  // ❌ 3. КАЧЕСТВО ФОТО НЕ ПРОВЕРЯЕТСЯ!
+  // Если данные могут быть прочитаны - документ проходит без проблем
+  console.log(`[autoVerify] Quality check SKIPPED (${photoQualityScore}%) - focusing on data, not photo quality`);
+  
+  // ✅ 4. Если это паспорт - ВСЕГДА обновляем профиль (паспорт = эталон)
+  const needsProfileUpdate = documentType === 'passport' && extractedFullName !== null;
+  
+  console.log(`[autoVerify] Document verified!`);
+  console.log(`[autoVerify] - Document type: ${documentType}`);
+  console.log(`[autoVerify] - Extracted name: ${extractedFullName}`);
+  console.log(`[autoVerify] - Needs profile update: ${needsProfileUpdate}`);
+  
+  // ✅ 5. Все проверки пройдены - автоматическое одобрение!
+  return { 
+    status: 'verified',
+    needsProfileUpdate
+  };
+}
+
+/**
+ * 📤 Upload document with auto-analysis
+ */
+app.post("/make-server-4e36197a/documents/upload", async (c) => {
+  try {
+    const formData = await c.req.formData();
+    const file = formData.get('file') as File;
+    const userEmail = formData.get('userEmail') as string;
+    const documentId = formData.get('documentId') as string;
+    const documentType = formData.get('documentType') as string;
+    const title = formData.get('title') as string;
+    const subtitle = formData.get('subtitle') as string;
+    const expiryDate = formData.get('expiryDate') as string | null;
+    const extractedFullName = formData.get('extractedFullName') as string | null; // ✅ ФИО из формы
+
+    if (!file || !userEmail || !documentId) {
+      return c.json({ error: "file, userEmail and documentId required" }, 400);
+    }
+
+    console.log(`[documents/upload] Starting upload for user ${userEmail}, doc ${documentId}`);
+
+    // 1. Upload to Supabase Storage
+    const ext = file.name.split('.').pop();
+    const path = `documents/${userEmail.replace('@', '_')}/${documentType}_${documentId}_${Date.now()}.${ext}`;
+
+    const arrayBuffer = await file.arrayBuffer();
+    const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, arrayBuffer, {
+      contentType: file.type,
+      upsert: true,
+    });
+
+    if (uploadError) {
+      console.log(`[documents/upload] Upload error:`, uploadError);
+      throw uploadError;
+    }
+
+    console.log(`[documents/upload] File uploaded to: ${path}`);
+
+    // 2. Analyze photo quality (только для статистики, НЕ влияет на верификацию!)
+    const photoQualityScore = analyzePhotoQuality(file.size);
+    console.log(`[documents/upload] Photo quality score: ${photoQualityScore} (for stats only, not used for verification)`);
+
+    // 3. 🔍 Извлечение данных из документа через Google Vision OCR
+    // Конвертируем изображение в base64
+    const base64Image = btoa(
+      new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+    );
+    
+    // ✅ Логируем размер base64 для отладки
+    const base64SizeKB = (base64Image.length * 0.75) / 1024; // Примерный размер в KB (base64 добавляет ~33% overhead)
+    console.log(`[documents/upload] Base64 size: ${base64SizeKB.toFixed(0)} KB (original file: ${(file.size / 1024).toFixed(0)} KB)`);
+    
+    if (base64SizeKB > 1024) {
+      console.warn(`[documents/upload] WARNING: Base64 size exceeds 1024 KB! OCR may fail.`);
+    }
+    
+    const extractedData = await extractDocumentData(base64Image, documentType);
+    console.log(`[documents/upload] OCR extracted data:`, extractedData);
+    console.log(`[documents/upload] OCR extracted fullName: ${extractedData.fullName || 'NOT FOUND'}`);
+    console.log(`[documents/upload] OCR extracted birthDate: ${extractedData.birthDate || 'NOT FOUND'}`);
+    
+    // ПРОВЕРКА СООТВЕТСТВИЯ ТИПА ДОКУМЕНТА
+    console.log(`[documents/upload] Checking document type match...`);
+    console.log(`[documents/upload] Expected type: ${documentType}`);
+    console.log(`[documents/upload] Detected type: ${extractedData.detectedType || 'unknown'}`);
+    
+    // Маппинг типов документов для проверки
+    const documentTypeMap: Record<string, string[]> = {
+      'passport': ['passport'],
+      'driver_license': ['driver_license'],
+      'vehicle_registration': ['vehicle_registration'],
+    };
+    
+    const allowedTypes = documentTypeMap[documentType] || [];
+    const detectedType = extractedData.detectedType || 'unknown';
+    
+    // ✅ ВАЖНО: Для паспорта используем ТОЛЬКО OCR данные (реальные из фото)
+    // Для других документов используем ручной ввод (для проверки соответствия с паспортом)
+    let finalFullName: string | null = null;
+    
+    if (documentType === 'passport') {
+      // Для паспорта: приоритет OCR данным из фото
+      finalFullName = extractedData.fullName || extractedFullName;
+      console.log(`[documents/upload] 🪪 PASSPORT: Using OCR extracted name: ${finalFullName}`);
+      
+      if (extractedData.fullName) {
+        console.log(`[documents/upload] Name extracted from passport photo via OCR`);
+      } else if (extractedFullName) {
+        console.log(`[documents/upload] OCR failed - using manually entered name as fallback`);
+      }
+    } else {
+      // Для других документов: используем ручной ввод для проверки
+      finalFullName = extractedFullName || extractedData.fullName;
+      console.log(`[documents/upload] OTHER DOC: Using manually entered name: ${finalFullName}`);
+    }
+
+    // Если тип обнаружен и не совпадает с ожидаемым
+    if (detectedType !== 'unknown' && !allowedTypes.includes(detectedType)) {
+      const typeNames: Record<string, string> = {
+        'passport': 'Паспорт',
+        'driver_license': 'Водительское удостоверение',
+        'vehicle_registration': 'Техпаспорт (свидетельство о регистрации ТС)',
+      };
+      
+      const expectedName = typeNames[documentType] || documentType;
+      const detectedName = typeNames[detectedType] || detectedType;
+      
+      console.log(`[documents/upload] Document type mismatch! Expected: ${expectedName}, but detected: ${detectedName}`);
+      
+      // Получаем signed URL для фото (всё равно сохраним для истории)
+      const { data: signedUrlData } = await supabase.storage.from(BUCKET).createSignedUrl(path, 3600 * 24 * 365);
+      const photoUrl = signedUrlData?.signedUrl || null;
+      
+      // Сохраняем документ со статусом "rejected"
+      const docKey = `ovora:document:${userEmail}:${documentId}`;
+      await kv.set(docKey, {
+        id: documentId,
+        type: documentType,
+        title,
+        subtitle,
+        photoUrl,
+        uploadDate: new Date().toISOString(),
+        expiryDate,
+        photoQualityScore,
+        extractedFullName: finalFullName,
+        extractedData,
+        status: 'rejected',
+        rejectionReason: `Неверный тип документа. Ожидается: "${expectedName}", но загружен: "${detectedName}". Пожалуйста, загрузите правильный документ в соответствующий раздел.`,
+      });
+      
+      return c.json({
+        success: false,
+        error: 'document_type_mismatch',
+        message: `Вы пытаетесь загрузить "${detectedName}" в раздел "${expectedName}". Пожалуйста, загрузите правильный документ.`,
+        expectedType: expectedName,
+        detectedType: detectedName,
+        photoUrl,
+        status: 'rejected',
+      });
+    }
+    
+    console.log(`[documents/upload] Document type matches expected type`);
+    
+    // 4. 🤖 АВТОМАТИЧЕСКАЯ ВЕРИФИКАЦИЯ
+    // ✅ Проверяется: срок действия + соответствие ФИО
+    // ❌ НЕ проверяется: качество фото (если данные читаются - проходит!)
+    const verification = await autoVerifyDocument(
+      photoQualityScore, 
+      expiryDate, 
+      documentType,
+      userEmail,
+      finalFullName
+    );
+    console.log(`[documents/upload] Auto-verification result:`, verification);
+
+    // 5. Save document metadata to KV
+    const now = new Date().toISOString();
+    const docKey = `ovora:document:${userEmail}:${documentId}`;
+    
+    const document = {
+      id: documentId,
+      userEmail,
+      type: documentType,
+      title,
+      subtitle,
+      status: verification.status, // ✅ Автоматический статус: verified или rejected
+      photoPath: path,
+      uploadDate: now,
+      expiryDate: expiryDate || null,
+      photoQualityScore,
+      rejectionReason: verification.rejectionReason || null,
+      extractedFullName: finalFullName, // ✅ Сохраняем ФИО для проверки
+      extractedData, // ✅ Все извлеченные данные
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await kv.set(docKey, document);
+    console.log(`[documents/upload] Document saved to KV: ${docKey} with status: ${verification.status}`);
+
+    // 6. Если паспорт одобрен - обновить профиль пользователя
+    let updatedUser = null;
+    console.log(`[documents/upload] Checking profile update: status=${verification.status}, needsProfileUpdate=${verification.needsProfileUpdate}, finalFullName=${finalFullName}`);
+    
+    if (verification.status === 'verified' && verification.needsProfileUpdate && finalFullName) {
+      try {
+        const userKey = `ovora:user:email:${userEmail.toLowerCase().trim()}`;
+        const existingUser: any = await kv.get(userKey) || {};
+        
+        console.log(`[documents/upload] Existing user:`, existingUser);
+        
+        // Парсим ФИО (формат: "Фамилия Имя Отчество")
+        const nameParts = finalFullName.trim().split(/\s+/);
+        const lastName = nameParts[0] || '';
+        const firstName = nameParts[1] || '';
+        const middleName = nameParts[2] || '';
+        
+        // Добавляем дату рождения если она была извлечена из паспорта
+        // Конвертируем DD.MM.YYYY → ISO формат YYYY-MM-DD для совместимости с new Date()
+        let rawBirthDate = extractedData.birthDate || existingUser.birthDate;
+        let birthDate = rawBirthDate;
+        if (rawBirthDate && /^\d{2}\.\d{2}\.\d{4}$/.test(rawBirthDate)) {
+          const [dd, mm, yyyy] = rawBirthDate.split('.');
+          birthDate = `${yyyy}-${mm}-${dd}`;
+          console.log(`[documents/upload] Converted birthDate: ${rawBirthDate} → ${birthDate}`);
+        }
+        
+        updatedUser = {
+          ...existingUser,
+          firstName: firstName || existingUser.firstName,
+          lastName: lastName || existingUser.lastName,
+          middleName: middleName || existingUser.middleName,
+          fullName: finalFullName,
+          birthDate: birthDate,
+          updatedAt: now,
+        };
+        
+        await kv.set(userKey, updatedUser);
+        console.log(`[documents/upload] Profile updated from passport data: ${finalFullName}${birthDate ? `, birthDate: ${birthDate}` : ''}`);
+        console.log(`[documents/upload] Updated user:`, updatedUser);
+      } catch (profileErr) {
+        console.log('[documents/upload] Error updating profile from passport:', profileErr);
+      }
+    } else {
+      console.log(`[documents/upload] Profile update skipped`);
+    }
+
+    // 7. Create signed URL for immediate display
+    const { data: signedUrlData } = await supabase.storage.from(BUCKET).createSignedUrl(path, 3600);
+
+    // 8. Создать уведомление о результате верификации
+    try {
+      const notificationId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      
+      if (verification.status === 'verified') {
+        // ✅ Документ одобрен автоматически
+        await kv.set(`ovora:notification:${userEmail}:${notificationId}`, {
+          id: notificationId,
+          userEmail: userEmail,
+          type: 'document',
+          iconName: 'CheckCircle',
+          iconBg: 'bg-emerald-500/10 text-emerald-500',
+          title: 'Документ одобрен',
+          description: verification.needsProfileUpdate 
+            ? `${title} одобрен и профиль обновлен автоматически`
+            : `${title} успешно прошел проверку и одобрен автоматически`,
+          isUnread: true,
+          createdAt: now,
+        });
+        console.log(`[documents/upload] Verification success notification created for user ${userEmail}`);
+        
+        // Если срок истекает в течение 30 дней - отправить предупреждение
+        if (expiryDate) {
+          const expiry = new Date(expiryDate);
+          const daysLeft = Math.floor((expiry.getTime() - new Date().getTime()) / 86400000);
+          
+          if (daysLeft > 0 && daysLeft <= 30) {
+            const warningId = `${Date.now() + 1}_${Math.random().toString(36).slice(2, 8)}`;
+            await kv.set(`ovora:notification:${userEmail}:${warningId}`, {
+              id: warningId,
+              userEmail: userEmail,
+              type: 'document',
+              iconName: 'AlertTriangle',
+              iconBg: 'bg-amber-400/10 text-amber-400',
+              title: 'Документ скоро истечет',
+              description: `${title} истекает через ${daysLeft} дней. Рекомендуем обновить заранее.`,
+              isUnread: true,
+              createdAt: now,
+            });
+            console.log(`[documents/upload] Expiry warning notification created for user ${userEmail} (${daysLeft} days left)`);
+          }
+        }
+      } else {
+        // ❌ Документ отклонен автоматически
+        await kv.set(`ovora:notification:${userEmail}:${notificationId}`, {
+          id: notificationId,
+          userEmail: userEmail,
+          type: 'document',
+          iconName: 'XCircle',
+          iconBg: 'bg-red-500/10 text-red-500',
+          title: 'Документ отклонен',
+          description: verification.rejectionReason || `${title} не прошел проверку. Загрузите новый документ.`,
+          isUnread: true,
+          createdAt: now,
+        });
+        console.log(`[documents/upload] Rejection notification created for user ${userEmail}`);
+      }
+    } catch (notifErr) {
+      console.log('[documents/upload] Error creating notification:', notifErr);
+    }
+
+    console.log(`[documents/upload] Preparing response:`);
+    console.log(`[documents/upload] - updatedUser:`, updatedUser);
+    console.log(`[documents/upload] - profileUpdated:`, updatedUser !== null);
+
+    return c.json({ 
+      success: true, 
+      document: {
+        ...document,
+        photoUrl: signedUrlData?.signedUrl
+      },
+      updatedUser: updatedUser, // ✅ Возвращаем обновлённого пользователя если профиль был обновлён
+      profileUpdated: updatedUser !== null, // ✅ Флаг что профиль был обновлён
+    });
+  } catch (err) {
+    console.log("Error POST /documents/upload:", err);
+    return c.json({ error: `Upload failed: ${err}` }, 500);
+  }
+});
+
+/**
+ * 📋 Get all documents for a user
+ */
+app.get("/make-server-4e36197a/documents/user/:email", async (c) => {
+  try {
+    const email = decodeURIComponent(c.req.param("email"));
+    console.log(`[documents/user] Fetching documents for: ${email}`);
+    
+    const docs: any[] = await kv.getByPrefix(`ovora:document:${email}:`);
+    console.log(`[documents/user] Found ${docs.length} documents`);
+    
+    // Create signed URLs for all documents with photos
+    const withUrls = await Promise.all(docs.filter(d => d).map(async (doc) => {
+      if (!doc.photoPath) {
+        return doc;
+      }
+      
+      try {
+        const { data } = await supabase.storage.from(BUCKET).createSignedUrl(doc.photoPath, 3600);
+        return { ...doc, photoUrl: data?.signedUrl };
+      } catch (err) {
+        console.log(`[documents/user] Error creating signed URL for ${doc.id}:`, err);
+        return doc;
+      }
+    }));
+    
+    return c.json({ documents: withUrls });
+  } catch (err) {
+    console.log("Error GET /documents/user:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+/**
+ * ✏️ Update document (status, expiry date, etc.)
+ */
+app.put("/make-server-4e36197a/documents/:documentId", async (c) => {
+  try {
+    const documentId = c.req.param("documentId");
+    const body = await c.req.json();
+    const { userEmail, ...updates } = body;
+
+    if (!userEmail) {
+      return c.json({ error: "userEmail required" }, 400);
+    }
+
+    const docKey = `ovora:document:${userEmail}:${documentId}`;
+    const existing: any = await kv.get(docKey);
+    
+    if (!existing) {
+      return c.json({ error: "Document not found" }, 404);
+    }
+
+    const updated = {
+      ...existing,
+      ...updates,
+      id: documentId,
+      userEmail,
+      updatedAt: new Date().toISOString(),
+    };
+
+    await kv.set(docKey, updated);
+    console.log(`[documents/update] Document ${documentId} updated`);
+
+    // Create signed URL if document has photo
+    let photoUrl = null;
+    if (updated.photoPath) {
+      const { data } = await supabase.storage.from(BUCKET).createSignedUrl(updated.photoPath, 3600);
+      photoUrl = data?.signedUrl;
+    }
+
+    return c.json({ 
+      success: true, 
+      document: {
+        ...updated,
+        photoUrl
+      }
+    });
+  } catch (err) {
+    console.log("Error PUT /documents:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+/**
+ * 🗑️ Delete document
+ */
+app.delete("/make-server-4e36197a/documents/:documentId", async (c) => {
+  try {
+    const documentId = c.req.param("documentId");
+    const { userEmail } = await c.req.json();
+
+    if (!userEmail) {
+      return c.json({ error: "userEmail required" }, 400);
+    }
+
+    const docKey = `ovora:document:${userEmail}:${documentId}`;
+    const existing: any = await kv.get(docKey);
+    
+    if (!existing) {
+      return c.json({ error: "Document not found" }, 404);
+    }
+
+    // Delete file from Storage
+    if (existing.photoPath) {
+      await supabase.storage.from(BUCKET).remove([existing.photoPath]);
+      console.log(`[documents/delete] File deleted: ${existing.photoPath}`);
+    }
+
+    // Delete from KV
+    await kv.del(docKey);
+    console.log(`[documents/delete] Document deleted: ${docKey}`);
+
+    return c.json({ success: true });
+  } catch (err) {
+    console.log("Error DELETE /documents:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+/**
+ * 🔍 Analyze document (re-scan quality and expiry)
+ */
+app.post("/make-server-4e36197a/documents/analyze/:documentId", async (c) => {
+  try {
+    const documentId = c.req.param("documentId");
+    const { userEmail } = await c.req.json();
+
+    if (!userEmail) {
+      return c.json({ error: "userEmail required" }, 400);
+    }
+
+    const docKey = `ovora:document:${userEmail}:${documentId}`;
+    const doc: any = await kv.get(docKey);
+    
+    if (!doc) {
+      return c.json({ error: "Document not found" }, 404);
+    }
+
+    // Simulate re-analysis (slightly randomized)
+    const newScore = Math.min(100, doc.photoQualityScore + Math.floor(Math.random() * 10) - 5);
+    
+    const updated = {
+      ...doc,
+      photoQualityScore: newScore,
+      updatedAt: new Date().toISOString(),
+    };
+
+    await kv.set(docKey, updated);
+    console.log(`[documents/analyze] Document ${documentId} re-analyzed: ${newScore}%`);
+
+    return c.json({ success: true, photoQualityScore: newScore });
+  } catch (err) {
+    console.log("Error POST /documents/analyze:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+/**
+ * 🧪 Test OCR endpoint - для тестирования распозна��ания документов
+ */
+app.post("/make-server-4e36197a/test-ocr", async (c) => {
+  try {
+    const { imageBase64, documentType } = await c.req.json();
+
+    if (!imageBase64) {
+      console.error('[test-ocr] No imageBase64 provided');
+      return c.json({ error: "imageBase64 required" }, 400);
+    }
+
+    console.log(`[test-ocr] Starting OCR test...`);
+    console.log(`[test-ocr] Document type: ${documentType || 'unknown'}`);
+    console.log(`[test-ocr] Image base64 length: ${imageBase64.length}`);
+
+    // 1. Извлекаем текст через OCR.space
+    console.log('[test-ocr] Calling extractTextFromImage...');
+    const extractedText = await extractTextFromImage(imageBase64);
+    console.log(`[test-ocr] OCR completed. Extracted text length: ${extractedText.length}`);
+    console.log(`[test-ocr] First 200 chars: ${extractedText.substring(0, 200)}`);
+
+    // 2. Определяем тип документа
+    console.log('[test-ocr] Detecting document type...');
+    const detectedType = detectDocumentType(extractedText);
+    console.log(`[test-ocr] Detected type: ${detectedType}`);
+
+    // 3. Парсим данные из текста
+    console.log('[test-ocr] Parsing document data...');
+    const parsedData = parseDocumentText(extractedText, documentType || 'passport');
+    console.log(`[test-ocr] Parsing complete. Parsed data:`, JSON.stringify(parsedData, null, 2));
+
+    return c.json({
+      success: true,
+      extractedText,
+      detectedType,
+      parsedData,
+    });
+  } catch (err) {
+    console.error("[test-ocr] Exception:", err);
+    console.error("[test-ocr] Error name:", err?.name);
+    console.error("[test-ocr] Error message:", err?.message);
+    console.error("[test-ocr] Error stack:", err?.stack);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  NOTIFICATIONS (OLD - will be replaced by new routes below)
+// ══════════════════════════════════════════════════════════════════════════════
+// Removed old duplicate routes - using new notification system below
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  PUBLIC STATS
+// ══════════════════════════════════════════════════════════════════════════════
+
+app.get("/make-server-4e36197a/stats", async (c) => {
+  try {
+    const [users, trips, reviews]: any[] = await Promise.all([
+      kv.getByPrefix("ovora:user:email:"),
+      kv.getByPrefix("ovora:trip:"),
+      kv.getByPrefix("ovora:review:"),
+    ]);
+    const drivers = (users as any[]).filter((u: any) => u && u.role === 'driver').length;
+    const citySet = new Set<string>();
+    (trips as any[]).filter((t: any) => t && !t.deletedAt).forEach((t: any) => {
+      if (t.from) citySet.add(String(t.from).trim().split(',')[0]);
+      if (t.to)   citySet.add(String(t.to).trim().split(',')[0]);
+    });
+    const total = (reviews as any[]).filter((r: any) => r).length;
+    const satisfied = total > 0
+      ? Math.round(((reviews as any[]).filter((r: any) => r && (r.rating ?? 0) >= 4).length / total) * 100)
+      : 98;
+    return c.json({ drivers, cities: citySet.size, satisfied });
+  } catch (err) {
+    console.log("Error GET /stats:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  ADMIN — get all trips/offers/users/reviews
+// ══════════════════════════════════════════════════════════════════════════════
+
+app.get("/make-server-4e36197a/admin/stats", async (c) => {
+  try {
+    const [trips, offers, users, reviews]: any[] = await Promise.all([
+      kv.getByPrefix("ovora:trip:"),
+      kv.getByPrefix("ovora:offer:"),
+      kv.getByPrefix("ovora:user:email:"),
+      kv.getByPrefix("ovora:review:"),
+    ]);
+    return c.json({
+      trips: trips.filter((t: any) => t && !t.deletedAt).length,
+      offers: offers.filter((o: any) => o).length,
+      users: users.filter((u: any) => u).length,
+      reviews: reviews.filter((r: any) => r).length,
+    });
+  } catch (err) {
+    console.log("Error GET /admin/stats:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.get("/make-server-4e36197a/admin/users", async (c) => {
+  try {
+    const users: any[] = await kv.getByPrefix("ovora:user:email:");
+    return c.json({ users: users.filter(u => u) });
+  } catch (err) {
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.get("/make-server-4e36197a/admin/trips", async (c) => {
+  try {
+    const trips: any[] = await kv.getByPrefix("ovora:trip:");
+    return c.json({ trips: trips.filter(t => t && !t.deletedAt) });
+  } catch (err) {
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.get("/make-server-4e36197a/admin/offers", async (c) => {
+  try {
+    const offers: any[] = await kv.getByPrefix("ovora:offer:");
+    return c.json({ offers: offers.filter(o => o) });
+  } catch (err) {
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.get("/make-server-4e36197a/admin/reviews", async (c) => {
+  try {
+    const reviews: any[] = await kv.getByPrefix("ovora:review:");
+    return c.json({ reviews: reviews.filter(r => r) });
+  } catch (err) {
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ✅ Admin: get ALL documents across all users with signed URLs
+app.get("/make-server-4e36197a/admin/documents", async (c) => {
+  try {
+    const users: any[] = await kv.getByPrefix("ovora:user:email:");
+    const validUsers = users.filter(u => u?.email);
+    const allDocs: any[] = [];
+    for (const user of validUsers) {
+      const docs: any[] = await kv.getByPrefix(`ovora:document:${user.email}:`);
+      for (const doc of docs.filter(d => d)) {
+        let photoUrl = null;
+        if (doc.photoPath) {
+          try {
+            const { data } = await supabase.storage.from(BUCKET).createSignedUrl(doc.photoPath, 3600);
+            photoUrl = data?.signedUrl || null;
+          } catch {}
+        }
+        allDocs.push({
+          ...doc,
+          photoUrl,
+          driverName: `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email,
+          driverPhone: user.phone || "",
+          driverEmail: user.email,
+        });
+      }
+    }
+    const sorted = allDocs.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+    console.log(`[admin/documents] Returning ${sorted.length} documents`);
+    return c.json({ documents: sorted });
+  } catch (err) {
+    console.log("Error GET /admin/documents:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ✅ Admin: approve/reject document and update user verified status
+app.put("/make-server-4e36197a/admin/documents/:documentId/status", async (c) => {
+  try {
+    const documentId = c.req.param("documentId");
+    const { status, userEmail, notes } = await c.req.json();
+    if (!status || !userEmail) return c.json({ error: "status and userEmail required" }, 400);
+    const docKey = `ovora:document:${userEmail}:${documentId}`;
+    const existing: any = await kv.get(docKey);
+    if (!existing) return c.json({ error: "Document not found" }, 404);
+    const updated = { ...existing, status, ...(notes ? { adminNotes: notes } : {}), reviewedAt: new Date().toISOString() };
+    await kv.set(docKey, updated);
+    if (status === "verified" || status === "approved") {
+      const userKey = `ovora:user:email:${userEmail.toLowerCase().trim()}`;
+      const user: any = await kv.get(userKey);
+      if (user) await kv.set(userKey, { ...user, isVerified: true, documentsVerified: true, updatedAt: new Date().toISOString() });
+    }
+    console.log(`[admin/documents] ${documentId} for ${userEmail} → ${status}`);
+    return c.json({ success: true, document: updated });
+  } catch (err) {
+    console.log("Error PUT /admin/documents/:id/status:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ✅ Admin: load settings from KV
+app.get("/make-server-4e36197a/admin/settings", async (c) => {
+  try {
+    const settings = await kv.get("ovora:admin:settings");
+    return c.json({ settings: settings || {} });
+  } catch (err) {
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ✅ Admin: save settings to KV
+app.put("/make-server-4e36197a/admin/settings", async (c) => {
+  try {
+    const body = await c.req.json();
+    await kv.set("ovora:admin:settings", { ...body, updatedAt: new Date().toISOString() });
+    return c.json({ success: true });
+  } catch (err) {
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ✅ Admin: block/unblock user
+app.put("/make-server-4e36197a/admin/users/:email/status", async (c) => {
+  try {
+    const email = decodeURIComponent(c.req.param("email"));
+    const { status } = await c.req.json();
+    if (!status) return c.json({ error: "status required" }, 400);
+    const key = `ovora:user:email:${email.toLowerCase().trim()}`;
+    const existing: any = await kv.get(key);
+    if (!existing) return c.json({ error: "User not found" }, 404);
+    const updated = { ...existing, status, updatedAt: new Date().toISOString() };
+    await kv.set(key, updated);
+    return c.json({ success: true, user: updated });
+  } catch (err) {
+    console.log("Error PUT /admin/users/:email/status:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ✅ Admin: delete user (hard delete)
+app.delete("/make-server-4e36197a/admin/users/:email", async (c) => {
+  try {
+    const email = decodeURIComponent(c.req.param("email"));
+    const key = `ovora:user:email:${email.toLowerCase().trim()}`;
+    const existing: any = await kv.get(key);
+    if (!existing) return c.json({ error: "User not found" }, 404);
+    await kv.del(key);
+    return c.json({ success: true });
+  } catch (err) {
+    console.log("Error DELETE /admin/users/:email:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ✅ Admin: enhanced stats with full breakdown
+app.get("/make-server-4e36197a/admin/stats/full", async (c) => {
+  try {
+    const [trips, offers, users, reviews]: any[] = await Promise.all([
+      kv.getByPrefix("ovora:trip:"),
+      kv.getByPrefix("ovora:offer:"),
+      kv.getByPrefix("ovora:user:email:"),
+      kv.getByPrefix("ovora:review:"),
+    ]);
+    const validTrips = trips.filter((t: any) => t && !t.deletedAt);
+    const activeTrips = validTrips.filter((t: any) => t.status === 'active');
+    const validUsers = users.filter((u: any) => u);
+    const drivers = validUsers.filter((u: any) => u.role === 'driver');
+    const senders = validUsers.filter((u: any) => u.role === 'sender');
+    const validOffers = offers.filter((o: any) => o);
+    const pendingOffers = validOffers.filter((o: any) => o.status === 'pending');
+    const acceptedOffers = validOffers.filter((o: any) => o.status === 'accepted');
+    const blockedUsers = validUsers.filter((u: any) => u.status === 'blocked');
+    const revenue = acceptedOffers.reduce((sum: number, o: any) => {
+      const price = parseFloat(String(o.price || o.totalPrice || 0).replace(/[^0-9.]/g, ''));
+      return sum + (isNaN(price) ? 0 : price);
+    }, 0);
+    return c.json({
+      total: {
+        trips: validTrips.length,
+        offers: validOffers.length,
+        users: validUsers.length,
+        reviews: reviews.filter((r: any) => r).length,
+        drivers: drivers.length,
+        senders: senders.length,
+        activeTrips: activeTrips.length,
+        pendingOffers: pendingOffers.length,
+        acceptedOffers: acceptedOffers.length,
+        blockedUsers: blockedUsers.length,
+        revenue: Math.round(revenue),
+      }
+    });
+  } catch (err) {
+    console.log("Error GET /admin/stats/full:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ✅ Delete all trips (for testing/cleanup)
+app.delete("/make-server-4e36197a/admin/trips/deleteAll", async (c) => {
+  try {
+    const trips: any[] = await kv.getByPrefix("ovora:trip:");
+    let deleted = 0;
+    for (const trip of trips) {
+      if (trip?.id) {
+        await kv.del(`ovora:trip:${trip.id}`);
+        deleted++;
+      }
+    }
+    console.log(`[admin] Deleted ${deleted} trips`);
+    return c.json({ success: true, deleted });
+  } catch (err) {
+    console.log("Error DELETE /admin/trips/deleteAll:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// Duplicate /stats route removed — first registration above (line ~3279) takes effect in Hono
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  TRACKING ROUTES — Active shipment management (no admin required)
+//  KV: ovora:shipment:{tripId} → ActiveShipment object
+// ══════════════════════════════════════════════════════════════════════════════
+
+// NOTE: /tracking/user/:email must be registered BEFORE /tracking/:tripId
+// to prevent Hono from matching "user" as a tripId.
+
+// GET all shipments for a user (filtered by role query param)
+app.get("/make-server-4e36197a/tracking/user/:email", async (c) => {
+  try {
+    const email = decodeURIComponent(c.req.param("email"));
+    const role = c.req.query("role") as 'driver' | 'sender' | undefined;
+    const values: any[] = await kv.getByPrefix("ovora:shipment:");
+    const filtered = values
+      .filter(s => {
+        if (!s) return false;
+        if (role === 'driver') return s.driverEmail === email;
+        if (role === 'sender') return s.senderEmail === email;
+        return s.driverEmail === email || s.senderEmail === email;
+      })
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    return c.json({ values: filtered });
+  } catch (err) {
+    console.log("Error GET /tracking/user/:email:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// GET shipment by tripId
+app.get("/make-server-4e36197a/tracking/:tripId", async (c) => {
+  try {
+    const tripId = c.req.param("tripId");
+    const value = await kv.get(`ovora:shipment:${tripId}`);
+    return c.json({ value: value || null });
+  } catch (err) {
+    console.log("Error GET /tracking/:tripId:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// PUT (save/update) shipment — merges with existing data
+app.put("/make-server-4e36197a/tracking/:tripId", async (c) => {
+  try {
+    const tripId = c.req.param("tripId");
+    const body = await c.req.json();
+    const now = new Date().toISOString();
+    const key = `ovora:shipment:${tripId}`;
+    const existing: any = await kv.get(key) || {};
+    const value = {
+      ...existing,
+      ...body,
+      tripId,
+      updatedAt: now,
+      createdAt: existing.createdAt || body.createdAt || now,
+    };
+    await kv.set(key, value);
+    return c.json({ success: true, value });
+  } catch (err) {
+    console.log("Error PUT /tracking/:tripId:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// DELETE shipment (hard delete from KV)
+app.delete("/make-server-4e36197a/tracking/:tripId", async (c) => {
+  try {
+    const tripId = c.req.param("tripId");
+    await kv.del(`ovora:shipment:${tripId}`);
+    return c.json({ success: true });
+  } catch (err) {
+    console.log("Error DELETE /tracking/:tripId:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  TRACKING: STATUS UPDATE — смена статуса груза + push к отправителю
+//  KV: ovora:shipment:{tripId} → обновляем status + statusHistory
+// ══════════════════════════════════════════════════════════════════════════════
+
+const CARGO_STATUS_LABELS: Record<string, string> = {
+  pending:   'Ожидает погрузки',
+  loaded:    'Груз загружен',
+  inProgress:'В пути',
+  customs:   'На таможне',
+  arrived:   'Прибыл в пункт назначения',
+  delivered: 'Доставлен',
+  completed: 'Доставлен',
+  cancelled: 'Отменено',
+};
+
+app.post("/make-server-4e36197a/tracking/:tripId/status", async (c) => {
+  try {
+    const tripId = c.req.param("tripId");
+    const { status, driverEmail } = await c.req.json();
+    if (!status) return c.json({ error: 'status required' }, 400);
+
+    const key = `ovora:shipment:${tripId}`;
+    const existing: any = await kv.get(key);
+    if (!existing) return c.json({ error: 'Shipment not found' }, 404);
+
+    const now = new Date().toISOString();
+    const historyEntry = { status, timestamp: now, driverEmail: driverEmail || existing.driverEmail };
+    const statusHistory = [...(existing.statusHistory || []), historyEntry];
+
+    const updated = { ...existing, status, statusHistory, updatedAt: now };
+    await kv.set(key, updated);
+
+    // Push-уведомление отправителю
+    const label = CARGO_STATUS_LABELS[status] || status;
+    if (existing.senderEmail) {
+      sendPushToUser(existing.senderEmail, {
+        title: `📦 ${label}`,
+        body: `${existing.from} → ${existing.to}`,
+        url: '/tracking',
+        tag: `cargo-status-${tripId}`,
+      }).catch(e => console.warn('[Status] push failed:', e));
+    }
+
+    console.log(`[tracking/status] Trip ${tripId}: ${existing.status} → ${status}`);
+    return c.json({ success: true, value: updated });
+  } catch (err) {
+    console.log("Error POST /tracking/:tripId/status:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  TRACKING: POD UPLOAD — фото загрузки/выгрузки (Proof of Delivery)
+//  Storage: make-4e36197a-pod/{tripId}/{type}-{ts}.jpg
+// ══════════════════════════════════════════════════════════════════════════════
+
+app.post("/make-server-4e36197a/tracking/:tripId/pod", async (c) => {
+  try {
+    const tripId = c.req.param("tripId");
+    const { base64, type, driverEmail } = await c.req.json();
+    if (!base64 || !type) return c.json({ error: 'base64 and type required' }, 400);
+    if (!['loading', 'unloading'].includes(type)) return c.json({ error: 'type must be loading or unloading' }, 400);
+
+    const key = `ovora:shipment:${tripId}`;
+    const existing: any = await kv.get(key);
+    if (!existing) return c.json({ error: 'Shipment not found' }, 404);
+
+    // base64 → binary
+    const base64Data = base64.replace(/^data:image\/[a-z]+;base64,/, '');
+    const binaryStr = atob(base64Data);
+    const bytes = new Uint8Array(binaryStr.length);
+    for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+
+    const now = new Date().toISOString();
+    const fileName = `${tripId}/${type}-${Date.now()}.jpg`;
+
+    const { error: uploadError } = await supabase.storage
+      .from(POD_BUCKET)
+      .upload(fileName, bytes, { contentType: 'image/jpeg', upsert: true });
+
+    if (uploadError) {
+      console.log('[POD] Upload error:', uploadError);
+      throw uploadError;
+    }
+
+    // Подписанный URL на 7 дней
+    const { data: signedData } = await supabase.storage
+      .from(POD_BUCKET)
+      .createSignedUrl(fileName, 7 * 24 * 3600);
+
+    const podEntry = {
+      type,
+      url: signedData?.signedUrl || '',
+      path: fileName,
+      timestamp: now,
+      driverEmail: driverEmail || existing.driverEmail,
+    };
+    const podPhotos = [...(existing.podPhotos || []), podEntry];
+    const updated = { ...existing, podPhotos, updatedAt: now };
+    await kv.set(key, updated);
+
+    // Уведомить отправителя
+    if (existing.senderEmail) {
+      const label = type === 'loading' ? 'Фото загрузки добавлено' : 'Фото выгрузки добавлено';
+      sendPushToUser(existing.senderEmail, {
+        title: `📷 ${label}`,
+        body: `${existing.from} → ${existing.to}`,
+        url: '/tracking',
+        tag: `pod-${type}-${tripId}`,
+      }).catch(e => console.warn('[POD] push failed:', e));
+    }
+
+    console.log(`[tracking/pod] ${type} photo uploaded for trip ${tripId}`);
+    return c.json({ success: true, photo: podEntry });
+  } catch (err) {
+    console.log("Error POST /tracking/:tripId/pod:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// GET POD photos — обновляем signed URLs
+app.get("/make-server-4e36197a/tracking/:tripId/pod", async (c) => {
+  try {
+    const tripId = c.req.param("tripId");
+    const shipment: any = await kv.get(`ovora:shipment:${tripId}`);
+    if (!shipment) return c.json({ photos: [] });
+
+    const photos = shipment.podPhotos || [];
+    const refreshed = await Promise.all(photos.map(async (p: any) => {
+      if (!p.path) return p;
+      const { data } = await supabase.storage.from(POD_BUCKET).createSignedUrl(p.path, 7 * 24 * 3600);
+      return { ...p, url: data?.signedUrl || p.url };
+    }));
+
+    return c.json({ photos: refreshed });
+  } catch (err) {
+    console.log("Error GET /tracking/:tripId/pod:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  PUBLIC TRACKING — без авторизации (только безопасные поля)
+//  Используется на /track/:tripId (публичная ссылка)
+// ══════════════════════════════════════════════════════════════════════════════
+
+app.get("/make-server-4e36197a/public/tracking/:tripId", async (c) => {
+  try {
+    const tripId = c.req.param("tripId");
+    const shipment: any = await kv.get(`ovora:shipment:${tripId}`);
+    if (!shipment) return c.json({ found: false }, 404);
+
+    // Только публично-безопасные поля — без email и телефона
+    const publicData = {
+      tripId:              shipment.tripId,
+      from:                shipment.from,
+      to:                  shipment.to,
+      status:              shipment.status,
+      statusHistory:       shipment.statusHistory || [],
+      driverLat:           shipment.driverLat ?? null,
+      driverLng:           shipment.driverLng ?? null,
+      fromLat:             shipment.fromLat ?? null,
+      fromLng:             shipment.fromLng ?? null,
+      toLat:               shipment.toLat ?? null,
+      toLng:               shipment.toLng ?? null,
+      lastLocationUpdate:  shipment.lastLocationUpdate ?? null,
+      startedAt:           shipment.startedAt ?? null,
+      updatedAt:           shipment.updatedAt,
+      driverName:          shipment.contactName || 'Водитель',
+      vehicleType:         shipment.vehicleType || '',
+      cargoType:           shipment.cargoType || '',
+      podPhotos:           (shipment.podPhotos || []).map((p: any) => ({
+        type: p.type, url: p.url, timestamp: p.timestamp,
+      })),
+    };
+
+    return c.json({ found: true, shipment: publicData });
+  } catch (err) {
+    console.log("Error GET /public/tracking/:tripId:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  GENERIC KV ROUTES - Для работы с любыми ключами
+// ══════════════════════════════════════════════════════════════════���════════════
+
+app.post("/make-server-4e36197a/kv/set", async (c) => {
+  try {
+    const { key, value } = await c.req.json();
+    if (!key) return c.json({ error: "key required" }, 400);
+    await kv.set(key, value);
+    return c.json({ success: true, value });
+  } catch (err) {
+    console.log("Error POST /kv/set:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.post("/make-server-4e36197a/kv/get", async (c) => {
+  try {
+    const { key } = await c.req.json();
+    if (!key) return c.json({ error: "key required" }, 400);
+    const value = await kv.get(key);
+    return c.json({ value });
+  } catch (err) {
+    console.log("Error POST /kv/get:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.post("/make-server-4e36197a/kv/getByPrefix", async (c) => {
+  try {
+    const { prefix } = await c.req.json();
+    if (!prefix) return c.json({ error: "prefix required" }, 400);
+    const values = await kv.getByPrefix(prefix);
+    return c.json({ values });
+  } catch (err) {
+    console.log("Error POST /kv/getByPrefix:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.post("/make-server-4e36197a/kv/del", async (c) => {
+  try {
+    const { key } = await c.req.json();
+    if (!key) return c.json({ error: "key required" }, 400);
+    await kv.del(key);
+    return c.json({ success: true });
+  } catch (err) {
+    console.log("Error POST /kv/del:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  NOTIFICATIONS ROUTES
+//  KV: ovora:notification:{userEmail}:{id} → notification object
+// ══════════════════════════════════════════════════════════════════════════════
+
+app.post("/make-server-4e36197a/notifications", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { userEmail, type, iconName, iconBg, title, description } = body;
+    if (!userEmail || !type || !title) {
+      return c.json({ error: "userEmail, type, and title are required" }, 400);
+    }
+
+    const id = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const now = new Date().toISOString();
+    const notification = {
+      id,
+      userEmail,
+      type,
+      iconName: iconName || 'Bell',
+      iconBg: iconBg || 'bg-blue-500/10 text-blue-500',
+      title,
+      description: description || '',
+      isUnread: true,
+      createdAt: now,
+    };
+
+    await kv.set(`ovora:notification:${userEmail}:${id}`, notification);
+    console.log(`[notifications] Created notification for ${userEmail}:`, title);
+    return c.json({ success: true, notification });
+  } catch (err) {
+    console.log("Error POST /notifications:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.get("/make-server-4e36197a/notifications/:email", async (c) => {
+  try {
+    const email = decodeURIComponent(c.req.param("email"));
+    const notifications: any[] = await kv.getByPrefix(`ovora:notification:${email}:`);
+    const sorted = notifications
+      .filter(n => n)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return c.json({ notifications: sorted });
+  } catch (err) {
+    console.log("Error GET /notifications/:email:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.put("/make-server-4e36197a/notifications/:email/:id/read", async (c) => {
+  try {
+    const email = decodeURIComponent(c.req.param("email"));
+    const id = c.req.param("id");
+    const key = `ovora:notification:${email}:${id}`;
+    const existing: any = await kv.get(key);
+    if (!existing) return c.json({ error: "Notification not found" }, 404);
+    const updated = { ...existing, isUnread: false };
+    await kv.set(key, updated);
+    return c.json({ success: true, notification: updated });
+  } catch (err) {
+    console.log("Error PUT /notifications/:email/:id/read:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.put("/make-server-4e36197a/notifications/:email/read-all", async (c) => {
+  try {
+    const email = decodeURIComponent(c.req.param("email"));
+    const notifications: any[] = await kv.getByPrefix(`ovora:notification:${email}:`);
+    for (const n of notifications) {
+      if (n && n.isUnread) {
+        await kv.set(`ovora:notification:${email}:${n.id}`, { ...n, isUnread: false });
+      }
+    }
+    return c.json({ success: true });
+  } catch (err) {
+    console.log("Error PUT /notifications/:email/read-all:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.delete("/make-server-4e36197a/notifications/:email/:id", async (c) => {
+  try {
+    const email = decodeURIComponent(c.req.param("email"));
+    const id = c.req.param("id");
+    await kv.del(`ovora:notification:${email}:${id}`);
+    return c.json({ success: true });
+  } catch (err) {
+    console.log("Error DELETE /notifications/:email/:id:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.delete("/make-server-4e36197a/notifications/:email", async (c) => {
+  try {
+    const email = decodeURIComponent(c.req.param("email"));
+    const notifications: any[] = await kv.getByPrefix(`ovora:notification:${email}:`);
+    for (const n of notifications) {
+      if (n && n.id) {
+        await kv.del(`ovora:notification:${email}:${n.id}`);
+      }
+    }
+    return c.json({ success: true, deleted: notifications.length });
+  } catch (err) {
+    console.log("Error DELETE /notifications/:email:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  USER API - Управление профилем пользователя
+// ═══════════════════════��══════════════════════════════════════════════════════
+
+/**
+ * 👤 Получить пользователя по email
+ */
+app.get("/make-server-4e36197a/users/:email", async (c) => {
+  try {
+    const email = decodeURIComponent(c.req.param("email"));
+    console.log(`[users/get] Getting user: ${email}`);
+    
+    const userKey = `ovora:user:email:${email.toLowerCase().trim()}`;
+    const user = await kv.get(userKey);
+    
+    if (!user) {
+      console.log(`[users/get] User not found: ${email}`);
+      return c.json({ error: "User not found" }, 404);
+    }
+    
+    console.log(`[users/get] User found:`, user);
+    return c.json({ success: true, user });
+  } catch (err) {
+    console.log("Error GET /users/:email:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+/**
+ * ✏️ Обновить пользователя
+ */
+app.put("/make-server-4e36197a/users/:email", async (c) => {
+  try {
+    const email = decodeURIComponent(c.req.param("email"));
+    const updates = await c.req.json();
+    console.log(`[users/update] Updating user: ${email}`, updates);
+    
+    const userKey = `ovora:user:email:${email.toLowerCase().trim()}`;
+    const existingUser = await kv.get(userKey);
+    
+    if (!existingUser) {
+      console.log(`[users/update] User not found: ${email}`);
+      return c.json({ error: "User not found" }, 404);
+    }
+    
+    const updatedUser = {
+      ...existingUser,
+      ...updates,
+      email, // Email не меняется
+      updatedAt: new Date().toISOString(),
+    };
+    
+    await kv.set(userKey, updatedUser);
+    console.log(`[users/update] User updated:`, updatedUser);
+    
+    return c.json({ success: true, user: updatedUser });
+  } catch (err) {
+    console.log("Error PUT /users/:email:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  AVATAR UPLOAD
+//  POST /users/:email/avatar  — multipart/form-data { avatar: File }
+// ══════════════════════════════════════════════════════════════════════════════
+
+app.post("/make-server-4e36197a/users/:email/avatar", async (c) => {
+  try {
+    const email = decodeURIComponent(c.req.param("email")).toLowerCase().trim();
+    console.log(`[avatar/upload] Uploading avatar for user: ${email}`);
+
+    const form = await c.req.formData();
+    const file = form.get("avatar") as File | null;
+
+    if (!file || !file.size) {
+      return c.json({ error: "No avatar file provided" }, 400);
+    }
+
+    const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+    const safeName = email.replace(/[@.]/g, "_");
+    const path = `${safeName}/${Date.now()}.${ext}`;
+
+    const arrayBuffer = await file.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+
+    const { error: uploadError } = await supabase.storage
+      .from(AVATAR_BUCKET)
+      .upload(path, bytes, { contentType: file.type || "image/jpeg", upsert: true });
+
+    if (uploadError) {
+      console.log(`[avatar/upload] Storage upload error:`, uploadError.message);
+      return c.json({ error: `Storage error: ${uploadError.message}` }, 500);
+    }
+
+    const { data: urlData } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(path);
+    const avatarUrl = urlData.publicUrl;
+
+    console.log(`[avatar/upload] Uploaded avatar: ${avatarUrl}`);
+
+    // Update user record with new avatarUrl
+    const userKey = `ovora:user:email:${email}`;
+    const existingUser: any = await kv.get(userKey);
+    if (existingUser) {
+      const updatedUser = { ...existingUser, avatarUrl, updatedAt: new Date().toISOString() };
+      await kv.set(userKey, updatedUser);
+      console.log(`[avatar/upload] User record updated with avatarUrl`);
+    }
+
+    return c.json({ success: true, avatarUrl });
+  } catch (err) {
+    console.log("Error POST /users/:email/avatar:", err);
+    return c.json({ error: `Avatar upload failed: ${err}` }, 500);
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  OTP AUTHENTICATION — KV store + Gmail SMTP (email) / dev mode (phone)
+// ══════════════════════════════════════════════════════════════════════════════
+
+app.post("/make-server-4e36197a/auth/send-otp", handleSendOtp);
+app.post("/make-server-4e36197a/auth/verify-otp", handleVerifyOtp);
+
+// ── Permanent Crypto Code ──────────────────────────────────────────────────────
+app.post("/make-server-4e36197a/auth/email-check", handleEmailCheck);
+app.post("/make-server-4e36197a/auth/set-code", handleSetCode);
+app.post("/make-server-4e36197a/auth/verify-perm-code", handleVerifyPermCode);
+app.post("/make-server-4e36197a/auth/reset-code", handleResetCode);
+app.get("/make-server-4e36197a/admin/codes", handleAdminListCodes);
+
+// ── Backup Recovery Code ──────────────────────────────────────────────────────
+app.post("/make-server-4e36197a/auth/backup/generate", handleGenerateBackup);
+app.post("/make-server-4e36197a/auth/backup/verify", handleVerifyBackup);
+app.get("/make-server-4e36197a/auth/backup/exists/:email", handleBackupExists);
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  ADS (BANNERS) ROUTES
+//  KV: ovora:ad:{id} → ad object
+// ═══════════���══════════════════════════════════════════════════════════════════
+
+// Admin: upload ad media (image or video) to Supabase Storage
+app.post("/make-server-4e36197a/admin/ads/upload", async (c) => {
+  try {
+    const formData = await c.req.formData();
+    const file = formData.get("file") as File | null;
+    const type = (formData.get("type") as string) || "image"; // "image" | "video"
+    if (!file) return c.json({ error: "No file provided" }, 400);
+
+    const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
+    const filename = `${type}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const arrayBuffer = await file.arrayBuffer();
+    const uint8 = new Uint8Array(arrayBuffer);
+
+    const { error: uploadError } = await supabase.storage
+      .from(ADS_BUCKET)
+      .upload(filename, uint8, {
+        contentType: file.type || "application/octet-stream",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.log("[admin/ads/upload] Upload error:", uploadError);
+      return c.json({ error: `Upload failed: ${uploadError.message}` }, 500);
+    }
+
+    const { data: urlData } = supabase.storage
+      .from(ADS_BUCKET)
+      .getPublicUrl(filename);
+
+    const publicUrl = urlData?.publicUrl || "";
+    console.log(`[admin/ads/upload] Uploaded ${type}: ${publicUrl}`);
+    return c.json({ success: true, url: publicUrl, filename });
+  } catch (err) {
+    console.log("Error POST /admin/ads/upload:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// Public: get active ads — supports ?placement=welcome|cargo|avia
+app.get("/make-server-4e36197a/ads", async (c) => {
+  try {
+    const placement = c.req.query('placement') || '';
+    const ads: any[] = await kv.getByPrefix("ovora:ad:");
+    let active = ads.filter(a => a && a.isActive !== false);
+    if (placement) {
+      active = active.filter((a: any) => {
+        if (!a.placement || a.placement === 'all') return true;
+        return a.placement === placement;
+      });
+    }
+    active.sort((a: any, b: any) => (a.order ?? 999) - (b.order ?? 999));
+    return c.json({ ads: active });
+  } catch (err) {
+    console.log("Error GET /ads:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// Admin: get all ads (including inactive)
+app.get("/make-server-4e36197a/admin/ads", async (c) => {
+  try {
+    const ads: any[] = await kv.getByPrefix("ovora:ad:");
+    const sorted = ads.filter(a => a).sort((a: any, b: any) => (a.order ?? 999) - (b.order ?? 999));
+    return c.json({ ads: sorted });
+  } catch (err) {
+    console.log("Error GET /admin/ads:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// Admin: create new ad
+app.post("/make-server-4e36197a/admin/ads", async (c) => {
+  try {
+    const body = await c.req.json();
+    const id = `ad_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const ad = {
+      id,
+      emoji: body.emoji || "🚚",
+      badge: body.badge || "",
+      title: body.title || "",
+      description: body.description || "",
+      image: body.image || "",
+      videoUrl: body.videoUrl || "",
+      url: body.url || "#",
+      isActive: body.isActive !== false,
+      order: body.order ?? 0,
+      placement: body.placement || "all",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    await kv.set(`ovora:ad:${id}`, ad);
+    console.log(`[admin/ads] Created ad ${id}, placement=${ad.placement}`);
+    return c.json({ success: true, ad });
+  } catch (err) {
+    console.log("Error POST /admin/ads:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// Admin: update ad
+app.put("/make-server-4e36197a/admin/ads/:id", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const body = await c.req.json();
+    const existing: any = await kv.get(`ovora:ad:${id}`);
+    if (!existing) return c.json({ error: "Ad not found" }, 404);
+    const updated = { ...existing, ...body, id, updatedAt: new Date().toISOString() };
+    await kv.set(`ovora:ad:${id}`, updated);
+    console.log(`[admin/ads] Updated ad ${id}`);
+    return c.json({ success: true, ad: updated });
+  } catch (err) {
+    console.log("Error PUT /admin/ads/:id:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// Admin: delete ad
+app.delete("/make-server-4e36197a/admin/ads/:id", async (c) => {
+  try {
+    const id = c.req.param("id");
+    await kv.del(`ovora:ad:${id}`);
+    console.log(`[admin/ads] Deleted ad ${id}`);
+    return c.json({ success: true });
+  } catch (err) {
+    console.log("Error DELETE /admin/ads/:id:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  PAYMENTS — вычисляются на сервере из реальных trips + offers
+//  GET /payments/:email?role=driver|sender
+// ══════════════════════════════════════════════════════════════════════════════
+
+app.get("/make-server-4e36197a/payments/:email", async (c) => {
+  try {
+    const email = decodeURIComponent(c.req.param("email")).toLowerCase().trim();
+    const role = c.req.query("role") || "sender";
+    console.log(`[payments] Computing payments for ${email}, role=${role}`);
+
+    const [allTrips, allOffers]: [any[], any[]] = await Promise.all([
+      kv.getByPrefix("ovora:trip:"),
+      kv.getByPrefix("ovora:offer:"),
+    ]);
+
+    const result: any[] = [];
+
+    if (role === "driver") {
+      const driverTrips = allTrips.filter(t => t && !t.deletedAt && t.driverEmail === email);
+      const driverTripIds = new Set(driverTrips.map(t => String(t.id)));
+
+      for (const offer of allOffers) {
+        if (!offer || !driverTripIds.has(String(offer.tripId))) continue;
+        const trip = driverTrips.find(t => String(t.id) === String(offer.tripId));
+        if (!trip) continue;
+        const amount = Number(offer.price || offer.totalPrice || 0);
+        const status = offer.status || "pending";
+        if ((status === "accepted" || status === "completed") && amount > 0) {
+          result.push({
+            id: `income-${offer.offerId || offer.id}`,
+            type: "income",
+            title: (offer.requestedSeats || 0) > 0 ? "Оплата за место" : "Оплата за груз",
+            description: `${trip.from} → ${trip.to}`,
+            amount,
+            date: offer.createdAt || trip.date || "",
+            status: status === "completed" ? "completed" : "pending",
+            person: offer.senderName || "Отправитель",
+            personLabel: "Отправитель",
+            seats: offer.requestedSeats || 0,
+            cargoKg: offer.requestedCargo || 0,
+          });
+        } else if ((status === "cancelled" || status === "rejected" || status === "declined") && amount > 0) {
+          result.push({
+            id: `refund-${offer.offerId || offer.id}`,
+            type: "expense",
+            title: "Возврат по отмене",
+            description: `${trip.from} → ${trip.to}`,
+            amount: -amount,
+            date: offer.createdAt || trip.date || "",
+            status: "completed",
+            person: offer.senderName || "Отправитель",
+            personLabel: "Отправитель",
+          });
+        }
+      }
+    } else {
+      const senderOffers = allOffers.filter(o => o && o.senderEmail === email);
+      for (const offer of senderOffers) {
+        const trip = allTrips.find(t => t && String(t.id) === String(offer.tripId) && !t.deletedAt);
+        if (!trip) continue;
+        const amount = Number(offer.price || offer.totalPrice || 0);
+        if (amount <= 0) continue;
+        const status = offer.status || "pending";
+        if (status === "accepted" || status === "completed") {
+          result.push({
+            id: `exp-${offer.offerId || offer.id}`,
+            type: "expense",
+            title: (offer.requestedSeats || 0) > 0 ? "Оплата за место" : "Оплата за груз",
+            description: `${trip.from} → ${trip.to}`,
+            amount: -amount,
+            date: offer.createdAt || trip.date || "",
+            status: status === "completed" ? "completed" : "pending",
+            person: trip.driverName || "Водитель",
+            personLabel: "Водитель",
+            seats: offer.requestedSeats || 0,
+            cargoKg: offer.requestedCargo || 0,
+          });
+        } else if (status === "cancelled" || status === "rejected" || status === "declined") {
+          result.push({
+            id: `ret-${offer.offerId || offer.id}`,
+            type: "income",
+            title: "Возврат по отмене",
+            description: `${trip.from} → ${trip.to}`,
+            amount,
+            date: offer.createdAt || trip.date || "",
+            status: "completed",
+            person: trip.driverName || "Водитель",
+            personLabel: "Водитель",
+          });
+        }
+      }
+    }
+
+    result.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    console.log(`[payments] Returning ${result.length} payments for ${email}`);
+    return c.json({ payments: result });
+  } catch (err) {
+    console.log("Error GET /payments/:email:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  USER STATS — рейтинг, количество поездок и отзывов из реального KV
+//  GET /users/:email/stats?role=driver|sender
+// ══════════════════════════════════════════════════════════════════════════════
+
+app.get("/make-server-4e36197a/users/:email/stats", async (c) => {
+  try {
+    const email = decodeURIComponent(c.req.param("email")).toLowerCase().trim();
+    const role = c.req.query("role") || "sender";
+    console.log(`[user-stats] Computing stats for ${email}, role=${role}`);
+
+    const [allTrips, allOffers, allReviews]: [any[], any[], any[]] = await Promise.all([
+      kv.getByPrefix("ovora:trip:"),
+      kv.getByPrefix("ovora:offer:"),
+      kv.getByPrefix("ovora:review:"),
+    ]);
+
+    let tripCount = 0;
+    if (role === "driver") {
+      tripCount = allTrips.filter(t => t && !t.deletedAt && t.driverEmail === email).length;
+    } else {
+      tripCount = allOffers.filter(o => o && o.senderEmail === email && (o.status === "accepted" || o.status === "completed")).length;
+    }
+
+    const receivedReviews = allReviews.filter(r => r && r.targetEmail === email);
+    const reviewCount = receivedReviews.length;
+    const avgRating = reviewCount > 0
+      ? receivedReviews.reduce((sum, r) => sum + (Number(r.rating) || 0), 0) / reviewCount
+      : 0;
+
+    console.log(`[user-stats] trips=${tripCount}, reviews=${reviewCount}, avg=${avgRating.toFixed(2)}`);
+    return c.json({
+      tripCount,
+      reviewCount,
+      avgRating: Math.round(avgRating * 10) / 10,
+      reviews: receivedReviews.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+    });
+  } catch (err) {
+    console.log("Error GET /users/:email/stats:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  BORDERS — статус КПП + краудсорсинг
+// ══════════════════════════════════════════════════════════════════════════════
+
+const DEFAULT_BORDERS = [
+  { id: 'verkhniy-lars',   name: 'Верхний Ларс',      from: 'Россия',      to: 'Грузия',       status: 'congested', queueMin: 180, queueTrucks: 120, route: 'Военно-Грузинская дорога' },
+  { id: 'nizhniy-zaramag', name: 'Нижний Зарамаг',     from: 'Россия',      to: 'Ю.Осетия',     status: 'open',      queueMin: 20,  queueTrucks: 5,   route: 'Транскавказская магистраль' },
+  { id: 'yarag-kazmalyar', name: 'Яраг-Казмаляр',      from: 'Россия',      to: 'Азербайджан',  status: 'open',      queueMin: 45,  queueTrucks: 30,  route: 'М-29 Кавказ' },
+  { id: 'sagarchin',       name: 'Сагарчин',            from: 'Россия',      to: 'Казахстан',    status: 'open',      queueMin: 30,  queueTrucks: 15,  route: 'М-5 Урал' },
+  { id: 'mashtakovo',      name: 'Маштаково',           from: 'Россия',      to: 'Казахстан',    status: 'congested', queueMin: 90,  queueTrucks: 60,  route: 'М-32' },
+  { id: 'panj',            name: 'Нижний Пяндж',        from: 'Таджикистан', to: 'Афганистан',   status: 'closed',    queueMin: 0,   queueTrucks: 0,   route: 'Международный мост' },
+  { id: 'dushanbe-oybek',  name: 'Ойбек',               from: 'Таджикистан', to: 'Узбекистан',   status: 'open',      queueMin: 25,  queueTrucks: 10,  route: 'Таджикистан–Узбекистан' },
+  { id: 'petuhovo',        name: 'Петухово',             from: 'Россия',      to: 'Казахстан',    status: 'open',      queueMin: 15,  queueTrucks: 8,   route: 'М-51 Байкал' },
+];
+
+async function seedBorders() {
+  const existing = await kv.getByPrefix('ovora:border:');
+  if (existing.filter(b => b).length === 0) {
+    const now = new Date().toISOString();
+    for (const b of DEFAULT_BORDERS) {
+      await kv.set(`ovora:border:${b.id}`, { ...b, updatedAt: now, reportCount: 0 });
+    }
+    console.log('[borders] Seeded', DEFAULT_BORDERS.length, 'checkpoints');
+  }
+}
+seedBorders().catch(console.warn);
+
+app.get('/make-server-4e36197a/borders', async (c) => {
+  try {
+    const borders = await kv.getByPrefix('ovora:border:');
+    const filtered = borders.filter((b: any) => b && !b.deletedAt);
+    return c.json({ borders: filtered });
+  } catch (err) {
+    console.log('Error GET /borders:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.post('/make-server-4e36197a/borders/:id/report', async (c) => {
+  try {
+    const id = c.req.param('id');
+    const body = await c.req.json();
+    const { userEmail, userName, status, queueMin, queueTrucks, text } = body;
+    if (!userEmail) return c.json({ error: 'userEmail required' }, 400);
+    const border: any = await kv.get(`ovora:border:${id}`);
+    if (!border) return c.json({ error: 'Border not found' }, 404);
+    const reportId = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const now = new Date().toISOString();
+    const report = { id: reportId, borderId: id, userEmail, userName: userName || 'Пользователь', status, queueMin, queueTrucks, text, createdAt: now };
+    await kv.set(`ovora:border-report:${id}:${reportId}`, report);
+    if (status) {
+      await kv.set(`ovora:border:${id}`, { ...border, status, queueMin: queueMin ?? border.queueMin, queueTrucks: queueTrucks ?? border.queueTrucks, updatedAt: now, lastReportBy: userName || 'Пользователь', reportCount: (border.reportCount || 0) + 1 });
+    }
+    return c.json({ success: true, report });
+  } catch (err) {
+    console.log('Error POST /borders/:id/report:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.get('/make-server-4e36197a/borders/:id/reports', async (c) => {
+  try {
+    const id = c.req.param('id');
+    const reports: any[] = await kv.getByPrefix(`ovora:border-report:${id}:`);
+    const sorted = reports.filter(r => r).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 20);
+    return c.json({ reports: sorted });
+  } catch (err) {
+    console.log('Error GET /borders/:id/reports:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  REST STOPS — места отдыха, стоянки, кафе
+// ══════════════════════════════════════════════════════════════════════════════
+
+const DEFAULT_REST_STOPS = [
+  { id: 'rs-samara-m5',   name: 'Дорожный причал',      route: 'М-5 Урал',           km: 1020, city: 'Самара',          amenities: ['shower','wifi','parking','cafe','24h'],  price: 800,  hasDiscount: true,  discountPct: 20, rating: 4.7, reviewCount: 34 },
+  { id: 'rs-ufa-m5',      name: 'Трасса Отель',          route: 'М-5 Урал',           km: 1290, city: 'Уфа',             amenities: ['shower','wifi','parking','cafe'],         price: 1200, hasDiscount: false, discountPct: 0,  rating: 4.4, reviewCount: 18 },
+  { id: 'rs-chelyab-m5',  name: 'КомфортПлюс',           route: 'М-5 Урал',           km: 1600, city: 'Челябинск',       amenities: ['shower','parking','cafe','24h'],          price: 600,  hasDiscount: true,  discountPct: 20, rating: 4.2, reviewCount: 27 },
+  { id: 'rs-rostov-m4',   name: 'Степной берег',         route: 'М-4 Дон',            km: 1050, city: 'Ростов-на-Дону',  amenities: ['shower','wifi','parking','cafe','24h'],  price: 900,  hasDiscount: true,  discountPct: 20, rating: 4.8, reviewCount: 51 },
+  { id: 'rs-voronezh-m4', name: 'Транзит Хаус',          route: 'М-4 Дон',            km: 525,  city: 'Воронеж',         amenities: ['shower','wifi','parking'],                price: 700,  hasDiscount: false, discountPct: 0,  rating: 4.0, reviewCount: 12 },
+  { id: 'rs-dushanbe-1',  name: 'Чорраха',                route: 'Трасса Душанбе',     km: 0,    city: 'Душанбе',         amenities: ['shower','wifi','parking','cafe','24h'],  price: 120,  hasDiscount: true,  discountPct: 20, rating: 4.5, reviewCount: 22 },
+  { id: 'rs-khujand-1',   name: 'Сугдиён',                route: 'Трасса Худжанд',     km: 0,    city: 'Худжанд',         amenities: ['shower','parking','cafe'],                price: 80,   hasDiscount: false, discountPct: 0,  rating: 4.1, reviewCount: 9  },
+  { id: 'rs-kazan-m7',    name: 'ВолгаСтоп',              route: 'М-7 Волга',          km: 780,  city: 'Казань',          amenities: ['shower','wifi','parking','cafe','24h'],  price: 850,  hasDiscount: true,  discountPct: 20, rating: 4.6, reviewCount: 39 },
+];
+
+async function seedRestStops() {
+  const existing = await kv.getByPrefix('ovora:restplace:');
+  if (existing.filter(p => p).length === 0) {
+    const now = new Date().toISOString();
+    for (const p of DEFAULT_REST_STOPS) {
+      await kv.set(`ovora:restplace:${p.id}`, { ...p, createdAt: now, updatedAt: now });
+    }
+    console.log('[rest-stops] Seeded', DEFAULT_REST_STOPS.length, 'places');
+  }
+}
+seedRestStops().catch(console.warn);
+
+app.get('/make-server-4e36197a/rest-stops', async (c) => {
+  try {
+    const places: any[] = await kv.getByPrefix('ovora:restplace:');
+    const sorted = places.filter(p => p && !p.deletedAt).sort((a, b) => b.rating - a.rating);
+    return c.json({ places: sorted });
+  } catch (err) {
+    console.log('Error GET /rest-stops:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.post('/make-server-4e36197a/rest-stops/:id/review', async (c) => {
+  try {
+    const id = c.req.param('id');
+    const body = await c.req.json();
+    const { userEmail, userName, rating, text } = body;
+    if (!userEmail || !rating) return c.json({ error: 'userEmail and rating required' }, 400);
+    const place: any = await kv.get(`ovora:restplace:${id}`);
+    if (!place) return c.json({ error: 'Place not found' }, 404);
+    const reviewId = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const now = new Date().toISOString();
+    await kv.set(`ovora:restplace-review:${id}:${reviewId}`, { id: reviewId, placeId: id, userEmail, userName: userName || 'Пользователь', rating, text, createdAt: now });
+    const allReviews: any[] = await kv.getByPrefix(`ovora:restplace-review:${id}:`);
+    const totalRating = allReviews.reduce((sum, r) => sum + (Number(r.rating) || 0), 0);
+    const newAvg = allReviews.length > 0 ? Math.round((totalRating / allReviews.length) * 10) / 10 : rating;
+    await kv.set(`ovora:restplace:${id}`, { ...place, rating: newAvg, reviewCount: allReviews.length, updatedAt: now });
+    return c.json({ success: true });
+  } catch (err) {
+    console.log('Error POST /rest-stops/:id/review:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  RADIO CHANNELS — платформенная рация (текст по трассам)
+// ══════════════════════════════════════════════════════════════════════════════
+
+const DEFAULT_CHANNELS = [
+  { id: 'ch-m5',    name: 'М-5 Урал',               emoji: '🛣️', color: '#1a47c8', desc: 'Москва — Уфа — Челябинск' },
+  { id: 'ch-m4',    name: 'М-4 Дон',                 emoji: '🌾', color: '#059669', desc: 'Москва — Воронеж — Ростов' },
+  { id: 'ch-m7',    name: 'М-7 Волга',               emoji: '🌊', color: '#7c3aed', desc: 'Москва — Казань — Уфа' },
+  { id: 'ch-tajik', name: 'Дальнобой Таджикистан',   emoji: '🏔️', color: '#d97706', desc: 'Душанбе · Худжанд · Курган-Тюбе' },
+  { id: 'ch-lars',  name: 'Верхний Ларс',            emoji: '🛂', color: '#dc2626', desc: 'Обстановка на границе' },
+  { id: 'ch-kz',    name: 'Граница Казахстан',       emoji: '🏳️', color: '#0891b2', desc: 'Сагарчин · Маштаково · Петухово' },
+  { id: 'ch-sos',   name: 'SOS / Помощь',            emoji: '🆘', color: '#ef4444', desc: 'Срочная помощь на трассе' },
+];
+
+async function seedChannels() {
+  const existing = await kv.getByPrefix('ovora:radio:channel:');
+  if (existing.filter(c => c).length === 0) {
+    for (const ch of DEFAULT_CHANNELS) {
+      await kv.set(`ovora:radio:channel:${ch.id}`, { ...ch, createdAt: new Date().toISOString() });
+    }
+    console.log('[radio] Seeded', DEFAULT_CHANNELS.length, 'channels');
+  }
+}
+seedChannels().catch(console.warn);
+
+app.get('/make-server-4e36197a/radio/channels', async (c) => {
+  try {
+    const channels: any[] = await kv.getByPrefix('ovora:radio:channel:');
+    const sorted = channels.filter(ch => ch && !ch.deletedAt)
+      .sort((a, b) => DEFAULT_CHANNELS.findIndex(d => d.id === a.id) - DEFAULT_CHANNELS.findIndex(d => d.id === b.id));
+    return c.json({ channels: sorted });
+  } catch (err) {
+    console.log('Error GET /radio/channels:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.get('/make-server-4e36197a/radio/channels/:channelId/messages', async (c) => {
+  try {
+    const channelId = c.req.param('channelId');
+    const messages: any[] = await kv.getByPrefix(`ovora:radio:msg:${channelId}:`);
+    const sorted = messages.filter(m => m).sort((a, b) => (a.ts || 0) - (b.ts || 0)).slice(-60);
+    return c.json({ messages: sorted });
+  } catch (err) {
+    console.log('Error GET /radio/:id/messages:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.post('/make-server-4e36197a/radio/channels/:channelId/messages', async (c) => {
+  try {
+    const channelId = c.req.param('channelId');
+    const body = await c.req.json();
+    const { userEmail, userName, text, userRole } = body;
+    if (!userEmail || !text?.trim()) return c.json({ error: 'userEmail and text required' }, 400);
+    const channel: any = await kv.get(`ovora:radio:channel:${channelId}`);
+    if (!channel) return c.json({ error: 'Channel not found' }, 404);
+    const msgId = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const now = new Date().toISOString();
+    const message = { id: msgId, channelId, userEmail, userName: userName || 'По��ьзователь', userRole: userRole || 'sender', text: text.trim().substring(0, 500), ts: Date.now(), createdAt: now };
+    await kv.set(`ovora:radio:msg:${channelId}:${msgId}`, message);
+    // Trim: keep last 200
+    const allMsgs: any[] = await kv.getByPrefix(`ovora:radio:msg:${channelId}:`);
+    if (allMsgs.length > 200) {
+      const toDelete = allMsgs.filter(m => m).sort((a, b) => (a.ts || 0) - (b.ts || 0)).slice(0, allMsgs.length - 200);
+      for (const m of toDelete) await kv.del(`ovora:radio:msg:${channelId}:${m.id}`).catch(() => {});
+    }
+    return c.json({ success: true, message });
+  } catch (err) {
+    console.log('Error POST /radio/:id/messages:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  AVIA MODULE — подключается через Repository + Cache + RateLimit архитектуру
+//  Изолирован в: aviaRoutes.tsx / aviaRepo.tsx / cache.tsx / rateLimit.tsx
+//  MIGRATION: при переходе на SQL — менять только aviaRepo.tsx
+// ══════════════════════════════════════════════════════════════════════════════
+setupAviaRoutes(app, {
+  supabase,
+  AVIA_PASSPORT_BUCKET,
+  AVATAR_BUCKET,
+  extractDocumentData,
+  sendPushToUser,
+});
+
+// (AVIA routes: see aviaRoutes.tsx)
+
+// ── LEGACY AVIA DEAD CODE — routes are registered in aviaRoutes.tsx ───────────
+// These handlers are never reached (new routes registered first by setupAviaRoutes)
+// deno-lint-ignore-file no-unused-vars
+const AVIA_MAX_PIN_ATTEMPTS = 10;
+const AVIA_BCRYPT_ROUNDS = 10;
+function aviaCleanPhone(phone: string): string { return phone.replace(/\D/g, ''); }
+
+if (false) { // Dead code block — TypeScript-checked but never executed
+app.post("/make-server-4e36197a/avia/check-phone", async (c) => {
+  try {
+    const { phone } = await c.req.json();
+    if (!phone) return c.json({ error: 'phone required' }, 400);
+    const clean = aviaCleanPhone(phone);
+    if (clean.length < 9) return c.json({ error: 'Некорректный номер телефона' }, 400);
+
+    const pinData: any = await kv.get(`ovora:avia-pin:${clean}`);
+    const user: any = await kv.get(`ovora:avia-user:${clean}`);
+
+    if (pinData?.pinHash) {
+      console.log(`[AVIA] Returning user: ${clean}`);
+      return c.json({ success: true, isNew: false, hasPin: true, hasProfile: !!user?.firstName });
+    }
+
+    console.log(`[AVIA] New phone: ${clean}`);
+    return c.json({ success: true, isNew: true, hasPin: false });
+  } catch (err) {
+    console.log('Error POST /avia/check-phone:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── POST /avia/register — регистрация (phone + pin + role) ───────────────────
+app.post("/make-server-4e36197a/avia/register", async (c) => {
+  try {
+    const { phone, pin, role } = await c.req.json();
+    if (!phone || !pin || !role) return c.json({ error: 'phone, pin, role required' }, 400);
+
+    const clean = aviaCleanPhone(phone);
+    if (clean.length < 9) return c.json({ error: 'Некорректный номер телефона' }, 400);
+    if (!/^\d{4}$/.test(pin)) return c.json({ error: 'PIN должен содержать 4 цифры' }, 400);
+    if (!['courier', 'sender', 'both'].includes(role)) return c.json({ error: 'role must be courier/sender/both' }, 400);
+
+    // Проверяем что не зарегистрирован
+    const existingPin: any = await kv.get(`ovora:avia-pin:${clean}`);
+    if (existingPin?.pinHash) {
+      return c.json({ error: 'Этот номер уже зарегистрирован. Используйте вход.' }, 409);
+    }
+
+    const salt = await bcryptAvia.genSalt(AVIA_BCRYPT_ROUNDS);
+    const pinHash = await bcryptAvia.hash(pin, salt);
+    const now = new Date().toISOString();
+    const id = `avia_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+    // Сохраняем PIN-хеш
+    await kv.set(`ovora:avia-pin:${clean}`, {
+      pinHash,
+      phone: clean,
+      createdAt: now,
+      attempts: 0,
+    });
+
+    // Сохраняем профиль
+    const user = {
+      id,
+      phone: clean,
+      role,
+      firstName: '',
+      lastName: '',
+      middleName: '',
+      birthDate: '',
+      passportNumber: '',
+      passportPhoto: '',
+      avatarUrl: '',
+      createdAt: now,
+      lastLoginAt: now,
+    };
+    await kv.set(`ovora:avia-user:${clean}`, user);
+
+    console.log(`[AVIA] Registered: ${clean}, role=${role}, id=${id}`);
+    return c.json({ success: true, user });
+  } catch (err) {
+    console.log('Error POST /avia/register:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── POST /avia/login — вход (phone + pin) ───────────────────────────────────
+app.post("/make-server-4e36197a/avia/login", async (c) => {
+  try {
+    const { phone, pin } = await c.req.json();
+    if (!phone || !pin) return c.json({ error: 'phone and pin required' }, 400);
+
+    const clean = aviaCleanPhone(phone);
+    const pinData: any = await kv.get(`ovora:avia-pin:${clean}`);
+
+    if (!pinData?.pinHash) {
+      return c.json({ error: 'Аккаунт не найден. Зарегистрируйтесь.' }, 404);
+    }
+
+    const attempts = (pinData.attempts || 0) + 1;
+    if (attempts > AVIA_MAX_PIN_ATTEMPTS) {
+      return c.json({ error: 'Превышен лимит попыток. Обратитесь в поддержку.' }, 429);
+    }
+
+    const isCorrect = await bcryptAvia.compare(pin, pinData.pinHash);
+    if (!isCorrect) {
+      await kv.set(`ovora:avia-pin:${clean}`, { ...pinData, attempts });
+      const left = AVIA_MAX_PIN_ATTEMPTS - attempts;
+      console.log(`[AVIA] Wrong PIN for ${clean} (${attempts}/${AVIA_MAX_PIN_ATTEMPTS})`);
+      return c.json({
+        error: left > 0 ? `Неверный PIN. Осталось попыток: ${left}` : 'Превышен лимит попыток.',
+        attemptsLeft: left,
+      }, 401);
+    }
+
+    // Сброс попыток
+    await kv.set(`ovora:avia-pin:${clean}`, { ...pinData, attempts: 0 });
+
+    // Получаем профиль
+    const user: any = await kv.get(`ovora:avia-user:${clean}`);
+    if (user) {
+      user.lastLoginAt = new Date().toISOString();
+      await kv.set(`ovora:avia-user:${clean}`, user);
+    }
+
+    console.log(`[AVIA] Login success: ${clean}`);
+    return c.json({ success: true, user: user || { phone: clean } });
+  } catch (err) {
+    console.log('Error POST /avia/login:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── PATCH /avia/users/:phone/pin — смена PIN с ограничением попыток ──────────
+const AVIA_PIN_CHANGE_MAX_ATTEMPTS = 3;
+const AVIA_PIN_CHANGE_LOCKOUT_MS = 5 * 60 * 1000; // 5 минут
+
+app.patch("/make-server-4e36197a/avia/users/:phone/pin", async (c) => {
+  try {
+    const phone = aviaCleanPhone(decodeURIComponent(c.req.param("phone")));
+    const { currentPin, newPin } = await c.req.json();
+
+    if (!currentPin || !newPin) return c.json({ error: 'currentPin and newPin required' }, 400);
+    if (!/^\d{4}$/.test(newPin)) return c.json({ error: 'Новый PIN должен содержать 4 цифры' }, 400);
+
+    const pinData: any = await kv.get(`ovora:avia-pin:${phone}`);
+    if (!pinData?.pinHash) return c.json({ error: 'Аккаунт не найден' }, 404);
+
+    // Проверяем lockout по смене PIN
+    const changeMeta: any = await kv.get(`ovora:avia-pin-change:${phone}`) || { attempts: 0 };
+    if (changeMeta.lockedUntil) {
+      const lockEnd = new Date(changeMeta.lockedUntil).getTime();
+      if (Date.now() < lockEnd) {
+        const leftSec = Math.ceil((lockEnd - Date.now()) / 1000);
+        return c.json({
+          error: `Слишком много попыток. Повторите через ${leftSec} сек.`,
+          lockedUntil: changeMeta.lockedUntil,
+          lockedSeconds: leftSec,
+        }, 429);
+      }
+      changeMeta.attempts = 0;
+      changeMeta.lockedUntil = null;
+    }
+
+    // Проверяем текущий PIN
+    const isCorrect = await bcryptAvia.compare(currentPin, pinData.pinHash);
+    if (!isCorrect) {
+      const newAttempts = (changeMeta.attempts || 0) + 1;
+      const lockout = newAttempts >= AVIA_PIN_CHANGE_MAX_ATTEMPTS;
+      const meta = {
+        attempts: newAttempts,
+        lockedUntil: lockout ? new Date(Date.now() + AVIA_PIN_CHANGE_LOCKOUT_MS).toISOString() : null,
+        lastAttempt: new Date().toISOString(),
+      };
+      await kv.set(`ovora:avia-pin-change:${phone}`, meta);
+
+      const left = AVIA_PIN_CHANGE_MAX_ATTEMPTS - newAttempts;
+      console.log(`[AVIA] Wrong PIN for change: ${phone} (${newAttempts}/${AVIA_PIN_CHANGE_MAX_ATTEMPTS})`);
+
+      if (lockout) {
+        return c.json({
+          error: `Превышен лимит попыток. Повторите через 5 минут.`,
+          lockedUntil: meta.lockedUntil,
+          lockedSeconds: Math.ceil(AVIA_PIN_CHANGE_LOCKOUT_MS / 1000),
+        }, 429);
+      }
+
+      return c.json({
+        error: `Неверный текущий PIN. Осталось попыток: ${left}`,
+        attemptsLeft: left,
+      }, 401);
+    }
+
+    // Текущий PIN верный — хешируем новый
+    const salt = await bcryptAvia.genSalt(AVIA_BCRYPT_ROUNDS);
+    const newHash = await bcryptAvia.hash(newPin, salt);
+    await kv.set(`ovora:avia-pin:${phone}`, {
+      ...pinData,
+      pinHash: newHash,
+      updatedAt: new Date().toISOString(),
+      attempts: 0,
+    });
+
+    // Сброс мета смены PIN
+    await kv.del(`ovora:avia-pin-change:${phone}`);
+
+    console.log(`[AVIA] PIN changed for: ${phone}`);
+    return c.json({ success: true });
+  } catch (err) {
+    console.log('Error PATCH /avia/users/:phone/pin:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── GET /avia/profile/:phone — получить профиль ──────────────────────────────
+app.get("/make-server-4e36197a/avia/profile/:phone", async (c) => {
+  try {
+    const phone = aviaCleanPhone(decodeURIComponent(c.req.param("phone")));
+    const user: any = await kv.get(`ovora:avia-user:${phone}`);
+    if (!user) return c.json({ found: false });
+    return c.json({ found: true, user });
+  } catch (err) {
+    console.log('Error GET /avia/profile:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── PUT /avia/profile — обновить профиль (ФИО, роль, паспорт и т.д.) ─────────
+app.put("/make-server-4e36197a/avia/profile", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { phone, ...updates } = body;
+    if (!phone) return c.json({ error: 'phone required' }, 400);
+
+    const clean = aviaCleanPhone(phone);
+    const existing: any = await kv.get(`ovora:avia-user:${clean}`);
+    if (!existing) return c.json({ error: 'User not found' }, 404);
+
+    // Валидация роли если меняется
+    if (updates.role && !['courier', 'sender', 'both'].includes(updates.role)) {
+      return c.json({ error: 'role must be courier/sender/both' }, 400);
+    }
+
+    // 🔒 Паспортные данные нельзя менять через PUT — только через upload-passport
+    delete updates.passportPhoto;
+    delete updates.passportPhotoPath;
+    delete updates.passportUploadedAt;
+    delete updates.passportExpiryDate;
+    delete updates.passportVerified;
+
+    const updated = {
+      ...existing,
+      ...updates,
+      phone: existing.phone, // нельзя менять телефон
+      id: existing.id,       // нельзя менять id
+      updatedAt: new Date().toISOString(),
+    };
+    await kv.set(`ovora:avia-user:${clean}`, updated);
+
+    console.log(`[AVIA] Profile updated: ${clean}`, Object.keys(updates));
+    return c.json({ success: true, user: updated });
+  } catch (err) {
+    console.log('Error PUT /avia/profile:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── POST /avia/users/:phone/avatar — загрузка аватара AVIA (multipart) ────────
+app.post("/make-server-4e36197a/avia/users/:phone/avatar", async (c) => {
+  try {
+    const phone = aviaCleanPhone(decodeURIComponent(c.req.param("phone")));
+    if (!phone) return c.json({ error: "phone required" }, 400);
+
+    console.log(`[AVIA avatar/upload] Uploading avatar for phone: ${phone}`);
+
+    const form = await c.req.formData();
+    const file = form.get("avatar") as File | null;
+
+    if (!file || !file.size) {
+      return c.json({ error: "No avatar file provided" }, 400);
+    }
+
+    const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+    const path = `avia/${phone}/${Date.now()}.${ext}`;
+
+    const arrayBuffer = await file.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+
+    const { error: uploadError } = await supabase.storage
+      .from(AVATAR_BUCKET)
+      .upload(path, bytes, { contentType: file.type || "image/jpeg", upsert: true });
+
+    if (uploadError) {
+      console.log(`[AVIA avatar/upload] Storage error:`, uploadError.message);
+      return c.json({ error: `Storage error: ${uploadError.message}` }, 500);
+    }
+
+    const { data: urlData } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(path);
+    const avatarUrl = urlData.publicUrl;
+
+    // Обновляем KV-запись пользователя
+    const userKey = `ovora:avia-user:${phone}`;
+    const existing: any = await kv.get(userKey);
+    if (!existing) return c.json({ error: "AVIA user not found" }, 404);
+
+    const updated = { ...existing, avatarUrl, updatedAt: new Date().toISOString() };
+    await kv.set(userKey, updated);
+
+    console.log(`[AVIA avatar/upload] Done: ${avatarUrl}`);
+    return c.json({ success: true, avatarUrl, user: updated });
+  } catch (err) {
+    console.log("Error POST /avia/users/:phone/avatar:", err);
+    return c.json({ error: `Avatar upload failed: ${err}` }, 500);
+  }
+});
+
+// ── POST /avia/upload-passport — загрузка фото паспорта (ОДИН РАЗ) + OCR ────
+app.post("/make-server-4e36197a/avia/upload-passport", async (c) => {
+  try {
+    const formData = await c.req.formData();
+    const phone = formData.get('phone') as string;
+    const file = formData.get('file') as File;
+    const expiryDateManual = formData.get('expiryDate') as string | null;
+    const skipOcr = formData.get('skipOcr') === 'true';
+
+    if (!phone || !file) return c.json({ error: 'phone and file required' }, 400);
+
+    const clean = aviaCleanPhone(phone);
+    const existing: any = await kv.get(`ovora:avia-user:${clean}`);
+    if (!existing) return c.json({ error: 'User not found' }, 404);
+
+    // 🔒 Уже загружен — изменить нельзя
+    if (existing.passportPhoto || existing.passportPhotoPath) {
+      console.log(`[AVIA] Passport already uploaded for ${clean}, blocking re-upload`);
+      return c.json({ error: 'Паспорт уже загружен. Изменить фото нельзя.' }, 409);
+    }
+
+    // Макс 10MB
+    if (file.size > 10 * 1024 * 1024) {
+      return c.json({ error: 'Файл слишком большой (макс 10 МБ)' }, 413);
+    }
+
+    console.log(`[AVIA] Uploading passport for ${clean}, size=${file.size}`);
+
+    // 1. Upload to Supabase Storage
+    const ext = file.name?.split('.').pop() || 'jpg';
+    const storagePath = `avia-passports/${clean}/${Date.now()}.${ext}`;
+    const arrayBuffer = await file.arrayBuffer();
+
+    const { error: uploadError } = await supabase.storage
+      .from(AVIA_PASSPORT_BUCKET)
+      .upload(storagePath, arrayBuffer, {
+        contentType: file.type || 'image/jpeg',
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.log('[AVIA] Storage upload error:', uploadError);
+      return c.json({ error: `Ошибка загрузки: ${uploadError.message}` }, 500);
+    }
+
+    // 2. Signed URL (1 год)
+    const { data: signedUrlData } = await supabase.storage
+      .from(AVIA_PASSPORT_BUCKET)
+      .createSignedUrl(storagePath, 3600 * 24 * 365);
+    const photoUrl = signedUrlData?.signedUrl || '';
+
+    // 3. OCR — пытаемся извлечь expiryDate
+    let ocrExpiryDate: string | null = null;
+    let ocrFullName: string | null = null;
+    
+    if (!skipOcr) {
+      try {
+        const uint8 = new Uint8Array(arrayBuffer);
+        let binaryStr = '';
+        for (let i = 0; i < uint8.length; i++) binaryStr += String.fromCharCode(uint8[i]);
+        const base64Image = btoa(binaryStr);
+
+        const ocrResult = await extractDocumentData(base64Image, 'passport');
+        console.log('[AVIA] OCR passport result:', JSON.stringify(ocrResult));
+
+        ocrExpiryDate = ocrResult.expiryDate || null;
+        ocrFullName = ocrResult.fullName || null;
+
+        // Автозаполнение ФИО из OCR если пустые
+        if (ocrFullName && !existing.firstName) {
+          const parts = ocrFullName.trim().split(/\s+/);
+          if (parts.length >= 2) {
+            existing.lastName = parts[0];
+            existing.firstName = parts[1];
+            if (parts.length >= 3) existing.middleName = parts.slice(2).join(' ');
+          }
+        }
+        if (ocrResult.birthDate && !existing.birthDate) {
+          // Convert DD.MM.YYYY → YYYY-MM-DD
+          const bparts = ocrResult.birthDate.split(/[.\/-]/);
+          if (bparts.length === 3 && bparts[2]?.length === 4) {
+            existing.birthDate = `${bparts[2]}-${bparts[1].padStart(2, '0')}-${bparts[0].padStart(2, '0')}`;
+          }
+        }
+        if (ocrResult.documentNumber && !existing.passportNumber) {
+          existing.passportNumber = ocrResult.documentNumber;
+        }
+      } catch (ocrErr) {
+        console.warn('[AVIA] OCR failed (non-critical):', ocrErr);
+      }
+    } else {
+      console.log('[AVIA] skipOcr is true, skipping extractDocumentData');
+    }
+
+    // Итоговая дата окончания: OCR > ручной ввод > пусто
+    const finalExpiryDate = ocrExpiryDate || expiryDateManual || '';
+
+    // 4. Проверка просрочки
+    let isExpired = false;
+    if (finalExpiryDate) {
+      const exp = new Date(finalExpiryDate);
+      isExpired = exp.getTime() < Date.now();
+    }
+
+    // 5. Сохраняем в профиль
+    const now = new Date().toISOString();
+    const updated = {
+      ...existing,
+      passportPhoto: photoUrl,
+      passportPhotoPath: storagePath,
+      passportUploadedAt: now,
+      passportExpiryDate: finalExpiryDate,
+      passportVerified: true,
+      passportExpired: isExpired,
+      updatedAt: now,
+    };
+    await kv.set(`ovora:avia-user:${clean}`, updated);
+
+    console.log(`[AVIA] Passport uploaded for ${clean}: expired=${isExpired}, expiry=${finalExpiryDate}`);
+    return c.json({
+      success: true,
+      user: updated,
+      photoUrl,
+      expiryDate: finalExpiryDate,
+      isExpired,
+      ocrFullName,
+    });
+  } catch (err) {
+    console.log('[AVIA] Upload passport error:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── GET /avia/passport-photo/:phone — получить свежий signed URL паспорта ────
+app.get("/make-server-4e36197a/avia/passport-photo/:phone", async (c) => {
+  try {
+    const phone = aviaCleanPhone(decodeURIComponent(c.req.param("phone")));
+    const user: any = await kv.get(`ovora:avia-user:${phone}`);
+    if (!user?.passportPhotoPath) return c.json({ found: false });
+
+    const { data } = await supabase.storage
+      .from(AVIA_PASSPORT_BUCKET)
+      .createSignedUrl(user.passportPhotoPath, 3600);
+    return c.json({ found: true, photoUrl: data?.signedUrl || '' });
+  } catch (err) {
+    console.log('[AVIA] Get passport photo error:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── POST /avia/scan-passport — OCR паспорта (переиспользуем extractDocumentData) ─
+app.post("/make-server-4e36197a/avia/scan-passport", async (c) => {
+  try {
+    const { imageBase64 } = await c.req.json();
+    if (!imageBase64) return c.json({ error: 'imageBase64 required' }, 400);
+
+    console.log('[AVIA] Starting passport OCR scan...');
+    const result = await extractDocumentData(imageBase64, 'passport');
+    console.log('[AVIA] OCR result:', JSON.stringify(result));
+
+    // Конвертируем дату рождения DD.MM.YYYY → YYYY-MM-DD
+    let birthDateISO: string | null = null;
+    if (result.birthDate) {
+      const parts = result.birthDate.split(/[.\/-]/);
+      if (parts.length === 3) {
+        const [dd, mm, yyyy] = parts;
+        if (yyyy && yyyy.length === 4) {
+          birthDateISO = `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
+        }
+      }
+    }
+
+    return c.json({
+      success: true,
+      fullName: result.fullName || null,
+      birthDate: birthDateISO,
+      documentNumber: result.documentNumber || null,
+      rawBirthDate: result.birthDate || null,
+    });
+  } catch (err) {
+    console.log('[AVIA] OCR scan error:', err);
+    return c.json({ error: `OCR scan failed: ${err}`, success: false }, 500);
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  AVIA FLIGHTS & REQUESTS ROUTES
+//  KV: ovora:air-flight:{id}     → flight object (Created by Courier)
+//  KV: ovora:air-request:{id}    → request object (Created by Sender)
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── GET /avia/flights — список рейсов (с фильтрацией) ───────────────────────
+app.get("/make-server-4e36197a/avia/flights", async (c) => {
+  try {
+    const flights = await kv.getByPrefix("ovora:air-flight:");
+
+    // Query-параметры фильтрации
+    const qFrom = (c.req.query('from') || '').trim().toLowerCase();
+    const qTo = (c.req.query('to') || '').trim().toLowerCase();
+    const qDate = (c.req.query('date') || '').trim();
+    const qWeightMin = Number(c.req.query('weightMin')) || 0;
+    const qWeightMax = Number(c.req.query('weightMax')) || 0;
+
+    const sorted = flights
+      .filter((f: any) => {
+        if (!f || typeof f !== 'object' || f.isDeleted || f.status === 'closed') return false;
+        if (qFrom && !(f.from || '').toLowerCase().includes(qFrom)) return false;
+        if (qTo && !(f.to || '').toLowerCase().includes(qTo)) return false;
+        if (qDate && f.date !== qDate) return false;
+        if (qWeightMin > 0 && (f.freeKg || 0) < qWeightMin) return false;
+        if (qWeightMax > 0 && (f.freeKg || 0) > qWeightMax) return false;
+        return true;
+      })
+      .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    console.log(`[GET /avia/flights] filters: from=${qFrom||'-'} to=${qTo||'-'} date=${qDate||'-'} wMin=${qWeightMin} wMax=${qWeightMax} → ${sorted.length} results`);
+    return c.json({ flights: sorted });
+  } catch (err) {
+    console.log('Error GET /avia/flights:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── POST /avia/flights — создание рейса (Курьером) ──────────────────────────
+app.post("/make-server-4e36197a/avia/flights", async (c) => {
+  try {
+    const body = await c.req.json();
+    const {
+      courierId, from, to, date, flightNo,
+      cargoEnabled, cargoKg, pricePerKg,
+      docsEnabled, docsPrice,
+      freeKg, // backward compat
+      currency, // валюта цен (USD по умолчанию)
+    } = body;
+
+    if (!courierId || !from || !to || !date) {
+      return c.json({ error: 'Missing required fields: courierId, from, to, date' }, 400);
+    }
+
+    const isCargoEnabled = cargoEnabled ?? (freeKg != null && Number(freeKg) > 0);
+    const isDocsEnabled  = docsEnabled  ?? false;
+
+    if (!isCargoEnabled && !isDocsEnabled) {
+      return c.json({ error: 'Выберите хотя бы один тип: Груз или Документы' }, 400);
+    }
+
+    const actualCargoKg = isCargoEnabled ? (Number(cargoKg || freeKg) || 0) : 0;
+    if (isCargoEnabled && actualCargoKg <= 0) {
+      return c.json({ error: 'Укажите количество кг для груза' }, 400);
+    }
+
+    const user: any = await kv.get(`ovora:avia-user:${courierId}`);
+    if (!user) return c.json({ error: 'User not found' }, 404);
+
+    if (!user.passportPhoto && !user.passportPhotoPath) {
+      return c.json({ error: 'Необходимо загрузить фото паспорта' }, 403);
+    }
+    
+    if (!user.firstName || !user.lastName) {
+      return c.json({ error: 'Необходимо заполнить ФИО в профиле' }, 403);
+    }
+
+    if (user.passportExpired) {
+       return c.json({ error: 'Срок действия вашего паспорта истёк' }, 403);
+    }
+
+    const id = `avia_flight_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const flight = {
+      id,
+      courierId,
+      courierName: user.firstName || user.phone,
+      courierAvatar: user.avatarUrl,
+      from,
+      to,
+      date,
+      flightNo: flightNo || '',
+      cargoEnabled: isCargoEnabled,
+      cargoKg:      actualCargoKg,
+      freeKg:       actualCargoKg,
+      reservedKg:   0,
+      pricePerKg:   Number(pricePerKg) || 0,
+      docsEnabled:  isDocsEnabled,
+      docsPrice:    isDocsEnabled ? (Number(docsPrice) || 0) : 0,
+      currency:     (currency && typeof currency === 'string') ? currency.toUpperCase() : 'USD',
+      status: 'active',
+      createdAt: new Date().toISOString(),
+    };
+
+    await kv.set(`ovora:air-flight:${id}`, flight);
+    console.log(`[AVIA] Flight created ${id}: cargo=${isCargoEnabled}(${actualCargoKg}kg) docs=${isDocsEnabled}($${flight.docsPrice})`);
+    return c.json({ success: true, flight });
+  } catch (err) {
+    console.log('Error POST /avia/flights:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── DELETE /avia/flights/:id — удаление рейса ───────────────────────────────
+app.delete("/make-server-4e36197a/avia/flights/:id", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const flight: any = await kv.get(`ovora:air-flight:${id}`);
+    
+    if (!flight) return c.json({ error: 'Flight not found' }, 404);
+    
+    flight.isDeleted = true;
+    flight.updatedAt = new Date().toISOString();
+    
+    await kv.set(`ovora:air-flight:${id}`, flight);
+    return c.json({ success: true });
+  } catch (err) {
+    console.log('Error DELETE /avia/flights:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── GET /avia/requests — список заявок (с фильтрацией) ──────────────────────
+app.get("/make-server-4e36197a/avia/requests", async (c) => {
+  try {
+    const requests = await kv.getByPrefix("ovora:air-request:");
+
+    // Query-параметры фильтрации
+    const qFrom = (c.req.query('from') || '').trim().toLowerCase();
+    const qTo = (c.req.query('to') || '').trim().toLowerCase();
+    const qDate = (c.req.query('date') || '').trim();
+    const qWeightMin = Number(c.req.query('weightMin')) || 0;
+    const qWeightMax = Number(c.req.query('weightMax')) || 0;
+
+    const sorted = requests
+      .filter((r: any) => {
+        if (!r || typeof r !== 'object' || r.isDeleted || r.status === 'closed') return false;
+        if (qFrom && !(r.from || '').toLowerCase().includes(qFrom)) return false;
+        if (qTo && !(r.to || '').toLowerCase().includes(qTo)) return false;
+        if (qDate && r.beforeDate !== qDate) return false;
+        if (qWeightMin > 0 && (r.weightKg || 0) < qWeightMin) return false;
+        if (qWeightMax > 0 && (r.weightKg || 0) > qWeightMax) return false;
+        return true;
+      })
+      .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    console.log(`[GET /avia/requests] filters: from=${qFrom||'-'} to=${qTo||'-'} date=${qDate||'-'} wMin=${qWeightMin} wMax=${qWeightMax} → ${sorted.length} results`);
+    return c.json({ requests: sorted });
+  } catch (err) {
+    console.log('Error GET /avia/requests:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── POST /avia/requests — создание заявки (Отправителем) ────────────────────
+app.post("/make-server-4e36197a/avia/requests", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { senderId, from, to, beforeDate, weightKg, description, budget, currency } = body;
+    
+    if (!senderId || !from || !to || !beforeDate || !weightKg) {
+      return c.json({ error: 'Missing required fields' }, 400);
+    }
+    
+    // Проверка паспорта
+    const user: any = await kv.get(`ovora:avia-user:${senderId}`);
+    if (!user) return c.json({ error: 'User not found' }, 404);
+    
+    if (!user.passportPhoto && !user.passportPhotoPath) {
+      return c.json({ error: 'Необходимо загрузить фото паспорта' }, 403);
+    }
+    
+    if (!user.firstName || !user.lastName) {
+      return c.json({ error: 'Необходимо заполнить ФИО в профиле' }, 403);
+    }
+
+    if (user.passportExpired) {
+       return c.json({ error: 'Срок действия вашего паспорта истёк' }, 403);
+    }
+    
+    const id = `avia_req_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const request = {
+      id,
+      senderId,
+      senderName: user.firstName || user.phone,
+      senderAvatar: user.avatarUrl,
+      from,
+      to,
+      beforeDate,
+      weightKg: Number(weightKg),
+      description: description || '',
+      budget:   budget != null ? (Number(budget) || 0) : null,
+      currency: (currency && typeof currency === 'string') ? currency.toUpperCase() : 'USD',
+      status: 'active',
+      createdAt: new Date().toISOString()
+    };
+    
+    await kv.set(`ovora:air-request:${id}`, request);
+    return c.json({ success: true, request });
+  } catch (err) {
+    console.log('Error POST /avia/requests:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── DELETE /avia/requests/:id — удаление заявки ─────────────────────────────
+app.delete("/make-server-4e36197a/avia/requests/:id", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const req: any = await kv.get(`ovora:air-request:${id}`);
+    
+    if (!req) return c.json({ error: 'Request not found' }, 404);
+    
+    req.isDeleted = true;
+    req.updatedAt = new Date().toISOString();
+    
+    await kv.set(`ovora:air-request:${id}`, req);
+    return c.json({ success: true });
+  } catch (err) {
+    console.log('Error DELETE /avia/requests:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── PATCH /avia/flights/:id/close — закрыть рейс (вместо удаления) ──────────
+app.patch("/make-server-4e36197a/avia/flights/:id/close", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const flight: any = await kv.get(`ovora:air-flight:${id}`);
+    
+    if (!flight) return c.json({ error: 'Flight not found' }, 404);
+    if (flight.isDeleted) return c.json({ error: 'Flight already deleted' }, 400);
+    if (flight.status === 'closed') return c.json({ error: 'Flight already closed' }, 400);
+    
+    flight.status = 'closed';
+    flight.closedAt = new Date().toISOString();
+    flight.updatedAt = new Date().toISOString();
+    
+    await kv.set(`ovora:air-flight:${id}`, flight);
+    console.log(`[AVIA] Flight closed: ${id}`);
+    return c.json({ success: true, flight });
+  } catch (err) {
+    console.log('Error PATCH /avia/flights/close:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── PATCH /avia/flights/:id/complete — Завершить поездку ────────────────────
+app.patch("/make-server-4e36197a/avia/flights/:id/complete", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const flight: any = await kv.get(`ovora:air-flight:${id}`);
+
+    if (!flight) return c.json({ error: 'Flight not found' }, 404);
+    if (flight.isDeleted) return c.json({ error: 'Flight deleted' }, 400);
+    if (flight.status === 'completed') return c.json({ error: 'Flight already completed' }, 400);
+
+    const now = new Date().toISOString();
+    const updatedFlight = { ...flight, status: 'completed', completedAt: now, updatedAt: now, freeKg: 0, reservedKg: 0 };
+    await kv.set(`ovora:air-flight:${id}`, updatedFlight);
+
+    // Завершаем все принятые сделки по этому рейсу
+    const allDeals: any[] = await kv.getByPrefix('ovora:avia-deal:');
+    let completedCount = 0;
+    for (const deal of allDeals) {
+      if (!deal || deal.adId !== id || deal.status !== 'accepted') continue;
+      await kv.set(`ovora:avia-deal:${deal.id}`, { ...deal, status: 'completed', completedAt: now, updatedAt: now });
+      completedCount++;
+      try {
+        const chatId = aviaChatIdFrom(deal.initiatorPhone, deal.recipientPhone);
+        const chatMetaKey = `ovora:avia-chatmeta:${chatId}`;
+        const existingMeta: any = await kv.get(chatMetaKey);
+        if (existingMeta) {
+          const msgId = `deal_update_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+          await kv.set(`ovora:avia-chat:${chatId}:${msgId}`, {
+            id: msgId, chatId, senderPhone: 'system', text: 'Поездка завершена',
+            type: 'deal_update', meta: { dealId: deal.id, status: 'completed' }, createdAt: now,
+          });
+          await kv.set(chatMetaKey, { ...existingMeta, lastMessage: '✈ Поездка завершена', lastMessageAt: now, lastSenderPhone: 'system' });
+        }
+      } catch (e) { console.warn('[AVIA] Complete flight chat inject error:', e); }
+      try {
+        const notifId = `flight_done_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        await kv.set(`ovora:avia-notif:${deal.senderId}:${notifId}`, {
+          id: notifId, phone: deal.senderId, type: 'system',
+          iconName: 'Star', iconBg: 'bg-yellow-500/10 text-yellow-400',
+          title: '✈ Поездка завершена!',
+          description: `Курьер ${flight.courierName || flight.courierId} завершил поездку · ${flight.from} → ${flight.to}`,
+          isUnread: true, createdAt: now, meta: { dealId: deal.id, flightId: id },
+        });
+      } catch (e) { console.warn('[AVIA] Complete flight notif error:', e); }
+    }
+
+    console.log(`[AVIA] Flight ${id} completed. ${completedCount} deals completed`);
+    return c.json({ success: true, flight: updatedFlight, completedDeals: completedCount });
+  } catch (err) {
+    console.log('Error PATCH /avia/flights/complete:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── PATCH /avia/requests/:id/close — закрыть заявку (вместо удаления) ───────
+app.patch("/make-server-4e36197a/avia/requests/:id/close", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const req: any = await kv.get(`ovora:air-request:${id}`);
+    
+    if (!req) return c.json({ error: 'Request not found' }, 404);
+    if (req.isDeleted) return c.json({ error: 'Request already deleted' }, 400);
+    if (req.status === 'closed') return c.json({ error: 'Request already closed' }, 400);
+    
+    req.status = 'closed';
+    req.closedAt = new Date().toISOString();
+    req.updatedAt = new Date().toISOString();
+    
+    await kv.set(`ovora:air-request:${id}`, req);
+    console.log(`[AVIA] Request closed: ${id}`);
+    return c.json({ success: true, request: req });
+  } catch (err) {
+    console.log('Error PATCH /avia/requests/close:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── GET /avia/my/:phone — мои рейсы + заявки (включая закрытые) ─────────────
+app.get("/make-server-4e36197a/avia/my/:phone", async (c) => {
+  try {
+    const phone = c.req.param("phone").replace(/\D/g, '');
+    
+    const [allFlights, allRequests] = await Promise.all([
+      kv.getByPrefix("ovora:air-flight:"),
+      kv.getByPrefix("ovora:air-request:"),
+    ]);
+    
+    const myFlights = allFlights
+      .filter(f => f && typeof f === 'object' && !f.isDeleted && f.courierId === phone)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    
+    const myRequests = allRequests
+      .filter(r => r && typeof r === 'object' && !r.isDeleted && r.senderId === phone)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    
+    return c.json({ flights: myFlights, requests: myRequests });
+  } catch (err) {
+    console.log('Error GET /avia/my:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  AVIA NOTIFICATIONS
+//  KV: ovora:avia-notif:{phone}:{id} → notification object
+//  Полная изоляция от пространства CARGO (prefixes: ovora:avia-* и ovora:air-*)
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── GET /avia/notifications/check/:phone — быстрая проверка непрочитанных ────
+app.get("/make-server-4e36197a/avia/notifications/check/:phone", async (c) => {
+  try {
+    const phone = aviaCleanPhone(decodeURIComponent(c.req.param("phone")));
+    if (!phone) return c.json({ unread: 0 });
+    const notifs: any[] = await kv.getByPrefix(`ovora:avia-notif:${phone}:`);
+    const unread = notifs.filter(n => n && n.isUnread).length;
+    return c.json({ unread });
+  } catch (err) {
+    console.log('Error GET /avia/notifications/check/:phone:', err);
+    return c.json({ unread: 0 });
+  }
+});
+
+// ── GET /avia/notifications/:phone — список уведомлений ──────────────────────
+app.get("/make-server-4e36197a/avia/notifications/:phone", async (c) => {
+  try {
+    const phone = aviaCleanPhone(decodeURIComponent(c.req.param("phone")));
+    if (!phone) return c.json({ error: 'phone required' }, 400);
+    const notifs: any[] = await kv.getByPrefix(`ovora:avia-notif:${phone}:`);
+    const sorted = notifs
+      .filter(n => n && n.id)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    console.log(`[AVIA Notif] GET ${phone}: ${sorted.length} notifications`);
+    return c.json({ notifications: sorted });
+  } catch (err) {
+    console.log('Error GET /avia/notifications/:phone:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── POST /avia/notifications/read — пометить уведомления прочитанными ────────
+//    Тело: { phone, id: string | 'all' }
+app.post("/make-server-4e36197a/avia/notifications/read", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { phone, id } = body;
+    if (!phone) return c.json({ error: 'phone required' }, 400);
+    const clean = aviaCleanPhone(phone);
+
+    if (id === 'all') {
+      const notifs: any[] = await kv.getByPrefix(`ovora:avia-notif:${clean}:`);
+      let count = 0;
+      for (const n of notifs) {
+        if (n && n.id && n.isUnread) {
+          await kv.set(`ovora:avia-notif:${clean}:${n.id}`, { ...n, isUnread: false });
+          count++;
+        }
+      }
+      console.log(`[AVIA Notif] read-all ${clean}: marked ${count} as read`);
+    } else if (id) {
+      const key = `ovora:avia-notif:${clean}:${id}`;
+      const n: any = await kv.get(key);
+      if (n) {
+        await kv.set(key, { ...n, isUnread: false });
+        console.log(`[AVIA Notif] read ${clean}:${id}`);
+      }
+    } else {
+      return c.json({ error: 'id required' }, 400);
+    }
+    return c.json({ success: true });
+  } catch (err) {
+    console.log('Error POST /avia/notifications/read:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── POST /avia/notifications — создать уведомление ───────────────────────────
+app.post("/make-server-4e36197a/avia/notifications", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { phone, type, iconName, iconBg, title, description } = body;
+    if (!phone || !type || !title) {
+      return c.json({ error: 'phone, type and title required' }, 400);
+    }
+    const clean = aviaCleanPhone(phone);
+    const id = `anotif_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const now = new Date().toISOString();
+    const notif = {
+      id,
+      phone: clean,
+      type,
+      iconName: iconName || 'Bell',
+      iconBg: iconBg || 'bg-sky-500/10 text-sky-400',
+      title,
+      description: description || '',
+      isUnread: true,
+      createdAt: now,
+    };
+    await kv.set(`ovora:avia-notif:${clean}:${id}`, notif);
+    console.log(`[AVIA Notif] Created for ${clean}: ${title}`);
+    return c.json({ success: true, notification: notif });
+  } catch (err) {
+    console.log('Error POST /avia/notifications:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── DELETE /avia/notifications/:phone/:id — удалить уведомление ──────────────
+app.delete("/make-server-4e36197a/avia/notifications/:phone/:id", async (c) => {
+  try {
+    const phone = aviaCleanPhone(decodeURIComponent(c.req.param("phone")));
+    const id = c.req.param("id");
+    await kv.del(`ovora:avia-notif:${phone}:${id}`);
+    console.log(`[AVIA Notif] Deleted ${phone}:${id}`);
+    return c.json({ success: true });
+  } catch (err) {
+    console.log('Error DELETE /avia/notifications/:phone/:id:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  AVIA CHAT  (Пакет H)
+//  KV: ovora:avia-chat:{chatId}:{msgId}      → message object
+//  KV: ovora:avia-chatmeta:{chatId}          → chat metadata
+//  KV: ovora:avia-userchats:{phone}:{chatId} → user ↔ chat index
+//  Полная изоляция от CARGO (prefixes: ovora:avia-* и ovora:air-*)
+// ══════════════════════════════════════════════════════════════════════════════
+
+/** Канонический chatId: сортируем два телефона, чтобы chatId был одинаков с обеих сторон */
+function aviaChatIdFrom(phone1: string, phone2: string): string {
+  const [a, b] = [phone1, phone2].sort();
+  return `${a}_${b}`;
+}
+
+// ── POST /avia/chat/init — создать или вернуть существующий чат ───────────────
+app.post("/make-server-4e36197a/avia/chat/init", async (c) => {
+  try {
+    const body = await c.req.json();
+    const p1   = aviaCleanPhone(body.senderPhone    || '');
+    const p2   = aviaCleanPhone(body.recipientPhone || '');
+    const adRef = body.adRef || null;
+
+    if (!p1 || !p2)    return c.json({ error: 'senderPhone and recipientPhone required' }, 400);
+    if (p1 === p2)     return c.json({ error: 'Cannot chat with yourself' }, 400);
+    if (p1.length < 9 || p2.length < 9) return c.json({ error: 'Invalid phone numbers' }, 400);
+
+    const chatId  = aviaChatIdFrom(p1, p2);
+    const metaKey = `ovora:avia-chatmeta:${chatId}`;
+    const existing: any = await kv.get(metaKey);
+
+    if (!existing) {
+      const now  = new Date().toISOString();
+      const meta = {
+        chatId,
+        participants:    [p1, p2],
+        adRef,
+        createdAt:       now,
+        lastMessage:     null,
+        lastMessageAt:   null,
+        lastSenderPhone: null,
+        unreadBy:        { [p1]: 0, [p2]: 0 },
+      };
+      await kv.set(metaKey, meta);
+      await kv.set(`ovora:avia-userchats:${p1}:${chatId}`, { chatId });
+      await kv.set(`ovora:avia-userchats:${p2}:${chatId}`, { chatId });
+      console.log(`[AVIA Chat] Created chat ${chatId} (${p1} ↔ ${p2})`);
+      return c.json({ success: true, chatId, meta, isNew: true });
+    }
+    // Обновляем adRef если передан новый
+    if (adRef && !existing.adRef) {
+      const updated = { ...existing, adRef };
+      await kv.set(metaKey, updated);
+      return c.json({ success: true, chatId, meta: updated, isNew: false });
+    }
+    return c.json({ success: true, chatId, meta: existing, isNew: false });
+  } catch (err) {
+    console.log('Error POST /avia/chat/init:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── GET /avia/chat/:chatId/messages — история сообщений ──────────────────────
+app.get("/make-server-4e36197a/avia/chat/:chatId/messages", async (c) => {
+  try {
+    const chatId = c.req.param("chatId");
+    if (!chatId) return c.json({ error: 'chatId required' }, 400);
+
+    const messages: any[] = await kv.getByPrefix(`ovora:avia-chat:${chatId}:`);
+    const sorted = messages
+      .filter(m => m && m.id && !m.deleted)
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+    const meta: any = await kv.get(`ovora:avia-chatmeta:${chatId}`) || {};
+    return c.json({ messages: sorted, meta });
+  } catch (err) {
+    console.log('Error GET /avia/chat/:chatId/messages:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── POST /avia/chat/:chatId/messages — отправить сообщение ───────────────────
+app.post("/make-server-4e36197a/avia/chat/:chatId/messages", async (c) => {
+  try {
+    const chatId = c.req.param("chatId");
+    const body   = await c.req.json();
+    const clean  = aviaCleanPhone(body.senderPhone || '');
+    const text   = (body.text || '').trim();
+
+    const type    = (body.type || 'text') as string;
+    const msgMeta = body.meta || undefined;
+
+    if (!chatId || !clean || (!text && type === 'text')) {
+      return c.json({ error: 'chatId, senderPhone and text required' }, 400);
+    }
+
+    const id  = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const now = new Date().toISOString();
+    const message: any = { id, chatId, senderPhone: clean, text, createdAt: now, type };
+    if (msgMeta) message.meta = msgMeta;
+    await kv.set(`ovora:avia-chat:${chatId}:${id}`, message);
+
+    // ── Обновляем метаданные чата ──────────────────────────────────────────────
+    const metaKey          = `ovora:avia-chatmeta:${chatId}`;
+    const meta: any        = await kv.get(metaKey) || {};
+    const participants: string[] = meta.participants || [clean];
+    const recipient        = participants.find((p: string) => p !== clean) || '';
+
+    const previewText = type === 'deal_offer'
+      ? '🤝 Предложение о сделке'
+      : type === 'deal_update'
+        ? '🔔 Статус сделки изменён'
+        : (text.length > 60 ? text.slice(0, 57) + '...' : text);
+
+    await kv.set(metaKey, {
+      ...meta,
+      chatId,
+      participants,
+      lastMessage:     previewText,
+      lastMessageAt:   now,
+      lastSenderPhone: clean,
+      unreadBy: {
+        ...(meta.unreadBy || {}),
+        ...(recipient ? { [recipient]: (meta.unreadBy?.[recipient] || 0) + 1 } : {}),
+      },
+    });
+
+    // ── AVIA-уведомление получателю (только для обычных текстовых сообщений) ──
+    if (recipient && type === 'text') {
+      try {
+        const senderUser: any = await kv.get(`ovora:avia-user:${clean}`);
+        const senderName = senderUser
+          ? (`${senderUser.firstName || ''} ${senderUser.lastName || ''}`.trim() || `+${clean}`)
+          : `+${clean}`;
+        const preview = text.length > 50 ? text.slice(0, 47) + '...' : text;
+        const notifId = `chat_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        await kv.set(`ovora:avia-notif:${recipient}:${notifId}`, {
+          id: notifId, phone: recipient, type: 'system',
+          iconName: 'MessageCircle', iconBg: 'bg-sky-500/10 text-sky-400',
+          title: `Сообщение от ${senderName}`,
+          description: preview,
+          isUnread: true, createdAt: now,
+          meta: { chatId },
+        });
+        console.log(`[AVIA Chat] Notif sent to ${recipient} from ${clean}`);
+      } catch (notifErr) {
+        console.log('[AVIA Chat] Notif error (non-fatal):', notifErr);
+      }
+    }
+
+    return c.json({ success: true, message });
+  } catch (err) {
+    console.log('Error POST /avia/chat/:chatId/messages:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── POST /avia/chat/:chatId/seen — сбросить счётчик непрочитанных ─────────────
+app.post("/make-server-4e36197a/avia/chat/:chatId/seen", async (c) => {
+  try {
+    const chatId = c.req.param("chatId");
+    const { phone } = await c.req.json();
+    if (!chatId || !phone) return c.json({ error: 'chatId and phone required' }, 400);
+
+    const clean   = aviaCleanPhone(phone);
+    const metaKey = `ovora:avia-chatmeta:${chatId}`;
+    const meta: any = await kv.get(metaKey);
+    if (!meta) return c.json({ error: 'Chat not found' }, 404);
+
+    await kv.set(metaKey, {
+      ...meta,
+      unreadBy:   { ...(meta.unreadBy   || {}), [clean]: 0 },
+      lastSeenBy: { ...(meta.lastSeenBy || {}), [clean]: new Date().toISOString() },
+    });
+    return c.json({ success: true });
+  } catch (err) {
+    console.log('Error POST /avia/chat/:chatId/seen:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── GET /avia/chats/user/:phone — список всех чатов пользователя ─────────────
+app.get("/make-server-4e36197a/avia/chats/user/:phone", async (c) => {
+  try {
+    const phone = aviaCleanPhone(decodeURIComponent(c.req.param("phone")));
+    if (!phone) return c.json({ error: 'phone required' }, 400);
+
+    const index: any[] = await kv.getByPrefix(`ovora:avia-userchats:${phone}:`);
+    const chats: any[] = [];
+
+    for (const entry of index) {
+      if (!entry?.chatId) continue;
+      const meta: any = await kv.get(`ovora:avia-chatmeta:${entry.chatId}`);
+      if (!meta) continue;
+      chats.push({ ...meta, unread: meta.unreadBy?.[phone] || 0 });
+    }
+
+    chats.sort((a, b) =>
+      new Date(b.lastMessageAt || b.createdAt || 0).getTime() -
+      new Date(a.lastMessageAt || a.createdAt || 0).getTime()
+    );
+    console.log(`[AVIA Chat] GET chats for ${phone}: ${chats.length} found`);
+    return c.json({ chats });
+  } catch (err) {
+    console.log('Error GET /avia/chats/user/:phone:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── DELETE /avia/chat/:chatId — удалить чат + каскадная отмена связанных deals ─
+app.delete("/make-server-4e36197a/avia/chat/:chatId", async (c) => {
+  try {
+    const chatId = c.req.param("chatId");
+    const { phone } = await c.req.json();
+    if (!chatId || !phone) return c.json({ error: 'chatId and phone required' }, 400);
+    const clean = aviaCleanPhone(phone);
+    if (!clean) return c.json({ error: 'Invalid phone' }, 400);
+
+    const metaKey = `ovora:avia-chatmeta:${chatId}`;
+    const meta: any = await kv.get(metaKey);
+    if (!meta) return c.json({ error: 'Chat not found' }, 404);
+
+    // Проверяем что запрашивающий — участник чата
+    const participants: string[] = meta.participants || [];
+    if (!participants.includes(clean)) {
+      return c.json({ error: 'Forbidden: not a participant' }, 403);
+    }
+
+    const otherPhone = participants.find((p: string) => p !== clean) || '';
+    const now = new Date().toISOString();
+    const cancelledDealIds: string[] = [];
+
+    // ── Каскадная отмена связанных deals (pending + accepted) ────────────────
+    if (otherPhone) {
+      const dealIndex: any[] = await kv.getByPrefix(`ovora:avia-userdeal:${clean}:`);
+      for (const entry of dealIndex) {
+        if (!entry?.dealId) continue;
+        const deal: any = await kv.get(`ovora:avia-deal:${entry.dealId}`);
+        if (!deal || deal.deletedAt) continue;
+        // Проверяем что сделка между участниками этого чата
+        const dealParticipants = [deal.initiatorPhone, deal.recipientPhone];
+        if (!dealParticipants.includes(clean) || !dealParticipants.includes(otherPhone)) continue;
+        // Отменяем только pending и accepted
+        if (deal.status !== 'pending' && deal.status !== 'accepted') continue;
+
+        const updated = {
+          ...deal,
+          status: 'cancelled',
+          cancelledAt: now,
+          updatedAt: now,
+          cancelReason: 'chat_deleted',
+        };
+        await kv.set(`ovora:avia-deal:${entry.dealId}`, updated);
+        cancelledDealIds.push(entry.dealId);
+
+        // Возврат резервирования для грузовых сделок
+        if ((deal.dealType === 'cargo' || !deal.dealType) && deal.adType === 'flight') {
+          try {
+            const flight: any = await kv.get(`ovora:air-flight:${deal.adId}`);
+            if (flight) {
+              const kg = deal.weightKg || 0;
+              if (deal.status === 'accepted') {
+                // accepted: возвращаем freeKg
+                await kv.set(`ovora:air-flight:${deal.adId}`, {
+                  ...flight,
+                  freeKg: (flight.freeKg || 0) + kg,
+                  updatedAt: now,
+                });
+              } else {
+                // pending: снимаем reservedKg
+                await kv.set(`ovora:air-flight:${deal.adId}`, {
+                  ...flight,
+                  reservedKg: Math.max(0, (flight.reservedKg || 0) - kg),
+                  updatedAt: now,
+                });
+              }
+            }
+          } catch (e) { console.warn('[AVIA Chat Delete] Capacity release error:', e); }
+        }
+      }
+    }
+
+    // ── Удаляем все сообщения чата ────────────────────────────────────────────
+    try {
+      const msgKeys: any[] = await kv.getByPrefix(`ovora:avia-chat:${chatId}:`);
+      const keysToDelete: string[] = [];
+      for (const msg of msgKeys) {
+        if (msg?.id) keysToDelete.push(`ovora:avia-chat:${chatId}:${msg.id}`);
+      }
+      if (keysToDelete.length > 0) await kv.mdel(keysToDelete);
+    } catch (e) { console.warn('[AVIA Chat Delete] Messages cleanup error:', e); }
+
+    // ── Удаляем мета и индексы ───────────────────────────────────────────────
+    const keysToClean = [
+      metaKey,
+      `ovora:avia-userchats:${clean}:${chatId}`,
+    ];
+    if (otherPhone) {
+      keysToClean.push(`ovora:avia-userchats:${otherPhone}:${chatId}`);
+    }
+    await kv.mdel(keysToClean);
+
+    // ── Уведомление другому участнику ────────────────────────────────────────
+    if (otherPhone && cancelledDealIds.length > 0) {
+      try {
+        const notifId = `chat_deleted_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        await kv.set(`ovora:avia-notif:${otherPhone}:${notifId}`, {
+          id: notifId, phone: otherPhone, type: 'system',
+          iconName: 'XCircle', iconBg: 'bg-rose-500/10 text-rose-400',
+          title: 'Чат удалён',
+          description: `Пользователь удалил чат. ${cancelledDealIds.length} сделок отменено.`,
+          isUnread: true, createdAt: now,
+        });
+      } catch (e) { console.warn('[AVIA Chat Delete] Notif error:', e); }
+    }
+
+    console.log(`[AVIA Chat] DELETE chat ${chatId} by ${clean}. Cancelled deals: ${cancelledDealIds.length}`);
+    return c.json({ success: true, cancelledDealIds });
+  } catch (err) {
+    console.log('Error DELETE /avia/chat/:chatId:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ═══════════════════════════════════════��══════════════════════════════════════
+//  AVIA DEALS (Пакет I — Matching / Сделки)
+//  KV: ovora:avia-deal:{id}                 → deal object
+//  KV: ovora:avia-userdeal:{phone}:{dealId} → index (courier & sender)
+//  Полная изоляция от CARGO (prefix ovora:avia-*)
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── POST /avia/deals — создать предложение ────────────────────────────────────
+app.post("/make-server-4e36197a/avia/deals", async (c) => {
+  try {
+    const body = await c.req.json();
+    const {
+      initiatorPhone, initiatorName,
+      recipientPhone, recipientName,
+      adType, adId, adFrom, adTo, adDate,
+      weightKg, price, currency, message,
+      courierId, senderId, courierName, senderName,
+      dealType, // 'cargo' | 'docs'
+    } = body;
+
+    if (!initiatorPhone || !recipientPhone || !adType || !adId || !courierId || !senderId) {
+      return c.json({ error: 'Missing required fields' }, 400);
+    }
+
+    const p1 = aviaCleanPhone(initiatorPhone);
+    const p2 = aviaCleanPhone(recipientPhone);
+    if (!p1 || !p2) return c.json({ error: 'Invalid phone numbers' }, 400);
+    if (p1 === p2) return c.json({ error: 'Cannot make a deal with yourself' }, 400);
+
+    // Определяем тип сделки — по умолчанию 'cargo'
+    const resolvedDealType: 'cargo' | 'docs' = dealType === 'docs' ? 'docs' : 'cargo';
+
+    // Проверить: нет ли уже pending/accepted сделки по тому же объявлению между теми же людьми
+    const existingIndex: any[] = await kv.getByPrefix(`ovora:avia-userdeal:${p1}:`);
+    for (const entry of existingIndex) {
+      if (!entry?.dealId) continue;
+      const existing: any = await kv.get(`ovora:avia-deal:${entry.dealId}`);
+      if (
+        existing &&
+        existing.adId === adId &&
+        existing.adType === adType &&
+        existing.recipientPhone === p2 &&
+        (existing.status === 'pending' || existing.status === 'accepted')
+      ) {
+        return c.json({ error: 'Вы уже отправили предложение по этому объявлению', dealId: existing.id }, 409);
+      }
+    }
+
+    // ── Проверка и резервирование ёмкости для грузовых сделок ─────────────────
+    if (resolvedDealType === 'cargo' && adType === 'flight') {
+      const flight: any = await kv.get(`ovora:air-flight:${adId}`);
+      if (flight && flight.cargoEnabled) {
+        const available = (flight.freeKg || 0) - (flight.reservedKg || 0);
+        const requested = Number(weightKg) || 0;
+        if (requested > available) {
+          return c.json({
+            error: `Недостаточно места: доступно ${available} кг, запрошено ${requested} кг`,
+          }, 400);
+        }
+        // Мягкое резервирование
+        await kv.set(`ovora:air-flight:${adId}`, {
+          ...flight,
+          reservedKg: (flight.reservedKg || 0) + requested,
+          updatedAt: new Date().toISOString(),
+        });
+        console.log(`[AVIA Deals] Reserved ${requested}kg on flight ${adId}. Available: ${available - requested}kg`);
+      }
+    }
+
+    const id = `aviadeal_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const now = new Date().toISOString();
+    const deal = {
+      id,
+      initiatorPhone: p1,
+      initiatorName: initiatorName || p1,
+      recipientPhone: p2,
+      recipientName: recipientName || p2,
+      adType,
+      adId,
+      adFrom: adFrom || '',
+      adTo: adTo || '',
+      adDate: adDate || null,
+      weightKg: resolvedDealType === 'cargo' ? (Number(weightKg) || 0) : 0,
+      price: price ? Number(price) : null,
+      currency: currency || 'USD',
+      message: message || '',
+      courierId: aviaCleanPhone(courierId),
+      senderId: aviaCleanPhone(senderId),
+      courierName: courierName || '',
+      senderName: senderName || '',
+      dealType: resolvedDealType,
+      status: 'pending',
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await kv.set(`ovora:avia-deal:${id}`, deal);
+    await kv.set(`ovora:avia-userdeal:${p1}:${id}`, { dealId: id, role: 'initiator' });
+    await kv.set(`ovora:avia-userdeal:${p2}:${id}`, { dealId: id, role: 'recipient' });
+
+    // Уведомление получателю
+    try {
+      const notifId = `deal_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const route = `${adFrom || '?'} → ${adTo || '?'}`;
+      await kv.set(`ovora:avia-notif:${p2}:${notifId}`, {
+        id: notifId, phone: p2, type: 'request',
+        iconName: 'Handshake', iconBg: 'bg-emerald-500/10 text-emerald-400',
+        title: `Новое предложение от ${initiatorName || p1}`,
+        description: `Маршрут: ${route}${price ? ` · $${price}` : ''}`,
+        isUnread: true, createdAt: now,
+        meta: { dealId: id },
+      });
+    } catch (e) { console.warn('[AVIA Deals] Notif error:', e); }
+
+    console.log(`[AVIA Deals] Created deal ${id}: ${p1} → ${p2}, adType=${adType}`);
+    return c.json({ success: true, deal });
+  } catch (err) {
+    console.log('Error POST /avia/deals:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── GET /avia/deals/:id — получить сделку по id ──────────────────────────────
+app.get("/make-server-4e36197a/avia/deals/:id", async (c) => {
+  try {
+    const id = c.req.param("id");
+    if (!id) return c.json({ error: 'id required' }, 400);
+    const deal = await kv.get(`ovora:avia-deal:${id}`);
+    if (!deal) return c.json({ error: 'Deal not found' }, 404);
+    return c.json({ deal });
+  } catch (err) {
+    console.log('Error GET /avia/deals/:id:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── GET /avia/deals/user/:phone — все сделки пользователя ────────────────────
+app.get("/make-server-4e36197a/avia/deals/user/:phone", async (c) => {
+  try {
+    const phone = aviaCleanPhone(decodeURIComponent(c.req.param("phone")));
+    if (!phone) return c.json({ error: 'phone required' }, 400);
+
+    const index: any[] = await kv.getByPrefix(`ovora:avia-userdeal:${phone}:`);
+    const deals: any[] = [];
+    for (const entry of index) {
+      if (!entry?.dealId) continue;
+      const deal: any = await kv.get(`ovora:avia-deal:${entry.dealId}`);
+      if (deal && !deal.deletedAt) deals.push(deal);
+    }
+    deals.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    console.log(`[AVIA Deals] GET user ${phone}: ${deals.length} deals`);
+    return c.json({ deals });
+  } catch (err) {
+    console.log('Error GET /avia/deals/user/:phone:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── PATCH /avia/deals/:id/accept ─────────────────────────────────────────────
+app.patch("/make-server-4e36197a/avia/deals/:id/accept", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const { phone } = await c.req.json();
+    if (!phone) return c.json({ error: 'phone required' }, 400);
+    const clean = aviaCleanPhone(phone);
+    const deal: any = await kv.get(`ovora:avia-deal:${id}`);
+    if (!deal) return c.json({ error: 'Deal not found' }, 404);
+    if (deal.recipientPhone !== clean) return c.json({ error: 'Forbidden: not the recipient' }, 403);
+    if (deal.status !== 'pending') return c.json({ error: `Cannot accept deal with status: ${deal.status}` }, 400);
+
+    const now = new Date().toISOString();
+    const updated = { ...deal, status: 'accepted', acceptedAt: now, updatedAt: now };
+    await kv.set(`ovora:avia-deal:${id}`, updated);
+
+    // ── Декремент freeKg при принятии грузовой сделки ─────────────────────────
+    if ((deal.dealType === 'cargo' || !deal.dealType) && deal.adType === 'flight') {
+      try {
+        const flight: any = await kv.get(`ovora:air-flight:${deal.adId}`);
+        if (flight) {
+          const kg = deal.weightKg || 0;
+          await kv.set(`ovora:air-flight:${deal.adId}`, {
+            ...flight,
+            freeKg:     Math.max(0, (flight.freeKg     || 0) - kg),
+            reservedKg: Math.max(0, (flight.reservedKg || 0) - kg),
+            updatedAt:  now,
+          });
+          console.log(`[AVIA Deals] Accept: decremented flight ${deal.adId} freeKg by ${kg}kg`);
+        }
+      } catch (e) { console.warn('[AVIA Deals] Accept freeKg decrement error:', e); }
+    }
+
+    // ── Inject deal_update message into chat ──────────────────────────────────
+    try {
+      const chatId = aviaChatIdFrom(deal.initiatorPhone, deal.recipientPhone);
+      const chatMetaKey = `ovora:avia-chatmeta:${chatId}`;
+      const existingChatMeta: any = await kv.get(chatMetaKey);
+      if (existingChatMeta) {
+        const msgId = `deal_update_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        await kv.set(`ovora:avia-chat:${chatId}:${msgId}`, {
+          id: msgId, chatId, senderPhone: 'system', text: 'Предложение принято',
+          type: 'deal_update', meta: { dealId: id, status: 'accepted' }, createdAt: now,
+        });
+        await kv.set(chatMetaKey, {
+          ...existingChatMeta,
+          lastMessage: '🤝 Сделка принята',
+          lastMessageAt: now,
+          lastSenderPhone: 'system',
+        });
+      }
+    } catch (chatErr) { console.warn('[AVIA Deals] Accept chat inject error:', chatErr); }
+
+    try {
+      const notifId = `deal_accept_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const route = `${deal.adFrom} → ${deal.adTo}`;
+      await kv.set(`ovora:avia-notif:${deal.initiatorPhone}:${notifId}`, {
+        id: notifId, phone: deal.initiatorPhone, type: 'request',
+        iconName: 'CheckCircle2', iconBg: 'bg-emerald-500/10 text-emerald-400',
+        title: 'Предложение принято!',
+        description: `${deal.recipientName || deal.recipientPhone} принял ваше предложение · ${route}`,
+        isUnread: true, createdAt: now, meta: { dealId: id },
+      });
+    } catch (e) { console.warn('[AVIA Deals] Accept notif error:', e); }
+
+    console.log(`[AVIA Deals] Accepted deal ${id} by ${clean}`);
+    return c.json({ success: true, deal: updated });
+  } catch (err) {
+    console.log('Error PATCH /avia/deals/:id/accept:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── PATCH /avia/deals/:id/reject ─────────────────────────────────────────────
+app.patch("/make-server-4e36197a/avia/deals/:id/reject", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const { phone, reason } = await c.req.json();
+    if (!phone) return c.json({ error: 'phone required' }, 400);
+    const clean = aviaCleanPhone(phone);
+    const deal: any = await kv.get(`ovora:avia-deal:${id}`);
+    if (!deal) return c.json({ error: 'Deal not found' }, 404);
+    if (deal.recipientPhone !== clean) return c.json({ error: 'Forbidden: not the recipient' }, 403);
+    if (deal.status !== 'pending') return c.json({ error: `Cannot reject deal with status: ${deal.status}` }, 400);
+
+    const now = new Date().toISOString();
+    const updated = { ...deal, status: 'rejected', rejectedAt: now, updatedAt: now, rejectReason: reason || '' };
+    await kv.set(`ovora:avia-deal:${id}`, updated);
+
+    // ── Возврат резервирования при отклонении ─────────────────────────────────
+    if ((deal.dealType === 'cargo' || !deal.dealType) && deal.adType === 'flight') {
+      try {
+        const flight: any = await kv.get(`ovora:air-flight:${deal.adId}`);
+        if (flight) {
+          await kv.set(`ovora:air-flight:${deal.adId}`, {
+            ...flight,
+            reservedKg: Math.max(0, (flight.reservedKg || 0) - (deal.weightKg || 0)),
+            updatedAt: now,
+          });
+        }
+      } catch (e) { console.warn('[AVIA Deals] Reject reservedKg release error:', e); }
+    }
+
+    // ── Inject deal_update message into chat ──────────────────────────────────
+    try {
+      const chatId = aviaChatIdFrom(deal.initiatorPhone, deal.recipientPhone);
+      const chatMetaKey = `ovora:avia-chatmeta:${chatId}`;
+      const existingChatMeta: any = await kv.get(chatMetaKey);
+      if (existingChatMeta) {
+        const msgId = `deal_update_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        await kv.set(`ovora:avia-chat:${chatId}:${msgId}`, {
+          id: msgId, chatId, senderPhone: 'system', text: 'Предложение отклонено',
+          type: 'deal_update', meta: { dealId: id, status: 'rejected', rejectReason: reason || '' }, createdAt: now,
+        });
+        await kv.set(chatMetaKey, {
+          ...existingChatMeta,
+          lastMessage: '❌ Сделка отклонена',
+          lastMessageAt: now,
+          lastSenderPhone: 'system',
+        });
+      }
+    } catch (chatErr) { console.warn('[AVIA Deals] Reject chat inject error:', chatErr); }
+
+    try {
+      const notifId = `deal_reject_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const route = `${deal.adFrom} → ${deal.adTo}`;
+      await kv.set(`ovora:avia-notif:${deal.initiatorPhone}:${notifId}`, {
+        id: notifId, phone: deal.initiatorPhone, type: 'system',
+        iconName: 'XCircle', iconBg: 'bg-red-500/10 text-red-400',
+        title: 'Предложение отклонено',
+        description: `${deal.recipientName || deal.recipientPhone} отклонил предложение · ${route}`,
+        isUnread: true, createdAt: now, meta: { dealId: id },
+      });
+    } catch (e) { console.warn('[AVIA Deals] Reject notif error:', e); }
+
+    console.log(`[AVIA Deals] Rejected deal ${id} by ${clean}`);
+    return c.json({ success: true, deal: updated });
+  } catch (err) {
+    console.log('Error PATCH /avia/deals/:id/reject:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── PATCH /avia/deals/:id/cancel ─────────────────────────────────────────────
+app.patch("/make-server-4e36197a/avia/deals/:id/cancel", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const { phone } = await c.req.json();
+    if (!phone) return c.json({ error: 'phone required' }, 400);
+    const clean = aviaCleanPhone(phone);
+    const deal: any = await kv.get(`ovora:avia-deal:${id}`);
+    if (!deal) return c.json({ error: 'Deal not found' }, 404);
+    if (deal.initiatorPhone !== clean) return c.json({ error: 'Forbidden: not the initiator' }, 403);
+    if (deal.status !== 'pending') return c.json({ error: `Cannot cancel deal with status: ${deal.status}` }, 400);
+
+    const now = new Date().toISOString();
+    const updated = { ...deal, status: 'cancelled', cancelledAt: now, updatedAt: now };
+    await kv.set(`ovora:avia-deal:${id}`, updated);
+
+    // ── Возврат резервирования при отмене ─────────────────────────────────────
+    if ((deal.dealType === 'cargo' || !deal.dealType) && deal.adType === 'flight') {
+      try {
+        const flight: any = await kv.get(`ovora:air-flight:${deal.adId}`);
+        if (flight) {
+          await kv.set(`ovora:air-flight:${deal.adId}`, {
+            ...flight,
+            reservedKg: Math.max(0, (flight.reservedKg || 0) - (deal.weightKg || 0)),
+            updatedAt: now,
+          });
+        }
+      } catch (e) { console.warn('[AVIA Deals] Cancel reservedKg release error:', e); }
+    }
+
+    // ── Inject deal_update message into chat ──────────────────────────────────
+    try {
+      const chatId = aviaChatIdFrom(deal.initiatorPhone, deal.recipientPhone);
+      const chatMetaKey = `ovora:avia-chatmeta:${chatId}`;
+      const existingChatMeta: any = await kv.get(chatMetaKey);
+      if (existingChatMeta) {
+        const msgId = `deal_update_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        await kv.set(`ovora:avia-chat:${chatId}:${msgId}`, {
+          id: msgId, chatId, senderPhone: 'system', text: 'Предложение отменено',
+          type: 'deal_update', meta: { dealId: id, status: 'cancelled' }, createdAt: now,
+        });
+        await kv.set(chatMetaKey, {
+          ...existingChatMeta,
+          lastMessage: '🚫 Сделка отменена',
+          lastMessageAt: now,
+          lastSenderPhone: 'system',
+        });
+      }
+    } catch (chatErr) { console.warn('[AVIA Deals] Cancel chat inject error:', chatErr); }
+
+    // Уведомить получателя об отмене
+    try {
+      const notifId = `deal_cancel_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const route = `${deal.adFrom} → ${deal.adTo}`;
+      await kv.set(`ovora:avia-notif:${deal.recipientPhone}:${notifId}`, {
+        id: notifId, phone: deal.recipientPhone, type: 'system',
+        iconName: 'XCircle', iconBg: 'bg-rose-500/10 text-rose-400',
+        title: 'Предложение отменено',
+        description: `${deal.initiatorName || deal.initiatorPhone} отменил предложение · ${route}`,
+        isUnread: true, createdAt: now, meta: { dealId: id },
+      });
+    } catch (e) { console.warn('[AVIA Deals] Cancel notif error:', e); }
+
+    console.log(`[AVIA Deals] Cancelled deal ${id} by ${clean}`);
+    return c.json({ success: true, deal: updated });
+  } catch (err) {
+    console.log('Error PATCH /avia/deals/:id/cancel:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── PATCH /avia/deals/:id/complete ───────────────────────────────────────────
+app.patch("/make-server-4e36197a/avia/deals/:id/complete", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const { phone } = await c.req.json();
+    if (!phone) return c.json({ error: 'phone required' }, 400);
+    const clean = aviaCleanPhone(phone);
+    const deal: any = await kv.get(`ovora:avia-deal:${id}`);
+    if (!deal) return c.json({ error: 'Deal not found' }, 404);
+    const isParticipant = deal.courierId === clean || deal.senderId === clean;
+    if (!isParticipant) return c.json({ error: 'Forbidden: not a participant' }, 403);
+    if (deal.status !== 'accepted') return c.json({ error: `Cannot complete deal with status: ${deal.status}` }, 400);
+
+    const now = new Date().toISOString();
+    const updated = { ...deal, status: 'completed', completedAt: now, updatedAt: now };
+    await kv.set(`ovora:avia-deal:${id}`, updated);
+
+    // ── Inject deal_update message into chat ──────────────────────────────────
+    try {
+      const chatId = aviaChatIdFrom(deal.initiatorPhone, deal.recipientPhone);
+      const chatMetaKey = `ovora:avia-chatmeta:${chatId}`;
+      const existingChatMeta: any = await kv.get(chatMetaKey);
+      if (existingChatMeta) {
+        const msgId = `deal_update_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        await kv.set(`ovora:avia-chat:${chatId}:${msgId}`, {
+          id: msgId, chatId, senderPhone: 'system', text: 'Сделка завершена',
+          type: 'deal_update', meta: { dealId: id, status: 'completed' }, createdAt: now,
+        });
+        await kv.set(chatMetaKey, {
+          ...existingChatMeta,
+          lastMessage: '⭐ Сделка завершена',
+          lastMessageAt: now,
+          lastSenderPhone: 'system',
+        });
+      }
+    } catch (chatErr) { console.warn('[AVIA Deals] Complete chat inject error:', chatErr); }
+
+    try {
+      const other = clean === deal.courierId ? deal.senderId : deal.courierId;
+      const myName = clean === deal.courierId ? (deal.courierName || deal.courierId) : (deal.senderName || deal.senderId);
+      const notifId = `deal_complete_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      await kv.set(`ovora:avia-notif:${other}:${notifId}`, {
+        id: notifId, phone: other, type: 'system',
+        iconName: 'Star', iconBg: 'bg-yellow-500/10 text-yellow-400',
+        title: 'Сделка завершена!',
+        description: `${myName} завершил сделку · ${deal.adFrom} → ${deal.adTo}`,
+        isUnread: true, createdAt: now, meta: { dealId: id },
+      });
+    } catch (e) { console.warn('[AVIA Deals] Complete notif error:', e); }
+
+    console.log(`[AVIA Deals] Completed deal ${id} by ${clean}`);
+    return c.json({ success: true, deal: updated });
+  } catch (err) {
+    console.log('Error PATCH /avia/deals/:id/complete:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── GET /avia/stats/:phone — статистика профиля (Profile v2) ─────────────────
+app.get("/make-server-4e36197a/avia/stats/:phone", async (c) => {
+  try {
+    const phone = aviaCleanPhone(decodeURIComponent(c.req.param("phone")));
+    if (!phone) return c.json({ error: 'phone required' }, 400);
+
+    const [allFlights, allRequests, dealIndex, chatIndex] = await Promise.all([
+      kv.getByPrefix("ovora:air-flight:"),
+      kv.getByPrefix("ovora:air-request:"),
+      kv.getByPrefix(`ovora:avia-userdeal:${phone}:`),
+      kv.getByPrefix(`ovora:avia-userchats:${phone}:`),
+    ]);
+
+    const myFlights = allFlights.filter((f: any) => f && !f.isDeleted && f.courierId === phone);
+    const myRequests = allRequests.filter((r: any) => r && !r.isDeleted && r.senderId === phone);
+
+    let dealsTotal = 0, dealsActive = 0, dealsPending = 0, dealsCompleted = 0;
+    for (const entry of dealIndex) {
+      if (!entry?.dealId) continue;
+      const deal: any = await kv.get(`ovora:avia-deal:${entry.dealId}`);
+      if (!deal || deal.deletedAt) continue;
+      dealsTotal++;
+      if (deal.status === 'accepted') dealsActive++;
+      if (deal.status === 'pending') dealsPending++;
+      if (deal.status === 'completed') dealsCompleted++;
+    }
+
+    const stats = {
+      flightsTotal: myFlights.length,
+      flightsActive: myFlights.filter((f: any) => f.status !== 'closed').length,
+      requestsTotal: myRequests.length,
+      requestsActive: myRequests.filter((r: any) => r.status !== 'closed').length,
+      chatsTotal: chatIndex.length,
+      dealsTotal,
+      dealsActive,
+      dealsPending,
+      dealsCompleted,
+    };
+
+    console.log(`[AVIA Stats] ${phone}:`, stats);
+    return c.json({ stats });
+  } catch (err) {
+    console.log('Error GET /avia/stats/:phone:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  AVIA REVIEWS — Пакет J
+//  KV: ovora:avia-review:{reviewId}              → объект отзыва
+//  KV: ovora:avia-userreviews:{phone}:{reviewId} → индекс по получателю
+//  KV: ovora:avia-dealreviewed:{dealId}          → { byInitiator: bool, byRecipient: bool }
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── POST /avia/reviews — создать отзыв (like/dislike + обязательный комментарий) ─
+app.post("/make-server-4e36197a/avia/reviews", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { dealId, authorPhone, type, comment } = body;
+
+    if (!dealId || !authorPhone || !type) {
+      return c.json({ error: 'dealId, authorPhone, type are required' }, 400);
+    }
+    if (type !== 'like' && type !== 'dislike') {
+      return c.json({ error: 'type must be "like" or "dislike"' }, 400);
+    }
+    if (!comment || comment.trim().length < 10) {
+      return c.json({ error: 'Комментарий обязателен (минимум 10 символов)' }, 400);
+    }
+
+    // 1. Загружаем сделку
+    const deal: any = await kv.get(`ovora:avia-deal:${dealId}`);
+    if (!deal) return c.json({ error: 'Deal not found' }, 404);
+    if (!['completed', 'accepted', 'cancelled', 'rejected'].includes(deal.status)) {
+      return c.json({ error: 'Отзыв можно оставить только по завершённой, принятой, отменённой или отклонённой сделке' }, 403);
+    }
+
+    const cleanAuthor = aviaCleanPhone(authorPhone);
+    const isInitiator = deal.initiatorPhone === cleanAuthor;
+    const isRecipient = deal.recipientPhone === cleanAuthor;
+    if (!isInitiator && !isRecipient) {
+      return c.json({ error: 'Вы не являетесь участником этой сделки' }, 403);
+    }
+
+    // Получаем имя автора из профиля
+    const authorUser: any = await kv.get(`ovora:avia-user:${cleanAuthor}`) || {};
+    const authorName = [authorUser.firstName, authorUser.lastName].filter(Boolean).join(' ') || authorPhone;
+
+    // 2. Проверяем — уже ли оставил отзыв
+    const reviewed: any = await kv.get(`ovora:avia-dealreviewed:${dealId}`) || {};
+    if (isInitiator && reviewed.byInitiator) {
+      return c.json({ error: 'Вы уже оставили отзыв по этой сделке' }, 409);
+    }
+    if (isRecipient && reviewed.byRecipient) {
+      return c.json({ error: 'Вы уже оставили отзыв по этой сделке' }, 409);
+    }
+
+    const recipientPhone = isInitiator ? deal.recipientPhone : deal.initiatorPhone;
+    const authorRole = cleanAuthor === deal.courierId ? 'courier' : 'sender';
+
+    // 3. Сохраняем отзыв
+    const reviewId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const review = {
+      id: reviewId,
+      dealId,
+      authorPhone: cleanAuthor,
+      authorName,
+      recipientPhone,
+      type,
+      comment: comment.trim().slice(0, 300),
+      authorRole,
+      createdAt: new Date().toISOString(),
+    };
+
+    await kv.set(`ovora:avia-review:${reviewId}`, review);
+    await kv.set(`ovora:avia-userreviews:${recipientPhone}:${reviewId}`, review);
+
+    // 4. Обновляем флаг dealreviewed
+    await kv.set(`ovora:avia-dealreviewed:${dealId}`, {
+      ...reviewed,
+      byInitiator: reviewed.byInitiator || isInitiator,
+      byRecipient: reviewed.byRecipient || isRecipient,
+    });
+
+    // 5. Уведомление тому, о ком написан отзыв
+    try {
+      const emoji = type === 'like' ? '👍' : '👎';
+      const notifId = `review_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      await kv.set(`ovora:avia-notif:${recipientPhone}:${notifId}`, {
+        id: notifId, phone: recipientPhone, type: 'system',
+        iconName: type === 'like' ? 'ThumbsUp' : 'ThumbsDown',
+        iconBg: type === 'like' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400',
+        title: type === 'like' ? 'Новый лайк!' : 'Новый дизлайк',
+        description: `${emoji} ${review.comment.slice(0, 80)}`,
+        isUnread: true, createdAt: new Date().toISOString(),
+        meta: { reviewId },
+      });
+    } catch (e) { console.warn('[AVIA Reviews] Notif error:', e); }
+
+    console.log(`[AVIA Reviews] Created review ${reviewId} by ${cleanAuthor} for ${recipientPhone}, type=${type}`);
+    return c.json({ success: true, review });
+  } catch (err) {
+    console.log('Error POST /avia/reviews:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── GET /avia/reviews/deal/:dealId — статус отзывов по сделке ─────────────────
+app.get("/make-server-4e36197a/avia/reviews/deal/:dealId", async (c) => {
+  try {
+    const dealId = decodeURIComponent(c.req.param("dealId"));
+    const reviewed: any = await kv.get(`ovora:avia-dealreviewed:${dealId}`) || {};
+    return c.json({ reviewed });
+  } catch (err) {
+    console.log('Error GET /avia/reviews/deal/:dealId:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── GET /avia/reviews/user/:phone — все отзывы о пользователе ────────────────
+app.get("/make-server-4e36197a/avia/reviews/user/:phone", async (c) => {
+  try {
+    const phone = aviaCleanPhone(decodeURIComponent(c.req.param("phone")));
+    const reviews: any[] = await kv.getByPrefix(`ovora:avia-userreviews:${phone}:`);
+    const sorted = reviews
+      .filter(r => r && r.id)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    console.log(`[AVIA Reviews] GET user ${phone}: ${sorted.length} reviews`);
+    return c.json({ reviews: sorted });
+  } catch (err) {
+    console.log('Error GET /avia/reviews/user/:phone:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ── GET /avia/profile/:phone — публичный профиль ─────────────────────────────
+app.get("/make-server-4e36197a/avia/profile/:phone", async (c) => {
+  try {
+    const phone = aviaCleanPhone(decodeURIComponent(c.req.param("phone")));
+    if (!phone) return c.json({ error: 'phone required' }, 400);
+
+    // Профиль из KV
+    const profile: any = await kv.get(`ovora:avia-user:${phone}`);
+
+    // Отзывы (like/dislike)
+    const reviews: any[] = await kv.getByPrefix(`ovora:avia-userreviews:${phone}:`);
+    const validReviews = reviews.filter(r => r && r.id);
+    const likes = validReviews.filter(r => r.type === 'like').length;
+    const dislikes = validReviews.filter(r => r.type === 'dislike').length;
+
+    // Статистика сделок
+    const dealIndex: any[] = await kv.getByPrefix(`ovora:avia-userdeal:${phone}:`);
+    let dealsCompleted = 0;
+    for (const entry of dealIndex) {
+      if (!entry?.dealId) continue;
+      const deal: any = await kv.get(`ovora:avia-deal:${entry.dealId}`);
+      if (deal?.status === 'completed') dealsCompleted++;
+    }
+
+    return c.json({
+      profile: {
+        phone,
+        firstName: profile?.firstName || null,
+        lastName: profile?.lastName || null,
+        role: profile?.role || null,
+        likes,
+        dislikes,
+        reviewsCount: validReviews.length,
+        dealsCompleted,
+        createdAt: profile?.createdAt || null,
+      },
+      reviews: validReviews.slice(0, 50),
+    });
+  } catch (err) {
+    console.log('Error GET /avia/profile/:phone:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+}); } // end if(false) — legacy AVIA routes placeholder
+
+Deno.serve(app.fetch);

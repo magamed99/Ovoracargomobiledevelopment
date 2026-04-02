@@ -1,353 +1,394 @@
-import { useState } from 'react';
-import { 
-  Search, 
-  Filter, 
-  MoreVertical, 
-  Users as UsersIcon, 
-  Star,
-  MapPin,
-  Phone,
-  Mail,
-  Calendar,
-  Shield,
-  Eye,
-  Ban,
-  Edit,
-  Package
+import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router';
+import {
+  Search, Users as UsersIcon,
+  Car, RefreshCw, Loader2, Download,
+  Trash2, UserCheck, UserX, ChevronDown, ChevronUp, MoreVertical,
+  ShieldOff, Shield,
 } from 'lucide-react';
-import { Card, CardContent } from '../ui/card';
-import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
-import { Badge } from '../ui/badge';
 import { toast } from 'sonner';
+import { getAdminUsers, adminHeaders } from '../../api/dataApi';
+import { projectId } from '../../../../utils/supabase/info';
+import { AdminPageHeader, HeaderBtn, FilterChips, SkeletonList } from './AdminPageHeader';
 
-interface User {
-  id: string;
-  name: string;
-  phone: string;
-  email: string;
-  avatar: string;
-  rating: number;
-  totalTrips: number;
-  status: 'active' | 'inactive' | 'suspended';
-  userType: 'passenger' | 'sender';
-  joinDate: string;
-  location: string;
-  totalSpent: string;
-  lastActive: string;
+const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;
+
+// ── CSV export ────────────────────────────────────────────────────────────────
+function exportCsv(rows: Record<string, any>[], filename: string) {
+  if (!rows.length) return;
+  const keys = Object.keys(rows[0]);
+  const esc = (v: any) => {
+    const s = String(v ?? '').replace(/"/g, '""');
+    return /[,"\n]/.test(s) ? `"${s}"` : s;
+  };
+  const csv = [keys.join(','), ...rows.map(r => keys.map(k => esc(r[k])).join(','))].join('\n');
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })),
+    download: filename,
+  });
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
-const mockUsers: User[] = [
-  {
-    id: 'USR-001',
-    name: 'Фарход Юсупов',
-    phone: '+992 92 111 2222',
-    email: 'farkhod.y@mail.tj',
-    avatar: 'ФЮ',
-    rating: 4.7,
-    totalTrips: 45,
-    status: 'active',
-    userType: 'passenger',
-    joinDate: '10.01.2024',
-    location: 'Душанбе',
-    totalSpent: '8,500 ТЖС',
-    lastActive: '2 часа назад'
-  },
-  {
-    id: 'USR-002',
-    name: 'Зарина Саидова',
-    phone: '+992 93 222 3333',
-    email: 'zarina.s@mail.tj',
-    avatar: 'ЗС',
-    rating: 4.9,
-    totalTrips: 82,
-    status: 'active',
-    userType: 'sender',
-    joinDate: '05.12.2023',
-    location: 'Худжанд',
-    totalSpent: '15,200 ТЖС',
-    lastActive: '1 час назад'
-  },
-  {
-    id: 'USR-003',
-    name: 'Дилшод Азимов',
-    phone: '+992 90 333 4444',
-    email: 'dilshod.a@mail.tj',
-    avatar: 'ДА',
-    rating: 4.5,
-    totalTrips: 28,
-    status: 'inactive',
-    userType: 'passenger',
-    joinDate: '20.02.2024',
-    location: 'Душанбе',
-    totalSpent: '4,300 ТЖС',
-    lastActive: '5 дней назад'
-  },
-  {
-    id: 'USR-004',
-    name: 'Нозанин Раджабова',
-    phone: '+992 91 444 5555',
-    email: 'nozanin.r@mail.tj',
-    avatar: 'НР',
-    rating: 4.8,
-    totalTrips: 63,
-    status: 'active',
-    userType: 'sender',
-    joinDate: '15.11.2023',
-    location: 'Куляб',
-    totalSpent: '11,800 ТЖС',
-    lastActive: '30 минут назад'
-  },
-  {
-    id: 'USR-005',
-    name: 'Шахло Мирзоева',
-    phone: '+992 92 555 6666',
-    email: 'shakhlo.m@mail.tj',
-    avatar: 'ШМ',
-    rating: 3.8,
-    totalTrips: 12,
-    status: 'suspended',
-    userType: 'passenger',
-    joinDate: '08.03.2024',
-    location: 'Душанбе',
-    totalSpent: '1,900 ТЖС',
-    lastActive: '2 недели назад'
-  },
-  {
-    id: 'USR-006',
-    name: 'Бахтиёр Холов',
-    phone: '+992 93 666 7777',
-    email: 'bakhtiyor.kh@mail.tj',
-    avatar: 'БХ',
-    rating: 4.6,
-    totalTrips: 51,
-    status: 'active',
-    userType: 'passenger',
-    joinDate: '22.01.2024',
-    location: 'Душанбе',
-    totalSpent: '9,400 ТЖС',
-    lastActive: '3 часа назад'
-  },
-  {
-    id: 'USR-007',
-    name: 'Мехрона Назарова',
-    phone: '+992 90 777 8888',
-    email: 'mehrona.n@mail.tj',
-    avatar: 'МН',
-    rating: 4.9,
-    totalTrips: 94,
-    status: 'active',
-    userType: 'sender',
-    joinDate: '18.10.2023',
-    location: 'Худжанд',
-    totalSpent: '18,600 ТЖС',
-    lastActive: '15 минут назад'
-  },
-  {
-    id: 'USR-008',
-    name: 'Анвар Раҳимов',
-    phone: '+992 91 888 9999',
-    email: 'anvar.r@mail.tj',
-    avatar: 'АР',
-    rating: 4.4,
-    totalTrips: 33,
-    status: 'active',
-    userType: 'passenger',
-    joinDate: '05.02.2024',
-    location: 'Курган-Тюбе',
-    totalSpent: '6,200 ТЖС',
-    lastActive: '1 день назад'
-  },
-];
+async function setUserStatus(email: string, status: string) {
+  const res = await fetch(`${BASE}/admin/users/${encodeURIComponent(email)}/status`, {
+    method: 'PUT', headers: adminHeaders(), body: JSON.stringify({ status }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+async function deleteUser(email: string) {
+  const res = await fetch(`${BASE}/admin/users/${encodeURIComponent(email)}`, {
+    method: 'DELETE', headers: adminHeaders(),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+function RelTime({ iso }: { iso?: string }) {
+  if (!iso) return <span className="text-gray-400">—</span>;
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return <span>только что</span>;
+  if (mins < 60) return <span>{mins} мин. назад</span>;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return <span>{hrs} ч. назад</span>;
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return <span>{days} дн. назад</span>;
+  return <span>{new Date(iso).toLocaleDateString('ru-RU')}</span>;
+}
 
 export function UsersManagement() {
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [sortBy, setSortBy] = useState<'date' | 'name'>('date');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const filteredUsers = mockUsers.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.phone.includes(searchQuery);
-    
-    const matchesStatus = statusFilter === 'all' || user.status === statusFilter;
-    const matchesType = typeFilter === 'all' || user.userType === typeFilter;
-    
-    return matchesSearch && matchesStatus && matchesType;
-  });
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getAdminUsers();
+      setUsers(data || []);
+    } catch {
+      toast.error('Ошибка загрузки пользователей');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const handleAction = (action: string, user: User) => {
-    toast.success(`${action}: ${user.name}`);
-  };
+  useEffect(() => { load(); }, [load]);
 
-  const getStatusBadge = (status: User['status']) => {
-    switch (status) {
-      case 'active':
-        return <Badge className="bg-green-100 text-green-700 hover:bg-green-100">Активен</Badge>;
-      case 'inactive':
-        return <Badge className="bg-gray-100 text-gray-700 hover:bg-gray-100">Неактивен</Badge>;
-      case 'suspended':
-        return <Badge className="bg-red-100 text-red-700 hover:bg-red-100">Заблокирован</Badge>;
+  const handleStatus = async (user: any, status: string) => {
+    setActionLoading(user.email);
+    try {
+      await setUserStatus(user.email, status);
+      setUsers(prev => prev.map(u => u.email === user.email ? { ...u, status } : u));
+      toast.success(status === 'blocked' ? `${user.firstName} заблокирован` : `${user.firstName} разблокирован`);
+    } catch {
+      toast.error('Ошибка изменения статуса');
+    } finally {
+      setActionLoading(null);
     }
   };
 
-  const getUserTypeBadge = (type: User['userType']) => {
-    return type === 'passenger' ? (
-      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Пассажир</Badge>
-    ) : (
-      <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">Отправитель</Badge>
-    );
+  const handleDelete = async (user: any) => {
+    if (!confirm(`Удалить пользователя ${user.firstName} ${user.lastName}? Это нельзя отменить.`)) return;
+    setActionLoading(user.email);
+    try {
+      await deleteUser(user.email);
+      setUsers(prev => prev.filter(u => u.email !== user.email));
+      toast.success('Пользователь удалён');
+    } catch {
+      toast.error('Ошибка удаления');
+    } finally {
+      setActionLoading(null);
+    }
   };
 
+  const drivers = users.filter(u => u?.role === 'driver').length;
+  const senders = users.filter(u => u?.role === 'sender').length;
+  const blocked = users.filter(u => u?.status === 'blocked').length;
+
+  const filtered = users
+    .filter(u => {
+      if (!u) return false;
+      const name = `${u.firstName || ''} ${u.lastName || ''}`.toLowerCase();
+      const q = searchQuery.toLowerCase();
+      const matchSearch = !q || name.includes(q) || (u.email || '').toLowerCase().includes(q) || (u.phone || '').includes(q);
+      const matchRole = roleFilter === 'all' || u.role === roleFilter;
+      const matchStatus = statusFilter === 'all'
+        || (statusFilter === 'blocked' ? u.status === 'blocked' : u.status !== 'blocked');
+      return matchSearch && matchRole && matchStatus;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'name') {
+        const na = `${a.firstName} ${a.lastName}`.toLowerCase();
+        const nb = `${b.firstName} ${b.lastName}`.toLowerCase();
+        return sortDir === 'asc' ? na.localeCompare(nb) : nb.localeCompare(na);
+      }
+      const ta = new Date(a.createdAt || 0).getTime();
+      const tb = new Date(b.createdAt || 0).getTime();
+      return sortDir === 'asc' ? ta - tb : tb - ta;
+    });
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Управление пользователями</h1>
-          <p className="text-gray-600 mt-1">Всего пользователей: {mockUsers.length}</p>
+    <div className="space-y-5">
+      <AdminPageHeader
+        title="Управление пользователями"
+        subtitle="Все зарегистрированные аккаунты платформы"
+        icon={UsersIcon}
+        gradient="linear-gradient(135deg,#7c3aed,#8b5cf6)"
+        accent="#7c3aed"
+        stats={[
+          { label: 'Всего', value: users.length },
+          { label: 'Водителей', value: drivers },
+          { label: 'Отправителей', value: senders },
+          ...(blocked > 0 ? [{ label: 'Заблокировано', value: blocked }] : []),
+        ]}
+        actions={
+          <>
+            <HeaderBtn
+              icon={Download}
+              variant="ghost"
+              onClick={() => exportCsv(
+                filtered.map(u => ({ email: u.email, name: `${u.firstName || ''} ${u.lastName || ''}`.trim(), role: u.role, phone: u.phone || '', city: u.city || '', status: u.status || 'active', created: u.createdAt || '' })),
+                `users_export_${new Date().toISOString().slice(0, 10)}.csv`
+              )}
+            >
+              CSV
+            </HeaderBtn>
+            <HeaderBtn icon={RefreshCw} onClick={load}>Обновить</HeaderBtn>
+          </>
+        }
+      />
+
+      {/* ── Filters ── */}
+      <div className="bg-white rounded-2xl p-4 space-y-3" style={{ border: '1px solid #f0f4f8' }}>
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Поиск по имени, email, телефону..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm text-gray-700 outline-none transition-all"
+            style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
+            onFocus={e => { e.currentTarget.style.borderColor = '#7c3aed66'; e.currentTarget.style.boxShadow = '0 0 0 3px #7c3aed12'; }}
+            onBlur={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.boxShadow = 'none'; }}
+          />
         </div>
-        <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
-          <UsersIcon className="w-5 h-5" />
-          Добавить пользователя
-        </button>
+
+        <div className="flex flex-wrap gap-4">
+          {/* Role chips */}
+          <div>
+            <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Роль</p>
+            <FilterChips
+              value={roleFilter as any}
+              onChange={setRoleFilter as any}
+              options={[
+                { value: 'all', label: 'Все', count: users.length },
+                { value: 'driver', label: '🚛 Водители', count: drivers },
+                { value: 'sender', label: '📦 Отправители', count: senders },
+              ]}
+            />
+          </div>
+          {/* Status chips */}
+          <div>
+            <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Статус</p>
+            <FilterChips
+              value={statusFilter as any}
+              onChange={setStatusFilter as any}
+              options={[
+                { value: 'all', label: 'Все' },
+                { value: 'active', label: '✅ Активные' },
+                { value: 'blocked', label: '🚫 Заблокированные', count: blocked },
+              ]}
+            />
+          </div>
+          {/* Sort */}
+          <div>
+            <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Сортировка</p>
+            <FilterChips
+              value={`${sortBy}_${sortDir}` as any}
+              onChange={(v: string) => {
+                const [s, d] = v.split('_');
+                setSortBy(s as any);
+                setSortDir(d as any);
+              }}
+              options={[
+                { value: 'date_desc', label: 'Новые' },
+                { value: 'date_asc', label: 'Старые' },
+                { value: 'name_asc', label: 'А–Я' },
+                { value: 'name_desc', label: 'Я–А' },
+              ]}
+            />
+          </div>
+        </div>
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Поиск по имени, ID или телефону..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">Все типы</option>
-              <option value="passenger">Пассажиры</option>
-              <option value="sender">Отправители</option>
-            </select>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">Все статусы</option>
-              <option value="active">Активные</option>
-              <option value="inactive">Неактивные</option>
-              <option value="suspended">Заблокированные</option>
-            </select>
-            <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2">
-              <Filter className="w-5 h-5" />
-              Фильтры
-            </button>
+      {/* ── List ── */}
+      <div className="bg-white rounded-2xl overflow-hidden" style={{ border: '1px solid #f0f4f8' }}>
+        {loading ? (
+          <SkeletonList rows={6} />
+        ) : filtered.length === 0 ? (
+          <div className="py-16 text-center">
+            <UsersIcon className="w-12 h-12 text-gray-200 mx-auto mb-3" />
+            <p className="text-gray-500 font-medium">Пользователи не найдены</p>
+            <p className="text-gray-400 text-sm mt-1">Попробуйте изменить фильтры</p>
           </div>
-        </CardContent>
-      </Card>
+        ) : (
+          <div className="divide-y divide-gray-50">
+            {filtered.map(user => {
+              const isBlocked = user.status === 'blocked';
+              const isExpanded = expandedId === user.email;
+              const isLoading = actionLoading === user.email;
+              const initials = `${(user.firstName || '?')[0]}${(user.lastName || '?')[0]}`.toUpperCase();
+              const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
 
-      {/* Users list */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {filteredUsers.map((user) => (
-          <Card key={user.id} className="hover:shadow-md transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-teal-600 rounded-full flex items-center justify-center text-white font-semibold text-lg">
-                    {user.avatar}
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900">{user.name}</h3>
-                    <p className="text-sm text-gray-600">{user.id}</p>
-                    <div className="flex items-center gap-1 mt-1">
-                      <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                      <span className="text-sm font-medium text-gray-900">{user.rating}</span>
-                      <span className="text-sm text-gray-500">({user.totalTrips} поездок)</span>
+              return (
+                <div key={user.email} style={{ background: isBlocked ? '#fef2f210' : undefined }}>
+                  <div className="flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50 transition-colors">
+                    {/* Avatar */}
+                    <div
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 overflow-hidden"
+                      style={{
+                        background: isBlocked
+                          ? '#94a3b8'
+                          : user.role === 'driver'
+                          ? 'linear-gradient(135deg,#1565d8,#2385f4)'
+                          : 'linear-gradient(135deg,#7c3aed,#8b5cf6)',
+                      }}
+                    >
+                      {user.avatarUrl
+                        ? <img src={user.avatarUrl} alt={fullName} className="w-full h-full object-cover" />
+                        : initials}
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`font-semibold text-sm ${isBlocked ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                          {fullName}
+                        </span>
+                        <span
+                          className="px-2 py-0.5 rounded-full text-xs font-semibold"
+                          style={
+                            user.role === 'driver'
+                              ? { background: '#eff6ff', color: '#1d4ed8' }
+                              : { background: '#f5f3ff', color: '#6d28d9' }
+                          }
+                        >
+                          {user.role === 'driver' ? '🚛 Водитель' : '📦 Отправитель'}
+                        </span>
+                        {isBlocked && (
+                          <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-600">
+                            🚫 Заблокирован
+                          </span>
+                        )}
+                        {user.documentsVerified && (
+                          <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
+                            ✓ Верифицирован
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-400 mt-0.5 truncate">{user.email}</p>
+                    </div>
+
+                    <div className="hidden md:block text-sm text-gray-500 flex-shrink-0">{user.phone || '—'}</div>
+                    <div className="hidden lg:block text-xs text-gray-400 flex-shrink-0">
+                      <RelTime iso={user.createdAt} />
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {user.role === 'driver' && (
+                        <Link
+                          to="/admin/drivers"
+                          className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-xl transition-colors"
+                          style={{ background: '#eff6ff', color: '#1565d8' }}
+                        >
+                          <Car className="w-3.5 h-3.5" /> Водитель
+                        </Link>
+                      )}
+                      <button
+                        onClick={() => setExpandedId(isExpanded ? null : user.email)}
+                        className="p-1.5 hover:bg-gray-100 rounded-xl text-gray-400 transition-colors"
+                      >
+                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      </button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            disabled={isLoading}
+                            className="p-1.5 hover:bg-gray-100 rounded-xl text-gray-400 transition-colors"
+                          >
+                            {isLoading
+                              ? <Loader2 className="w-4 h-4 animate-spin" />
+                              : <MoreVertical className="w-4 h-4" />}
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                          {isBlocked ? (
+                            <DropdownMenuItem onClick={() => handleStatus(user, 'active')} className="text-emerald-600">
+                              <UserCheck className="w-4 h-4 mr-2" /> Разблокировать
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem onClick={() => handleStatus(user, 'blocked')} className="text-orange-600">
+                              <UserX className="w-4 h-4 mr-2" /> Заблокировать
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem onClick={() => handleDelete(user)} className="text-red-600">
+                            <Trash2 className="w-4 h-4 mr-2" /> Удалить
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
-                </div>
-                <div className="flex flex-col items-end gap-2">
-                  {getStatusBadge(user.status)}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                        <MoreVertical className="w-5 h-5 text-gray-600" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleAction('Просмотр', user)}>
-                        <Eye className="w-4 h-4 mr-2" />
-                        Просмотр профиля
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleAction('Редактирование', user)}>
-                        <Edit className="w-4 h-4 mr-2" />
-                        Редактировать
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleAction('Блокировка', user)} className="text-red-600">
-                        <Ban className="w-4 h-4 mr-2" />
-                        Заблокировать
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </div>
 
-              <div className="mb-3">
-                {getUserTypeBadge(user.userType)}
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <MapPin className="w-4 h-4" />
-                  <span>{user.location}</span>
+                  {/* Expanded */}
+                  {isExpanded && (
+                    <div className="px-5 pb-4 pt-3 grid grid-cols-2 md:grid-cols-4 gap-4" style={{ background: '#f8fafc', borderTop: '1px solid #f0f4f8' }}>
+                      {[
+                        { label: 'Email', value: user.email },
+                        { label: 'Телефон', value: user.phone || '—' },
+                        { label: 'Город', value: user.city || '—' },
+                        { label: 'Регистрация', value: user.createdAt ? new Date(user.createdAt).toLocaleDateString('ru-RU') : '—' },
+                      ].map(f => (
+                        <div key={f.label}>
+                          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">{f.label}</p>
+                          <p className="text-sm text-gray-900 break-all">{f.value}</p>
+                        </div>
+                      ))}
+                      {user.vehicle && (
+                        <div className="col-span-2">
+                          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Транспорт</p>
+                          <p className="text-sm text-gray-900">
+                            {[user.vehicle.model, user.vehicle.plate, user.vehicle.type].filter(Boolean).join(' • ')}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Phone className="w-4 h-4" />
-                  <span>{user.phone}</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Mail className="w-4 h-4" />
-                  <span>{user.email}</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Calendar className="w-4 h-4" />
-                  <span>Регистрация: {user.joinDate}</span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
-                <div className="text-sm">
-                  <span className="text-gray-600">Потрачено: </span>
-                  <span className="font-semibold text-gray-900">{user.totalSpent}</span>
-                </div>
-                <div className="text-sm text-gray-600">
-                  Активность: {user.lastActive}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      {filteredUsers.length === 0 && (
-        <div className="text-center py-12">
-          <UsersIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Пользователи не найдены</h3>
-          <p className="text-gray-600">Попробуйте изменить параметры поиска</p>
-        </div>
-      )}
+      <p className="text-xs text-gray-400 text-center">
+        Показано {filtered.length} из {users.length} пользователей
+      </p>
     </div>
   );
 }

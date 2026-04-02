@@ -1,0 +1,264 @@
+/* ═══════════════════════════════════════════════════════════════════
+   AVIA Design Tokens — Ovora Cargo Mobile
+   Изолированы от theme.css; подключаются только через AviaLayout
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Фон ── */
+  --avia-bg:            #060e1a;
+  --avia-bg-alt:        #07111f;
+  --avia-bg-deep:       #050c17;
+
+  /* ── Поверхности (карточки, панели) ── */
+  --avia-surface:       rgba(255, 255, 255, 0.04);
+  --avia-surface-my:    rgba(14, 165, 233, 0.07);
+  --avia-surface-hover: rgba(255, 255, 255, 0.06);
+  --avia-surface-high:  rgba(255, 255, 255, 0.08);
+
+  /* ── Границы ── */
+  --avia-border:        rgba(14, 165, 233, 0.10);
+  --avia-border-subtle: rgba(255, 255, 255, 0.05);
+  --avia-border-strong: rgba(14, 165, 233, 0.20);
+  --avia-border-my:     rgba(14, 165, 233, 0.18);
+
+  /* ── Акцентные цвета ── */
+  --avia-accent:        #0ea5e9;   /* Sky-500 — основной */
+  --avia-accent-light:  #38bdf8;   /* Sky-400 — светлый */
+  --avia-accent-dim:    #7dd3fc;   /* Sky-300 — приглушённый */
+  --avia-purple:        #a78bfa;   /* Violet-400 */
+  --avia-purple-dim:    #c4b5fd;   /* Violet-300 */
+  --avia-green:         #34d399;   /* Emerald-400 */
+  --avia-green-dim:     #6ee7b7;   /* Emerald-300 */
+  --avia-red:           #f87171;   /* Red-400 */
+  --avia-amber:         #fbbf24;   /* Amber-400 */
+
+  /* ── Текст ── */
+  --avia-text:          #e2eeff;   /* Основной */
+  --avia-text-muted:    #4a7090;   /* Приглушённый */
+  --avia-text-faint:    #2a4a65;   /* Очень приглушённый */
+  --avia-text-label:    rgba(14, 165, 233, 0.35);  /* Лейблы секций */
+
+  /* ── Радиусы ── */
+  --avia-radius-card:   20px;
+  --avia-radius-btn:    12px;
+  --avia-radius-chip:   8px;
+  --avia-radius-icon:   11px;
+  --avia-radius-pill:   100px;
+
+  /* ── Тени ── */
+  --avia-shadow-card:   0 2px 12px rgba(0, 0, 0, 0.4), 0 1px 0 rgba(255,255,255,0.03);
+  --avia-shadow-glow:   0 0 24px rgba(14, 165, 233, 0.15);
+  --avia-shadow-btn:    0 4px 16px rgba(14, 165, 233, 0.30);
+
+  /* ── Sidebar ── */
+  --avia-sidebar-w:     264px;
+  --avia-sidebar-bg:    linear-gradient(180deg, #05101e 0%, #060d19 60%, #050c17 100%);
+  --avia-sidebar-border: rgba(14, 165, 233, 0.08);
+
+  /* ── Bottom Nav (mobile) ── */
+  --avia-nav-h:         64px;
+  --avia-nav-bg:        rgba(5, 13, 25, 0.94);
+  --avia-nav-border:    rgba(14, 165, 233, 0.10);
+
+  /* ── Transition ── */
+  --avia-ease:          cubic-bezier(0.22, 1, 0.36, 1);
+  --avia-dur-fast:      0.17s;
+  --avia-dur-base:      0.25s;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Utility Classes
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Карточки ── */
+.avia-card {
+  background:    var(--avia-surface);
+  border:        1px solid var(--avia-border-subtle);
+  border-radius: var(--avia-radius-card);
+  box-shadow:    var(--avia-shadow-card);
+  transition:    background var(--avia-dur-fast) ease,
+                 border-color var(--avia-dur-fast) ease,
+                 box-shadow var(--avia-dur-fast) ease;
+}
+.avia-card:hover {
+  background:   var(--avia-surface-hover);
+  border-color: var(--avia-border);
+}
+
+.avia-card-my {
+  background:    var(--avia-surface-my);
+  border:        1px solid var(--avia-border-my);
+  border-radius: var(--avia-radius-card);
+  box-shadow:    var(--avia-shadow-card), inset 0 1px 0 rgba(56,189,248,0.06);
+}
+
+/* ── Кнопки ── */
+.avia-btn-primary {
+  background:    linear-gradient(135deg, #1245b0 0%, #1a6fd4 60%, #2f8fe0 100%);
+  border:        none;
+  border-radius: var(--avia-radius-btn);
+  color:         #fff;
+  font-weight:   700;
+  box-shadow:    var(--avia-shadow-btn);
+  transition:    opacity var(--avia-dur-fast) ease, transform var(--avia-dur-fast) ease, box-shadow var(--avia-dur-fast) ease;
+}
+.avia-btn-primary:hover  { opacity: 0.90; }
+.avia-btn-primary:active { transform: scale(0.97); }
+
+.avia-btn-ghost {
+  background:    transparent;
+  border:        1px solid var(--avia-border-subtle);
+  border-radius: var(--avia-radius-btn);
+  color:         var(--avia-text-muted);
+  transition:    background var(--avia-dur-fast) ease, color var(--avia-dur-fast) ease, border-color var(--avia-dur-fast) ease;
+}
+.avia-btn-ghost:hover {
+  background:   var(--avia-surface-hover);
+  color:        var(--avia-accent-dim);
+  border-color: var(--avia-border);
+}
+
+/* ── Чипы (статусы / фильтры) ── */
+.avia-chip {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           4px;
+  padding:       3px 9px;
+  border-radius: var(--avia-radius-chip);
+  font-size:     11px;
+  font-weight:   600;
+  letter-spacing: 0.02em;
+}
+.avia-chip-blue   { background: rgba(14,165,233,0.12); color: var(--avia-accent-dim);  border: 1px solid rgba(14,165,233,0.20); }
+.avia-chip-purple { background: rgba(167,139,250,0.12); color: var(--avia-purple-dim); border: 1px solid rgba(167,139,250,0.20); }
+.avia-chip-green  { background: rgba(52,211,153,0.12);  color: var(--avia-green-dim);  border: 1px solid rgba(52,211,153,0.20); }
+.avia-chip-red    { background: rgba(248,113,113,0.12); color: var(--avia-red);        border: 1px solid rgba(248,113,113,0.20); }
+.avia-chip-amber  { background: rgba(251,191,36,0.12);  color: var(--avia-amber);      border: 1px solid rgba(251,191,36,0.20); }
+
+/* ── Разделитель секции ── */
+.avia-divider {
+  height:     1px;
+  background: linear-gradient(90deg, transparent, var(--avia-border), transparent);
+  margin:     8px 0;
+}
+
+/* ── Иконка-контейнер ── */
+.avia-icon-box {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  width:           34px;
+  height:          34px;
+  border-radius:   var(--avia-radius-icon);
+  background:      rgba(255,255,255,0.03);
+  border:          1px solid var(--avia-border-subtle);
+  flex-shrink:     0;
+}
+.avia-icon-box-active {
+  background:   rgba(14,165,233,0.14);
+  border-color: rgba(14,165,233,0.22);
+  box-shadow:   0 0 14px rgba(14,165,233,0.15);
+}
+
+/* ── Sidebar Nav Link ── */
+.avia-sb-link {
+  display:        flex;
+  align-items:    center;
+  gap:            11px;
+  padding:        10px 12px;
+  border-radius:  13px;
+  text-decoration: none;
+  position:       relative;
+  overflow:       hidden;
+  font-size:      13.5px;
+  font-weight:    500;
+  color:          var(--avia-text-faint);
+  transition:     background var(--avia-dur-fast) ease,
+                  color var(--avia-dur-fast) ease,
+                  box-shadow var(--avia-dur-fast) ease;
+}
+.avia-sb-link:hover:not(.avia-sb-active) {
+  background: rgba(14, 165, 233, 0.06);
+  color:      var(--avia-accent-dim);
+}
+.avia-sb-active {
+  background:   linear-gradient(135deg, rgba(14,165,233,0.10) 0%, rgba(14,165,233,0.06) 100%);
+  color:        var(--avia-accent-dim);
+  font-weight:  700;
+  box-shadow:   inset 0 0 0 1px rgba(14,165,233,0.12);
+}
+
+/* ── Bottom Nav (mobile) ── */
+.avia-mobile-nav {
+  position:    fixed;
+  bottom:      0;
+  left:        0;
+  right:       0;
+  height:      var(--avia-nav-h);
+  background:  var(--avia-nav-bg);
+  border-top:  1px solid var(--avia-nav-border);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  display:     flex;
+  align-items: stretch;
+  z-index:     50;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+/* Скрыть мобильную навигацию на десктопе — сайдбар заменяет */
+@media (min-width: 768px) {
+  .avia-mobile-nav {
+    display: none !important;
+  }
+}
+
+/* ── Скроллируемый контент с отступом под nav ── */
+.avia-scroll-content {
+  flex: 1;
+  /* Не overflow-y: auto — пусть страница сама скроллится.
+     Только добавляем padding под fixed bottom nav на mobile. */
+  padding-bottom: calc(var(--avia-nav-h) + env(safe-area-inset-bottom, 0px) + 8px);
+}
+.avia-scroll-content-desktop {
+  flex: 1;
+  padding-bottom: 24px;
+}
+
+/* ── 2-Column card grid (MD+) ── */
+.avia-cards-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+@media (min-width: 768px) {
+  .avia-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    align-items: start;
+  }
+}
+
+/* ── Анимации ── */
+@keyframes avia-fade-up {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0)   scale(1);    }
+}
+.avia-fade-up {
+  animation: avia-fade-up var(--avia-dur-base) var(--avia-ease) both;
+}
+
+@keyframes avia-dot-in {
+  from { transform: scaleX(0); opacity: 0; }
+  to   { transform: scaleX(1); opacity: 1; }
+}
+.avia-dot-in {
+  animation: avia-dot-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes avia-pulse-glow {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 3px rgba(34,197,94,0.15), 0 0 12px rgba(34,197,94,0.5); }
+  50%       { opacity: 0.7; box-shadow: 0 0 0 5px rgba(34,197,94,0.10), 0 0 20px rgba(34,197,94,0.3); }
+}
+.avia-pulse-online {
+  animation: avia-pulse-glow 2.5s ease-in-out infinite;
+}

@@ -19,4 +19,37 @@ export default defineConfig({
 
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ['**/*.svg', '**/*.csv'],
+
+  // 🚀 ОПТИМИЗАЦИЯ: Настройки производительности
+  build: {
+    // Минификация кода
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true, // Удалить console.log в продакшене
+        drop_debugger: true,
+      },
+    },
+    // Разделение кода на чанки
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Разделяем vendor библиотеки
+          'react-vendor': ['react', 'react-dom', 'react-router'],
+          'ui-vendor': ['lucide-react', '@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu'],
+          'map-vendor': ['react-yandex-maps'],
+          'utils': ['date-fns', 'clsx', 'tailwind-merge'],
+        },
+      },
+    },
+    // Chunk size warnings
+    chunkSizeWarningLimit: 1000,
+  },
+
+  // Оптимизация dev сервера
+  server: {
+    hmr: {
+      overlay: false, // Отключить оверлей ошибок для скорости
+    },
+  },
 })

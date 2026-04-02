@@ -1,21 +1,44 @@
 @import './fonts.css';
+@import './fonts.css';
 @import './tailwind.css';
 @import './theme.css';
+@import './avia-theme.css';
+
+/* ── Hide scrollbars everywhere (keep scroll functionality) ── */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}
+
+/* ✨ Professional premium enhancements */
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+  text-rendering: optimizeLegibility;
+}
+
+/* Smooth transitions for theme changes */
+body, button, a, div[class*="bg-"], div[class*="border"] {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
 
 /* Additional mobile optimizations */
 @media screen and (max-width: 640px) {
-  /* Ensure proper spacing on small screens */
   .min-h-screen {
     min-height: 100vh;
     min-height: -webkit-fill-available;
   }
-
-  /* Better button sizes for touch */
   button, a[role="button"] {
     min-height: 44px;
   }
-
-  /* Prevent text zoom on form focus */
   input, textarea, select {
     font-size: max(16px, 1rem);
   }
@@ -27,7 +50,6 @@
     -webkit-user-select: none;
     user-select: none;
   }
-
   input, textarea {
     -webkit-user-select: auto;
     user-select: auto;
@@ -39,8 +61,63 @@
   .safe-area-top {
     padding-top: max(1.5rem, env(safe-area-inset-top));
   }
-
   .safe-area-bottom {
     padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
   }
+}
+
+/* ── Skeleton shimmer animation ─────────────────────────────────────────── */
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+.animate-shimmer {
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+/* ── Pull-to-refresh will-change hint ────────────────────────────────────── */
+.pull-container {
+  overscroll-behavior-y: contain;
+}
+
+/* ── Global glow / glass utilities ──────────────────────────────────────── */
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes float-up {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);    }
+}
+.animate-float-up {
+  animation: float-up 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ── Bottom Nav glow dot ─────────────────────────────────────────────────── */
+@keyframes nav-dot-in {
+  from { transform: scaleX(0); opacity: 0; }
+  to   { transform: scaleX(1); opacity: 1; }
+}
+.nav-dot-in {
+  animation: nav-dot-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* ── Sidebar link hover ──────────────────────────────────────────────────── */
+.ovora-sb-link {
+  transition: background 0.17s ease, color 0.17s ease, box-shadow 0.17s ease;
+}
+.ovora-sb-link:hover:not(.ovora-sb-active) {
+  background: rgba(14, 165, 233, 0.06) !important;
+  color: #7dd3fc !important;
+}
+.ovora-sb-util {
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.ovora-sb-util:hover {
+  background: rgba(14, 165, 233, 0.05) !important;
+  color: #5ba3f5 !important;
 }

@@ -1,316 +1,565 @@
-import { 
-  TrendingUp, 
-  Users, 
-  Car, 
-  Package, 
-  DollarSign,
-  ArrowUp,
-  ArrowDown,
-  MapPin,
-  Clock,
-  CheckCircle,
-  XCircle,
-  AlertCircle
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router';
+import {
+  Users, Car, Package, CheckCircle, RefreshCw, Loader2, Route,
+  Star, Activity, Download, ArrowRight, Clock, TrendingUp,
+  AlertCircle, Zap,
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { DonutChart } from '../ui/DonutChart';
+import { SimpleBarChart } from '../ui/SimpleBarChart';
+import { getAdminTrips, getAdminUsers, getAdminOffers, getAdminReviews } from '../../api/dataApi';
+import { toast } from 'sonner';
 
-// Mock data
-const stats = [
-  {
-    title: 'Всего поездок',
-    value: '2,543',
-    change: '+12.5%',
-    trend: 'up',
-    icon: Package,
-    color: 'bg-blue-500'
-  },
-  {
-    title: 'Активные водители',
-    value: '342',
-    change: '+8.3%',
-    trend: 'up',
-    icon: Car,
-    color: 'bg-green-500'
-  },
-  {
-    title: 'Пользователей',
-    value: '1,847',
-    change: '+15.2%',
-    trend: 'up',
-    icon: Users,
-    color: 'bg-purple-500'
-  },
-  {
-    title: 'Доход',
-    value: '324,560 ТЖС',
-    change: '-3.1%',
-    trend: 'down',
-    icon: DollarSign,
-    color: 'bg-orange-500'
-  },
-];
+// ── CSV export ────────────────────────────────────────────────────────────────
+function exportCsv(rows: Record<string, unknown>[], filename: string) {
+  if (!rows.length) return;
+  const keys = Object.keys(rows[0]);
+  const esc = (v: unknown) => {
+    const s = String(v ?? '').replace(/"/g, '""');
+    return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s}"` : s;
+  };
+  const csv = [keys.join(','), ...rows.map(r => keys.map(k => esc(r[k])).join(','))].join('\n');
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })),
+    download: filename,
+  });
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
 
-const revenueData = [
-  { month: 'Янв', revenue: 45000, trips: 320 },
-  { month: 'Фев', revenue: 52000, trips: 380 },
-  { month: 'Мар', revenue: 48000, trips: 340 },
-  { month: 'Апр', revenue: 61000, trips: 420 },
-  { month: 'Май', revenue: 55000, trips: 390 },
-  { month: 'Июн', revenue: 67000, trips: 450 },
-  { month: 'Июл', revenue: 72000, trips: 510 },
-];
+function RelTime({ iso }: { iso: string }) {
+  if (!iso) return <span className="text-gray-400">—</span>;
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return <span className="text-emerald-600 font-medium">только что</span>;
+  if (mins < 60) return <span>{mins} мин. назад</span>;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return <span>{hrs} ч. назад</span>;
+  return <span>{Math.floor(hrs / 24)} дн. назад</span>;
+}
 
-const tripStatusData = [
-  { name: 'Завершено', value: 1847, color: '#10b981' },
-  { name: 'В процессе', value: 234, color: '#3b82f6' },
-  { name: 'Отменено', value: 156, color: '#ef4444' },
-  { name: 'Запланировано', value: 306, color: '#f59e0b' },
-];
+const STATUS_COLOR: Record<string, string> = {
+  active: '#3b82f6',
+  completed: '#10b981',
+  cancelled: '#ef4444',
+  scheduled: '#f59e0b',
+};
 
-const recentTrips = [
-  {
-    id: '#TR-1234',
-    driver: 'Алишер Рахимов',
-    passenger: 'Фарход Юсупов',
-    route: 'Душанбе → Худжанд',
-    status: 'active',
-    price: '250 ТЖС',
-    time: '2 часа назад'
-  },
-  {
-    id: '#TR-1235',
-    driver: 'Мурод Каримов',
-    passenger: 'Зарина Саидова',
-    route: 'Душанбе → Куляб',
-    status: 'completed',
-    price: '180 ТЖС',
-    time: '3 часа назад'
-  },
-  {
-    id: '#TR-1236',
-    driver: 'Сухроб Назаров',
-    passenger: 'Дилшод Азимов',
-    route: 'Худжанд → Душанбе',
-    status: 'cancelled',
-    price: '260 ТЖС',
-    time: '4 часа назад'
-  },
-  {
-    id: '#TR-1237',
-    driver: 'Джамшед Исмоилов',
-    passenger: 'Нозанин Раджабова',
-    route: 'Душанбе → Курган-Тюбе',
-    status: 'scheduled',
-    price: '150 ТЖС',
-    time: '5 часов назад'
-  },
-];
-
-const pendingVerifications = [
-  {
-    driver: 'Рустам Абдуллоев',
-    document: 'Водительские права',
-    submitted: '1 час назад',
-    avatar: 'РА'
-  },
-  {
-    driver: 'Шахло Мирзоева',
-    document: 'Техпаспорт',
-    submitted: '2 часа назад',
-    avatar: 'ШМ'
-  },
-  {
-    driver: 'Фаррух Хакимов',
-    document: 'Страховка',
-    submitted: '3 часа назад',
-    avatar: 'ФХ'
-  },
-];
+const STATUS_LABEL: Record<string, string> = {
+  active: 'Активна',
+  completed: 'Завершена',
+  cancelled: 'Отменена',
+  scheduled: 'Запланирована',
+};
 
 export function AdminDashboard() {
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<{
+    trips: number; drivers: number; users: number; senders: number;
+    offers: number; reviews: number; acceptedOffers: number;
+    pendingOffers: number; activeTrips: number;
+  } | null>(null);
+  const [trips, setTrips] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [offers, setOffers] = useState<any[]>([]);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const [tripsData, usersData, offersData, reviewsData] = await Promise.all([
+        getAdminTrips(), getAdminUsers(), getAdminOffers(), getAdminReviews(),
+      ]);
+      console.log('[AdminDashboard] Data loaded:', {
+        trips: (tripsData || []).length,
+        users: (usersData || []).length,
+        offers: (offersData || []).length,
+        reviews: (reviewsData || []).length,
+      });
+      const t = tripsData || [];
+      const u = usersData || [];
+      const o = offersData || [];
+      setTrips(t); setUsers(u); setOffers(o);
+      const validTrips = t.filter((x: any) => x && !x.deletedAt);
+      setStats({
+        trips: validTrips.length,
+        drivers: u.filter((x: any) => x?.role === 'driver').length,
+        users: u.length,
+        senders: u.filter((x: any) => x?.role === 'sender').length,
+        offers: o.length,
+        reviews: (reviewsData || []).length,
+        acceptedOffers: o.filter((x: any) => x?.status === 'accepted').length,
+        pendingOffers: o.filter((x: any) => x?.status === 'pending').length,
+        activeTrips: validTrips.filter((x: any) => x.status === 'active').length,
+      });
+      setLastUpdated(new Date());
+    } catch (err) {
+      console.error('[AdminDashboard] Load error:', err);
+      toast.error('Ошибка загрузки данных: ' + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  // ── Chart data ────────────────────────────────────────────────────────────
+  const tripStatusData = [
+    { name: 'Активные',      value: trips.filter(t => t?.status === 'active').length,                    color: '#3b82f6' },
+    { name: 'Завершены',     value: trips.filter(t => t?.status === 'completed').length,                 color: '#10b981' },
+    { name: 'Отменены',      value: trips.filter(t => t?.status === 'cancelled' || t?.deletedAt).length, color: '#ef4444' },
+    { name: 'Запланированы', value: trips.filter(t => t?.status === 'scheduled').length,                 color: '#f59e0b' },
+  ].filter(d => d.value > 0);
+
+  const offerStatusData = [
+    { name: 'Ожидают',   value: offers.filter(o => o?.status === 'pending').length,                              color: '#f59e0b' },
+    { name: 'Приняты',   value: offers.filter(o => o?.status === 'accepted').length,                             color: '#10b981' },
+    { name: 'Отклонены', value: offers.filter(o => o?.status === 'rejected' || o?.status === 'declined').length, color: '#ef4444' },
+  ].filter(d => d.value > 0);
+
+  const userRoleData = [
+    { name: 'Водители',    value: users.filter(u => u?.role === 'driver').length, color: '#3b82f6' },
+    { name: 'Отправители', value: users.filter(u => u?.role === 'sender').length, color: '#8b5cf6' },
+  ].filter(d => d.value > 0);
+
+  // Activity (last 7 days)
+  const dayLabels = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+  const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
+  const dayActivity: Record<string, number> = {};
+  trips.filter(t => t?.createdAt && new Date(t.createdAt).getTime() > weekAgo).forEach(t => {
+    const d = dayLabels[new Date(t.createdAt).getDay()];
+    dayActivity[d] = (dayActivity[d] || 0) + 1;
+  });
+  const activityBarData = dayLabels.map(d => ({ label: d, value: dayActivity[d] || 0 }));
+
+  const recentTrips = [...trips]
+    .filter(t => t && !t.deletedAt)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 8);
+
+  const driverMap: Record<string, { name: string; trips: number; email: string }> = {};
+  trips.forEach(t => {
+    if (!t?.driverEmail) return;
+    if (!driverMap[t.driverEmail]) driverMap[t.driverEmail] = { name: t.driverName || t.driverEmail, trips: 0, email: t.driverEmail };
+    driverMap[t.driverEmail].trips++;
+  });
+  const topDrivers = Object.values(driverMap).sort((a, b) => b.trips - a.trips).slice(0, 5);
+
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center h-72 gap-3">
+      <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: '#eff6ff' }}>
+        <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+      </div>
+      <p className="text-gray-500 text-sm font-medium">Загрузка данных из базы...</p>
+    </div>
+  );
+
+  const statCards = [
+    {
+      title: 'Всего поездок', value: stats?.trips ?? 0, icon: Route,
+      gradient: 'linear-gradient(135deg,#1565d8,#2385f4)',
+      sub: `${stats?.activeTrips ?? 0} активных`,
+      to: '/admin/trips', badge: stats?.activeTrips,
+    },
+    {
+      title: 'Водители', value: stats?.drivers ?? 0, icon: Car,
+      gradient: 'linear-gradient(135deg,#059669,#10b981)',
+      sub: `${stats?.senders ?? 0} отправителей`,
+      to: '/admin/drivers',
+    },
+    {
+      title: 'Пользователей', value: stats?.users ?? 0, icon: Users,
+      gradient: 'linear-gradient(135deg,#7c3aed,#8b5cf6)',
+      sub: 'Всего в системе',
+      to: '/admin/users',
+    },
+    {
+      title: 'Оферт', value: stats?.offers ?? 0, icon: Package,
+      gradient: 'linear-gradient(135deg,#d97706,#f59e0b)',
+      sub: `${stats?.pendingOffers ?? 0} ожидают`,
+      to: '/admin/offers', badge: stats?.pendingOffers,
+    },
+    {
+      title: 'Принято', value: stats?.acceptedOffers ?? 0, icon: CheckCircle,
+      gradient: 'linear-gradient(135deg,#0891b2,#06b6d4)',
+      sub: 'Завершённых сделок',
+      to: '/admin/offers',
+    },
+    {
+      title: 'Отзывов', value: stats?.reviews ?? 0, icon: Star,
+      gradient: 'linear-gradient(135deg,#db2777,#ec4899)',
+      sub: 'В системе',
+      to: '/admin/reviews',
+    },
+  ];
+
+  const convRate = offers.length > 0
+    ? ((offers.filter(o => o?.status === 'accepted').length / offers.length) * 100).toFixed(0)
+    : '0';
+
   return (
     <div className="space-y-6">
-      {/* Page header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Панель управления</h1>
-        <p className="text-gray-600 mt-1">Обзор системы Ovora Cargo</p>
+
+      {/* ── Welcome banner ── */}
+      <div
+        className="rounded-2xl px-6 py-5 flex items-center justify-between gap-4 flex-wrap"
+        style={{
+          background: 'linear-gradient(135deg, #1565d8 0%, #2385f4 60%, #3b9ef8 100%)',
+          boxShadow: '0 8px 32px #1565d840',
+        }}
+      >
+        <div>
+          <h1 className="text-xl font-bold text-white">Панель управления</h1>
+          <p className="text-sm mt-0.5" style={{ color: '#bfdbfe' }}>
+            {new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+            {lastUpdated && (
+              <span className="ml-2 opacity-75">
+                • обновлено в {lastUpdated.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            )}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {/* Conversion rate pill */}
+          <div className="px-3 py-2 rounded-xl flex items-center gap-2" style={{ background: '#ffffff20' }}>
+            <TrendingUp className="w-4 h-4 text-white" />
+            <span className="text-sm text-white font-semibold">Конверсия: {convRate}%</span>
+          </div>
+          {/* Export */}
+          <div className="relative">
+            <button
+              onClick={() => setExportOpen(v => !v)}
+              onBlur={() => setTimeout(() => setExportOpen(false), 180)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm transition-all"
+              style={{ background: '#ffffff25', color: '#ffffff' }}
+            >
+              <Download className="w-4 h-4" />
+              Экспорт CSV
+            </button>
+            {exportOpen && (
+              <div className="absolute right-0 top-full mt-2 w-44 bg-white border border-gray-200 rounded-xl shadow-2xl z-50 overflow-hidden">
+                {[
+                  {
+                    label: 'Поездки', icon: Route, color: 'text-blue-500',
+                    onClick: () => exportCsv(
+                      trips.map(t => ({ id: t.id, from: t.from, to: t.to, date: t.date, status: t.status, driver: t.driverName || t.driverEmail, price: t.pricePerSeat || t.pricePerKg, created: t.createdAt })),
+                      `ovora_trips_${new Date().toISOString().slice(0, 10)}.csv`
+                    ),
+                  },
+                  {
+                    label: 'Пользователи', icon: Users, color: 'text-purple-500',
+                    onClick: () => exportCsv(
+                      users.map(u => ({ email: u.email, name: `${u.firstName || ''} ${u.lastName || ''}`.trim(), role: u.role, phone: u.phone, city: u.city, created: u.createdAt })),
+                      `ovora_users_${new Date().toISOString().slice(0, 10)}.csv`
+                    ),
+                  },
+                  {
+                    label: 'Оферты', icon: Package, color: 'text-orange-500',
+                    onClick: () => exportCsv(
+                      offers.map(o => ({ offerId: o.offerId, tripId: o.tripId, senderEmail: o.senderEmail, driverEmail: o.driverEmail, status: o.status, price: o.price, weight: o.weight, created: o.createdAt })),
+                      `ovora_offers_${new Date().toISOString().slice(0, 10)}.csv`
+                    ),
+                  },
+                ].map(item => (
+                  <button key={item.label} onClick={item.onClick}
+                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2 border-b border-gray-100 last:border-0"
+                  >
+                    <item.icon className={`w-3.5 h-3.5 ${item.color}`} />
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <button
+            onClick={load}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm transition-all"
+            style={{ background: '#ffffff25', color: '#ffffff' }}
+          >
+            <RefreshCw className="w-4 h-4" />
+            Обновить
+          </button>
+        </div>
       </div>
 
-      {/* Stats grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat) => (
-          <Card key={stat.title}>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">{stat.title}</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
-                  <div className="flex items-center gap-1 mt-2">
-                    {stat.trend === 'up' ? (
-                      <ArrowUp className="w-4 h-4 text-green-600" />
-                    ) : (
-                      <ArrowDown className="w-4 h-4 text-red-600" />
-                    )}
-                    <span className={`text-sm font-medium ${
-                      stat.trend === 'up' ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {stat.change}
-                    </span>
-                    <span className="text-sm text-gray-500">vs прошлый месяц</span>
-                  </div>
-                </div>
-                <div className={`w-12 h-12 ${stat.color} rounded-lg flex items-center justify-center`}>
-                  <stat.icon className="w-6 h-6 text-white" />
-                </div>
+      {/* ── Pending alert ── */}
+      {(stats?.pendingOffers ?? 0) > 0 && (
+        <Link to="/admin/offers" className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:shadow-md" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
+          <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+          <p className="text-sm text-amber-800 font-medium flex-1">
+            Есть <strong>{stats?.pendingOffers}</strong> оферт, ожидающих рассмотрения
+          </p>
+          <ArrowRight className="w-4 h-4 text-amber-600" />
+        </Link>
+      )}
+
+      {/* ── Stat cards ── */}
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+        {statCards.map(card => (
+          <Link key={card.title} to={card.to} className="group">
+            <div
+              className="rounded-2xl p-4 transition-all hover:shadow-lg hover:-translate-y-0.5 relative overflow-hidden"
+              style={{ background: '#ffffff', border: '1px solid #f0f4f8' }}
+            >
+              {/* Icon */}
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 relative"
+                style={{ background: card.gradient }}
+              >
+                <card.icon className="w-5 h-5 text-white" />
+                {card.badge != null && card.badge > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-white text-[9px] font-bold">
+                    {card.badge > 9 ? '9+' : card.badge}
+                  </span>
+                )}
               </div>
-            </CardContent>
-          </Card>
+              <p className="text-2xl font-bold text-gray-900">{card.value}</p>
+              <p className="text-xs font-semibold text-gray-700 mt-0.5">{card.title}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{card.sub}</p>
+              {/* Hover arrow */}
+              <ArrowRight className="absolute bottom-3 right-3 w-4 h-4 text-gray-300 group-hover:text-gray-500 transition-colors" />
+            </div>
+          </Link>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Revenue chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Доход и поездки</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={revenueData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis yAxisId="left" />
-                <YAxis yAxisId="right" orientation="right" />
-                <Tooltip />
-                <Legend />
-                <Line yAxisId="left" type="monotone" dataKey="revenue" stroke="#3b82f6" name="Доход (ТЖС)" strokeWidth={2} />
-                <Line yAxisId="right" type="monotone" dataKey="trips" stroke="#10b981" name="Поездки" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Trip status pie chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Статус поездок</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={tripStatusData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {tripStatusData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="grid grid-cols-2 gap-4 mt-4">
-              {tripStatusData.map((item) => (
-                <div key={item.name} className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
-                  <span className="text-sm text-gray-600">{item.name}: <strong>{item.value}</strong></span>
-                </div>
-              ))}
+      {/* ── Charts row 1 ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Activity bar chart */}
+        <div className="lg:col-span-2 bg-white rounded-2xl p-5" style={{ border: '1px solid #f0f4f8' }}>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: '#eff6ff' }}>
+                <Activity className="w-4 h-4 text-blue-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900 text-sm">Активность за 7 дней</p>
+                <p className="text-xs text-gray-500">Количество новых поездок</p>
+              </div>
             </div>
-          </CardContent>
-        </Card>
+            <div className="flex items-center gap-1.5">
+              <Zap className="w-3.5 h-3.5 text-amber-500" />
+              <span className="text-xs font-semibold text-gray-600">
+                Итого: {activityBarData.reduce((s, d) => s + d.value, 0)}
+              </span>
+            </div>
+          </div>
+          {activityBarData.some(d => d.value > 0) ? (
+            <SimpleBarChart data={activityBarData} color="#3b82f6" height={200} />
+          ) : (
+            <div className="h-[200px] flex flex-col items-center justify-center text-gray-400">
+              <Activity className="w-10 h-10 mb-2 text-gray-200" />
+              <p className="text-sm">Нет данных за последние 7 дней</p>
+            </div>
+          )}
+        </div>
+
+        {/* Trip status donut */}
+        <div className="bg-white rounded-2xl p-5" style={{ border: '1px solid #f0f4f8' }}>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: '#eff6ff' }}>
+              <Route className="w-4 h-4 text-blue-600" />
+            </div>
+            <div>
+              <p className="font-semibold text-gray-900 text-sm">Статус поездок</p>
+              <p className="text-xs text-gray-500">Всего: {trips.filter(t => !t?.deletedAt).length}</p>
+            </div>
+          </div>
+          {tripStatusData.length > 0 ? (
+            <>
+              <div className="flex justify-center">
+                <DonutChart data={tripStatusData} innerRadius={45} outerRadius={70} size={160} />
+              </div>
+              <div className="space-y-2 mt-3">
+                {tripStatusData.map(item => (
+                  <div key={item.name} className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
+                      <span className="text-gray-600 text-xs">{item.name}</span>
+                    </div>
+                    <span className="font-bold text-gray-900 text-sm">{item.value}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="h-[200px] flex items-center justify-center text-gray-400 text-sm">Нет данных</div>
+          )}
+        </div>
       </div>
 
+      {/* ── Charts row 2 ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Offers status */}
+        <div className="bg-white rounded-2xl p-5" style={{ border: '1px solid #f0f4f8' }}>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: '#fff7ed' }}>
+              <Package className="w-4 h-4 text-orange-500" />
+            </div>
+            <div>
+              <p className="font-semibold text-gray-900 text-sm">Статус оферт</p>
+              <p className="text-xs text-gray-500">Всего: {offers.length}</p>
+            </div>
+          </div>
+          {offerStatusData.length > 0 ? (
+            <>
+              <div className="flex justify-center">
+                <DonutChart data={offerStatusData} innerRadius={40} outerRadius={65} size={160} />
+              </div>
+              <div className="grid grid-cols-3 gap-2 mt-3">
+                {offerStatusData.map(item => (
+                  <div key={item.name} className="text-center p-2 rounded-xl" style={{ background: item.color + '12' }}>
+                    <p className="text-lg font-bold" style={{ color: item.color }}>{item.value}</p>
+                    <p className="text-[11px] text-gray-500">{item.name}</p>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="h-[200px] flex items-center justify-center text-gray-400 text-sm">Нет данных</div>
+          )}
+        </div>
+
+        {/* Users by role */}
+        <div className="bg-white rounded-2xl p-5" style={{ border: '1px solid #f0f4f8' }}>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: '#f5f3ff' }}>
+              <Users className="w-4 h-4 text-purple-600" />
+            </div>
+            <div>
+              <p className="font-semibold text-gray-900 text-sm">Роли пользователей</p>
+              <p className="text-xs text-gray-500">Всего: {users.length}</p>
+            </div>
+          </div>
+          {userRoleData.length > 0 ? (
+            <>
+              <div className="flex justify-center">
+                <DonutChart data={userRoleData} innerRadius={40} outerRadius={65} size={160} />
+              </div>
+              <div className="grid grid-cols-2 gap-3 mt-3">
+                {userRoleData.map(item => (
+                  <div key={item.name} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: item.color + '12' }}>
+                    <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
+                    <div>
+                      <p className="text-lg font-bold" style={{ color: item.color }}>{item.value}</p>
+                      <p className="text-[11px] text-gray-600">{item.name}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="h-[200px] flex items-center justify-center text-gray-400 text-sm">Нет данных</div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Bottom row ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Recent trips */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Последние поездки</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {recentTrips.map((trip) => (
-                <div key={trip.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-semibold text-gray-900">{trip.id}</span>
-                      {trip.status === 'active' && (
-                        <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded-full flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          В процессе
-                        </span>
-                      )}
-                      {trip.status === 'completed' && (
-                        <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full flex items-center gap-1">
-                          <CheckCircle className="w-3 h-3" />
-                          Завершено
-                        </span>
-                      )}
-                      {trip.status === 'cancelled' && (
-                        <span className="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-700 rounded-full flex items-center gap-1">
-                          <XCircle className="w-3 h-3" />
-                          Отменено
-                        </span>
-                      )}
-                      {trip.status === 'scheduled' && (
-                        <span className="px-2 py-0.5 text-xs font-medium bg-orange-100 text-orange-700 rounded-full flex items-center gap-1">
-                          <AlertCircle className="w-3 h-3" />
-                          Запланировано
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <MapPin className="w-4 h-4" />
-                      <span>{trip.route}</span>
-                    </div>
-                    <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                      <span>Водитель: {trip.driver}</span>
-                      <span>•</span>
-                      <span>Пассажир: {trip.passenger}</span>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-gray-900">{trip.price}</p>
-                    <p className="text-xs text-gray-500 mt-1">{trip.time}</p>
-                  </div>
-                </div>
-              ))}
+        <div className="lg:col-span-2 bg-white rounded-2xl p-5" style={{ border: '1px solid #f0f4f8' }}>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: '#eff6ff' }}>
+                <Clock className="w-4 h-4 text-blue-600" />
+              </div>
+              <p className="font-semibold text-gray-900 text-sm">Последние поездки</p>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Pending verifications */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Ожидают верификации</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {pendingVerifications.map((item, index) => (
-                <div key={index} className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                    {item.avatar}
+            <Link to="/admin/trips" className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors">
+              Все поездки <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+          {recentTrips.length === 0 ? (
+            <div className="py-10 text-center text-gray-400">
+              <Route className="w-10 h-10 mb-2 mx-auto text-gray-200" />
+              <p className="text-sm">Поездок пока нет</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {recentTrips.map(trip => (
+                <div key={trip.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors">
+                  <div
+                    className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                    style={{ background: (STATUS_COLOR[trip.status] || '#94a3b8') + '20' }}
+                  >
+                    <div
+                      className="w-2.5 h-2.5 rounded-full"
+                      style={{ backgroundColor: STATUS_COLOR[trip.status] || '#94a3b8' }}
+                    />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900 truncate">{item.driver}</p>
-                    <p className="text-sm text-gray-600 truncate">{item.document}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">{item.submitted}</p>
+                    <p className="text-sm font-semibold text-gray-900 truncate">{trip.from} → {trip.to}</p>
+                    <p className="text-xs text-gray-500 truncate">{trip.driverName || trip.driverEmail || '—'}</p>
                   </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-xs font-bold text-gray-700">{trip.pricePerSeat || trip.pricePerKg || '—'} ТЖС</p>
+                    <p className="text-xs text-gray-400"><RelTime iso={trip.createdAt} /></p>
+                  </div>
+                  <span
+                    className="hidden sm:inline text-[10px] font-semibold px-2 py-1 rounded-lg flex-shrink-0"
+                    style={{
+                      background: (STATUS_COLOR[trip.status] || '#94a3b8') + '18',
+                      color: STATUS_COLOR[trip.status] || '#94a3b8',
+                    }}
+                  >
+                    {STATUS_LABEL[trip.status] || trip.status}
+                  </span>
                 </div>
               ))}
-              <button className="w-full py-2 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors">
-                Показать все
-              </button>
             </div>
-          </CardContent>
-        </Card>
+          )}
+        </div>
+
+        {/* Top drivers */}
+        <div className="bg-white rounded-2xl p-5" style={{ border: '1px solid #f0f4f8' }}>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: '#f0fdf4' }}>
+                <Car className="w-4 h-4 text-emerald-600" />
+              </div>
+              <p className="font-semibold text-gray-900 text-sm">Топ водителей</p>
+            </div>
+            <Link to="/admin/drivers" className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors">
+              Все <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+          {topDrivers.length === 0 ? (
+            <div className="py-10 text-center text-gray-400">
+              <Car className="w-10 h-10 mb-2 mx-auto text-gray-200" />
+              <p className="text-sm">Нет данных</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {topDrivers.map((d, i) => {
+                const medals = ['#f59e0b', '#94a3b8', '#d97706'];
+                return (
+                  <div key={d.email} className="flex items-center gap-3">
+                    <div
+                      className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                      style={{ background: medals[i] || '#3b82f6' }}
+                    >
+                      {i + 1}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">{d.name}</p>
+                      <div className="w-full rounded-full h-1.5 mt-1" style={{ background: '#f1f5f9' }}>
+                        <div
+                          className="h-1.5 rounded-full transition-all"
+                          style={{
+                            width: `${Math.min(100, (d.trips / (topDrivers[0]?.trips || 1)) * 100)}%`,
+                            background: medals[i] || '#3b82f6',
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <span className="text-sm font-bold text-gray-700 flex-shrink-0">{d.trips}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -5,33 +5,36 @@ export interface City {
   name: string;
   country: string;
   region?: string;
+  lat?: number;
+  lng?: number;
 }
 
-export const cities: City[] = [
-  // Таджикистан
-  { name: 'Душанбе', country: 'Таджикистан', region: 'Душанбе' },
-  { name: 'Худжанд', country: 'Таджикистан', region: 'Согдийская область' },
-  { name: 'Куляб', country: 'Таджикистан', region: 'Хатлонская область' },
-  { name: 'Курган-Тюбе', country: 'Таджикистан', region: 'Хатлонская область' },
-  { name: 'Истаравшан', country: 'Таджикистан', region: 'Согдийская область' },
-  { name: 'Турсунзаде', country: 'Таджикистан', region: 'Районы республиканского подчинения' },
-  { name: 'Вахдат', country: 'Таджикистан', region: 'Районы республиканского подчинения' },
-  { name: 'Хорог', country: 'Таджикистан', region: 'Горно-Бадахшанская АО' },
-  { name: 'Пенджикент', country: 'Таджикистан', region: 'Согдийская область' },
-  { name: 'Канибадам', country: 'Таджикистан', region: 'Согдийская область' },
-  { name: 'Исфара', country: 'Таджикистан', region: 'Согдийская область' },
-  { name: 'Нурек', country: 'Таджикистан', region: 'Хатлонская область' },
-  { name: 'Файзабад', country: 'Таджикистан', region: 'Согдийская область' },
-  { name: 'Рогун', country: 'Таджикистан', region: 'Районы республиканского подчинения' },
-  { name: 'Гиссар', country: 'Таджикистан', region: 'Районы республиканского подчинения' },
-  { name: 'Бохтар', country: 'Таджикистан', region: 'Хатлонская область' },
-  { name: 'Кангурт', country: 'Таджикистан', region: 'Согдийская область' },
-  { name: 'Чкаловск', country: 'Таджикистан', region: 'Согдийская область' },
+// Базовый список городов
+const baseCities: City[] = [
+  // Таджикистан (с координатами)
+  { name: 'Душанбе', country: 'Таджикистан', region: 'Душанбе', lat: 38.5598, lng: 68.7738 },
+  { name: 'Худжанд', country: 'Таджикистан', region: 'Согдийская область', lat: 40.2833, lng: 69.6333 },
+  { name: 'Куляб', country: 'Таджикистан', region: 'Хатлонская область', lat: 37.9144, lng: 69.7850 },
+  { name: 'Курган-Тюбе', country: 'Таджикистан', region: 'Хатлонская область', lat: 37.8354, lng: 68.7791 },
+  { name: 'Истаравшан', country: 'Таджикистан', region: 'Согдийская область', lat: 39.9142, lng: 69.0014 },
+  { name: 'Турсунзаде', country: 'Таджикистан', region: 'Районы республиканского подчинения', lat: 38.5097, lng: 68.2314 },
+  { name: 'Вахдат', country: 'Таджикистан', region: 'Районы республиканского подчинения', lat: 38.5560, lng: 69.0445 },
+  { name: 'Хорог', country: 'Таджикистан', region: 'Горно-Бадахшанская АО', lat: 37.4896, lng: 71.5533 },
+  { name: 'Пенджикент', country: 'Таджикистан', region: 'Согдийская область', lat: 39.4969, lng: 67.5744 },
+  { name: 'Канибадам', country: 'Таджикистан', region: 'Согдийская область', lat: 40.3056, lng: 70.4222 },
+  { name: 'Исфара', country: 'Таджикистан', region: 'Согдийская область', lat: 40.1236, lng: 70.6250 },
+  { name: 'Нурек', country: 'Таджикистан', region: 'Хатлонская область', lat: 38.3814, lng: 69.3267 },
+  { name: 'Файзабад', country: 'Таджикистан', region: 'Согдийская область', lat: 40.2000, lng: 69.5000 },
+  { name: 'Рогун', country: 'Таджикистан', region: 'Районы республиканского подчинения', lat: 38.6931, lng: 69.7442 },
+  { name: 'Гиссар', country: 'Таджикистан', region: 'Районы республиканского подчинения', lat: 38.5275, lng: 68.5442 },
+  { name: 'Бохтар', country: 'Таджикистан', region: 'Хатлонская область', lat: 37.8333, lng: 68.7667 },
+  { name: 'Кангурт', country: 'Таджикистан', region: 'Согдийская область', lat: 39.8333, lng: 69.7167 },
+  { name: 'Чкаловск', country: 'Таджикистан', region: 'Согдийская область', lat: 40.2644, lng: 69.6961 },
   { name: 'Вахш', country: 'Таджикистан', region: 'Хатлонская область' },
   { name: 'Сарбанд', country: 'Таджикистан', region: 'Хатлонская область' },
 
-  // Россия - Москва и Московская область
-  { name: 'Москва', country: 'Россия', region: 'Москва' },
+  // Рос��ия - Москва и Московская область
+  { name: 'Москва', country: 'Россия', region: 'Москва', lat: 55.7558, lng: 37.6173 },
   { name: 'Подольск', country: 'Россия', region: 'Московская область' },
   { name: 'Балашиха', country: 'Россия', region: 'Московская область' },
   { name: 'Химки', country: 'Россия', region: 'Московская область' },
@@ -48,7 +51,7 @@ export const cities: City[] = [
   { name: 'Орехово-Зуево', country: 'Россия', region: 'Московская область' },
 
   // Санкт-Петербург и Ленинградская область
-  { name: 'Санкт-Петербург', country: 'Россия', region: 'Санкт-Петербург' },
+  { name: 'Санкт-Петербург', country: 'Россия', region: 'Санкт-Петербург', lat: 59.9343, lng: 30.3351 },
   { name: 'Гатчина', country: 'Россия', region: 'Ленинградская область' },
   { name: 'Выборг', country: 'Россия', region: 'Ленинградская область' },
   { name: 'Колпино', country: 'Россия', region: 'Санкт-Петербург' },
@@ -56,11 +59,11 @@ export const cities: City[] = [
   { name: 'Кронштадт', country: 'Россия', region: 'Санкт-Петербург' },
 
   // Крупные города России
-  { name: 'Новосибирск', country: 'Россия', region: 'Новосибирская область' },
-  { name: 'Екатеринбург', country: 'Россия', region: 'Свердловская область' },
+  { name: 'Новосибирск', country: 'Россия', region: 'Новосибирская область', lat: 55.0084, lng: 82.9357 },
+  { name: 'Екатеринбург', country: 'Россия', region: 'Свердловская область', lat: 56.8389, lng: 60.6057 },
   { name: 'Казань', country: 'Россия', region: 'Республика Татарстан' },
   { name: 'Нижний Новгород', country: 'Россия', region: 'Нижегородская область' },
-  { name: 'Челябинск', country: 'Россия', region: 'Челябинская область' },
+  { name: 'Челя��инск', country: 'Россия', region: 'Челябинская область' },
   { name: 'Самара', country: 'Россия', region: 'Самарская область' },
   { name: 'Омск', country: 'Россия', region: 'Омская область' },
   { name: 'Ростов-на-Дону', country: 'Россия', region: 'Ростовская область' },
@@ -153,6 +156,59 @@ export const cities: City[] = [
   { name: 'Грозный', country: 'Россия', region: 'Чеченская Республика' },
 ];
 
+// LocalStorage ключ для хранения городов, добавленных водителями
+const CUSTOM_CITIES_KEY = 'ovora_custom_cities';
+
+// Загрузить города, добавленные водителями из localStorage
+export function getCustomCities(): City[] {
+  try {
+    const stored = localStorage.getItem(CUSTOM_CITIES_KEY);
+    if (!stored) return [];
+    return JSON.parse(stored) as City[];
+  } catch (error) {
+    console.error('Error loading custom cities:', error);
+    return [];
+  }
+}
+
+// Сохранить новый город (только для водителей)
+export function addCustomCity(city: City, userRole: string): boolean {
+  if (userRole !== 'driver') {
+    console.warn('Only drivers can add new cities');
+    return false;
+  }
+
+  try {
+    const customCities = getCustomCities();
+    
+    // Проверка: город уже существует?
+    const allCities = [...baseCities, ...customCities];
+    const exists = allCities.some(
+      c => c.name.toLowerCase() === city.name.toLowerCase() && 
+           c.country.toLowerCase() === city.country.toLowerCase()
+    );
+    
+    if (exists) {
+      console.warn('City already exists');
+      return false;
+    }
+
+    // Добавить новый город
+    customCities.push(city);
+    localStorage.setItem(CUSTOM_CITIES_KEY, JSON.stringify(customCities));
+    return true;
+  } catch (error) {
+    console.error('Error adding custom city:', error);
+    return false;
+  }
+}
+
+// Получить все города (базовые + добавленные водителями)
+export function getAllCities(): City[] {
+  const customCities = getCustomCities();
+  return [...baseCities, ...customCities];
+}
+
 // Функция поиска городов по введённому тексту
 export function searchCities(query: string): City[] {
   if (!query || query.trim().length === 0) {
@@ -160,8 +216,9 @@ export function searchCities(query: string): City[] {
   }
 
   const searchTerm = query.toLowerCase().trim();
+  const allCities = getAllCities();
   
-  return cities.filter(city => 
+  return allCities.filter(city => 
     city.name.toLowerCase().startsWith(searchTerm) ||
     city.name.toLowerCase().includes(searchTerm)
   ).slice(0, 10); // Ограничиваем до 10 результатов

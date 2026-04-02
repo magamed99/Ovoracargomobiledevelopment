@@ -1,0 +1,4 @@
+FIND:
+                  {hasCargo && (
+                    <div style={{ marginBottom:12, borderRadius:16, overflow:'hidden', border: includeCargo ? '1px solid #f59e0b40' : '1px solid #1a2d3d', background: includeCargo ? '#f59e0b08' : '#0a1520', transition:'border-color .2s' }}>
+                      <button className="td-toggle" onClick={() => setIncludeCargo(!includeCargo)}>

@@ -1,102 +1,379 @@
+import React from "react";
 import { createBrowserRouter, redirect } from "react-router";
-import { AdminLayout } from "./components/admin/AdminLayout";
-import { AdminDashboard } from "./components/admin/AdminDashboard";
-import { DriversManagement } from "./components/admin/DriversManagement";
-import { UsersManagement } from "./components/admin/UsersManagement";
-import { TripsManagement } from "./components/admin/TripsManagement";
-import { DocumentVerification } from "./components/admin/DocumentVerification";
-import { Analytics } from "./components/admin/Analytics";
-import { Reviews } from "./components/admin/Reviews";
-import { Settings } from "./components/admin/Settings";
-import { Welcome } from "./components/Welcome";
-import { RoleSelect } from "./components/RoleSelect";
-import { Login } from "./components/Login";
-import { EmailAuth } from "./components/EmailAuth";
-import { DriverRegistrationForm } from "./components/DriverRegistrationForm";
-import { SenderRegistrationForm } from "./components/SenderRegistrationForm";
+import { getAviaSession } from "./api/aviaApi";
+
+// ══════════════════════════════════════════════════════════════
+// 📦 EAGER IMPORTS — must be available synchronously
+// ══════════════════════════════════════════════════════════════
+
+// Auth Pages (Eager — instant first screen)
+import { Welcome }     from "./components/Welcome";
+import { RoleSelect }  from "./components/RoleSelect";
+import { EmailAuth }   from "./components/EmailAuth";
+
+// Layouts (Eager — needed synchronously for route tree setup)
 import { MobileLayout } from "./components/MobileLayout";
-import { Home } from "./components/ClientDashboard";
-import { SearchPage } from "./components/SearchPage";
-import { SearchResults } from "./components/SearchResults";
-import { TripDetail } from "./components/TripDetail";
-import { TripsPage } from "./components/TripsPage";
-import { TrackingPage } from "./components/TrackingPage";
-import { MessagesPage } from "./components/MessagesPage";
-import { ProfilePage } from "./components/ProfilePage";
-import { EditProfile } from "./components/EditProfile";
-import { NotificationsPage } from "./components/NotificationsPage";
-import { PaymentHistory } from "./components/PaymentHistory";
-import { ReviewsPage } from "./components/ReviewsPage";
-import { DocumentVerificationPage } from "./components/DocumentVerificationPage";
+import { RootLayout }   from "./components/RootLayout";
+
+// Error pages (Eager — must render even when chunks fail to load)
+import { ErrorPage } from "./components/ErrorPage";
+
+// AviaErrorBoundary MUST be eager — React Router instantiates ErrorBoundary
+// synchronously when an error occurs; a lazy() here causes a second suspend
+// inside the error-handling path, which React cannot recover from.
+import { AviaErrorBoundary } from "./components/avia/AviaErrorBoundary";
+
+// ═════════════════════════════════════════════════════════════
+// 🔒 ROUTE GUARDS
+// ═════════════════════════════════════════════════════════════
+
+function requireAuth() {
+  if (sessionStorage.getItem('isAuthenticated') === 'true') return null;
+
+  try {
+    const persistent = JSON.parse(localStorage.getItem('ovora_auth_persistent') || '{}');
+    if (persistent.email && persistent.role) {
+      sessionStorage.setItem('ovora_user_email', persistent.email);
+      sessionStorage.setItem('userRole', persistent.role);
+      sessionStorage.setItem('isAuthenticated', 'true');
+      console.log('[requireAuth] Session restored from localStorage for:', persistent.email);
+      return null;
+    }
+  } catch { /* ignore */ }
+
+  return redirect('/');
+}
+
+function requireAviaAuth() {
+  const session = getAviaSession();
+  if (!session?.user?.phone) return redirect('/avia');
+  return null;
+}
+
+function redirectAviaIfAuthenticated() {
+  const session = getAviaSession();
+  if (session?.user?.phone) return redirect('/avia/dashboard');
+  return null;
+}
+
+// ═════════════════════════════════════════════════════════════
+// ⏳ HYDRATION FALLBACK
+// ═════════════════════════════════════════════════════════════
+
+function HydrateFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center" style={{ background: '#0E1621' }}>
+      <div className="animate-spin rounded-full h-10 w-10 border-4"
+        style={{ borderColor: '#1e3a55', borderTopColor: '#5ba3f5' }} />
+    </div>
+  );
+}
+
+// ═════════════════════════════════════════════════════════════
+// 🗺️ ROUTER
+//
+// All previously React.lazy() components now use the route-level
+// `lazy` property. React Router wraps these fetches in startTransition
+// internally, which eliminates "suspended during synchronous input" errors.
+// ═════════════════════════════════════════════════════════════
 
 export const router = createBrowserRouter([
-  // Welcome & Auth routes
   {
-    path: "/",
-    Component: Welcome,
-  },
-  {
-    path: "/welcome",
-    Component: Welcome,
-  },
-  {
-    path: "/role-select",
-    Component: RoleSelect,
-  },
-  {
-    path: "/login",
-    Component: Login,
-  },
-  {
-    path: "/email-auth",
-    Component: EmailAuth,
-  },
-  {
-    path: "/driver-registration-form",
-    Component: DriverRegistrationForm,
-  },
-  {
-    path: "/sender-registration-form",
-    Component: SenderRegistrationForm,
-  },
-  // Client Mobile App routes
-  {
-    path: "/",
-    Component: MobileLayout,
+    // Root: provides Suspense + ErrorBoundary for all child routes
+    Component: RootLayout,
+    errorElement: <ErrorPage />,
+    // HydrateFallback at root ensures RR uses startTransition for all
+    // lazy child routes on first render (SSR hydration + client navigation).
+    HydrateFallback,
     children: [
-      { path: "dashboard", Component: Home },
-      { path: "search", Component: SearchPage },
-      { path: "search-results", Component: SearchResults },
-      { path: "trip/:id", Component: TripDetail },
-      { path: "trips", Component: TripsPage },
-      { path: "tracking", Component: TrackingPage },
-      { path: "messages", Component: MessagesPage },
-      { path: "profile", Component: ProfilePage },
-      { path: "profile/edit", Component: EditProfile },
-      { path: "notifications", Component: NotificationsPage },
-      { path: "payments", Component: PaymentHistory },
-      { path: "reviews", Component: ReviewsPage },
-      { path: "documents", Component: DocumentVerificationPage },
+
+      // ── Welcome & Auth (Eager) ────────────────────────────────────────
+      { path: "/",        Component: Welcome },
+      { path: "/welcome", Component: Welcome },
+      { path: "/role-select", Component: RoleSelect },
+      { path: "/email-auth",  Component: EmailAuth },
+
+      // ── Registration Forms (Lazy) ─────────────────────────────────────
+      {
+        path: "/driver-registration-form",
+        lazy: () => import("./components/DriverRegistrationForm")
+          .then(m => ({ Component: m.DriverRegistrationForm })),
+      },
+      {
+        path: "/sender-registration-form",
+        lazy: () => import("./components/SenderRegistrationForm")
+          .then(m => ({ Component: m.SenderRegistrationForm })),
+      },
+
+      // ── AVIA Module ───────────────────────────────────────────────────
+      {
+        path: "/avia",
+        lazy: () => import("./components/avia/AviaAuth")
+          .then(m => ({ Component: m.AviaAuth })),
+        loader: redirectAviaIfAuthenticated,
+      },
+      {
+        // AviaLayout is a layout-only route (no path) — all /avia/* children
+        // go through it. ErrorBoundary is EAGER (imported at top of file).
+        lazy: () => import("./components/avia/AviaLayout")
+          .then(m => ({ Component: m.AviaLayout })),
+        ErrorBoundary: AviaErrorBoundary,
+        loader: requireAviaAuth,
+        children: [
+          {
+            path: "/avia/dashboard",
+            lazy: () => import("./components/avia/AviaDashboard")
+              .then(m => ({ Component: m.AviaDashboard })),
+          },
+          {
+            path: "/avia/profile",
+            lazy: () => import("./components/avia/AviaProfile")
+              .then(m => ({ Component: m.AviaProfile })),
+          },
+          {
+            path: "/avia/deals",
+            lazy: () => import("./components/avia/AviaDealsPage")
+              .then(m => ({ Component: m.AviaDealsPage })),
+          },
+          {
+            path: "/avia/messages",
+            lazy: () => import("./components/avia/AviaMessagesPage")
+              .then(m => ({ Component: m.AviaMessagesPage })),
+          },
+          {
+            path: "/avia/user/:phone",
+            lazy: () => import("./components/avia/AviaPublicProfile")
+              .then(m => ({ Component: m.AviaPublicProfile })),
+          },
+        ],
+      },
+
+      // ── Client Mobile App (MobileLayout is Eager) ─────────────────────
+      {
+        Component: MobileLayout,
+        loader: requireAuth,
+        HydrateFallback,
+        children: [
+          {
+            path: "home",
+            lazy: () => import("./components/ClientDashboard")
+              .then(m => ({ Component: m.Home })),
+          },
+          {
+            path: "dashboard",
+            lazy: () => import("./components/ClientDashboard")
+              .then(m => ({ Component: m.Home })),
+          },
+          {
+            path: "search",
+            lazy: () => import("./components/SearchPage")
+              .then(m => ({ Component: m.SearchPage })),
+          },
+          {
+            path: "search-results",
+            lazy: () => import("./components/SearchResults")
+              .then(m => ({ Component: m.SearchResults })),
+          },
+          {
+            path: "create-trip",
+            lazy: () => import("./components/CreateAnnouncementPage")
+              .then(m => ({ Component: m.CreateAnnouncementPage })),
+          },
+          {
+            path: "trip/:id",
+            lazy: () => import("./components/TripDetail")
+              .then(m => ({ Component: m.TripDetail })),
+          },
+          {
+            path: "trips",
+            lazy: () => import("./components/TripsPage")
+              .then(m => ({ Component: m.TripsPage })),
+          },
+          {
+            path: "tracking",
+            lazy: () => import("./components/TrackingPage")
+              .then(m => ({ Component: m.TrackingPage })),
+          },
+          {
+            path: "messages",
+            lazy: () => import("./components/MessagesPage")
+              .then(m => ({ Component: m.MessagesPage })),
+          },
+          {
+            path: "chat/:id",
+            lazy: () => import("./components/ChatPage")
+              .then(m => ({ Component: m.ChatPage })),
+          },
+          {
+            path: "profile",
+            lazy: () => import("./components/ProfilePage")
+              .then(m => ({ Component: m.ProfilePage })),
+          },
+          {
+            path: "profile/edit",
+            lazy: () => import("./components/EditProfile")
+              .then(m => ({ Component: m.EditProfile })),
+          },
+          {
+            path: "notifications",
+            lazy: () => import("./components/NotificationsPage")
+              .then(m => ({ Component: m.NotificationsPage })),
+          },
+          {
+            path: "payments",
+            lazy: () => import("./components/PaymentHistory")
+              .then(m => ({ Component: m.PaymentHistory })),
+          },
+          {
+            path: "reviews",
+            lazy: () => import("./components/ReviewsPage")
+              .then(m => ({ Component: m.ReviewsPage })),
+          },
+          {
+            path: "documents",
+            lazy: () => import("./components/DocumentVerificationPage")
+              .then(m => ({ Component: m.DocumentVerificationPage })),
+          },
+          {
+            path: "settings",
+            lazy: () => import("./components/SettingsPage")
+              .then(m => ({ Component: m.SettingsPage })),
+          },
+          {
+            path: "help",
+            lazy: () => import("./components/HelpPage")
+              .then(m => ({ Component: m.HelpPage })),
+          },
+          {
+            path: "about",
+            lazy: () => import("./components/AboutPage")
+              .then(m => ({ Component: m.AboutPage })),
+          },
+          {
+            path: "calculator",
+            lazy: () => import("./components/PriceCalculator")
+              .then(m => ({ Component: m.PriceCalculator })),
+          },
+          {
+            path: "favorites",
+            lazy: () => import("./components/FavoritesPage")
+              .then(m => ({ Component: m.FavoritesPage })),
+          },
+          {
+            path: "privacy-policy",
+            lazy: () => import("./components/PrivacyPolicyPage")
+              .then(m => ({ Component: m.PrivacyPolicyPage })),
+          },
+          {
+            path: "terms-of-service",
+            lazy: () => import("./components/TermsOfServicePage")
+              .then(m => ({ Component: m.TermsOfServicePage })),
+          },
+          // ── Driver-specific ──
+          {
+            path: "borders",
+            lazy: () => import("./components/BordersPage")
+              .then(m => ({ Component: m.BordersPage })),
+          },
+          {
+            path: "rest-stops",
+            lazy: () => import("./components/RestStopsPage")
+              .then(m => ({ Component: m.RestStopsPage })),
+          },
+          {
+            path: "radio",
+            lazy: () => import("./components/RadioPage")
+              .then(m => ({ Component: m.RadioPage })),
+          },
+        ],
+      },
+
+      // ── Admin Panel ───────────────────────────────────────────────────
+      {
+        path: "/admin",
+        lazy: () => import("./components/admin/AdminLayout")
+          .then(m => ({ Component: m.AdminLayout })),
+        HydrateFallback,
+        children: [
+          {
+            index: true,
+            lazy: () => import("./components/admin/AdminDashboard")
+              .then(m => ({ Component: m.AdminDashboard })),
+          },
+          {
+            path: "drivers",
+            lazy: () => import("./components/admin/DriversManagement")
+              .then(m => ({ Component: m.DriversManagement })),
+          },
+          {
+            path: "users",
+            lazy: () => import("./components/admin/UsersManagement")
+              .then(m => ({ Component: m.UsersManagement })),
+          },
+          {
+            path: "trips",
+            lazy: () => import("./components/admin/TripsManagement")
+              .then(m => ({ Component: m.TripsManagement })),
+          },
+          {
+            path: "verification",
+            lazy: () => import("./components/admin/DocumentVerification")
+              .then(m => ({ Component: m.DocumentVerification })),
+          },
+          {
+            path: "analytics",
+            lazy: () => import("./components/admin/Analytics")
+              .then(m => ({ Component: m.Analytics })),
+          },
+          {
+            path: "reviews",
+            lazy: () => import("./components/admin/Reviews")
+              .then(m => ({ Component: m.Reviews })),
+          },
+          {
+            path: "codes",
+            lazy: () => import("./components/admin/CodeManagement")
+              .then(m => ({ Component: m.CodeManagement })),
+          },
+          {
+            path: "offers",
+            lazy: () => import("./components/admin/OffersManagement")
+              .then(m => ({ Component: m.OffersManagement })),
+          },
+          {
+            path: "ads",
+            lazy: () => import("./components/admin/AdsManagement")
+              .then(m => ({ Component: m.AdsManagement })),
+          },
+          {
+            path: "settings",
+            lazy: () => import("./components/SettingsPage")
+              .then(m => ({ Component: m.SettingsPage })),
+          },
+        ],
+      },
+
+      // ── Standalone pages ──────────────────────────────────────────────────
+      {
+        path: "/competitor-analysis",
+        lazy: () => import("./components/CompetitorAnalysisPage")
+          .then(m => ({ Component: m.CompetitorAnalysisPage })),
+      },
+      {
+        path: "/track/:tripId",
+        lazy: () => import("./components/PublicTrackingPage")
+          .then(m => ({ Component: m.PublicTrackingPage })),
+      },
+
+      // ── Catch-all redirects ───────────────────────────────────────────
+      { path: "map-test", loader: () => redirect("/home") },
+      { path: "database", loader: () => redirect("/home") },
+      { path: "health",   loader: () => redirect("/home") },
+      {
+        path: "*",
+        HydrateFallback,
+        loader: () => redirect("/"),
+      },
     ],
   },
-  // Admin Panel routes
-  {
-    path: "/admin",
-    Component: AdminLayout,
-    children: [
-      { index: true, Component: AdminDashboard },
-      { path: "drivers", Component: DriversManagement },
-      { path: "users", Component: UsersManagement },
-      { path: "trips", Component: TripsManagement },
-      { path: "verification", Component: DocumentVerification },
-      { path: "analytics", Component: Analytics },
-      { path: "reviews", Component: Reviews },
-      { path: "settings", Component: Settings },
-    ],
-  },
-  // Catch all other routes
-  {
-    path: "*",
-    loader: () => redirect("/")
-  }
 ]);

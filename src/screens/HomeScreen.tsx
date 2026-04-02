@@ -24,7 +24,7 @@ export function HomeScreen() {
       icon: Plus,
       label: 'Создать поездку',
       color: 'bg-blue-600',
-      action: () => navigate('/create-trip'),
+      action: () => navigate('/search'), // Интегрировано в SearchPage
     },
     {
       icon: Search,

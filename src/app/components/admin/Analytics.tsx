@@ -1,323 +1,370 @@
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { 
-  BarChart, 
-  Bar, 
-  LineChart, 
-  Line, 
-  AreaChart,
-  Area,
-  PieChart, 
-  Pie, 
-  Cell, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  Legend, 
-  ResponsiveContainer 
-} from 'recharts';
-import { TrendingUp, TrendingDown, DollarSign, Users, Car, Package, MapPin } from 'lucide-react';
+import { DonutChart } from '../ui/DonutChart';
+import { SimpleBarChart } from '../ui/SimpleBarChart';
+import { SimpleAreaChart } from '../ui/SimpleAreaChart';
+import { TrendingUp, Users, Car, Package, MapPin, RefreshCw, Loader2, Activity, BarChart3 } from 'lucide-react';
+import { getAdminTrips, getAdminUsers, getAdminOffers, getAdminReviews } from '../../api/dataApi';
+import { toast } from 'sonner';
+import { AdminPageHeader, HeaderBtn, SkeletonList } from './AdminPageHeader';
 
-// Mock data
-const monthlyRevenue = [
-  { month: 'Янв', revenue: 45000, trips: 320, drivers: 45, users: 250 },
-  { month: 'Фев', revenue: 52000, trips: 380, drivers: 52, users: 310 },
-  { month: 'Мар', revenue: 48000, trips: 340, drivers: 49, users: 290 },
-  { month: 'Апр', revenue: 61000, trips: 420, drivers: 58, users: 380 },
-  { month: 'Май', revenue: 55000, trips: 390, drivers: 54, users: 350 },
-  { month: 'Июн', revenue: 67000, trips: 450, drivers: 62, users: 410 },
-  { month: 'Июл', revenue: 72000, trips: 510, drivers: 68, users: 480 },
-];
-
-const cityData = [
-  { city: 'Душанбе', trips: 1247, revenue: 186500, color: '#3b82f6' },
-  { city: 'Худжанд', trips: 643, revenue: 95200, color: '#10b981' },
-  { city: 'Куляб', trips: 312, revenue: 42800, color: '#f59e0b' },
-  { city: 'Курган-Тюбе', trips: 241, revenue: 31500, color: '#ef4444' },
-  { city: 'Хорог', trips: 100, revenue: 18500, color: '#8b5cf6' },
-];
-
-const hourlyTrips = [
-  { hour: '00:00', trips: 12 },
-  { hour: '03:00', trips: 5 },
-  { hour: '06:00', trips: 45 },
-  { hour: '09:00', trips: 89 },
-  { hour: '12:00', trips: 134 },
-  { hour: '15:00', trips: 98 },
-  { hour: '18:00', trips: 156 },
-  { hour: '21:00', trips: 78 },
-];
-
-const tripTypes = [
-  { name: 'Внутригород', value: 1847, color: '#3b82f6' },
-  { name: 'Междугород', value: 543, color: '#10b981' },
-  { name: 'Груз малый', value: 234, color: '#f59e0b' },
-  { name: 'Груз большой', value: 156, color: '#ef4444' },
-];
-
-const driverPerformance = [
-  { name: 'Алишер Р.', trips: 342, revenue: 42500, rating: 4.8 },
-  { name: 'Мурод К.', trips: 528, revenue: 65300, rating: 4.9 },
-  { name: 'Рустам А.', trips: 445, revenue: 56800, rating: 4.8 },
-  { name: 'Джамшед И.', trips: 389, revenue: 48700, rating: 4.7 },
-  { name: 'Сухроб Н.', trips: 214, revenue: 28900, rating: 4.6 },
-];
-
-const weeklyComparison = [
-  { day: 'Пн', thisWeek: 234, lastWeek: 198 },
-  { day: 'Вт', thisWeek: 267, lastWeek: 223 },
-  { day: 'Ср', thisWeek: 289, lastWeek: 245 },
-  { day: 'Чт', thisWeek: 312, lastWeek: 276 },
-  { day: 'Пт', thisWeek: 345, lastWeek: 298 },
-  { day: 'Сб', thisWeek: 398, lastWeek: 356 },
-  { day: 'Вс', thisWeek: 367, lastWeek: 334 },
-];
+const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
 export function Analytics() {
+  const [loading, setLoading] = useState(true);
+  const [trips, setTrips] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [offers, setOffers] = useState<any[]>([]);
+  const [reviews, setReviews] = useState<any[]>([]);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [t, u, o, r] = await Promise.all([
+        getAdminTrips(), getAdminUsers(), getAdminOffers(), getAdminReviews(),
+      ]);
+      setTrips(t || []);
+      setUsers(u || []);
+      setOffers(o || []);
+      setReviews(r || []);
+    } catch {
+      toast.error('Ошибка загрузки аналитики');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  // ── Computed metrics ──────────────────────────────────────────────────────────
+
+  // Trips by day (last 14 days)
+  const tripsByDay: Record<string, number> = {};
+  const offersByDay: Record<string, number> = {};
+  const now = Date.now();
+  const days14 = Array.from({ length: 14 }, (_, i) => {
+    const d = new Date(now - (13 - i) * 86400000);
+    return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
+  });
+  days14.forEach(d => { tripsByDay[d] = 0; offersByDay[d] = 0; });
+
+  trips.forEach(t => {
+    if (!t?.createdAt) return;
+    const d = new Date(t.createdAt).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
+    if (d in tripsByDay) tripsByDay[d]++;
+  });
+  offers.forEach(o => {
+    if (!o?.createdAt) return;
+    const d = new Date(o.createdAt).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
+    if (d in offersByDay) offersByDay[d]++;
+  });
+
+  const activityData = days14.map(d => ({
+    date: d, trips: tripsByDay[d], offers: offersByDay[d],
+  }));
+
+  // Users registrations by day (last 14)
+  const usersByDay: Record<string, number> = {};
+  days14.forEach(d => { usersByDay[d] = 0; });
+  users.forEach(u => {
+    if (!u?.createdAt) return;
+    const d = new Date(u.createdAt).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
+    if (d in usersByDay) usersByDay[d]++;
+  });
+  const userGrowthData = days14.map(d => ({ date: d, users: usersByDay[d] }));
+
+  // Trip status breakdown
+  const tripStatusData = [
+    { name: 'Активные', value: trips.filter(t => t?.status === 'active' && !t.deletedAt).length, color: '#3b82f6' },
+    { name: 'Завершены', value: trips.filter(t => t?.status === 'completed').length, color: '#10b981' },
+    { name: 'Отменены', value: trips.filter(t => t?.status === 'cancelled' || t?.deletedAt).length, color: '#ef4444' },
+    { name: 'Запланированы', value: trips.filter(t => t?.status === 'scheduled').length, color: '#f59e0b' },
+  ].filter(d => d.value > 0);
+
+  // Offer status breakdown
+  const offerStatusData = [
+    { name: 'Ожидают', value: offers.filter(o => o?.status === 'pending').length, color: '#f59e0b' },
+    { name: 'Приняты', value: offers.filter(o => o?.status === 'accepted').length, color: '#10b981' },
+    { name: 'Отклонены', value: offers.filter(o => o?.status === 'rejected').length, color: '#ef4444' },
+    { name: 'Отменены', value: offers.filter(o => o?.status === 'declined').length, color: '#94a3b8' },
+  ].filter(d => d.value > 0);
+
+  // User role breakdown
+  const userRoleData = [
+    { name: 'Водители', value: users.filter(u => u?.role === 'driver').length, color: '#3b82f6' },
+    { name: 'Отправители', value: users.filter(u => u?.role === 'sender').length, color: '#8b5cf6' },
+  ].filter(d => d.value > 0);
+
+  // Top routes from trips
+  const routeMap: Record<string, number> = {};
+  trips.filter(t => t?.from && t?.to).forEach(t => {
+    const key = `${t.from} → ${t.to}`;
+    routeMap[key] = (routeMap[key] || 0) + 1;
+  });
+  const topRoutes = Object.entries(routeMap)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(([route, count]) => ({ route, count }));
+
+  // Top drivers by trips
+  const driverMap: Record<string, { name: string; trips: number }> = {};
+  trips.forEach(t => {
+    if (!t?.driverEmail) return;
+    if (!driverMap[t.driverEmail]) driverMap[t.driverEmail] = { name: t.driverName || t.driverEmail, trips: 0 };
+    driverMap[t.driverEmail].trips++;
+  });
+  const topDrivers = Object.values(driverMap).sort((a, b) => b.trips - a.trips).slice(0, 5);
+
+  // Average rating from reviews
+  const avgRating = reviews.length > 0
+    ? (reviews.reduce((sum, r) => sum + (r?.rating || 0), 0) / reviews.length).toFixed(1)
+    : '—';
+
+  // Conversion rate: accepted / total offers
+  const conversionRate = offers.length > 0
+    ? ((offers.filter(o => o?.status === 'accepted').length / offers.length) * 100).toFixed(1)
+    : '0';
+
+  const keyMetrics = [
+    { label: 'Всего поездок', value: trips.length, icon: Package, color: 'text-blue-600' },
+    { label: 'Пользователей', value: users.length, icon: Users, color: 'text-purple-600' },
+    { label: 'Оферт всего', value: offers.length, icon: Car, color: 'text-orange-600' },
+    { label: 'Конверсия оферт', value: `${conversionRate}%`, icon: TrendingUp, color: 'text-emerald-600' },
+    { label: 'Ср. рейтинг', value: avgRating, icon: Activity, color: 'text-yellow-600' },
+    { label: 'Отзывов', value: reviews.length, icon: MapPin, color: 'text-pink-600' },
+  ];
+
+  if (loading) return (
+    <div className="space-y-5">
+      <AdminPageHeader
+        title="Аналитика и отчёты"
+        subtitle="Загрузка данных..."
+        icon={BarChart3}
+        gradient="linear-gradient(135deg,#4f46e5,#6366f1)"
+        accent="#4f46e5"
+      />
+      <div className="bg-white rounded-2xl overflow-hidden" style={{ border: '1px solid #f0f4f8' }}>
+        <SkeletonList rows={6} />
+      </div>
+    </div>
+  );
+
+  const hasActivity = activityData.some(d => d.trips > 0 || d.offers > 0);
+  const hasUserGrowth = userGrowthData.some(d => d.users > 0);
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Аналитика и отчеты</h1>
-        <p className="text-gray-600 mt-1">Детальная статистика работы платформы</p>
-      </div>
+      <AdminPageHeader
+        title="Аналитика и отчёты"
+        subtitle="Реальные данные из базы Ovora Cargo"
+        icon={BarChart3}
+        gradient="linear-gradient(135deg,#4f46e5,#6366f1)"
+        accent="#4f46e5"
+        stats={[
+          { label: 'Поездок', value: trips.length },
+          { label: 'Пользователей', value: users.length },
+          { label: 'Конверсия', value: `${conversionRate}%` },
+          { label: 'Ср. рейтинг', value: avgRating > 0 ? `★ ${avgRating}` : '—' },
+        ]}
+        actions={
+          <HeaderBtn icon={RefreshCw} onClick={load}>Обновить</HeaderBtn>
+        }
+      />
 
       {/* Key metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-600">Средний чек</span>
-              <DollarSign className="w-5 h-5 text-blue-600" />
-            </div>
-            <p className="text-2xl font-bold text-gray-900">127 ТЖС</p>
-            <div className="flex items-center gap-1 mt-2 text-sm">
-              <TrendingUp className="w-4 h-4 text-green-600" />
-              <span className="text-green-600 font-medium">+8.3%</span>
-              <span className="text-gray-500">vs прошлый месяц</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-600">Заполненность</span>
-              <Car className="w-5 h-5 text-green-600" />
-            </div>
-            <p className="text-2xl font-bold text-gray-900">73%</p>
-            <div className="flex items-center gap-1 mt-2 text-sm">
-              <TrendingUp className="w-4 h-4 text-green-600" />
-              <span className="text-green-600 font-medium">+5.2%</span>
-              <span className="text-gray-500">vs прошлый месяц</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-600">Активных водителей</span>
-              <Users className="w-5 h-5 text-purple-600" />
-            </div>
-            <p className="text-2xl font-bold text-gray-900">68</p>
-            <div className="flex items-center gap-1 mt-2 text-sm">
-              <TrendingDown className="w-4 h-4 text-red-600" />
-              <span className="text-red-600 font-medium">-2.1%</span>
-              <span className="text-gray-500">vs прошлый месяц</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-600">Отмен</span>
-              <Package className="w-5 h-5 text-orange-600" />
-            </div>
-            <p className="text-2xl font-bold text-gray-900">6.1%</p>
-            <div className="flex items-center gap-1 mt-2 text-sm">
-              <TrendingDown className="w-4 h-4 text-green-600" />
-              <span className="text-green-600 font-medium">-1.4%</span>
-              <span className="text-gray-500">vs прошлый месяц</span>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        {keyMetrics.map((m) => (
+          <Card key={m.label}>
+            <CardContent className="p-4">
+              <m.icon className={`w-5 h-5 ${m.color} mb-2`} />
+              <p className="text-2xl font-bold text-gray-900">{m.value}</p>
+              <p className="text-xs text-gray-500 mt-0.5">{m.label}</p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      {/* Revenue and trips trend */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Доход и поездки по месяцам</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={monthlyRevenue}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis yAxisId="left" />
-                <YAxis yAxisId="right" orientation="right" />
-                <Tooltip />
-                <Legend />
-                <Line yAxisId="left" type="monotone" dataKey="revenue" stroke="#3b82f6" name="Доход (ТЖС)" strokeWidth={2} />
-                <Line yAxisId="right" type="monotone" dataKey="trips" stroke="#10b981" name="Поездки" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Рост пользователей и водителей</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={monthlyRevenue}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Area type="monotone" dataKey="users" stackId="1" stroke="#8b5cf6" fill="#8b5cf6" name="Пользователи" />
-                <Area type="monotone" dataKey="drivers" stackId="1" stroke="#f59e0b" fill="#f59e0b" name="Водители" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* City distribution and trip types */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Распределение по городам</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={cityData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="city" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="trips" fill="#3b82f6" name="Поездки" />
-              </BarChart>
-            </ResponsiveContainer>
-            <div className="grid grid-cols-2 gap-4 mt-4">
-              {cityData.map((city) => (
-                <div key={city.city} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm text-gray-700">{city.city}</span>
-                  </div>
-                  <span className="text-sm font-medium text-gray-900">{city.revenue.toLocaleString()} ТЖС</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Типы поездок</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={tripTypes}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={100}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {tripTypes.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="grid grid-cols-2 gap-3 mt-4">
-              {tripTypes.map((type) => (
-                <div key={type.name} className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: type.color }}></div>
-                  <span className="text-sm text-gray-700">{type.name}: <strong>{type.value}</strong></span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Hourly activity and weekly comparison */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Активность по часам</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={hourlyTrips}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="hour" />
-                <YAxis />
-                <Tooltip />
-                <Area type="monotone" dataKey="trips" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} name="Поездки" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Сравнение недель</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={weeklyComparison}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="day" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="lastWeek" fill="#94a3b8" name="Прошлая неделя" />
-                <Bar dataKey="thisWeek" fill="#3b82f6" name="Эта неделя" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Top drivers */}
+      {/* Activity chart */}
       <Card>
         <CardHeader>
-          <CardTitle>Топ водителей</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Activity className="w-5 h-5 text-blue-600" />
+            Активность за 14 дней
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {driverPerformance.map((driver, index) => (
-              <div key={driver.name} className="flex items-center gap-4 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
-                  {index + 1}
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium text-gray-900">{driver.name}</p>
-                  <p className="text-sm text-gray-600">{driver.trips} поездок • Рейтинг {driver.rating}</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-semibold text-gray-900">{driver.revenue.toLocaleString()} ТЖС</p>
-                  <p className="text-sm text-gray-600">Заработано</p>
-                </div>
-              </div>
-            ))}
-          </div>
+          {hasActivity ? (
+            <SimpleAreaChart
+              data={activityData}
+              labelKey="date"
+              series={[
+                { dataKey: 'trips', color: '#3b82f6', label: 'Поездки' },
+                { dataKey: 'offers', color: '#10b981', label: 'Оферты' },
+              ]}
+              height={280}
+            />
+          ) : (
+            <div className="h-[280px] flex flex-col items-center justify-center text-gray-400">
+              <Package className="w-12 h-12 mb-3 text-gray-200" />
+              <p className="text-sm">Нет данных за последние 14 дней</p>
+              <p className="text-xs mt-1">Данные появятся по мере использования платформы</p>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      {/* Charts row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Trip status */}
+        <Card>
+          <CardHeader><CardTitle>Статус поездок</CardTitle></CardHeader>
+          <CardContent>
+            {tripStatusData.length > 0 ? (
+              <>
+                <div className="flex justify-center">
+                  <DonutChart data={tripStatusData} innerRadius={55} outerRadius={85} size={220} />
+                </div>
+                <div className="grid grid-cols-2 gap-3 mt-3">
+                  {tripStatusData.map(item => (
+                    <div key={item.name} className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
+                      <span className="text-sm text-gray-600">{item.name}: <strong>{item.value}</strong></span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="h-[260px] flex items-center justify-center text-gray-400 text-sm">Нет данных</div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Offer status */}
+        <Card>
+          <CardHeader><CardTitle>Статус оферт</CardTitle></CardHeader>
+          <CardContent>
+            {offerStatusData.length > 0 ? (
+              <>
+                <div className="flex justify-center">
+                  <DonutChart data={offerStatusData} innerRadius={55} outerRadius={85} size={220} />
+                </div>
+                <div className="grid grid-cols-2 gap-3 mt-3">
+                  {offerStatusData.map(item => (
+                    <div key={item.name} className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
+                      <span className="text-sm text-gray-600">{item.name}: <strong>{item.value}</strong></span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="h-[260px] flex items-center justify-center text-gray-400 text-sm">Нет данных</div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* User growth + role */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader><CardTitle>Регистрации пользователей (14 дней)</CardTitle></CardHeader>
+          <CardContent>
+            {hasUserGrowth ? (
+              <SimpleBarChart
+                data={userGrowthData.map(d => ({ label: d.date, value: d.users }))}
+                color="#8b5cf6"
+                height={220}
+              />
+            ) : (
+              <div className="h-[220px] flex items-center justify-center text-gray-400 text-sm">Нет регистраций за 14 дней</div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle>Роли пользователей</CardTitle></CardHeader>
+          <CardContent>
+            {userRoleData.length > 0 ? (
+              <>
+                <div className="flex justify-center">
+                  <DonutChart data={userRoleData} innerRadius={45} outerRadius={70} size={160} />
+                </div>
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                  {userRoleData.map(item => (
+                    <div key={item.name} className="text-center p-3 rounded-xl" style={{ backgroundColor: item.color + '15' }}>
+                      <p className="text-2xl font-bold" style={{ color: item.color }}>{item.value}</p>
+                      <p className="text-xs text-gray-600 mt-0.5">{item.name}</p>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="h-[220px] flex items-center justify-center text-gray-400 text-sm">Нет данных</div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Top routes */}
+      {topRoutes.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle>Популярные маршруты</CardTitle></CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {topRoutes.map((r, i) => (
+                <div key={r.route} className="flex items-center gap-3">
+                  <span className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 ${
+                    i === 0 ? 'bg-yellow-500' : i === 1 ? 'bg-gray-400' : i === 2 ? 'bg-orange-500' : 'bg-blue-400'
+                  }`}>{i + 1}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-900 truncate">{r.route}</p>
+                    <div className="w-full bg-gray-100 rounded-full h-1.5 mt-1">
+                      <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${(r.count / (topRoutes[0]?.count || 1)) * 100}%` }} />
+                    </div>
+                  </div>
+                  <span className="text-sm font-bold text-gray-700 flex-shrink-0">{r.count}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Top drivers */}
+      {topDrivers.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle>Топ водителей по поездкам</CardTitle></CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {topDrivers.map((d, i) => (
+                <div key={d.name} className="flex items-center gap-4 p-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 ${
+                    i === 0 ? 'bg-yellow-500' : i === 1 ? 'bg-gray-400' : i === 2 ? 'bg-orange-500' : 'bg-blue-400'
+                  }`}>{i + 1}</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-900 text-sm truncate">{d.name}</p>
+                    <div className="w-full bg-gray-100 rounded-full h-1.5 mt-1.5">
+                      <div className="bg-blue-500 h-1.5 rounded-full transition-all" style={{ width: `${(d.trips / (topDrivers[0]?.trips || 1)) * 100}%` }} />
+                    </div>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="font-bold text-gray-900">{d.trips}</p>
+                    <p className="text-xs text-gray-500">поездок</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {trips.length === 0 && users.length === 0 && (
+        <div className="py-16 text-center">
+          <Activity className="w-16 h-16 text-gray-200 mx-auto mb-4" />
+          <p className="text-gray-500 font-medium">Данные появятся по мере использования платформы</p>
+          <p className="text-gray-400 text-sm mt-1">Аналитика строится на основе реальных поездок и пользователей</p>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,313 +1,383 @@
-import { useState } from 'react';
-import { 
-  Search, 
-  Filter, 
-  MoreVertical, 
-  Car, 
-  Star,
-  MapPin,
-  Phone,
-  Mail,
-  Calendar,
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
-  Eye,
-  Ban,
-  Edit
+import { useState, useEffect, useCallback } from 'react';
+import {
+  Search, MoreVertical, Car, Star, CheckCircle, RefreshCw,
+  Loader2, UserX, UserCheck, Trash2, ChevronDown, ChevronUp,
+  Package, MapPin, TrendingUp, Award,
 } from 'lucide-react';
-import { Card, CardContent } from '../ui/card';
-import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '../ui/dropdown-menu';
-import { Badge } from '../ui/badge';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import { toast } from 'sonner';
+import { getAdminUsers, getAdminTrips, getAdminOffers, adminHeaders } from '../../api/dataApi';
+import { projectId } from '../../../../utils/supabase/info';
+import { AdminPageHeader, HeaderBtn, FilterChips, SkeletonList } from './AdminPageHeader';
 
-interface Driver {
-  id: string;
-  name: string;
-  phone: string;
-  email: string;
-  avatar: string;
-  rating: number;
-  totalTrips: number;
-  status: 'active' | 'inactive' | 'suspended';
-  verified: boolean;
-  vehicleModel: string;
-  vehiclePlate: string;
-  joinDate: string;
-  location: string;
-  earnings: string;
+const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;
+
+async function setUserStatus(email: string, status: string) {
+  const res = await fetch(`${BASE}/admin/users/${encodeURIComponent(email)}/status`, {
+    method: 'PUT', headers: adminHeaders(), body: JSON.stringify({ status }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+async function deleteUser(email: string) {
+  const res = await fetch(`${BASE}/admin/users/${encodeURIComponent(email)}`, {
+    method: 'DELETE', headers: adminHeaders(),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
 }
 
-const mockDrivers: Driver[] = [
-  {
-    id: 'DRV-001',
-    name: 'Алишер Рахимов',
-    phone: '+992 92 123 4567',
-    email: 'alisher.r@mail.tj',
-    avatar: 'АР',
-    rating: 4.8,
-    totalTrips: 342,
-    status: 'active',
-    verified: true,
-    vehicleModel: 'Toyota Camry 2020',
-    vehiclePlate: '01 TJ 1234',
-    joinDate: '15.01.2024',
-    location: 'Душанбе',
-    earnings: '42,500 ТЖС'
-  },
-  {
-    id: 'DRV-002',
-    name: 'Мурод Каримов',
-    phone: '+992 93 234 5678',
-    email: 'murod.k@mail.tj',
-    avatar: 'МК',
-    rating: 4.9,
-    totalTrips: 528,
-    status: 'active',
-    verified: true,
-    vehicleModel: 'Honda Accord 2019',
-    vehiclePlate: '01 TJ 5678',
-    joinDate: '03.12.2023',
-    location: 'Душанбе',
-    earnings: '65,300 ТЖС'
-  },
-  {
-    id: 'DRV-003',
-    name: 'Сухроб Назаров',
-    phone: '+992 90 345 6789',
-    email: 'sukhrob.n@mail.tj',
-    avatar: 'СН',
-    rating: 4.6,
-    totalTrips: 214,
-    status: 'inactive',
-    verified: true,
-    vehicleModel: 'Hyundai Sonata 2021',
-    vehiclePlate: '02 TJ 2468',
-    joinDate: '22.03.2024',
-    location: 'Худжанд',
-    earnings: '28,900 ТЖС'
-  },
-  {
-    id: 'DRV-004',
-    name: 'Джамшед Исмоилов',
-    phone: '+992 91 456 7890',
-    email: 'jamshed.i@mail.tj',
-    avatar: 'ДИ',
-    rating: 4.7,
-    totalTrips: 389,
-    status: 'active',
-    verified: false,
-    vehicleModel: 'Mazda 6 2018',
-    vehiclePlate: '01 TJ 9876',
-    joinDate: '10.02.2024',
-    location: 'Душанбе',
-    earnings: '48,700 ТЖС'
-  },
-  {
-    id: 'DRV-005',
-    name: 'Фаррух Хакимов',
-    phone: '+992 92 567 8901',
-    email: 'farrukh.h@mail.tj',
-    avatar: 'ФХ',
-    rating: 3.9,
-    totalTrips: 156,
-    status: 'suspended',
-    verified: true,
-    vehicleModel: 'Nissan Teana 2017',
-    vehiclePlate: '03 TJ 1357',
-    joinDate: '05.04.2024',
-    location: 'Куляб',
-    earnings: '19,200 ТЖС'
-  },
-  {
-    id: 'DRV-006',
-    name: 'Рустам Абдуллоев',
-    phone: '+992 93 678 9012',
-    email: 'rustam.a@mail.tj',
-    avatar: 'РА',
-    rating: 4.8,
-    totalTrips: 445,
-    status: 'active',
-    verified: true,
-    vehicleModel: 'Volkswagen Passat 2020',
-    vehiclePlate: '01 TJ 2580',
-    joinDate: '18.11.2023',
-    location: 'Душанбе',
-    earnings: '56,800 ТЖС'
-  },
-];
+function RelTime({ iso }: { iso?: string }) {
+  if (!iso) return <span className="text-gray-400">—</span>;
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return <span>{Math.max(0, mins)} мин. назад</span>;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return <span>{hrs} ч. назад</span>;
+  return <span>{Math.floor(hrs / 24)} дн. назад</span>;
+}
 
 export function DriversManagement() {
+  const [drivers, setDrivers] = useState<any[]>([]);
+  const [tripsByDriver, setTripsByDriver] = useState<Record<string, number>>({});
+  const [offersByDriver, setOffersByDriver] = useState<Record<string, number>>({});
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('trips');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const filteredDrivers = mockDrivers.filter(driver => {
-    const matchesSearch = driver.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      driver.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      driver.phone.includes(searchQuery);
-    
-    const matchesStatus = statusFilter === 'all' || driver.status === statusFilter;
-    
-    return matchesSearch && matchesStatus;
-  });
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [usersData, tripsData, offersData] = await Promise.all([
+        getAdminUsers(), getAdminTrips(), getAdminOffers(),
+      ]);
+      setDrivers((usersData || []).filter((u: any) => u?.role === 'driver'));
 
-  const handleAction = (action: string, driver: Driver) => {
-    toast.success(`${action}: ${driver.name}`);
-  };
+      const tbd: Record<string, number> = {};
+      (tripsData || []).forEach((t: any) => {
+        if (t?.driverEmail) tbd[t.driverEmail] = (tbd[t.driverEmail] || 0) + 1;
+      });
+      setTripsByDriver(tbd);
 
-  const getStatusBadge = (status: Driver['status']) => {
-    switch (status) {
-      case 'active':
-        return <Badge className="bg-green-100 text-green-700 hover:bg-green-100">Активен</Badge>;
-      case 'inactive':
-        return <Badge className="bg-gray-100 text-gray-700 hover:bg-gray-100">Неактивен</Badge>;
-      case 'suspended':
-        return <Badge className="bg-red-100 text-red-700 hover:bg-red-100">Заблокирован</Badge>;
+      const obd: Record<string, number> = {};
+      (offersData || []).filter((o: any) => o?.status === 'accepted').forEach((o: any) => {
+        const trip = (tripsData || []).find((t: any) => String(t.id) === String(o.tripId));
+        if (trip?.driverEmail) obd[trip.driverEmail] = (obd[trip.driverEmail] || 0) + 1;
+      });
+      setOffersByDriver(obd);
+    } catch {
+      toast.error('Ошибка загрузки водителей');
+    } finally {
+      setLoading(false);
     }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleStatus = async (driver: any, status: string) => {
+    setActionLoading(driver.email);
+    try {
+      await setUserStatus(driver.email, status);
+      setDrivers(prev => prev.map(d => d.email === driver.email ? { ...d, status } : d));
+      toast.success(status === 'blocked' ? `${driver.firstName} заблокирован` : `${driver.firstName} разблокирован`);
+    } catch { toast.error('Ошибка изменения статуса'); }
+    finally { setActionLoading(null); }
   };
+
+  const handleDelete = async (driver: any) => {
+    if (!confirm(`Удалить водителя ${driver.firstName} ${driver.lastName}?`)) return;
+    setActionLoading(driver.email);
+    try {
+      await deleteUser(driver.email);
+      setDrivers(prev => prev.filter(d => d.email !== driver.email));
+      toast.success('Водитель удалён');
+    } catch { toast.error('Ошибка удаления'); }
+    finally { setActionLoading(null); }
+  };
+
+  const activeCount = drivers.filter(d => d.status !== 'blocked').length;
+  const blockedCount = drivers.filter(d => d.status === 'blocked').length;
+  const verifiedCount = drivers.filter(d => d.isVerified || d.documentsVerified).length;
+
+  const maxTrips = Math.max(1, ...Object.values(tripsByDriver));
+
+  const filtered = drivers
+    .filter(d => {
+      const name = `${d.firstName || ''} ${d.lastName || ''}`.toLowerCase();
+      const q = searchQuery.toLowerCase();
+      const matchSearch = !q || name.includes(q) || (d.email || '').toLowerCase().includes(q) || (d.phone || '').includes(q);
+      const isBlocked = d.status === 'blocked';
+      const matchStatus = statusFilter === 'all'
+        || (statusFilter === 'blocked' ? isBlocked : !isBlocked)
+        || (statusFilter === 'verified' ? (d.isVerified || d.documentsVerified) : true);
+      return matchSearch && matchStatus;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'trips') return (tripsByDriver[b.email] || 0) - (tripsByDriver[a.email] || 0);
+      if (sortBy === 'name') return `${a.firstName}${a.lastName}`.localeCompare(`${b.firstName}${b.lastName}`);
+      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+    });
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Управление водителями</h1>
-          <p className="text-gray-600 mt-1">Всего водителей: {mockDrivers.length}</p>
-        </div>
-        <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
-          <Car className="w-5 h-5" />
-          Добавить водителя
-        </button>
-      </div>
+    <div className="space-y-5">
+      <AdminPageHeader
+        title="Управление водителями"
+        subtitle="Все зарегистрированные водители платформы"
+        icon={Car}
+        gradient="linear-gradient(135deg,#1565d8,#2385f4)"
+        accent="#1565d8"
+        stats={[
+          { label: 'Всего', value: drivers.length },
+          { label: 'Активных', value: activeCount },
+          { label: 'Верифицировано', value: verifiedCount },
+          ...(blockedCount > 0 ? [{ label: 'Заблокировано', value: blockedCount }] : []),
+        ]}
+        actions={<HeaderBtn icon={RefreshCw} onClick={load}>Обновить</HeaderBtn>}
+      />
 
       {/* Filters */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Поиск по имени, ID или телефону..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">Все статусы</option>
-              <option value="active">Активные</option>
-              <option value="inactive">Неактивные</option>
-              <option value="suspended">Заблокированные</option>
-            </select>
-            <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2">
-              <Filter className="w-5 h-5" />
-              Фильтры
-            </button>
+      <div className="bg-white rounded-2xl p-4 space-y-3" style={{ border: '1px solid #f0f4f8' }}>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Поиск по имени, email, телефону..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm text-gray-700 outline-none transition-all"
+            style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
+            onFocus={e => { e.currentTarget.style.borderColor = '#2385f466'; e.currentTarget.style.boxShadow = '0 0 0 3px #1565d812'; }}
+            onBlur={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.boxShadow = 'none'; }}
+          />
+        </div>
+        <div className="flex flex-wrap gap-4">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400 mb-1.5">Статус</p>
+            <FilterChips
+              value={statusFilter as any}
+              onChange={setStatusFilter as any}
+              options={[
+                { value: 'all', label: 'Все', count: drivers.length },
+                { value: 'active', label: '✅ Активные', count: activeCount },
+                { value: 'verified', label: '🔵 Верифицированные', count: verifiedCount },
+                { value: 'blocked', label: '🚫 Заблокированные', count: blockedCount },
+              ]}
+            />
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Drivers list */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {filteredDrivers.map((driver) => (
-          <Card key={driver.id} className="hover:shadow-md transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-lg">
-                    {driver.avatar}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-gray-900">{driver.name}</h3>
-                      {driver.verified && (
-                        <CheckCircle className="w-4 h-4 text-blue-500" title="Верифицирован" />
-                      )}
-                    </div>
-                    <p className="text-sm text-gray-600">{driver.id}</p>
-                    <div className="flex items-center gap-1 mt-1">
-                      <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                      <span className="text-sm font-medium text-gray-900">{driver.rating}</span>
-                      <span className="text-sm text-gray-500">({driver.totalTrips} поездок)</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {getStatusBadge(driver.status)}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                        <MoreVertical className="w-5 h-5 text-gray-600" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleAction('Просмотр', driver)}>
-                        <Eye className="w-4 h-4 mr-2" />
-                        Просмотр профиля
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleAction('Редактирование', driver)}>
-                        <Edit className="w-4 h-4 mr-2" />
-                        Редактировать
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleAction('Блокировка', driver)} className="text-red-600">
-                        <Ban className="w-4 h-4 mr-2" />
-                        Заблокировать
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Car className="w-4 h-4" />
-                  <span>{driver.vehicleModel} • {driver.vehiclePlate}</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <MapPin className="w-4 h-4" />
-                  <span>{driver.location}</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Phone className="w-4 h-4" />
-                  <span>{driver.phone}</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Mail className="w-4 h-4" />
-                  <span>{driver.email}</span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
-                <div className="text-sm">
-                  <span className="text-gray-600">Заработок: </span>
-                  <span className="font-semibold text-gray-900">{driver.earnings}</span>
-                </div>
-                <div className="text-sm text-gray-600">
-                  Регистрация: {driver.joinDate}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400 mb-1.5">Сортировка</p>
+            <FilterChips
+              value={sortBy as any}
+              onChange={setSortBy as any}
+              options={[
+                { value: 'trips', label: 'По поездкам' },
+                { value: 'name', label: 'По имени' },
+                { value: 'date', label: 'По дате' },
+              ]}
+            />
+          </div>
+        </div>
       </div>
 
-      {filteredDrivers.length === 0 && (
-        <div className="text-center py-12">
-          <Car className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Водители не найдены</h3>
-          <p className="text-gray-600">Попробуйте изменить параметры поиска</p>
+      {/* Grid */}
+      {loading ? (
+        <div className="bg-white rounded-2xl overflow-hidden" style={{ border: '1px solid #f0f4f8' }}>
+          <SkeletonList rows={4} />
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="bg-white rounded-2xl py-16 text-center" style={{ border: '1px solid #f0f4f8' }}>
+          <Car className="w-12 h-12 text-gray-200 mx-auto mb-3" />
+          <p className="text-gray-500 font-medium">Водители не найдены</p>
+          <p className="text-gray-400 text-sm mt-1">Попробуйте изменить фильтры</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {filtered.map((driver, rank) => {
+            const isBlocked = driver.status === 'blocked';
+            const isExpanded = expandedId === driver.email;
+            const isLoading = actionLoading === driver.email;
+            const initials = `${(driver.firstName || '?')[0]}${(driver.lastName || '?')[0]}`.toUpperCase();
+            const fullName = `${driver.firstName || ''} ${driver.lastName || ''}`.trim() || driver.email;
+            const tripsCount = tripsByDriver[driver.email] || 0;
+            const offersCount = offersByDriver[driver.email] || 0;
+            const isVerified = driver.isVerified || driver.documentsVerified;
+            const tripPct = Math.round((tripsCount / maxTrips) * 100);
+
+            return (
+              <div
+                key={driver.email}
+                className="bg-white rounded-2xl overflow-hidden transition-all hover:shadow-lg"
+                style={{
+                  border: `1px solid ${isBlocked ? '#fecaca' : '#f0f4f8'}`,
+                  background: isBlocked ? '#fff9f9' : '#ffffff',
+                }}
+              >
+                {/* Top accent bar */}
+                <div
+                  className="h-1"
+                  style={{
+                    background: isBlocked
+                      ? '#ef4444'
+                      : rank === 0 && tripsCount > 0
+                      ? 'linear-gradient(90deg,#f59e0b,#fbbf24)'
+                      : 'linear-gradient(90deg,#1565d8,#2385f4)',
+                  }}
+                />
+
+                <div className="p-5">
+                  <div className="flex items-start gap-3">
+                    {/* Avatar */}
+                    <div className="relative flex-shrink-0">
+                      <div
+                        className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-sm overflow-hidden"
+                        style={{
+                          background: isBlocked
+                            ? '#94a3b8'
+                            : 'linear-gradient(135deg,#1565d8,#2385f4)',
+                        }}
+                      >
+                        {driver.avatarUrl
+                          ? <img src={driver.avatarUrl} alt={fullName} className="w-full h-full object-cover" />
+                          : initials}
+                      </div>
+                      {rank === 0 && tripsCount > 0 && !isBlocked && (
+                        <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-yellow-400 rounded-full flex items-center justify-center">
+                          <Award className="w-3 h-3 text-white" />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className={`font-bold text-sm ${isBlocked ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                          {fullName}
+                        </h3>
+                        {isVerified && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xl text-xs font-semibold" style={{ background: '#eff6ff', color: '#1565d8' }}>
+                            <CheckCircle className="w-3 h-3" /> Верифицирован
+                          </span>
+                        )}
+                        {isBlocked && (
+                          <span className="px-2 py-0.5 rounded-xl text-xs font-semibold bg-red-100 text-red-600">🚫 Заблокирован</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-400 mt-0.5 truncate">{driver.email}</p>
+                      {driver.phone && <p className="text-xs text-gray-500 mt-0.5">{driver.phone}</p>}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => setExpandedId(isExpanded ? null : driver.email)}
+                        className="p-1.5 hover:bg-gray-100 rounded-xl text-gray-400 transition-colors"
+                      >
+                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      </button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button disabled={isLoading} className="p-1.5 hover:bg-gray-100 rounded-xl text-gray-400 transition-colors">
+                            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <MoreVertical className="w-4 h-4" />}
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                          {isBlocked ? (
+                            <DropdownMenuItem onClick={() => handleStatus(driver, 'active')} className="text-emerald-600">
+                              <UserCheck className="w-4 h-4 mr-2" /> Разблокировать
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem onClick={() => handleStatus(driver, 'blocked')} className="text-orange-600">
+                              <UserX className="w-4 h-4 mr-2" /> Заблокировать
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem onClick={() => handleDelete(driver)} className="text-red-600">
+                            <Trash2 className="w-4 h-4 mr-2" /> Удалить
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+
+                  {/* Stats */}
+                  <div className="mt-4 pt-3" style={{ borderTop: '1px solid #f0f4f8' }}>
+                    <div className="flex items-center gap-4 mb-3">
+                      <div className="text-center">
+                        <p className="text-xl font-black text-gray-900">{tripsCount}</p>
+                        <p className="text-[11px] text-gray-500 font-medium">Поездок</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xl font-black text-emerald-600">{offersCount}</p>
+                        <p className="text-[11px] text-gray-500 font-medium">Принято</p>
+                      </div>
+                      {driver.vehicle && (
+                        <div className="flex-1 text-right">
+                          <p className="text-xs font-semibold text-gray-700 truncate">
+                            {driver.vehicle.model || driver.vehicle.type || '—'}
+                          </p>
+                          <p className="text-xs text-gray-400">{driver.vehicle.plate || '—'}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Activity bar */}
+                    {tripsCount > 0 && (
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[11px] text-gray-400 font-medium flex items-center gap-1">
+                            <TrendingUp className="w-3 h-3" /> Активность
+                          </span>
+                          <span className="text-[11px] font-bold" style={{ color: '#1565d8' }}>{tripPct}%</span>
+                        </div>
+                        <div className="w-full rounded-full h-1.5" style={{ background: '#f1f5f9' }}>
+                          <div
+                            className="h-1.5 rounded-full transition-all"
+                            style={{
+                              width: `${tripPct}%`,
+                              background: rank === 0 ? '#f59e0b' : '#1565d8',
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Expanded */}
+                  {isExpanded && (
+                    <div className="mt-3 pt-3 grid grid-cols-2 gap-3" style={{ borderTop: '1px solid #f0f4f8' }}>
+                      {[
+                        { label: 'Регистрация', value: driver.createdAt ? new Date(driver.createdAt).toLocaleDateString('ru-RU') : '—' },
+                        { label: 'Город', value: driver.city || '—' },
+                        { label: 'Email', value: driver.email },
+                        { label: 'Статус', value: isVerified ? '✅ Верифицирован' : '⏳ Не верифицирован' },
+                      ].map(f => (
+                        <div key={f.label}>
+                          <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1">{f.label}</p>
+                          <p className="text-sm text-gray-900 break-all">{f.value}</p>
+                        </div>
+                      ))}
+                      {driver.vehicle?.model && (
+                        <div className="col-span-2">
+                          <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1">Транспорт</p>
+                          <p className="text-sm text-gray-900">
+                            {[driver.vehicle.model, driver.vehicle.year, '•', driver.vehicle.plate].filter(Boolean).join(' ')}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
+
+      <p className="text-xs text-gray-400 text-center">
+        Показано {filtered.length} из {drivers.length} водителей
+      </p>
     </div>
   );
 }

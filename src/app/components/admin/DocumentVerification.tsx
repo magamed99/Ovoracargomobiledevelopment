@@ -1,395 +1,339 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
-  FileCheck, 
-  X, 
-  Check,
-  Clock,
-  AlertTriangle,
-  Eye,
-  Download,
-  User,
-  Car,
-  FileText,
-  Shield,
-  Calendar
+  FileCheck, X, Check, Clock, Eye, User, Car,
+  FileText, Shield, RefreshCw, Loader2, AlertTriangle,
+  ChevronDown, ChevronUp, Phone, Mail, Search, ZoomIn
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Badge } from '../ui/badge';
 import { toast } from 'sonner';
+import { adminHeaders } from '../../api/dataApi';
+import { projectId } from '../../../../utils/supabase/info';
 
-interface Document {
-  id: string;
-  driver: {
-    name: string;
-    phone: string;
-    email: string;
-    avatar: string;
-  };
-  documentType: 'license' | 'registration' | 'insurance' | 'id';
-  documentNumber: string;
-  submittedDate: string;
-  status: 'pending' | 'approved' | 'rejected';
-  imageUrl: string;
-  expiryDate: string;
-  notes?: string;
+const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;
+
+async function fetchAllDocuments() {
+  const res = await fetch(`${BASE}/admin/documents`, { headers: adminHeaders() });
+  if (!res.ok) throw new Error(await res.text());
+  const data = await res.json();
+  return data.documents || [];
 }
 
-const mockDocuments: Document[] = [
-  {
-    id: 'DOC-001',
-    driver: {
-      name: 'Рустам Абдуллоев',
-      phone: '+992 93 678 9012',
-      email: 'rustam.a@mail.tj',
-      avatar: 'РА'
-    },
-    documentType: 'license',
-    documentNumber: 'TJ-DL-123456',
-    submittedDate: '27.02.2026 14:30',
-    status: 'pending',
-    imageUrl: 'https://images.unsplash.com/photo-1589395937816-ab5c0fba34f7?w=800',
-    expiryDate: '15.12.2028',
-  },
-  {
-    id: 'DOC-002',
-    driver: {
-      name: 'Шахло Мирзоева',
-      phone: '+992 92 555 6666',
-      email: 'shakhlo.m@mail.tj',
-      avatar: 'ШМ'
-    },
-    documentType: 'registration',
-    documentNumber: '01 TJ 2580',
-    submittedDate: '27.02.2026 13:15',
-    status: 'pending',
-    imageUrl: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=800',
-    expiryDate: '22.08.2027',
-  },
-  {
-    id: 'DOC-003',
-    driver: {
-      name: 'Фаррух Хакимов',
-      phone: '+992 92 567 8901',
-      email: 'farrukh.h@mail.tj',
-      avatar: 'ФХ'
-    },
-    documentType: 'insurance',
-    documentNumber: 'INS-TJ-789012',
-    submittedDate: '27.02.2026 11:45',
-    status: 'pending',
-    imageUrl: 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=800',
-    expiryDate: '10.03.2027',
-  },
-  {
-    id: 'DOC-004',
-    driver: {
-      name: 'Алишер Рахимов',
-      phone: '+992 92 123 4567',
-      email: 'alisher.r@mail.tj',
-      avatar: 'АР'
-    },
-    documentType: 'id',
-    documentNumber: 'TJ-ID-456789',
-    submittedDate: '26.02.2026 16:20',
-    status: 'approved',
-    imageUrl: 'https://images.unsplash.com/photo-1633409361618-c73427e4e206?w=800',
-    expiryDate: '05.06.2030',
-  },
-  {
-    id: 'DOC-005',
-    driver: {
-      name: 'Мурод Каримов',
-      phone: '+992 93 234 5678',
-      email: 'murod.k@mail.tj',
-      avatar: 'МК'
-    },
-    documentType: 'license',
-    documentNumber: 'TJ-DL-234567',
-    submittedDate: '26.02.2026 09:30',
-    status: 'rejected',
-    imageUrl: 'https://images.unsplash.com/photo-1554224311-beee2aca0c7d?w=800',
-    expiryDate: '18.11.2026',
-    notes: 'Документ истек или скоро истечет. Требуется обновление.'
-  },
-  {
-    id: 'DOC-006',
-    driver: {
-      name: 'Джамшед Исмоилов',
-      phone: '+992 91 456 7890',
-      email: 'jamshed.i@mail.tj',
-      avatar: 'ДИ'
-    },
-    documentType: 'registration',
-    documentNumber: '01 TJ 9876',
-    submittedDate: '27.02.2026 10:05',
-    status: 'pending',
-    imageUrl: 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=800',
-    expiryDate: '30.09.2028',
-  },
-];
+async function updateDocStatus(documentId: string, userEmail: string, status: string, notes?: string) {
+  const res = await fetch(`${BASE}/admin/documents/${encodeURIComponent(documentId)}/status`, {
+    method: 'PUT', headers: adminHeaders(),
+    body: JSON.stringify({ status, userEmail, notes }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
 
-const documentTypeNames = {
-  license: 'Водительские права',
-  registration: 'Техпаспорт',
-  insurance: 'Страховка',
-  id: 'Удостоверение личности'
+const TYPE_LABELS: Record<string, string> = {
+  passport: '🪪 Паспорт',
+  driver_license: '🚗 Водительские права',
+  license: '🚗 Водительские права',
+  vehicle_registration: '📋 Техпаспорт',
+  registration: '📋 Техпаспорт',
+  insurance: '🛡️ Страховка',
+  id: '🪪 Удостоверение личности',
 };
 
-const documentTypeIcons = {
-  license: FileCheck,
-  registration: Car,
-  insurance: Shield,
-  id: User
+const STATUS_CFG: Record<string, { label: string; cls: string }> = {
+  pending:  { label: 'Ожидает',   cls: 'bg-orange-100 text-orange-700' },
+  verified: { label: 'Проверен',  cls: 'bg-emerald-100 text-emerald-700' },
+  approved: { label: 'Одобрен',   cls: 'bg-emerald-100 text-emerald-700' },
+  rejected: { label: 'Отклонён',  cls: 'bg-red-100 text-red-700' },
 };
+
+function RelTime({ iso }: { iso?: string }) {
+  if (!iso) return <span className="text-gray-400">—</span>;
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return <span>{Math.max(0, mins)} мин. назад</span>;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return <span>{hrs} ч. назад</span>;
+  return <span>{new Date(iso).toLocaleDateString('ru-RU')}</span>;
+}
 
 export function DocumentVerification() {
-  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
-  const [statusFilter, setStatusFilter] = useState<string>('pending');
+  const [docs, setDocs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState('pending');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [rejectNotes, setRejectNotes] = useState<Record<string, string>>({});
 
-  const filteredDocuments = mockDocuments.filter(doc => 
-    statusFilter === 'all' || doc.status === statusFilter
-  );
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await fetchAllDocuments();
+      setDocs(data);
+    } catch (err) {
+      toast.error('Ошибка загрузки документов');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const handleApprove = (doc: Document) => {
-    toast.success(`Документ ${doc.documentNumber} одобрен`);
-    setSelectedDocument(null);
-  };
+  useEffect(() => { load(); }, [load]);
 
-  const handleReject = (doc: Document) => {
-    toast.error(`Документ ${doc.documentNumber} отклонен`);
-    setSelectedDocument(null);
-  };
-
-  const getStatusBadge = (status: Document['status']) => {
-    switch (status) {
-      case 'pending':
-        return <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100">Ожидает проверки</Badge>;
-      case 'approved':
-        return <Badge className="bg-green-100 text-green-700 hover:bg-green-100">Одобрено</Badge>;
-      case 'rejected':
-        return <Badge className="bg-red-100 text-red-700 hover:bg-red-100">Отклонено</Badge>;
+  const handleAction = async (doc: any, status: string) => {
+    setActionLoading(doc.id);
+    try {
+      await updateDocStatus(doc.id, doc.driverEmail || doc.userEmail, status, rejectNotes[doc.id]);
+      setDocs(prev => prev.map(d => d.id === doc.id ? { ...d, status } : d));
+      toast.success(status === 'verified' || status === 'approved'
+        ? `✅ Документ одобрен — ${doc.driverName || doc.driverEmail}`
+        : `❌ Документ отклонён`
+      );
+      setExpandedId(null);
+    } catch (err) {
+      toast.error('Ошибка изменения статуса');
+    } finally {
+      setActionLoading(null);
     }
   };
 
-  const statusCounts = {
-    all: mockDocuments.length,
-    pending: mockDocuments.filter(d => d.status === 'pending').length,
-    approved: mockDocuments.filter(d => d.status === 'approved').length,
-    rejected: mockDocuments.filter(d => d.status === 'rejected').length,
+  const counts = {
+    all: docs.length,
+    pending: docs.filter(d => d.status === 'pending').length,
+    verified: docs.filter(d => d.status === 'verified' || d.status === 'approved').length,
+    rejected: docs.filter(d => d.status === 'rejected').length,
   };
+
+  const filtered = docs
+    .filter(d => {
+      const matchStatus = statusFilter === 'all' ||
+        (statusFilter === 'verified' ? (d.status === 'verified' || d.status === 'approved') : d.status === statusFilter);
+      const q = searchQuery.toLowerCase();
+      const matchSearch = !q ||
+        (d.driverName || '').toLowerCase().includes(q) ||
+        (d.driverEmail || '').toLowerCase().includes(q) ||
+        (d.type || '').toLowerCase().includes(q) ||
+        (d.documentNumber || '').toLowerCase().includes(q);
+      return matchStatus && matchSearch;
+    });
+
+  if (loading) return (
+    <div className="flex items-center justify-center h-64">
+      <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      <span className="ml-3 text-gray-600">Загрузка документов из базы...</span>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Верификация документов</h1>
-        <p className="text-gray-600 mt-1">Проверка документов водителей</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Верификация документов</h1>
+          <p className="text-gray-500 mt-1 text-sm">
+            Реальные данные &bull; Всего: <strong>{docs.length}</strong> &bull; Ожидают: <strong className="text-orange-600">{counts.pending}</strong>
+          </p>
+        </div>
+        <button onClick={load} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
+          <RefreshCw className="w-4 h-4" />
+          Обновить
+        </button>
       </div>
 
-      {/* Status cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setStatusFilter('all')}>
-          <CardContent className="p-4">
-            <p className="text-sm text-gray-600 mb-1">Всего</p>
-            <p className="text-2xl font-bold text-gray-900">{statusCounts.all}</p>
-          </CardContent>
-        </Card>
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setStatusFilter('pending')}>
-          <CardContent className="p-4">
-            <p className="text-sm text-orange-600 mb-1">Ожидают</p>
-            <p className="text-2xl font-bold text-orange-700">{statusCounts.pending}</p>
-          </CardContent>
-        </Card>
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setStatusFilter('approved')}>
-          <CardContent className="p-4">
-            <p className="text-sm text-green-600 mb-1">Одобрено</p>
-            <p className="text-2xl font-bold text-green-700">{statusCounts.approved}</p>
-          </CardContent>
-        </Card>
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setStatusFilter('rejected')}>
-          <CardContent className="p-4">
-            <p className="text-sm text-red-600 mb-1">Отклонено</p>
-            <p className="text-2xl font-bold text-red-700">{statusCounts.rejected}</p>
-          </CardContent>
-        </Card>
+      {/* Status tabs */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {([
+          ['all',      'Все',         'text-gray-700',   counts.all],
+          ['pending',  'Ожидают',     'text-orange-700', counts.pending],
+          ['verified', 'Одобрены',    'text-emerald-700',counts.verified],
+          ['rejected', 'Отклонены',   'text-red-700',    counts.rejected],
+        ] as [string, string, string, number][]).map(([key, label, cls, cnt]) => (
+          <button key={key} onClick={() => setStatusFilter(key)}
+            className={`p-4 rounded-xl text-left transition-all border ${
+              statusFilter === key ? 'bg-white border-blue-200 shadow-sm' : 'bg-white border-gray-100 hover:bg-gray-50'
+            }`}>
+            <p className={`text-2xl font-bold ${cls}`}>{cnt}</p>
+            <p className="text-xs text-gray-500 mt-0.5">{label}</p>
+          </button>
+        ))}
       </div>
+
+      {/* Search */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input type="text" placeholder="Поиск по имени, email, типу или номеру документа..."
+              value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Empty state */}
+      {filtered.length === 0 && (
+        <div className="py-20 text-center">
+          <FileCheck className="w-14 h-14 text-gray-200 mx-auto mb-4" />
+          <p className="text-gray-500 font-medium">
+            {docs.length === 0
+              ? 'Документов пока нет — они появятся после загрузки водителями'
+              : `Нет документов со статусом «${statusFilter}»`
+            }
+          </p>
+        </div>
+      )}
 
       {/* Documents list */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {filteredDocuments.map((doc) => {
-          const Icon = documentTypeIcons[doc.documentType];
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {filtered.map(doc => {
+          const isExpanded = expandedId === doc.id;
+          const isLoading = actionLoading === doc.id;
+          const statusCfg = STATUS_CFG[doc.status] || STATUS_CFG.pending;
+          const typeLabel = TYPE_LABELS[doc.type] || doc.type || 'Документ';
+          const isPending = doc.status === 'pending';
+          const initials = ((doc.driverName || doc.driverEmail || '?')[0] || '?').toUpperCase();
+
           return (
-            <Card key={doc.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
-                      doc.status === 'approved' ? 'bg-green-100' :
-                      doc.status === 'rejected' ? 'bg-red-100' :
-                      'bg-orange-100'
-                    }`}>
-                      <Icon className={`w-6 h-6 ${
-                        doc.status === 'approved' ? 'text-green-600' :
-                        doc.status === 'rejected' ? 'text-red-600' :
-                        'text-orange-600'
-                      }`} />
+            <Card key={doc.id} className={`transition-all hover:shadow-md ${isPending ? 'border-orange-200' : ''}`}>
+              <CardContent className="p-5">
+                {/* Header row */}
+                <div className="flex items-start gap-3">
+                  <div className="w-11 h-11 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold flex-shrink-0">
+                    {initials}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-gray-900 text-sm">{doc.driverName || doc.driverEmail || '—'}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusCfg.cls}`}>{statusCfg.label}</span>
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{documentTypeNames[doc.documentType]}</h3>
-                      <p className="text-sm text-gray-600">{doc.documentNumber}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{typeLabel}</p>
+                    {doc.driverPhone && <p className="text-xs text-gray-400">{doc.driverPhone}</p>}
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button onClick={() => setExpandedId(isExpanded ? null : doc.id)}
+                      className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 transition-colors">
+                      {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Meta */}
+                <div className="flex items-center justify-between mt-3 text-xs text-gray-500">
+                  <span>Загружен: <RelTime iso={doc.createdAt} /></span>
+                  {doc.documentNumber && <span className="font-mono text-gray-600">{doc.documentNumber}</span>}
+                </div>
+
+                {/* Expanded */}
+                {isExpanded && (
+                  <div className="mt-4 pt-4 border-t border-gray-100 space-y-4">
+                    {/* Photo */}
+                    {doc.photoUrl && (
+                      <div>
+                        <p className="text-xs text-gray-500 font-medium mb-2">Скан документа</p>
+                        <div className="relative group cursor-pointer" onClick={() => setPreviewUrl(doc.photoUrl)}>
+                          <img src={doc.photoUrl} alt="Документ"
+                            className="w-full rounded-xl border border-gray-200 max-h-52 object-cover hover:opacity-90 transition-opacity" />
+                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="bg-black/50 rounded-full p-2">
+                              <ZoomIn className="w-5 h-5 text-white" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Fields */}
+                    <div className="grid grid-cols-2 gap-3">
+                      {doc.extractedFullName && (
+                        <div>
+                          <p className="text-xs text-gray-500 font-medium">ФИО из документа</p>
+                          <p className="text-sm text-gray-900 mt-0.5">{doc.extractedFullName}</p>
+                        </div>
+                      )}
+                      {doc.extractedBirthDate && (
+                        <div>
+                          <p className="text-xs text-gray-500 font-medium">Дата рождения</p>
+                          <p className="text-sm text-gray-900 mt-0.5">{doc.extractedBirthDate}</p>
+                        </div>
+                      )}
+                      {doc.documentNumber && (
+                        <div>
+                          <p className="text-xs text-gray-500 font-medium">Номер документа</p>
+                          <p className="text-sm font-mono text-gray-900 mt-0.5">{doc.documentNumber}</p>
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-xs text-gray-500 font-medium">Email</p>
+                        <p className="text-sm text-gray-900 mt-0.5 break-all">{doc.driverEmail || '—'}</p>
+                      </div>
                     </div>
-                  </div>
-                  {getStatusBadge(doc.status)}
-                </div>
 
-                <div className="flex items-center gap-3 mb-4 p-3 bg-gray-50 rounded-lg">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                    {doc.driver.avatar}
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-900">{doc.driver.name}</p>
-                    <p className="text-sm text-gray-600">{doc.driver.phone}</p>
-                  </div>
-                </div>
+                    {doc.adminNotes && (
+                      <div className="p-3 bg-orange-50 border border-orange-200 rounded-xl text-sm text-orange-800">
+                        <AlertTriangle className="w-4 h-4 inline mr-1" />
+                        {doc.adminNotes}
+                      </div>
+                    )}
 
-                <div className="space-y-2 mb-4">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">Дата подачи:</span>
-                    <span className="font-medium text-gray-900">{doc.submittedDate}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">Действителен до:</span>
-                    <span className="font-medium text-gray-900">{doc.expiryDate}</span>
-                  </div>
-                </div>
+                    {/* Reject notes */}
+                    {isPending && (
+                      <div>
+                        <label className="text-xs text-gray-500 font-medium block mb-1">Комментарий при отклонении (необязательно)</label>
+                        <input type="text" placeholder="Причина отклонения..."
+                          value={rejectNotes[doc.id] || ''}
+                          onChange={e => setRejectNotes(prev => ({ ...prev, [doc.id]: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    )}
 
-                {doc.notes && (
-                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
-                    <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                    <p className="text-sm text-red-800">{doc.notes}</p>
+                    {/* Actions */}
+                    {isPending && (
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => handleAction(doc, 'rejected')}
+                          disabled={isLoading}
+                          className="flex-1 py-2.5 border border-red-300 text-red-700 rounded-xl hover:bg-red-50 transition-colors flex items-center justify-center gap-2 text-sm font-medium"
+                        >
+                          {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
+                          Отклонить
+                        </button>
+                        <button
+                          onClick={() => handleAction(doc, 'verified')}
+                          disabled={isLoading}
+                          className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 text-sm font-medium"
+                        >
+                          {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                          Одобрить
+                        </button>
+                      </div>
+                    )}
+                    {!isPending && doc.status === 'verified' && (
+                      <button onClick={() => handleAction(doc, 'rejected')} disabled={isLoading}
+                        className="w-full py-2 border border-red-200 text-red-600 rounded-xl hover:bg-red-50 text-sm transition-colors">
+                        Отозвать одобрение
+                      </button>
+                    )}
                   </div>
                 )}
-
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setSelectedDocument(doc)}
-                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <Eye className="w-4 h-4" />
-                    Просмотр
-                  </button>
-                  {doc.status === 'pending' && (
-                    <>
-                      <button
-                        onClick={() => handleReject(doc)}
-                        className="px-4 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 transition-colors"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleApprove(doc)}
-                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                      >
-                        <Check className="w-4 h-4" />
-                      </button>
-                    </>
-                  )}
-                </div>
               </CardContent>
             </Card>
           );
         })}
       </div>
 
-      {filteredDocuments.length === 0 && (
-        <div className="text-center py-12">
-          <FileCheck className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Документы не найдены</h3>
-          <p className="text-gray-600">Нет документов со статусом "{statusFilter}"</p>
-        </div>
-      )}
+      <p className="text-xs text-gray-400 text-center">Показано {filtered.length} из {docs.length} документов</p>
 
-      {/* Document viewer modal */}
-      {selectedDocument && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setSelectedDocument(null)}>
-          <Card className="max-w-4xl w-full max-h-[90vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
-            <CardHeader className="border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <CardTitle>Просмотр документа</CardTitle>
-                <button
-                  onClick={() => setSelectedDocument(null)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="space-y-6">
-                {/* Driver info */}
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-xl">
-                    {selectedDocument.driver.avatar}
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">{selectedDocument.driver.name}</h3>
-                    <p className="text-gray-600">{selectedDocument.driver.phone}</p>
-                    <p className="text-gray-600">{selectedDocument.driver.email}</p>
-                  </div>
-                </div>
-
-                {/* Document details */}
-                <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Тип документа</p>
-                    <p className="font-medium text-gray-900">{documentTypeNames[selectedDocument.documentType]}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Номер документа</p>
-                    <p className="font-medium text-gray-900">{selectedDocument.documentNumber}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Дата подачи</p>
-                    <p className="font-medium text-gray-900">{selectedDocument.submittedDate}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Действителен до</p>
-                    <p className="font-medium text-gray-900">{selectedDocument.expiryDate}</p>
-                  </div>
-                </div>
-
-                {/* Document image */}
-                <div>
-                  <p className="text-sm font-medium text-gray-900 mb-2">Скан документа</p>
-                  <img 
-                    src={selectedDocument.imageUrl} 
-                    alt="Document" 
-                    className="w-full rounded-lg border border-gray-200"
-                  />
-                </div>
-
-                {/* Actions */}
-                {selectedDocument.status === 'pending' && (
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => handleReject(selectedDocument)}
-                      className="flex-1 px-6 py-3 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 transition-colors flex items-center justify-center gap-2 font-medium"
-                    >
-                      <X className="w-5 h-5" />
-                      Отклонить
-                    </button>
-                    <button
-                      onClick={() => handleApprove(selectedDocument)}
-                      className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2 font-medium"
-                    >
-                      <Check className="w-5 h-5" />
-                      Одобрить
-                    </button>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+      {/* Image preview modal */}
+      {previewUrl && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => setPreviewUrl(null)}>
+          <div className="relative max-w-3xl w-full" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setPreviewUrl(null)}
+              className="absolute -top-10 right-0 text-white/80 hover:text-white p-2">
+              <X className="w-6 h-6" />
+            </button>
+            <img src={previewUrl} alt="Preview" className="w-full rounded-2xl shadow-2xl" />
+          </div>
         </div>
       )}
     </div>

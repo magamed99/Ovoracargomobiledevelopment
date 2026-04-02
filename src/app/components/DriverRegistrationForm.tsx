@@ -1,175 +1,171 @@
 import { useState } from 'react';
-import { ArrowLeft, Phone, Camera, Plus } from 'lucide-react';
+import { ArrowLeft, Camera, Plus, CheckCircle2 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { useTheme } from '../context/ThemeContext';
+import { useUser } from '../contexts/UserContext';
 import { toast } from 'sonner';
+import { registerUser, updateUser as updateUserApi } from '../api/authApi';
 
 type RegistrationStep = 1 | 2;
 
 export function DriverRegistrationForm() {
   const navigate = useNavigate();
   const { theme } = useTheme();
-  const [step, setStep] = useState<RegistrationStep>(1);
+  const isDark = theme === 'dark';
+  const { user: cachedUser, setUserDirectly } = useUser();
+
+  const [step, setStep] = useState<RegistrationStep>(cachedUser ? 2 : 1);
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    phone: '',
+    firstName: cachedUser?.firstName || '',
+    lastName: cachedUser?.lastName || '',
+    phone: cachedUser?.phone || '',
     carBrand: 'Toyota',
     carModel: '',
     carYear: '',
     plateNumber: '',
   });
+  const [submitting, setSubmitting] = useState(false);
 
-  const nextStep = () => {
-    if (step === 1) {
-      if (!formData.firstName || !formData.lastName || !formData.phone) {
-        toast.error('Заполните все поля');
-        return;
-      }
-      setStep(2);
-    }
-  };
+  const bg  = isDark ? 'bg-[#0e1621]' : 'bg-white';
+  const txt = isDark ? 'text-white'   : 'text-[#0f172a]';
+  const sub = isDark ? 'text-[#6b7f94]' : 'text-[#94a3b8]';
+  const div = isDark ? 'border-[#1e2d3d]' : 'border-[#f0f2f5]';
+  const hdr = isDark ? 'bg-[#0e1621]/95 border-[#1e2d3d]' : 'bg-white/95 border-[#e8eaed]';
 
-  const handleSubmit = () => {
+  const inputCls = `w-full bg-transparent outline-none text-[15px] font-medium py-3 border-b transition-colors focus:border-b-[#1978e5] ${
+    isDark ? `text-white placeholder-[#3d5263] border-b-[#1e2d3d]` : `text-[#0f172a] placeholder-[#94a3b8] border-b-[#f0f2f5]`
+  }`;
+
+  const handleSubmit = async () => {
     if (!formData.carBrand || !formData.carModel || !formData.carYear || !formData.plateNumber) {
       toast.error('Заполните все поля');
       return;
     }
-    
-    // Save registration
-    localStorage.setItem('isAuthenticated', 'true');
-    localStorage.setItem('userRole', 'driver');
-    toast.success('Регистрация успешно завершена!');
-    navigate('/dashboard');
+    setSubmitting(true);
+    try {
+      const vehicle = {
+        brand: formData.carBrand,
+        model: formData.carModel,
+        year: formData.carYear,
+        plate: formData.plateNumber,
+      };
+
+      if (cachedUser?.email) {
+        const updatedUser = await updateUserApi({
+          email: cachedUser.email,
+          firstName: formData.firstName || cachedUser.firstName,
+          lastName: formData.lastName || cachedUser.lastName,
+          phone: formData.phone || cachedUser.phone,
+          vehicle,
+        });
+        setUserDirectly({ ...cachedUser, ...updatedUser });
+      } else {
+        const savedUser = await registerUser({
+          email: `driver_${Date.now()}@ovora.local`,
+          role: 'driver',
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          phone: formData.phone,
+          vehicle,
+        });
+        setUserDirectly(savedUser);
+      }
+
+      sessionStorage.setItem('isAuthenticated', 'true');
+      sessionStorage.setItem('userRole', 'driver');
+      setSubmitting(false);
+      toast.success('Регистрация успешно завершена!');
+      navigate('/dashboard');
+    } catch (err) {
+      setSubmitting(false);
+      console.error('Driver registration error:', err);
+      toast.error(`Ошибка: ${err}`);
+    }
   };
 
   return (
-    <div className={`min-h-screen flex flex-col font-['Sora'] ${
-      theme === 'dark' ? 'bg-[#111821] text-white' : 'bg-[#f6f7f8] text-[#0d181c]'
-    }`}>
+    <div className={`min-h-screen flex flex-col font-['Sora'] ${bg} ${txt}`}>
+
       {/* Header */}
-      <header className={`sticky top-0 z-10 backdrop-blur-sm border-b px-4 py-3 flex items-center justify-between ${
-        theme === 'dark'
-          ? 'bg-[#111821]/95 border-[#2a424a]'
-          : 'bg-[#f6f7f8]/95 border-transparent'
-      }`}>
+      <header className={`sticky top-0 z-10 backdrop-blur-md px-4 py-3 flex items-center gap-3 border-b ${hdr}`}>
         <button
-          onClick={() => step === 1 ? navigate(-1) : setStep(1)}
-          className={`flex items-center justify-center p-2 rounded-full transition-colors ${
-            theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-black/5'
+          onClick={() => step === 1 ? navigate(-1) : (cachedUser ? navigate('/email-auth?role=driver') : setStep(1))}
+          className={`w-8 h-8 flex items-center justify-center transition-colors ${
+            isDark ? 'text-[#8a9bb0] hover:text-white' : 'text-[#6b7280] hover:text-[#0f172a]'
           }`}
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h2 className="text-lg font-bold leading-tight tracking-tight flex-1 text-center pr-10">
-          Регистрация водителя
-        </h2>
+        <h2 className="text-[16px] font-bold flex-1">Регистрация водителя</h2>
+        <span className={`text-[12px] font-medium ${sub}`}>Шаг {step} из 2</span>
       </header>
 
-      <main className="flex-1 w-full max-w-md mx-auto pb-32 px-4">
-        {/* Step 1: Personal Information */}
+      {/* Progress bar */}
+      <div className="flex">
+        <div className="flex-1 h-[2px] bg-[#1978e5]" />
+        <div className={`flex-1 h-[2px] ${step === 2 ? 'bg-[#1978e5]' : isDark ? 'bg-[#1e2d3d]' : 'bg-[#f0f2f5]'}`} />
+      </div>
+
+      <main className="flex-1 w-full max-w-md mx-auto pb-32">
+
+        {/* ── STEP 1: Personal Info ── */}
         {step === 1 && (
           <section>
-            {/* Progress Bar */}
-            <div className="py-6 flex flex-col items-center">
-              <div className="flex w-full items-center justify-center gap-2">
-                <div className="flex-1 h-1.5 rounded-full bg-[#1978e5]" />
-                <div className={`flex-1 h-1.5 rounded-full ${
-                  theme === 'dark' ? 'bg-[#2a424a]' : 'bg-[#cfe2e8]'
-                }`} />
-              </div>
-              <p className={`text-xs font-medium mt-2 ${
-                theme === 'dark' ? 'text-[#8faab5]' : 'text-[#4b879b]'
-              }`}>
-                Шаг 1 из 2
-              </p>
+            <div className={`px-4 py-4 border-b ${div}`}>
+              <h1 className={`text-[20px] font-bold mb-1 ${txt}`}>Личные данные</h1>
+              <p className={`text-[13px] ${sub}`}>Укажите информацию, которая будет отображаться в профиле.</p>
             </div>
 
-            <div className="mb-6">
-              <h1 className={`text-2xl font-bold mb-2 ${
-                theme === 'dark' ? 'text-white' : 'text-[#0d181c]'
-              }`}>
-                Личные данные
-              </h1>
-              <p className={`text-sm ${
-                theme === 'dark' ? 'text-[#8faab5]' : 'text-[#4b879b]'
-              }`}>
-                Укажите информацию, которая будет отображаться в профиле.
-              </p>
+            {/* First Name */}
+            <div className={`px-4 py-2 border-b ${div}`}>
+              <label className={`text-[10px] font-semibold uppercase tracking-wider ${sub}`}>Имя</label>
+              <input
+                type="text"
+                value={formData.firstName}
+                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                className={inputCls}
+                placeholder="Иван"
+              />
             </div>
 
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className={`block text-sm font-medium mb-1.5 ${
-                    theme === 'dark' ? 'text-white' : 'text-[#0d181c]'
-                  }`}>
-                    Имя
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.firstName}
-                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    className={`w-full px-4 py-3.5 rounded-lg border ${
-                      theme === 'dark'
-                        ? 'bg-[#1a2c32] border-[#2a424a] text-white'
-                        : 'bg-white border-[#cfe2e8] text-[#0d181c]'
-                    }`}
-                    placeholder="Иван"
-                  />
-                </div>
-                <div>
-                  <label className={`block text-sm font-medium mb-1.5 ${
-                    theme === 'dark' ? 'text-white' : 'text-[#0d181c]'
-                  }`}>
-                    Фамилия
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.lastName}
-                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    className={`w-full px-4 py-3.5 rounded-lg border ${
-                      theme === 'dark'
-                        ? 'bg-[#1a2c32] border-[#2a424a] text-white'
-                        : 'bg-white border-[#cfe2e8] text-[#0d181c]'
-                    }`}
-                    placeholder="Иванов"
-                  />
-                </div>
-              </div>
+            {/* Last Name */}
+            <div className={`px-4 py-2 border-b ${div}`}>
+              <label className={`text-[10px] font-semibold uppercase tracking-wider ${sub}`}>Фамилия</label>
+              <input
+                type="text"
+                value={formData.lastName}
+                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                className={inputCls}
+                placeholder="Иванов"
+              />
+            </div>
 
-              <div>
-                <label className={`block text-sm font-medium mb-1.5 ${
-                  theme === 'dark' ? 'text-white' : 'text-[#0d181c]'
-                }`}>
-                  Номер телефона
-                </label>
-                <div className="flex">
-                  <div className={`flex items-center justify-center px-3 border border-r-0 rounded-l-lg ${
-                    theme === 'dark'
-                      ? 'bg-[#1a2c32] border-[#2a424a] text-[#8faab5]'
-                      : 'bg-white border-[#cfe2e8] text-[#4b879b]'
-                  }`}>
-                    <span className="text-sm font-medium">+992</span>
-                  </div>
-                  <input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className={`w-full px-4 py-3.5 rounded-r-lg border ${
-                      theme === 'dark'
-                        ? 'bg-[#1a2c32] border-[#2a424a] text-white'
-                        : 'bg-white border-[#cfe2e8] text-[#0d181c]'
-                    }`}
-                    placeholder="(900) 123-45-67"
-                  />
-                </div>
+            {/* Phone */}
+            <div className={`px-4 py-2 border-b ${div}`}>
+              <label className={`text-[10px] font-semibold uppercase tracking-wider ${sub}`}>Номер телефона</label>
+              <div className="flex items-center gap-2">
+                <span className={`text-[14px] font-medium flex-shrink-0 py-3 ${sub}`}>+992</span>
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className={inputCls}
+                  placeholder="(900) 123-45-67"
+                />
               </div>
+            </div>
 
+            <div className="px-4 pt-6">
               <button
                 type="button"
-                onClick={nextStep}
-                className="w-full bg-[#1978e5] hover:bg-[#1565c0] text-white font-bold py-4 rounded-lg transition-colors shadow-lg shadow-[#1978e5]/20 mt-6"
+                onClick={() => {
+                  if (!formData.firstName || !formData.lastName || !formData.phone) {
+                    toast.error('Заполните все поля');
+                    return;
+                  }
+                  setStep(2);
+                }}
+                className="w-full bg-[#1978e5] hover:bg-[#1565c0] text-white font-bold py-3.5 text-[15px] transition-colors"
               >
                 Далее
               </button>
@@ -177,198 +173,122 @@ export function DriverRegistrationForm() {
           </section>
         )}
 
-        {/* Step 2: Vehicle Information */}
+        {/* ── STEP 2: Vehicle Info ── */}
         {step === 2 && (
           <section>
-            {/* Progress Bar */}
-            <div className="py-6 flex flex-col items-center">
-              <div className="flex w-full items-center justify-center gap-2">
-                <div className="flex-1 h-1.5 rounded-full bg-[#1978e5]" />
-                <div className="flex-1 h-1.5 rounded-full bg-[#1978e5]" />
+            {/* Pre-filled banner */}
+            {cachedUser && (
+              <div className={`px-4 py-3 border-b border-l-2 border-l-blue-400 ${div} flex items-center gap-3`}>
+                <CheckCircle2 className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-blue-400' : 'text-blue-500'}`} />
+                <div className="flex-1 min-w-0">
+                  <p className={`text-[12px] font-semibold ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>Личные данные сохранены</p>
+                  <p className={`text-[11px] truncate ${sub}`}>{cachedUser.firstName} {cachedUser.lastName} · {cachedUser.email}</p>
+                </div>
               </div>
-              <p className={`text-xs font-medium mt-2 ${
-                theme === 'dark' ? 'text-[#8faab5]' : 'text-[#4b879b]'
-              }`}>
-                Шаг 2 из 2
-              </p>
+            )}
+
+            <div className={`px-4 py-4 border-b ${div}`}>
+              <h1 className={`text-[20px] font-bold mb-1 ${txt}`}>Данные автомобиля</h1>
+              <p className={`text-[13px] ${sub}`}>Информация о транспортном средстве для грузоперевозок.</p>
             </div>
 
-            <div className="mb-6">
-              <h1 className={`text-2xl font-bold mb-2 ${
-                theme === 'dark' ? 'text-white' : 'text-[#0d181c]'
-              }`}>
-                Данные автомобиля
-              </h1>
-              <p className={`text-sm ${
-                theme === 'dark' ? 'text-[#8faab5]' : 'text-[#4b879b]'
-              }`}>
-                Информация о транспортном средстве для грузоперевозок.
-              </p>
+            {/* Car Brand */}
+            <div className={`px-4 py-2 border-b ${div}`}>
+              <label className={`text-[10px] font-semibold uppercase tracking-wider ${sub}`}>Марка автомобиля</label>
+              <input
+                type="text"
+                value={formData.carBrand}
+                onChange={(e) => setFormData({ ...formData, carBrand: e.target.value })}
+                className={inputCls}
+                placeholder="Toyota"
+              />
             </div>
 
-            <div className="space-y-5">
-              {/* Car Brand */}
-              <div>
-                <label className={`block text-sm font-medium mb-1.5 ${
-                  theme === 'dark' ? 'text-white' : 'text-[#0d181c]'
-                }`}>
-                  Марка автомобиля
-                </label>
-                <input
-                  type="text"
-                  value={formData.carBrand}
-                  onChange={(e) => setFormData({ ...formData, carBrand: e.target.value })}
-                  className={`w-full px-4 py-3.5 rounded-lg border appearance-none outline-none focus:border-[#1978e5] focus:ring-1 focus:ring-[#1978e5] transition-all ${
-                    theme === 'dark'
-                      ? 'bg-[#1a2c32] border-[#2a424a] text-white'
-                      : 'bg-white border-[#cfe2e8] text-[#0d181c]'
+            {/* Model */}
+            <div className={`px-4 py-2 border-b ${div}`}>
+              <label className={`text-[10px] font-semibold uppercase tracking-wider ${sub}`}>Модель</label>
+              <input
+                type="text"
+                value={formData.carModel}
+                onChange={(e) => setFormData({ ...formData, carModel: e.target.value })}
+                className={inputCls}
+                placeholder="Camry"
+              />
+            </div>
+
+            {/* Year */}
+            <div className={`px-4 py-2 border-b ${div}`}>
+              <label className={`text-[10px] font-semibold uppercase tracking-wider ${sub}`}>Год выпуска</label>
+              <input
+                type="number"
+                value={formData.carYear}
+                onChange={(e) => setFormData({ ...formData, carYear: e.target.value })}
+                className={inputCls}
+                placeholder="2020"
+              />
+            </div>
+
+            {/* Plate */}
+            <div className={`px-4 py-2 border-b ${div}`}>
+              <label className={`text-[10px] font-semibold uppercase tracking-wider ${sub}`}>Госномер</label>
+              <input
+                type="text"
+                value={formData.plateNumber}
+                onChange={(e) => setFormData({ ...formData, plateNumber: e.target.value.toUpperCase() })}
+                className={`${inputCls} uppercase`}
+                placeholder="01 TJ 1234"
+              />
+            </div>
+
+            {/* Document Photos */}
+            <div className={`px-4 py-4 border-b ${div}`}>
+              <p className={`text-[10px] font-semibold uppercase tracking-wider mb-3 ${sub}`}>Фотографии документов</p>
+              <div className="grid grid-cols-2 gap-3">
+                {['Паспорт\n(Лицевая сторона)', 'СТС\n(Техпаспорт)'].map(label => (
+                  <button
+                    key={label}
+                    type="button"
+                    className={`flex flex-col items-center justify-center h-28 border-2 border-dashed transition-all ${
+                      isDark
+                        ? 'border-[#1e2d3d] hover:border-[#1978e5]/50'
+                        : 'border-[#e2e8f0] hover:border-[#1978e5]/50'
+                    }`}
+                  >
+                    <Camera className={`w-5 h-5 mb-2 ${isDark ? 'text-[#3d5263]' : 'text-[#94a3b8]'}`} />
+                    <span className={`text-[11px] font-medium text-center leading-tight whitespace-pre-line ${sub}`}>{label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Car Photos */}
+            <div className={`px-4 py-4 border-b ${div}`}>
+              <div className="flex justify-between items-center mb-3">
+                <p className={`text-[10px] font-semibold uppercase tracking-wider ${sub}`}>Фото автомобиля</p>
+                <span className={`text-[10px] ${sub}`}>Макс. 5 фото</span>
+              </div>
+              <div className="flex gap-3 overflow-x-auto pb-2">
+                <button
+                  type="button"
+                  className={`flex-shrink-0 w-22 h-22 border-2 border-dashed flex flex-col items-center justify-center transition-colors ${
+                    isDark ? 'border-[#1978e5]/30 text-[#1978e5]' : 'border-[#1978e5]/30 text-[#1978e5]'
                   }`}
-                  placeholder="Введите марку автомобиля"
-                />
+                  style={{ width: 88, height: 88 }}
+                >
+                  <Plus className="w-5 h-5 mb-1" />
+                  <span className="text-[10px] font-bold uppercase tracking-wide">Добавить</span>
+                </button>
               </div>
+            </div>
 
-              {/* Model & Year */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className={`block text-sm font-medium mb-1.5 ${
-                    theme === 'dark' ? 'text-white' : 'text-[#0d181c]'
-                  }`}>
-                    Модель
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.carModel}
-                    onChange={(e) => setFormData({ ...formData, carModel: e.target.value })}
-                    className={`w-full px-4 py-3.5 rounded-lg border outline-none focus:border-[#1978e5] focus:ring-1 focus:ring-[#1978e5] transition-all ${
-                      theme === 'dark'
-                        ? 'bg-[#1a2c32] border-[#2a424a] text-white'
-                        : 'bg-white border-[#cfe2e8] text-[#0d181c]'
-                    }`}
-                    placeholder="Camry"
-                  />
-                </div>
-                <div>
-                  <label className={`block text-sm font-medium mb-1.5 ${
-                    theme === 'dark' ? 'text-white' : 'text-[#0d181c]'
-                  }`}>
-                    Год выпуска
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.carYear}
-                    onChange={(e) => setFormData({ ...formData, carYear: e.target.value })}
-                    className={`w-full px-4 py-3.5 rounded-lg border outline-none focus:border-[#1978e5] focus:ring-1 focus:ring-[#1978e5] transition-all ${
-                      theme === 'dark'
-                        ? 'bg-[#1a2c32] border-[#2a424a] text-white'
-                        : 'bg-white border-[#cfe2e8] text-[#0d181c]'
-                    }`}
-                    placeholder="2020"
-                  />
-                </div>
-              </div>
-
-              {/* Plate Number */}
-              <div>
-                <label className={`block text-sm font-medium mb-1.5 ${
-                  theme === 'dark' ? 'text-white' : 'text-[#0d181c]'
-                }`}>
-                  Госномер
-                </label>
-                <input
-                  type="text"
-                  value={formData.plateNumber}
-                  onChange={(e) => setFormData({ ...formData, plateNumber: e.target.value.toUpperCase() })}
-                  className={`w-full px-4 py-3.5 rounded-lg border uppercase outline-none focus:border-[#1978e5] focus:ring-1 focus:ring-[#1978e5] transition-all ${
-                    theme === 'dark'
-                      ? 'bg-[#1a2c32] border-[#2a424a] text-white'
-                      : 'bg-white border-[#cfe2e8] text-[#0d181c]'
-                  }`}
-                  placeholder="01 TJ 1234"
-                />
-              </div>
-
-              {/* Document Photos */}
-              <div className="pt-2">
-                <label className={`block text-sm font-medium mb-3 ${
-                  theme === 'dark' ? 'text-white' : 'text-[#0d181c]'
-                }`}>
-                  Фотографии документов
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    className={`flex flex-col items-center justify-center h-32 border-2 border-dashed rounded-xl transition-all group ${
-                      theme === 'dark'
-                        ? 'bg-[#1a2c32]/50 border-[#2a424a] hover:bg-[#1a2c32] hover:border-[#1978e5]/60'
-                        : 'bg-white/50 border-[#cfe2e8] hover:bg-white hover:border-[#1978e5]/60'
-                    }`}
-                  >
-                    <div className={`w-10 h-10 rounded-full shadow-sm flex items-center justify-center mb-2 group-hover:scale-110 transition-transform ${
-                      theme === 'dark' ? 'bg-[#1a2c32]' : 'bg-white'
-                    }`}>
-                      <Camera className="w-5 h-5 text-[#1978e5]" />
-                    </div>
-                    <span className={`text-xs font-medium text-center leading-tight ${
-                      theme === 'dark' ? 'text-[#8faab5]' : 'text-[#4b879b]'
-                    }`}>
-                      Паспорт<br />(Лицевая сторона)
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`flex flex-col items-center justify-center h-32 border-2 border-dashed rounded-xl transition-all group ${
-                      theme === 'dark'
-                        ? 'bg-[#1a2c32]/50 border-[#2a424a] hover:bg-[#1a2c32] hover:border-[#1978e5]/60'
-                        : 'bg-white/50 border-[#cfe2e8] hover:bg-white hover:border-[#1978e5]/60'
-                    }`}
-                  >
-                    <div className={`w-10 h-10 rounded-full shadow-sm flex items-center justify-center mb-2 group-hover:scale-110 transition-transform ${
-                      theme === 'dark' ? 'bg-[#1a2c32]' : 'bg-white'
-                    }`}>
-                      <Camera className="w-5 h-5 text-[#1978e5]" />
-                    </div>
-                    <span className={`text-xs font-medium text-center leading-tight ${
-                      theme === 'dark' ? 'text-[#8faab5]' : 'text-[#4b879b]'
-                    }`}>
-                      СТС<br />(Техпаспорт)
-                    </span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Car Photos */}
-              <div className="pt-2">
-                <div className="flex justify-between items-end mb-3">
-                  <label className={`block text-sm font-medium ${
-                    theme === 'dark' ? 'text-white' : 'text-[#0d181c]'
-                  }`}>
-                    Фото автомобиля
-                  </label>
-                  <span className={`text-xs ${
-                    theme === 'dark' ? 'text-[#8faab5]' : 'text-[#4b879b]'
-                  }`}>
-                    Макс. 5 фото
-                  </span>
-                </div>
-                <div className="flex gap-3 overflow-x-auto pb-4 -mx-4 px-4">
-                  <button
-                    type="button"
-                    className="flex-shrink-0 w-24 h-24 border-2 border-dashed border-[#1978e5]/40 rounded-xl bg-[#1978e5]/5 flex flex-col items-center justify-center hover:bg-[#1978e5]/10 transition-colors group"
-                  >
-                    <Plus className="w-6 h-6 text-[#1978e5] mb-1 group-hover:scale-110 transition-transform" />
-                    <span className="text-[10px] font-bold text-[#1978e5] uppercase tracking-wide">
-                      Добавить
-                    </span>
-                  </button>
-                </div>
-              </div>
-
+            <div className="px-4 pt-6">
               <button
                 type="button"
                 onClick={handleSubmit}
-                className="w-full bg-[#1978e5] hover:bg-[#1565c0] text-white font-bold py-4 rounded-lg transition-colors shadow-lg shadow-[#1978e5]/20 mt-6"
+                disabled={submitting}
+                className="w-full bg-[#1978e5] hover:bg-[#1565c0] disabled:opacity-70 text-white font-bold py-3.5 text-[15px] transition-colors"
               >
-                Завершить регистрацию
+                {submitting ? 'Загрузка...' : 'Завершить регистрацию'}
               </button>
             </div>
           </section>

@@ -63,11 +63,34 @@ export async function getCurrentLocation(): Promise<GeolocationResult> {
 /**
  * Calculate distance between two coordinates using Haversine formula
  * Returns distance in kilometers
+ * 
+ * Supports two call signatures:
+ * 1. calculateDistance(point1, point2) - with Coordinates objects
+ * 2. calculateDistance(lat1, lng1, lat2, lng2) - with individual numbers
  */
 export function calculateDistance(
-  point1: Coordinates,
-  point2: Coordinates
+  point1OrLat1: Coordinates | number,
+  point2OrLng1: Coordinates | number,
+  lat2?: number,
+  lng2?: number
 ): number {
+  let point1: Coordinates;
+  let point2: Coordinates;
+
+  // Handle both signatures
+  if (typeof point1OrLat1 === 'number' && typeof point2OrLng1 === 'number' && lat2 !== undefined && lng2 !== undefined) {
+    // Called with: calculateDistance(lat1, lng1, lat2, lng2)
+    point1 = { lat: point1OrLat1, lng: point2OrLng1 };
+    point2 = { lat: lat2, lng: lng2 };
+  } else if (typeof point1OrLat1 === 'object' && typeof point2OrLng1 === 'object') {
+    // Called with: calculateDistance(point1, point2)
+    point1 = point1OrLat1;
+    point2 = point2OrLng1;
+  } else {
+    console.error('[calculateDistance] Invalid arguments');
+    return 0;
+  }
+
   const R = 6371; // Earth's radius in km
   const dLat = toRad(point2.lat - point1.lat);
   const dLng = toRad(point2.lng - point1.lng);

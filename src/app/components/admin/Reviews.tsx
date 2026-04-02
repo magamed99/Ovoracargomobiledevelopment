@@ -1,398 +1,305 @@
-import { useState } from 'react';
-import { 
-  Star, 
-  ThumbsUp, 
-  ThumbsDown, 
-  MessageSquare, 
-  AlertTriangle,
-  Filter,
-  Search,
-  Eye,
-  Flag,
-  CheckCircle,
-  XCircle
-} from 'lucide-react';
-import { Card, CardContent } from '../ui/card';
-import { Badge } from '../ui/badge';
+import { useState, useEffect, useCallback } from 'react';
+import { Star, MessageSquare, Search, RefreshCw, ChevronDown, ChevronUp, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
+import { getAdminReviews } from '../../api/dataApi';
+import { AdminPageHeader, HeaderBtn, FilterChips, SkeletonList } from './AdminPageHeader';
+import { StarRow } from '../ui/StarRow';
 
-interface Review {
-  id: string;
-  trip: {
-    id: string;
-    route: string;
-  };
-  reviewer: {
-    name: string;
-    avatar: string;
-    type: 'driver' | 'passenger';
-  };
-  reviewee: {
-    name: string;
-    avatar: string;
-    type: 'driver' | 'passenger';
-  };
-  rating: number;
-  comment: string;
-  date: string;
-  status: 'published' | 'flagged' | 'hidden';
-  helpful: number;
-  notHelpful: number;
+function RelTime({ iso }: { iso?: string }) {
+  if (!iso) return <span>—</span>;
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return <span>{Math.max(0, mins)} мин. назад</span>;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return <span>{hrs} ч. назад</span>;
+  return <span>{new Date(iso).toLocaleDateString('ru-RU')}</span>;
 }
 
-const mockReviews: Review[] = [
-  {
-    id: 'REV-001',
-    trip: { id: 'TR-1235', route: 'Душанбе → Куляб' },
-    reviewer: { name: 'Зарина Саидова', avatar: 'ЗС', type: 'passenger' },
-    reviewee: { name: 'Мурод Каримов', avatar: 'МК', type: 'driver' },
-    rating: 5,
-    comment: 'Отличный водитель! Пунктуальный, вежливый, машина чистая. Поездка прошла комфортно. Рекомендую!',
-    date: '27.02.2026 13:45',
-    status: 'published',
-    helpful: 12,
-    notHelpful: 0
-  },
-  {
-    id: 'REV-002',
-    trip: { id: 'TR-1234', route: 'Душанбе → Худжанд' },
-    reviewer: { name: 'Алишер Рахимов', avatar: 'АР', type: 'driver' },
-    reviewee: { name: 'Фарход Юсупов', avatar: 'ФЮ', type: 'passenger' },
-    rating: 5,
-    comment: 'Приятный пассажир, пунктуальный. Был готов к поездке вовремя.',
-    date: '27.02.2026 16:20',
-    status: 'published',
-    helpful: 5,
-    notHelpful: 1
-  },
-  {
-    id: 'REV-003',
-    trip: { id: 'TR-1236', route: 'Худжанд → Душанбе' },
-    reviewer: { name: 'Дилшод Азимов', avatar: 'ДА', type: 'passenger' },
-    reviewee: { name: 'Сухроб Назаров', avatar: 'СН', type: 'driver' },
-    rating: 2,
-    comment: 'Водитель опоздал на 40 минут. Не предупредил об опоздании. В машине был неприятный запах. Больше не поеду.',
-    date: '27.02.2026 10:30',
-    status: 'flagged',
-    helpful: 8,
-    notHelpful: 2
-  },
-  {
-    id: 'REV-004',
-    trip: { id: 'TR-1238', route: 'Куляб → Душанбе' },
-    reviewer: { name: 'Фаррух Хакимов', avatar: 'ФХ', type: 'driver' },
-    reviewee: { name: 'Шахло Мирзоева', avatar: 'ШМ', type: 'passenger' },
-    rating: 4,
-    comment: 'Хорошая пассажирка, но немного опоздала на встречу.',
-    date: '26.02.2026 18:10',
-    status: 'published',
-    helpful: 3,
-    notHelpful: 0
-  },
-  {
-    id: 'REV-005',
-    trip: { id: 'TR-1239', route: 'Душанбе (внутригород)' },
-    reviewer: { name: 'Бахтиёр Холов', avatar: 'БХ', type: 'passenger' },
-    reviewee: { name: 'Рустам Абдуллоев', avatar: 'РА', type: 'driver' },
-    rating: 5,
-    comment: 'Быстро приехал, знает все дороги города. Отличный сервис!',
-    date: '27.02.2026 17:05',
-    status: 'published',
-    helpful: 6,
-    notHelpful: 0
-  },
-  {
-    id: 'REV-006',
-    trip: { id: 'TR-1237', route: 'Душанбе → Курган-Тюбе' },
-    reviewer: { name: 'Джамшед Исмоилов', avatar: 'ДИ', type: 'driver' },
-    reviewee: { name: 'Нозанин Раджабова', avatar: 'НР', type: 'passenger' },
-    rating: 3,
-    comment: 'Пассажирка привезла слишком много груза, не предупредила заранее.',
-    date: '27.02.2026 12:15',
-    status: 'published',
-    helpful: 4,
-    notHelpful: 3
-  },
-  {
-    id: 'REV-007',
-    trip: { id: 'TR-1241', route: 'Душанбе → Курган-Тюбе' },
-    reviewer: { name: 'Анвар Раҳимов', avatar: 'АР', type: 'passenger' },
-    reviewee: { name: 'Мурод Каримов', avatar: 'МК', type: 'driver' },
-    rating: 4,
-    comment: 'Хороший водитель, но ехал немного быстро. В остальном все отлично.',
-    date: '26.02.2026 14:30',
-    status: 'published',
-    helpful: 7,
-    notHelpful: 1
-  },
-  {
-    id: 'REV-008',
-    trip: { id: 'TR-1240', route: 'Душанбе → Худжанд' },
-    reviewer: { name: 'Алишер Рахимов', avatar: 'АР', type: 'driver' },
-    reviewee: { name: 'Мехрона Назарова', avatar: 'МН', type: 'passenger' },
-    rating: 1,
-    comment: 'Пассажирка вела себя неуважительно, постоянно жаловалась. Отменил бы поездку, если бы знал заранее.',
-    date: '27.02.2026 09:45',
-    status: 'flagged',
-    helpful: 2,
-    notHelpful: 5
-  },
-];
+const RATING_COLOR: Record<number, { bg: string; text: string; border: string }> = {
+  5: { bg: '#f0fdf4', text: '#15803d', border: '#bbf7d0' },
+  4: { bg: '#f0fdf4', text: '#16a34a', border: '#d1fae5' },
+  3: { bg: '#fffbeb', text: '#b45309', border: '#fde68a' },
+  2: { bg: '#fff7ed', text: '#c2410c', border: '#fed7aa' },
+  1: { bg: '#fef2f2', text: '#dc2626', border: '#fecaca' },
+};
 
 export function Reviews() {
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [ratingFilter, setRatingFilter] = useState<string>('all');
+  const [ratingFilter, setRatingFilter] = useState('all');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const filteredReviews = mockReviews.filter(review => {
-    const matchesSearch = review.reviewer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      review.reviewee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      review.trip.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      review.comment.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesStatus = statusFilter === 'all' || review.status === statusFilter;
-    const matchesRating = ratingFilter === 'all' || 
-      (ratingFilter === '4-5' && review.rating >= 4) ||
-      (ratingFilter === '3' && review.rating === 3) ||
-      (ratingFilter === '1-2' && review.rating <= 2);
-    
-    return matchesSearch && matchesStatus && matchesRating;
-  });
-
-  const handleHideReview = (reviewId: string) => {
-    toast.success(`Отзыв ${reviewId} скрыт`);
-  };
-
-  const handlePublishReview = (reviewId: string) => {
-    toast.success(`Отзыв ${reviewId} опубликован`);
-  };
-
-  const getStatusBadge = (status: Review['status']) => {
-    switch (status) {
-      case 'published':
-        return <Badge className="bg-green-100 text-green-700 hover:bg-green-100">Опубликован</Badge>;
-      case 'flagged':
-        return <Badge className="bg-red-100 text-red-700 hover:bg-red-100 flex items-center gap-1">
-          <Flag className="w-3 h-3" />
-          Требует проверки
-        </Badge>;
-      case 'hidden':
-        return <Badge className="bg-gray-100 text-gray-700 hover:bg-gray-100">Скрыт</Badge>;
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getAdminReviews();
+      setReviews(data || []);
+    } catch {
+      toast.error('Ошибка загрузки отзывов');
+    } finally {
+      setLoading(false);
     }
-  };
+  }, []);
 
-  const renderStars = (rating: number) => {
-    return (
-      <div className="flex gap-0.5">
-        {[1, 2, 3, 4, 5].map((star) => (
-          <Star
-            key={star}
-            className={`w-4 h-4 ${
-              star <= rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'
-            }`}
-          />
-        ))}
-      </div>
-    );
-  };
+  useEffect(() => { load(); }, [load]);
 
-  const statusCounts = {
-    all: mockReviews.length,
-    published: mockReviews.filter(r => r.status === 'published').length,
-    flagged: mockReviews.filter(r => r.status === 'flagged').length,
-    hidden: mockReviews.filter(r => r.status === 'hidden').length,
-  };
+  const filtered = reviews
+    .filter(r => {
+      if (!r) return false;
+      const q = searchQuery.toLowerCase();
+      const matchSearch = !q
+        || (r.authorName || r.authorEmail || '').toLowerCase().includes(q)
+        || (r.targetName || r.targetEmail || '').toLowerCase().includes(q)
+        || (r.text || r.comment || '').toLowerCase().includes(q);
+      const rating = r.rating || 0;
+      const matchRating = ratingFilter === 'all'
+        || (ratingFilter === '5' && rating === 5)
+        || (ratingFilter === '4' && rating === 4)
+        || (ratingFilter === '1-3' && rating <= 3);
+      return matchSearch && matchRating;
+    })
+    .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 
-  const averageRating = (mockReviews.reduce((sum, r) => sum + r.rating, 0) / mockReviews.length).toFixed(1);
+  const avgRating = reviews.length > 0
+    ? (reviews.reduce((s, r) => s + (r?.rating || 0), 0) / reviews.length)
+    : 0;
+
+  const ratingCounts = [5, 4, 3, 2, 1].map(n => ({
+    stars: n,
+    count: reviews.filter(r => r?.rating === n).length,
+    pct: reviews.length > 0 ? (reviews.filter(r => r?.rating === n).length / reviews.length) * 100 : 0,
+  }));
+
+  const excellentPct = reviews.length > 0
+    ? Math.round((reviews.filter(r => (r?.rating || 0) >= 4).length / reviews.length) * 100)
+    : 0;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Отзывы и рейтинги</h1>
-          <p className="text-gray-600 mt-1">Всего отзывов: {mockReviews.length} • Средний рейтинг: {averageRating}</p>
-        </div>
-      </div>
+    <div className="space-y-5">
+      <AdminPageHeader
+        title="Отзывы и рейтинги"
+        subtitle="Оценки пользователей после поездок"
+        icon={MessageSquare}
+        gradient="linear-gradient(135deg,#d97706,#f59e0b)"
+        accent="#d97706"
+        stats={[
+          { label: 'Всего отзывов', value: reviews.length },
+          { label: 'Средний рейтинг', value: avgRating > 0 ? `★ ${avgRating.toFixed(1)}` : '—' },
+          { label: 'Отличных', value: `${excellentPct}%` },
+        ]}
+        actions={
+          <HeaderBtn icon={RefreshCw} onClick={load}>Обновить</HeaderBtn>
+        }
+      />
 
-      {/* Status cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setStatusFilter('all')}>
-          <CardContent className="p-4">
-            <p className="text-sm text-gray-600 mb-1">Всего</p>
-            <p className="text-2xl font-bold text-gray-900">{statusCounts.all}</p>
-          </CardContent>
-        </Card>
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setStatusFilter('published')}>
-          <CardContent className="p-4">
-            <p className="text-sm text-green-600 mb-1">Опубликовано</p>
-            <p className="text-2xl font-bold text-green-700">{statusCounts.published}</p>
-          </CardContent>
-        </Card>
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setStatusFilter('flagged')}>
-          <CardContent className="p-4">
-            <p className="text-sm text-red-600 mb-1">Требуют проверки</p>
-            <p className="text-2xl font-bold text-red-700">{statusCounts.flagged}</p>
-          </CardContent>
-        </Card>
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setStatusFilter('hidden')}>
-          <CardContent className="p-4">
-            <p className="text-sm text-gray-600 mb-1">Скрыто</p>
-            <p className="text-2xl font-bold text-gray-700">{statusCounts.hidden}</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Поиск по имени, ID поездки или тексту отзыва..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+      {/* ── Rating overview ── */}
+      {reviews.length > 0 && (
+        <div className="bg-white rounded-2xl p-5" style={{ border: '1px solid #f0f4f8' }}>
+          <div className="flex flex-col md:flex-row gap-6 items-center">
+            {/* Big avg */}
+            <div className="text-center flex-shrink-0">
+              <div
+                className="w-24 h-24 rounded-2xl flex flex-col items-center justify-center mx-auto mb-2"
+                style={{ background: 'linear-gradient(135deg,#fef3c7,#fde68a)' }}
+              >
+                <p className="text-3xl font-black text-amber-700">{avgRating.toFixed(1)}</p>
+                <StarRow value={Math.round(avgRating)} size="sm" />
+              </div>
+              <p className="text-xs text-gray-500">{reviews.length} отзывов</p>
             </div>
-            <select
-              value={ratingFilter}
-              onChange={(e) => setRatingFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">Все оценки</option>
-              <option value="4-5">4-5 звезд</option>
-              <option value="3">3 звезды</option>
-              <option value="1-2">1-2 звезды</option>
-            </select>
-            <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2">
-              <Filter className="w-5 h-5" />
-              Фильтры
-            </button>
+
+            {/* Bars */}
+            <div className="flex-1 w-full space-y-2">
+              {ratingCounts.map(({ stars, count, pct }) => (
+                <button
+                  key={stars}
+                  onClick={() => setRatingFilter(stars <= 3 ? '1-3' : String(stars))}
+                  className="flex items-center gap-2 w-full group"
+                >
+                  <span className="text-xs font-bold text-gray-600 w-3">{stars}</span>
+                  <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400 flex-shrink-0" />
+                  <div className="flex-1 rounded-full h-2.5 overflow-hidden" style={{ background: '#f1f5f9' }}>
+                    <div
+                      className="h-2.5 rounded-full transition-all"
+                      style={{
+                        width: `${pct}%`,
+                        background: stars >= 4 ? '#10b981' : stars === 3 ? '#f59e0b' : '#ef4444',
+                      }}
+                    />
+                  </div>
+                  <span className="text-xs text-gray-500 w-6 text-right">{count}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Quick stats */}
+            <div className="grid grid-cols-2 gap-3 flex-shrink-0">
+              {[
+                { label: 'Отлично (4–5★)', value: reviews.filter(r => (r?.rating || 0) >= 4).length, color: '#10b981', bg: '#f0fdf4' },
+                { label: 'Нейтрально (3★)', value: reviews.filter(r => (r?.rating || 0) === 3).length, color: '#f59e0b', bg: '#fffbeb' },
+                { label: 'Плохо (1–2★)', value: reviews.filter(r => (r?.rating || 0) <= 2 && r?.rating).length, color: '#ef4444', bg: '#fef2f2' },
+                { label: 'Без оценки', value: reviews.filter(r => !r?.rating).length, color: '#94a3b8', bg: '#f8fafc' },
+              ].map(s => (
+                <div key={s.label} className="px-3 py-2 rounded-xl text-center" style={{ background: s.bg }}>
+                  <p className="text-lg font-bold" style={{ color: s.color }}>{s.value}</p>
+                  <p className="text-[11px] text-gray-500 leading-tight">{s.label}</p>
+                </div>
+              ))}
+            </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Reviews list */}
-      <div className="space-y-4">
-        {filteredReviews.map((review) => (
-          <Card key={review.id} className={`hover:shadow-md transition-shadow ${
-            review.status === 'flagged' ? 'border-red-200 border-2' : ''
-          }`}>
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-start gap-4 flex-1">
-                  {/* Reviewer */}
-                  <div className="flex items-center gap-3">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold ${
-                      review.reviewer.type === 'driver' 
-                        ? 'bg-gradient-to-br from-blue-500 to-purple-600' 
-                        : 'bg-gradient-to-br from-green-500 to-teal-600'
-                    }`}>
-                      {review.reviewer.avatar}
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">{review.reviewer.name}</p>
-                      <Badge variant="outline" className="text-xs">
-                        {review.reviewer.type === 'driver' ? 'Водитель' : 'Пассажир'}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  <MessageSquare className="w-5 h-5 text-gray-400 mt-3" />
-
-                  {/* Reviewee */}
-                  <div className="flex items-center gap-3">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold ${
-                      review.reviewee.type === 'driver' 
-                        ? 'bg-gradient-to-br from-blue-500 to-purple-600' 
-                        : 'bg-gradient-to-br from-green-500 to-teal-600'
-                    }`}>
-                      {review.reviewee.avatar}
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">{review.reviewee.name}</p>
-                      <Badge variant="outline" className="text-xs">
-                        {review.reviewee.type === 'driver' ? 'Водитель' : 'Пассажир'}
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
-
-                {getStatusBadge(review.status)}
-              </div>
-
-              {/* Rating and trip info */}
-              <div className="flex items-center gap-4 mb-3">
-                {renderStars(review.rating)}
-                <span className="text-sm text-gray-600">Поездка: {review.trip.id}</span>
-                <span className="text-sm text-gray-600">•</span>
-                <span className="text-sm text-gray-600">{review.trip.route}</span>
-              </div>
-
-              {/* Comment */}
-              <p className="text-gray-700 mb-4">{review.comment}</p>
-
-              {/* Footer */}
-              <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                <div className="flex items-center gap-4 text-sm text-gray-600">
-                  <span>{review.date}</span>
-                  <div className="flex items-center gap-4">
-                    <button className="flex items-center gap-1 hover:text-green-600 transition-colors">
-                      <ThumbsUp className="w-4 h-4" />
-                      <span>{review.helpful}</span>
-                    </button>
-                    <button className="flex items-center gap-1 hover:text-red-600 transition-colors">
-                      <ThumbsDown className="w-4 h-4" />
-                      <span>{review.notHelpful}</span>
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  {review.status === 'flagged' && (
-                    <>
-                      <button
-                        onClick={() => handlePublishReview(review.id)}
-                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
-                      >
-                        <CheckCircle className="w-4 h-4" />
-                        Опубликовать
-                      </button>
-                      <button
-                        onClick={() => handleHideReview(review.id)}
-                        className="px-4 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 transition-colors flex items-center gap-2"
-                      >
-                        <XCircle className="w-4 h-4" />
-                        Скрыть
-                      </button>
-                    </>
-                  )}
-                  {review.status === 'published' && (
-                    <button
-                      onClick={() => handleHideReview(review.id)}
-                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
-                    >
-                      <Eye className="w-4 h-4" />
-                      Скрыть
-                    </button>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {filteredReviews.length === 0 && (
-        <div className="text-center py-12">
-          <MessageSquare className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Отзывы не найдены</h3>
-          <p className="text-gray-600">Попробуйте изменить параметры поиска</p>
         </div>
       )}
+
+      {/* ── Filters ── */}
+      <div className="bg-white rounded-2xl p-4 space-y-3" style={{ border: '1px solid #f0f4f8' }}>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Поиск по автору, получателю или тексту..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm text-gray-700 outline-none transition-all"
+            style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
+            onFocus={e => { e.currentTarget.style.borderColor = '#f59e0b66'; e.currentTarget.style.boxShadow = '0 0 0 3px #f59e0b12'; }}
+            onBlur={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.boxShadow = 'none'; }}
+          />
+        </div>
+        <FilterChips
+          value={ratingFilter as any}
+          onChange={setRatingFilter as any}
+          options={[
+            { value: 'all', label: 'Все оценки', count: reviews.length },
+            { value: '5', label: '★★★★★ 5 звёзд', count: ratingCounts[0].count },
+            { value: '4', label: '★★★★ 4 звезды', count: ratingCounts[1].count },
+            { value: '1-3', label: '≤3 звезды', count: ratingCounts.slice(2).reduce((s, r) => s + r.count, 0) },
+          ]}
+        />
+      </div>
+
+      {/* ── Reviews list ── */}
+      {loading ? (
+        <div className="bg-white rounded-2xl overflow-hidden" style={{ border: '1px solid #f0f4f8' }}>
+          <SkeletonList rows={4} />
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="bg-white rounded-2xl py-16 text-center" style={{ border: '1px solid #f0f4f8' }}>
+          <MessageSquare className="w-12 h-12 text-gray-200 mx-auto mb-3" />
+          <p className="text-gray-500 font-medium">
+            {reviews.length === 0 ? 'Отзывов пока нет' : 'Отзывы не найдены'}
+          </p>
+          {reviews.length === 0 && (
+            <p className="text-gray-400 text-sm mt-1">Отзывы появятся после завершения первых поездок</p>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map(review => {
+            const isExpanded = expandedId === review.reviewId;
+            const rating = review.rating || 0;
+            const authorName = review.authorName || review.authorEmail || '—';
+            const targetName = review.targetName || review.targetEmail || '—';
+            const comment = review.text || review.comment || review.message || '';
+            const initials = (authorName[0] || '?').toUpperCase();
+            const colors = RATING_COLOR[rating] || RATING_COLOR[3];
+
+            return (
+              <div
+                key={review.reviewId}
+                className="bg-white rounded-2xl overflow-hidden transition-shadow hover:shadow-md"
+                style={{ border: `1px solid ${colors.border}` }}
+              >
+                <div className="p-4">
+                  <div className="flex items-start gap-3">
+                    {/* Rating circle */}
+                    <div
+                      className="w-11 h-11 rounded-xl flex flex-col items-center justify-center flex-shrink-0"
+                      style={{ background: colors.bg }}
+                    >
+                      <span className="text-sm font-black" style={{ color: colors.text }}>{rating}</span>
+                      <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                    </div>
+
+                    {/* Author avatar */}
+                    <div
+                      className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
+                      style={{
+                        background: rating >= 4
+                          ? 'linear-gradient(135deg,#059669,#10b981)'
+                          : rating === 3
+                          ? 'linear-gradient(135deg,#d97706,#f59e0b)'
+                          : 'linear-gradient(135deg,#dc2626,#ef4444)',
+                      }}
+                    >
+                      {initials}
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <StarRow value={rating} />
+                        <span className="text-xs text-gray-400">
+                          <RelTime iso={review.createdAt} />
+                        </span>
+                        {review.role && (
+                          <span
+                            className="px-2 py-0.5 rounded-full text-[11px] font-semibold"
+                            style={{ background: '#f1f5f9', color: '#64748b' }}
+                          >
+                            {review.role === 'driver' ? '🚛 Водитель' : '📦 Отправитель'}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5 text-sm flex-wrap">
+                        <span className="font-semibold text-gray-900">{authorName}</span>
+                        <span className="text-gray-300">→</span>
+                        <span className="text-gray-500">{targetName}</span>
+                      </div>
+                      {comment ? (
+                        <p className={`text-sm text-gray-600 mt-2 leading-relaxed ${!isExpanded && comment.length > 160 ? 'line-clamp-2' : ''}`}>
+                          "{comment}"
+                        </p>
+                      ) : (
+                        <p className="text-xs text-gray-400 italic mt-2">Без комментария</p>
+                      )}
+                    </div>
+
+                    {comment && comment.length > 160 && (
+                      <button
+                        onClick={() => setExpandedId(isExpanded ? null : review.reviewId)}
+                        className="p-1.5 hover:bg-gray-100 rounded-xl text-gray-400 transition-colors flex-shrink-0 self-start"
+                      >
+                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      </button>
+                    )}
+                  </div>
+
+                  {isExpanded && (
+                    <div className="mt-3 pt-3 grid grid-cols-2 md:grid-cols-3 gap-3" style={{ borderTop: '1px solid #f0f4f8' }}>
+                      {[
+                        { label: 'Email автора', value: review.authorEmail || '—' },
+                        { label: 'Email получателя', value: review.targetEmail || '—' },
+                        { label: 'ID отзыва', value: review.reviewId?.slice(0, 16) + '...' || '—' },
+                        review.tripId && { label: 'ID поездки', value: review.tripId?.slice(0, 16) + '...' },
+                      ].filter(Boolean).map((f: any) => (
+                        <div key={f.label}>
+                          <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1">{f.label}</p>
+                          <p className="text-xs text-gray-700 font-mono break-all">{f.value}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <p className="text-xs text-gray-400 text-center">
+        Показано {filtered.length} из {reviews.length} отзывов
+      </p>
     </div>
   );
 }
