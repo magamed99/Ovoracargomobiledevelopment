@@ -8,5 +8,5 @@ port = 54321
 [db]
 port = 54322
 
-[functions.server]
+[functions.make-server-4e36197a]
 verify_jwt = false
