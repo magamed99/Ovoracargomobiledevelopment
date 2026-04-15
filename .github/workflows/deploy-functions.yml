@@ -17,7 +17,7 @@ jobs:
         with:
           version: latest
 
-      - name: Deploy Edge Functions
+      - name: Deploy Edge Function
         run: |
           supabase functions deploy server \
             --project-ref mkbcjxnoeevtkzaqcpsh \
