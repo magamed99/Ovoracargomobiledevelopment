@@ -8,7 +8,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { useLanguage } from '../context/LanguageContext';
 import dispatchSvg from '../../imports/dispatch_17418872.svg';
-import ovoraIcon from 'figma:asset/5c0cf8dea5e111dcce9003a04994750240fc2690.png';
+const ovoraIcon = '/5c0cf8dea5e111dcce9003a04994750240fc2690.png';
 import { getPublicStats } from '../api/dataApi';
 import { getAllReviews } from '../api/dataApi';
 

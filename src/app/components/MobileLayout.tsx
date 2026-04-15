@@ -192,7 +192,6 @@ function DesktopSidebar({
               display: 'flex', alignItems: 'center', gap: 11,
               padding: '9px 12px', borderRadius: 11, textDecoration: 'none',
               color: '#1e3a55', fontSize: 13, fontWeight: 500,
-              borderRadius: 11,
             }}
           >
             <span style={{

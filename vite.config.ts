@@ -22,14 +22,8 @@ export default defineConfig({
 
   // 🚀 ОПТИМИЗАЦИЯ: Настройки производительности
   build: {
-    // Минификация кода
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true, // Удалить console.log в продакшене
-        drop_debugger: true,
-      },
-    },
+    // Минификация кода (esbuild встроен в Vite, terser не нужен)
+    minify: 'esbuild',
     // Разделение кода на чанки
     rollupOptions: {
       output: {
