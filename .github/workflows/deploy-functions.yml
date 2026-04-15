@@ -22,7 +22,7 @@ jobs:
 
       - name: Deploy Edge Function
         run: |
-          supabase functions deploy server \
+          supabase functions deploy make-server-4e36197a \
             --project-ref mkbcjxnoeevtkzaqcpsh \
             --no-verify-jwt
         env:
