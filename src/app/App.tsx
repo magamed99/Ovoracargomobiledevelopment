@@ -51,6 +51,11 @@ export default function App() {
 
     document.body.style.overscrollBehavior = 'none';
 
+    // Pre-warm Edge Function to reduce cold start latency on first real request
+    fetch(`https://mkbcjxnoeevtkzaqcpsh.supabase.co/functions/v1/make-server-4e36197a/health`, {
+      headers: { 'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1rYmNqeG5vZWV2dGt6YXFjcHNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1MzIyNjIsImV4cCI6MjA4ODEwODI2Mn0.Xs69UZv49GxjWcJesdQ05brrEVFQYYNKydVqkIGoJJE` }
+    }).catch(() => {});
+
     initYandexApiKey().then((key) => {
       if (key) console.log('[App] Yandex Maps API initialized successfully');
       else console.warn('[App] Yandex Maps API key not loaded');

@@ -1,18 +1,21 @@
-
-  <!DOCTYPE html>
-  <html lang="ru" translate="no">
-    <head>
-      <meta charset="UTF-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <title>Ovora Cargo Mobile</title>
-      <script type="module" crossorigin src="/Ovoracargomobiledevelopment/assets/index-BR-umC2X.js"></script>
-      <link rel="modulepreload" crossorigin href="/Ovoracargomobiledevelopment/assets/react-vendor-WqCE88IL.js">
-      <link rel="modulepreload" crossorigin href="/Ovoracargomobiledevelopment/assets/ui-vendor-DYvJG8Kf.js">
-      <link rel="stylesheet" crossorigin href="/Ovoracargomobiledevelopment/assets/index-BVvDvOTm.css">
-    </head>
-
-    <body>
-      <div id="root"></div>
-    </body>
-  </html>
-  
+<!DOCTYPE html>
+<html lang="ru" translate="no">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ovora Cargo Mobile</title>
+    <!-- Preconnect to backend to reduce cold start latency -->
+    <link rel="preconnect" href="https://mkbcjxnoeevtkzaqcpsh.supabase.co" crossorigin>
+    <link rel="dns-prefetch" href="https://mkbcjxnoeevtkzaqcpsh.supabase.co">
+    <!-- Warm up Edge Function early (fire and forget) -->
+    <script>
+      fetch('https://mkbcjxnoeevtkzaqcpsh.supabase.co/functions/v1/make-server-4e36197a/health', {
+        headers: { 'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1rYmNqeG5vZWV2dGt6YXFjcHNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1MzIyNjIsImV4cCI6MjA4ODEwODI2Mn0.Xs69UZv49GxjWcJesdQ05brrEVFQYYNKydVqkIGoJJE' }
+      }).catch(() => {});
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
