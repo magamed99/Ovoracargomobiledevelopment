@@ -501,13 +501,9 @@ export function Welcome() {
             max-width: 360px;
           }
 
-          /* Lang selector: placed below hero on desktop (same flex column) */
+          /* Lang selector hidden on desktop — only visible on mobile */
           .wc-lang {
-            display: block;
-            flex: 1;
-            min-width: 0;
-            padding: clamp(16px, 2vh, 24px) clamp(20px, 3vw, 40px) 0 0;
-            order: 3;
+            display: none;
           }
 
           .wc-cards {
@@ -516,7 +512,6 @@ export function Welcome() {
             flex: none;
             padding: 0;
             justify-content: center;
-            order: 2;
           }
 
           .wc-card-inner { padding: 18px 18px 12px; gap: 14px; }
