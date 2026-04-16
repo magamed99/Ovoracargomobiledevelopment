@@ -17,13 +17,30 @@ jobs:
         with:
           version: latest
 
-      - name: Remove local config to avoid parse errors
+      - name: Remove local config
         run: rm -f supabase/config.toml
 
       - name: Deploy Edge Function
         run: |
           supabase functions deploy make-server-4e36197a \
             --project-ref mkbcjxnoeevtkzaqcpsh \
-            --no-verify-jwt
+            --no-verify-jwt \
+            --debug 2>&1 | tee /tmp/deploy_out.txt
+          echo "EXIT: ${PIPESTATUS[0]}" >> /tmp/deploy_out.txt
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Report error to issue
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let output = '';
+            try { output = fs.readFileSync('/tmp/deploy_out.txt', 'utf8').slice(0, 5000); } catch(e) { output = 'No output captured'; }
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Deploy error ${new Date().toISOString()}`,
+              body: '```\n' + output + '\n```'
+            });
