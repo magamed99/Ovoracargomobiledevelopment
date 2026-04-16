@@ -659,7 +659,10 @@ export function MobileLayout() {
   const sidebarWidth = !hideDesktopSidebar && !hideNav ? 'md:pl-[264px]' : '';
 
   return (
-    <div className="min-h-screen flex" style={{ background: '#060e1a' }}>
+    <div
+      className="flex overflow-hidden"
+      style={{ background: '#060e1a', height: '100dvh' }}
+    >
       {/* Desktop Sidebar */}
       {!hideDesktopSidebar && (
         <DesktopSidebar nav={nav} isActive={isActive} getBadge={getBadge} userRole={userRole} />
@@ -674,13 +677,13 @@ export function MobileLayout() {
       )}
 
       {/* Main content */}
-      <div className={`flex-1 flex flex-col min-h-screen ${sidebarWidth}`}>
+      <div className={`flex-1 flex flex-col overflow-hidden ${sidebarWidth}`}>
         <OfflineBanner />
         {userEmail && <PushPermissionBanner userEmail={userEmail} />}
 
         <main
           className={`flex-1 overflow-y-auto ${hideNav ? 'pb-0' : 'pb-24 md:pb-0'}`}
-          style={{ background: '#060e1a' }}
+          style={{ background: '#060e1a', WebkitOverflowScrolling: 'touch' }}
         >
           <Outlet />
         </main>

@@ -199,6 +199,7 @@ function SwipeableMessage({ messageId, isMine, isDark, onDelete, onCopy, childre
         style={{
           transform: `translateX(${isMine ? -swipeOffset : -swipeOffset}px)`,
           transition: endX === 0 ? 'transform 0.2s ease' : 'none',
+          touchAction: 'pan-y',
         }}
       >
         {children}
@@ -772,7 +773,7 @@ export function ChatPage() {
       </div>
 
       {/* ── MESSAGES ───────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto py-4 space-y-3">
+      <div className="flex-1 overflow-y-auto py-4 space-y-3" style={{ touchAction: 'pan-y', WebkitOverflowScrolling: 'touch' }}>
         <AnimatePresence initial={false}>
           {messages.map(msg => {
             const isMine = msg.from === userRole || msg.from === 'system' && false;

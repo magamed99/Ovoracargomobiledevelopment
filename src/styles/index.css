@@ -25,8 +25,8 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* Smooth transitions for theme changes */
-body, button, a, div[class*="bg-"], div[class*="border"] {
+/* Smooth transitions for theme changes — only interactive elements, not every div */
+button, a {
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
@@ -78,6 +78,18 @@ body, button, a, div[class*="bg-"], div[class*="border"] {
 /* ── Pull-to-refresh will-change hint ────────────────────────────────────── */
 .pull-container {
   overscroll-behavior-y: contain;
+}
+
+/* ── Momentum scrolling for iOS Safari ──────────────────────────────────── */
+[style*="overflow-y: auto"],
+[style*="overflow-y:auto"],
+.overflow-y-auto {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Prevent horizontal overflow from breaking layout ───────────────────── */
+body {
+  overflow-x: hidden;
 }
 
 /* ── Global glow / glass utilities ──────────────────────────────────────── */
