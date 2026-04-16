@@ -1,122 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
-import { Truck, Plane, ChevronRight, ArrowRight } from 'lucide-react';
+import { Truck, Plane, ArrowRight } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useLanguage } from '../context/LanguageContext';
 import type { LangCode } from '../i18n/translations';
 import { MapBackground } from './MapBackground';
-import { getPublicAds, getPublicStats } from '../api/dataApi';
+import { getPublicStats } from '../api/dataApi';
 
 const LANGS: { code: LangCode; flag: string; label: string }[] = [
-  { code: 'ru', flag: '\u{1F1F7}\u{1F1FA}', label: 'RU' },
-  { code: 'tj', flag: '\u{1F1F9}\u{1F1EF}', label: 'TJ' },
-  { code: 'en', flag: '\u{1F1FA}\u{1F1F8}', label: 'EN' },
+  { code: 'ru', flag: '🇷🇺', label: 'RU' },
+  { code: 'tj', flag: '🇹🇯', label: 'TJ' },
+  { code: 'en', flag: '🇺🇸', label: 'EN' },
 ];
-
-/* ── Ad banner carousel ────────────────────────────────────────────── */
-function AdCarousel({ ads }: { ads: any[] }) {
-  const [idx, setIdx] = useState(0);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  useEffect(() => {
-    if (ads.length <= 1) return;
-    timerRef.current = setInterval(() => setIdx(p => (p + 1) % ads.length), 5000);
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [ads.length]);
-
-  if (!ads.length) return null;
-  const ad = ads[idx % ads.length];
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.9, duration: 0.5 }}
-      style={{ width: '100%' }}
-    >
-      <a
-        href={ad.url && ad.url !== '#' ? ad.url : undefined}
-        target="_blank"
-        rel="noopener noreferrer"
-        style={{
-          display: 'block',
-          borderRadius: 16,
-          overflow: 'hidden',
-          border: '1px solid #ffffff12',
-          background: '#ffffff08',
-          textDecoration: 'none',
-          position: 'relative',
-          cursor: ad.url && ad.url !== '#' ? 'pointer' : 'default',
-        }}
-      >
-        {/* Image background */}
-        {ad.image && (
-          <img
-            src={ad.image}
-            alt=""
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.25 }}
-            onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-          />
-        )}
-        <div style={{
-          position: 'relative', zIndex: 2,
-          padding: '14px 16px',
-          display: 'flex', alignItems: 'center', gap: 12,
-        }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-              {ad.emoji && <span style={{ fontSize: 13 }}>{ad.emoji}</span>}
-              {ad.badge && (
-                <span style={{
-                  fontSize: 9, fontWeight: 800, color: '#5ba3f5',
-                  padding: '1px 7px', borderRadius: 8,
-                  background: '#5ba3f514', border: '1px solid #5ba3f525',
-                  letterSpacing: '0.06em', textTransform: 'uppercase',
-                }}>
-                  {ad.badge}
-                </span>
-              )}
-            </div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#e0e8f0', lineHeight: 1.3 }}>
-              {ad.title}
-            </div>
-            {ad.description && (
-              <div style={{ fontSize: 11, color: '#6b8299', marginTop: 2 }}>{ad.description}</div>
-            )}
-          </div>
-          {ad.url && ad.url !== '#' && (
-            <ChevronRight style={{ width: 16, height: 16, color: '#3d5268', flexShrink: 0 }} />
-          )}
-        </div>
-        {/* Dots */}
-        {ads.length > 1 && (
-          <div style={{
-            display: 'flex', gap: 4, justifyContent: 'center',
-            paddingBottom: 8,
-            position: 'relative', zIndex: 2,
-          }}>
-            {ads.map((_, i) => (
-              <div key={i} style={{
-                width: i === idx % ads.length ? 16 : 5,
-                height: 4, borderRadius: 3,
-                background: i === idx % ads.length ? '#5ba3f5' : '#ffffff1a',
-                transition: 'width 0.3s, background 0.3s',
-              }} />
-            ))}
-          </div>
-        )}
-        {/* Ad label */}
-        <div style={{
-          position: 'absolute', top: 8, right: 8, zIndex: 3,
-          fontSize: 8, fontWeight: 700, color: '#ffffff40',
-          letterSpacing: '0.08em', textTransform: 'uppercase',
-        }}>
-          AD
-        </div>
-      </a>
-    </motion.div>
-  );
-}
 
 /* ── Live dot ──────────────────────────────────────────────────────── */
 function LiveDot() {
@@ -153,19 +48,17 @@ function Counter({ target, suffix }: { target: number; suffix: string }) {
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   WELCOME — единый портал двух миров
+   WELCOME
    ══════════════════════════════════════════════════════════════════════ */
 export function Welcome() {
   const navigate = useNavigate();
   const { lang, setLang } = useLanguage();
   const [selectedLang, setSelectedLang] = useState<LangCode>(lang);
   const [mounted, setMounted] = useState(false);
-  const [ads, setAds] = useState<any[]>([]);
   const [liveStats, setLiveStats] = useState<{ drivers: number; cities: number; satisfied: number } | null>(null);
 
   useEffect(() => {
     setMounted(true);
-    getPublicAds('welcome').then(d => { if (d?.length) setAds(d); }).catch(() => {});
     getPublicStats().then(s => setLiveStats(s)).catch(() => {});
   }, []);
 
@@ -175,8 +68,8 @@ export function Welcome() {
 
   const stats = [
     { value: liveStats?.drivers ?? 3400, suffix: liveStats ? '' : '+', label: 'Водителей', color: '#5ba3f5' },
-    { value: liveStats?.cities ?? 12, suffix: '', label: 'Городов', color: '#a78bfa' },
-    { value: liveStats?.satisfied ?? 98, suffix: '%', label: 'Довольных', color: '#34d399' },
+    { value: liveStats?.cities ?? 12,    suffix: '',                    label: 'Городов',   color: '#a78bfa' },
+    { value: liveStats?.satisfied ?? 98, suffix: '%',                   label: 'Довольных', color: '#34d399' },
   ];
 
   return (
@@ -199,11 +92,11 @@ export function Welcome() {
       }} />
 
       {/* ══════ CONTENT ══════ */}
-      <div className="wc-portal-outer" style={{ position: 'relative', zIndex: 20 }}>
+      <div className="wc-outer" style={{ position: 'relative', zIndex: 20 }}>
 
         {/* ── HEADER ── */}
         <motion.div
-          className="wc-portal-header"
+          className="wc-header"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
@@ -211,12 +104,13 @@ export function Welcome() {
           {/* Logo */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{
-              width: 42, height: 42, borderRadius: 13,
+              width: 40, height: 40, borderRadius: 13,
               background: 'linear-gradient(135deg, #0f52b6 0%, #2176e8 100%)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: '0 0 0 1px #5ba3f54d, 0 8px 24px #1964c899',
+              flexShrink: 0,
             }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="1" y="3" width="15" height="13" rx="2"/>
                 <path d="M16 8h4l3 5v4h-7V8z"/>
                 <circle cx="5.5" cy="18.5" r="2.5"/>
@@ -224,10 +118,10 @@ export function Welcome() {
               </svg>
             </div>
             <div>
-              <div style={{ fontSize: 17, fontWeight: 800, color: '#fff', letterSpacing: '-0.3px', lineHeight: 1.1 }}>
+              <div style={{ fontSize: 16, fontWeight: 800, color: '#fff', letterSpacing: '-0.3px', lineHeight: 1.1 }}>
                 Ovora
               </div>
-              <div style={{ fontSize: 10, color: '#4a6080', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              <div style={{ fontSize: 9, color: '#4a6080', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                 Logistics & Air Cargo
               </div>
             </div>
@@ -236,28 +130,28 @@ export function Welcome() {
           {/* Online badge */}
           <div style={{
             display: 'flex', alignItems: 'center', gap: 6,
-            padding: '6px 12px',
+            padding: '5px 11px',
             background: '#34d39914', border: '1px solid #34d39933',
             borderRadius: 20,
           }}>
             <LiveDot />
             <span style={{ fontSize: 10, fontWeight: 700, color: '#34d399', letterSpacing: '0.06em' }}>
-              {'\u041E\u041D\u041B\u0410\u0419\u041D'}
+              ОНЛАЙН
             </span>
           </div>
         </motion.div>
 
         {/* ── HERO ── */}
-        <div className="wc-portal-hero">
+        <div className="wc-hero">
           <motion.div
             initial={{ opacity: 0, x: -12 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.2, duration: 0.4 }}
-            style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}
           >
-            <div style={{ width: 24, height: 2, background: '#1978e5', borderRadius: 1 }} />
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#5ba3f5', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-              {'\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u043D\u0430\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u0435'}
+            <div style={{ width: 22, height: 2, background: '#1978e5', borderRadius: 1 }} />
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#5ba3f5', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+              Выберите направление
             </span>
           </motion.div>
 
@@ -265,13 +159,10 @@ export function Welcome() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.25, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            className="wc-portal-title"
-            style={{
-              fontWeight: 900, lineHeight: 1.05, letterSpacing: '-1.5px',
-              color: '#fff', margin: '0 0 6px',
-            }}
+            className="wc-title"
+            style={{ fontWeight: 900, lineHeight: 1.05, letterSpacing: '-1.5px', color: '#fff', margin: '0 0 6px' }}
           >
-            {'\u041F\u043B\u0430\u0442\u0444\u043E\u0440\u043C\u0430'}
+            Платформа
             <br />
             <span style={{
               background: 'linear-gradient(95deg, #2176e8 0%, #5ba3f5 45%, #38bdf8 100%)',
@@ -285,30 +176,31 @@ export function Welcome() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.35, duration: 0.5 }}
-            style={{ fontSize: 14, color: '#6b8299', lineHeight: 1.6, margin: '0 0 24px', maxWidth: 380 }}
+            className="wc-desc"
+            style={{ color: '#6b8299', lineHeight: 1.55, margin: '0 0 0', maxWidth: 380 }}
           >
-            {'\u0413\u0440\u0443\u0437\u043E\u043F\u0435\u0440\u0435\u0432\u043E\u0437\u043A\u0438 \u0438 \u0430\u0432\u0438\u0430\u0434\u043E\u0441\u0442\u0430\u0432\u043A\u0430 \u043C\u0435\u0436\u0434\u0443 \u0420\u043E\u0441\u0441\u0438\u0439, \u0422\u0430\u0434\u0436\u0438\u043A\u0438\u0441\u0442\u0430\u043D\u043E\u043C \u0438 \u0421\u041D\u0413. \u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0441\u0432\u043E\u0439 \u043C\u043E\u0434\u0443\u043B\u044C \u0438 \u043D\u0430\u0447\u043D\u0438\u0442\u0435 \u0440\u0430\u0431\u043E\u0442\u0430\u0442\u044C.'}
+            Грузоперевозки и авиадоставка между Россией, Таджикистаном и СНГ.
           </motion.p>
 
           {/* Stats — desktop only */}
           <motion.div
-            className="wc-portal-stats"
+            className="wc-stats"
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.45, duration: 0.5 }}
           >
             {stats.map((s, i) => (
-              <div key={s.label} className="wc-portal-stat-item" style={{ position: 'relative' }}>
+              <div key={s.label} className="wc-stat-item" style={{ position: 'relative' }}>
                 {i < stats.length - 1 && (
                   <div style={{
                     position: 'absolute', right: 0, top: '12%', height: '76%',
                     width: 1, background: '#ffffff0a', pointerEvents: 'none',
                   }} />
                 )}
-                <div style={{ fontSize: 22, fontWeight: 900, color: s.color, lineHeight: 1 }}>
+                <div style={{ fontSize: 20, fontWeight: 900, color: s.color, lineHeight: 1 }}>
                   <Counter target={s.value} suffix={s.suffix} />
                 </div>
-                <div style={{ fontSize: 10, color: '#4a6080', fontWeight: 600, letterSpacing: '0.05em', marginTop: 4 }}>
+                <div style={{ fontSize: 10, color: '#4a6080', fontWeight: 600, letterSpacing: '0.05em', marginTop: 3 }}>
                   {s.label}
                 </div>
               </div>
@@ -316,255 +208,254 @@ export function Welcome() {
           </motion.div>
         </div>
 
+        {/* ── LANGUAGE SELECTOR (above cards on mobile) ── */}
+        <motion.div
+          className="wc-lang"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4, duration: 0.4 }}
+        >
+          <div style={{ fontSize: 9, fontWeight: 700, color: '#3d5268', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 7 }}>
+            Язык интерфейса
+          </div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {LANGS.map(l => {
+              const isActive = selectedLang === l.code;
+              return (
+                <motion.button
+                  key={l.code}
+                  whileTap={{ scale: 0.94 }}
+                  onClick={() => handleLangSelect(l.code)}
+                  style={{
+                    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                    padding: '8px 4px', borderRadius: 11,
+                    border: isActive ? '1px solid #5ba3f560' : '1px solid #ffffff0f',
+                    background: isActive ? '#2176e820' : '#ffffff08',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <span style={{ fontSize: 16 }}>{l.flag}</span>
+                  <span style={{
+                    fontSize: 11, fontWeight: 700,
+                    color: isActive ? '#e8f0ff' : '#3d5268',
+                    letterSpacing: '0.04em',
+                  }}>
+                    {l.label}
+                  </span>
+                </motion.button>
+              );
+            })}
+          </div>
+        </motion.div>
+
         {/* ── WORLD CARDS ── */}
-        <div className="wc-portal-cards">
-          {/* CARGO card */}
+        <div className="wc-cards">
+          {/* CARGO */}
           <motion.button
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.45, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ delay: 0.5, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
             whileTap={{ scale: 0.97 }}
             onClick={() => navigate('/role-select')}
-            className="wc-world-card"
+            className="wc-card"
             style={{
               background: 'linear-gradient(145deg, #0d1f3c 0%, #0a1628 100%)',
               border: '1px solid #1d4ed830',
-              borderRadius: 22,
-              padding: 0,
-              cursor: 'pointer',
-              overflow: 'hidden',
-              textAlign: 'left',
-              position: 'relative',
-              width: '100%',
             }}
           >
-            {/* Top glow */}
-            <div style={{
-              position: 'absolute', top: 0, left: 0, right: 0, height: 1,
-              background: 'linear-gradient(90deg, transparent, #3b82f680, transparent)',
-            }} />
-            <div style={{ padding: 'clamp(18px, 4vw, 24px)' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-                <div style={{
-                  width: 52, height: 52, borderRadius: 16,
-                  background: 'linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  flexShrink: 0,
-                  boxShadow: '0 0 20px #3b82f633',
-                }}>
-                  <Truck style={{ width: 26, height: 26, color: '#fff' }} />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                    <span style={{ fontSize: 18, fontWeight: 800, color: '#fff', letterSpacing: '-0.3px' }}>
-                      CARGO
-                    </span>
-                    <span style={{
-                      fontSize: 9, fontWeight: 700, color: '#34d399',
-                      padding: '2px 8px', borderRadius: 10,
-                      background: '#34d39914', border: '1px solid #34d39930',
-                      letterSpacing: '0.06em',
-                    }}>
-                      LIVE
-                    </span>
-                  </div>
-                  <p style={{ fontSize: 12, color: '#6b8299', lineHeight: 1.5, margin: 0 }}>
-                    {'\u0413\u0440\u0443\u0437\u043E\u043F\u0435\u0440\u0435\u0432\u043E\u0437\u043A\u0438 \u0420\u043E\u0441\u0441\u0438\u044F \u00B7 \u0422\u0430\u0434\u0436\u0438\u043A\u0438\u0441\u0442\u0430\u043D \u00B7 \u0421\u041D\u0413'}
-                  </p>
-                </div>
-                <ArrowRight style={{ width: 20, height: 20, color: '#3b82f6', flexShrink: 0, marginTop: 4 }} />
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: 'linear-gradient(90deg, transparent, #3b82f680, transparent)' }} />
+            <div className="wc-card-inner">
+              <div style={{
+                width: 48, height: 48, borderRadius: 15,
+                background: 'linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                boxShadow: '0 0 18px #3b82f633',
+              }}>
+                <Truck style={{ width: 24, height: 24, color: '#fff' }} />
               </div>
-              {/* Features row */}
-              <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
-                {['\u{1F6E3}\u{FE0F} \u0413\u0440\u0430\u043D\u0438\u0446\u044B', '\u{1F697} \u0412\u043E\u0434\u0438\u0442\u0435\u043B\u0438', '\u{1F4E6} \u0413\u0440\u0443\u0437\u044B', '\u{1F4E1} \u0420\u0430\u0446\u0438\u044F'].map(tag => (
-                  <span key={tag} style={{
-                    fontSize: 10, fontWeight: 600, color: '#5ba3f5',
-                    padding: '3px 10px', borderRadius: 8,
-                    background: '#3b82f60d', border: '1px solid #3b82f620',
-                  }}>
-                    {tag}
-                  </span>
-                ))}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3 }}>
+                  <span style={{ fontSize: 17, fontWeight: 800, color: '#fff', letterSpacing: '-0.3px' }}>CARGO</span>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: '#34d399', padding: '2px 7px', borderRadius: 9, background: '#34d39914', border: '1px solid #34d39930', letterSpacing: '0.06em' }}>LIVE</span>
+                </div>
+                <p style={{ fontSize: 11, color: '#6b8299', lineHeight: 1.45, margin: 0 }}>
+                  Грузоперевозки Россия · Таджикистан · СНГ
+                </p>
               </div>
+              <ArrowRight style={{ width: 18, height: 18, color: '#3b82f6', flexShrink: 0 }} />
+            </div>
+            <div className="wc-card-tags">
+              {['🛣️ Границы', '🚗 Водители', '📦 Грузы', '📡 Рация'].map(tag => (
+                <span key={tag} style={{ fontSize: 10, fontWeight: 600, color: '#5ba3f5', padding: '3px 9px', borderRadius: 8, background: '#3b82f60d', border: '1px solid #3b82f620' }}>
+                  {tag}
+                </span>
+              ))}
             </div>
           </motion.button>
 
-          {/* AVIA card */}
+          {/* AVIA */}
           <motion.button
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.55, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ delay: 0.6, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
             whileTap={{ scale: 0.97 }}
             onClick={() => navigate('/avia')}
-            className="wc-world-card"
+            className="wc-card"
             style={{
               background: 'linear-gradient(145deg, #0c1f2e 0%, #0a1420 100%)',
               border: '1px solid #0ea5e925',
-              borderRadius: 22,
-              padding: 0,
-              cursor: 'pointer',
-              overflow: 'hidden',
-              textAlign: 'left',
-              position: 'relative',
-              width: '100%',
             }}
           >
-            {/* Top glow */}
-            <div style={{
-              position: 'absolute', top: 0, left: 0, right: 0, height: 1,
-              background: 'linear-gradient(90deg, transparent, #0ea5e960, transparent)',
-            }} />
-            <div style={{ padding: 'clamp(18px, 4vw, 24px)' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-                <div style={{
-                  width: 52, height: 52, borderRadius: 16,
-                  background: 'linear-gradient(135deg, #0369a1 0%, #0ea5e9 100%)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  flexShrink: 0,
-                  boxShadow: '0 0 20px #0ea5e933',
-                }}>
-                  <Plane style={{ width: 26, height: 26, color: '#fff' }} />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                    <span style={{ fontSize: 18, fontWeight: 800, color: '#fff', letterSpacing: '-0.3px' }}>
-                      AVIA
-                    </span>
-                    <span style={{
-                      fontSize: 9, fontWeight: 700, color: '#34d399',
-                      padding: '2px 8px', borderRadius: 10,
-                      background: '#34d39914', border: '1px solid #34d39930',
-                      letterSpacing: '0.06em',
-                    }}>
-                      LIVE
-                    </span>
-                  </div>
-                  <p style={{ fontSize: 12, color: '#6b8299', lineHeight: 1.5, margin: 0 }}>
-                    {'\u0410\u0432\u0438\u0430\u0433\u0440\u0443\u0437 \u0420\u043E\u0441\u0441\u0438\u044F \u2194 \u0422\u0430\u0434\u0436\u0438\u043A\u0438\u0441\u0442\u0430\u043D'}
-                  </p>
-                </div>
-                <ArrowRight style={{ width: 20, height: 20, color: '#0ea5e9', flexShrink: 0, marginTop: 4 }} />
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: 'linear-gradient(90deg, transparent, #0ea5e960, transparent)' }} />
+            <div className="wc-card-inner">
+              <div style={{
+                width: 48, height: 48, borderRadius: 15,
+                background: 'linear-gradient(135deg, #0369a1 0%, #0ea5e9 100%)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                boxShadow: '0 0 18px #0ea5e933',
+              }}>
+                <Plane style={{ width: 24, height: 24, color: '#fff' }} />
               </div>
-              {/* Features row */}
-              <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
-                {['\u2708\u{FE0F} \u041A\u0443\u0440\u044C\u0435\u0440', '\u{1F4E8} \u041E\u0442\u043F\u0440\u0430\u0432\u0438\u0442\u0435\u043B\u044C', '\u{1F504} \u0413\u0438\u0431\u043A\u0438\u0435 \u0440\u043E\u043B\u0438'].map(tag => (
-                  <span key={tag} style={{
-                    fontSize: 10, fontWeight: 600, color: '#38bdf8',
-                    padding: '3px 10px', borderRadius: 8,
-                    background: '#0ea5e90d', border: '1px solid #0ea5e920',
-                  }}>
-                    {tag}
-                  </span>
-                ))}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3 }}>
+                  <span style={{ fontSize: 17, fontWeight: 800, color: '#fff', letterSpacing: '-0.3px' }}>AVIA</span>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: '#34d399', padding: '2px 7px', borderRadius: 9, background: '#34d39914', border: '1px solid #34d39930', letterSpacing: '0.06em' }}>LIVE</span>
+                </div>
+                <p style={{ fontSize: 11, color: '#6b8299', lineHeight: 1.45, margin: 0 }}>
+                  Авиагруз Россия ↔ Таджикистан
+                </p>
               </div>
+              <ArrowRight style={{ width: 18, height: 18, color: '#0ea5e9', flexShrink: 0 }} />
+            </div>
+            <div className="wc-card-tags">
+              {['✈️ Курьер', '📨 Отправитель', '🔄 Гибкие роли'].map(tag => (
+                <span key={tag} style={{ fontSize: 10, fontWeight: 600, color: '#38bdf8', padding: '3px 9px', borderRadius: 8, background: '#0ea5e90d', border: '1px solid #0ea5e920' }}>
+                  {tag}
+                </span>
+              ))}
             </div>
           </motion.button>
         </div>
 
-        {/* ── BOTTOM: Lang + Ads ── */}
-        <div className="wc-portal-bottom">
-          {/* Language */}
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7, duration: 0.4 }}
-            style={{ width: '100%' }}
-          >
-            <div style={{ fontSize: 9, fontWeight: 700, color: '#3d5268', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>
-              {'\u042F\u0437\u044B\u043A \u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0430'}
-            </div>
-            <div style={{ display: 'flex', gap: 6 }}>
-              {LANGS.map(l => {
-                const isActive = selectedLang === l.code;
-                return (
-                  <motion.button
-                    key={l.code}
-                    whileTap={{ scale: 0.94 }}
-                    onClick={() => handleLangSelect(l.code)}
-                    style={{
-                      flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                      padding: '9px 6px', borderRadius: 12,
-                      border: isActive ? '1px solid #5ba3f560' : '1px solid #ffffff0f',
-                      background: isActive ? '#2176e820' : '#ffffff08',
-                      cursor: 'pointer',
-                      transition: 'border-color 0.2s, background 0.2s',
-                    }}
-                  >
-                    <span style={{ fontSize: 18 }}>{l.flag}</span>
-                    <span style={{
-                      fontSize: 11, fontWeight: 700,
-                      color: isActive ? '#e8f0ff' : '#3d5268',
-                      letterSpacing: '0.04em',
-                    }}>
-                      {l.label}
-                    </span>
-                  </motion.button>
-                );
-              })}
-            </div>
-          </motion.div>
-
-          {/* Ads carousel */}
-          {ads.length > 0 && <AdCarousel ads={ads} />}
-        </div>
+        {/* ── FOOTER spacer ── */}
+        <div className="wc-footer-space" />
 
       </div>
 
       <style>{`
-        .wc-portal-outer {
+        /* ═══════ BASE (mobile-first) ═══════ */
+        .wc-outer {
           display: flex;
           flex-direction: column;
           min-height: 100dvh;
           width: 100%;
-          max-width: 100vw;
           box-sizing: border-box;
-          padding: 0;
         }
-        .wc-portal-header {
+
+        .wc-header {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: clamp(14px,4vw,24px) clamp(16px,5vw,24px) 0;
+          padding: max(14px, env(safe-area-inset-top, 14px)) 18px 0;
           flex-shrink: 0;
         }
-        .wc-portal-hero {
-          padding: clamp(20px,5vw,32px) clamp(16px,5vw,24px) 0;
+
+        .wc-hero {
+          padding: 18px 18px 0;
           flex-shrink: 0;
         }
-        .wc-portal-title {
-          font-size: clamp(30px, 8vw, 42px);
+
+        .wc-title {
+          font-size: clamp(28px, 9vw, 40px);
         }
-        .wc-portal-stats {
+
+        .wc-desc {
+          font-size: clamp(12px, 3.5vw, 14px);
+        }
+
+        .wc-stats {
           display: none;
         }
-        .wc-portal-stat-item {
+
+        .wc-stat-item {
           flex: 1;
           text-align: center;
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          padding: 14px 8px;
+          padding: 12px 8px;
         }
-        .wc-portal-cards {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-          padding: clamp(16px,4vw,24px) clamp(16px,5vw,24px) 0;
-          flex: 1;
-          justify-content: center;
-        }
-        .wc-portal-bottom {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-          padding: clamp(14px,3vw,20px) clamp(16px,5vw,24px) clamp(18px,4dvh,28px);
+
+        /* Language selector — shown above cards on mobile */
+        .wc-lang {
+          padding: 14px 18px 0;
           flex-shrink: 0;
         }
 
-        /* ── DESKTOP ── */
+        .wc-cards {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          padding: 12px 18px 0;
+          flex: 1;
+        }
+
+        .wc-card {
+          border-radius: 20px;
+          padding: 0;
+          cursor: pointer;
+          overflow: hidden;
+          text-align: left;
+          position: relative;
+          width: 100%;
+        }
+
+        .wc-card-inner {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 14px 14px 10px;
+        }
+
+        .wc-card-tags {
+          display: flex;
+          gap: 6px;
+          flex-wrap: wrap;
+          padding: 0 14px 14px;
+        }
+
+        .wc-footer-space {
+          height: max(16px, env(safe-area-inset-bottom, 16px));
+          flex-shrink: 0;
+        }
+
+        /* ── SMALL PHONES (≤ 360px) ── */
+        @media (max-width: 360px) {
+          .wc-title  { font-size: 26px; }
+          .wc-desc   { font-size: 11px; }
+          .wc-header { padding-top: max(12px, env(safe-area-inset-top, 12px)); }
+          .wc-hero   { padding-top: 12px; }
+          .wc-lang   { padding-top: 10px; }
+          .wc-cards  { padding-top: 8px; gap: 8px; }
+          .wc-card-inner { padding: 12px 12px 8px; gap: 10px; }
+          .wc-card-tags  { padding: 0 12px 12px; gap: 5px; }
+        }
+
+        /* ── COMPACT HEIGHT (landscape phones) ── */
+        @media (max-height: 600px) {
+          .wc-hero  { padding-top: 10px; }
+          .wc-lang  { padding-top: 8px; }
+          .wc-cards { padding-top: 8px; gap: 7px; }
+          .wc-title { font-size: 24px; letter-spacing: -1px; }
+          .wc-desc  { display: none; }
+          .wc-card-inner { padding: 11px 12px 8px; }
+          .wc-card-tags  { padding: 0 12px 11px; }
+        }
+
+        /* ── TABLET / DESKTOP (≥ 700px) ── */
         @media (min-width: 700px) {
-          .wc-portal-outer {
+          .wc-outer {
             max-width: 1200px;
             margin: 0 auto;
             flex-direction: row;
@@ -572,64 +463,77 @@ export function Welcome() {
             align-content: center;
             justify-content: center;
             padding: clamp(24px, 4vw, 40px) clamp(28px, 4vw, 56px);
-            gap: 0;
+            min-height: 100dvh;
           }
-          .wc-portal-header {
+
+          .wc-header {
             width: 100%;
-            padding: 0 0 clamp(24px,4vh,40px);
+            padding: 0 0 clamp(20px, 4vh, 36px);
           }
-          .wc-portal-hero {
+
+          .wc-hero {
             flex: 1;
             min-width: 0;
-            padding: 0 clamp(20px,3vw,40px) 0 0;
+            padding: 0 clamp(20px, 3vw, 40px) 0 0;
             display: flex;
             flex-direction: column;
             justify-content: center;
           }
-          .wc-portal-title {
-            font-size: clamp(38px, 4.5vw, 60px);
+
+          .wc-title {
+            font-size: clamp(36px, 4.5vw, 58px);
           }
-          .wc-portal-stats {
+
+          .wc-desc {
+            font-size: 14px;
+            display: block !important;
+          }
+
+          .wc-stats {
             display: flex;
             gap: 0;
-            margin-top: 28px;
+            margin-top: 24px;
             border: 1px solid #ffffff12;
-            border-radius: 18px;
+            border-radius: 16px;
             overflow: hidden;
             backdrop-filter: blur(20px);
             background: #ffffff08;
-            max-width: 380px;
+            max-width: 360px;
           }
-          .wc-portal-cards {
-            width: clamp(320px, 35vw, 440px);
+
+          /* Lang selector: placed below hero on desktop (same flex column) */
+          .wc-lang {
+            display: block;
+            flex: 1;
+            min-width: 0;
+            padding: clamp(16px, 2vh, 24px) clamp(20px, 3vw, 40px) 0 0;
+            order: 3;
+          }
+
+          .wc-cards {
+            width: clamp(300px, 34vw, 420px);
             flex-shrink: 0;
             flex: none;
             padding: 0;
             justify-content: center;
+            order: 2;
           }
-          .wc-portal-bottom {
+
+          .wc-card-inner { padding: 18px 18px 12px; gap: 14px; }
+          .wc-card-tags  { padding: 0 18px 18px; }
+
+          .wc-footer-space {
             width: 100%;
-            flex-direction: row;
-            align-items: flex-end;
-            padding: clamp(20px,3vh,32px) 0 0;
-            gap: 20px;
-          }
-          .wc-portal-bottom > * {
-            flex: 1;
+            order: 4;
+            height: clamp(16px, 3vh, 28px);
           }
         }
 
-        /* ── LARGE DESKTOP ── */
+        /* ── LARGE DESKTOP (≥ 1200px) ── */
         @media (min-width: 1200px) {
-          .wc-portal-outer {
-            max-width: 1360px;
-          }
-          .wc-portal-title {
-            font-size: 64px;
-          }
-          .wc-portal-cards {
-            width: 460px;
-          }
+          .wc-outer  { max-width: 1360px; }
+          .wc-title  { font-size: 62px; }
+          .wc-cards  { width: 450px; }
         }
       `}</style>
     </div>
