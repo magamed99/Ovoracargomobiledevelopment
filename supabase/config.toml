@@ -1,5 +1,5 @@
-[project]
-id = "mkbcjxnoeevtkzaqcpsh"
+# project_id is used to configure the Supabase CLI
+project_id = "mkbcjxnoeevtkzaqcpsh"
 
 [api]
 enabled = true
