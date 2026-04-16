@@ -13,12 +13,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Supabase CLI
-        run: |
-          curl -sL "https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz" -o supabase.tar.gz
-          tar -xzf supabase.tar.gz
-          sudo mv supabase /usr/local/bin/supabase
-          supabase --version
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
 
       - name: Deploy Edge Function
         run: |
