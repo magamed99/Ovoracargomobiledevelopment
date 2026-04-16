@@ -19,8 +19,12 @@ jobs:
 
       - name: Deploy Edge Function
         run: |
+          set -e
+          echo "=== Deploying function ==="
           supabase functions deploy make-server-4e36197a \
             --project-ref mkbcjxnoeevtkzaqcpsh \
-            --no-verify-jwt
+            --no-verify-jwt 2>&1
+          echo "=== Deploy exit code: $? ==="
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DEBUG: "true"
