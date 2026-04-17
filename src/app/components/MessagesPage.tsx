@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import {
   Search, ArrowLeft, CheckCheck, Shield, Truck, Package,
   MessageSquare, RefreshCw, Trash2, Eye,
@@ -127,7 +127,7 @@ export function MessagesPage() {
       c.lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-  const totalUnread = chats.reduce((acc, c) => acc + (c.unread || 0), 0);
+  const totalUnread = useMemo(() => chats.reduce((acc, c) => acc + (c.unread || 0), 0), [chats]);
 
   const openChat = (chat: Chat) => { markRead(chat.id); navigate(`/chat/${chat.id}`); };
 
@@ -218,10 +218,10 @@ export function MessagesPage() {
   };
 
   return (
-    <div className="font-['Sora'] bg-[#0e1621] min-h-screen">
+    <div className="font-['Sora'] bg-[#0e1621]">
 
       {/* ══════════════════════ MOBILE ══════════════════════════ */}
-      <div className="md:hidden flex flex-col min-h-screen">
+      <div className="md:hidden flex flex-col" style={{ height: '100dvh' }}>
 
         {/* ── STICKY HEADER ── */}
         <div className="sticky top-0 z-30 bg-[#0e1621]">
@@ -276,7 +276,7 @@ export function MessagesPage() {
       </div>
 
       {/* ══════════════════════ DESKTOP ═════════════════════════════════════ */}
-      <div className="hidden md:flex flex-col min-h-screen">
+      <div className="hidden md:flex flex-col" style={{ height: '100dvh' }}>
 
         {/* ── Compact header ── */}
         <div className="shrink-0 border-b border-white/[0.06] px-6 lg:px-10 py-4" style={{ background: '#0a1520' }}>
@@ -462,8 +462,6 @@ function ChatRow({ chat, onOpen, onDelete, isSelected }: {
   const hasUnread = (chat.unread || 0) > 0;
   const contact   = chat.contact;
 
-  const [startX,     setStartX]     = useState(0);
-  const [endX,       setEndX]       = useState(0);
   const [dragOffset, setDragOffset] = useState(0);
   const [swiped,     setSwiped]     = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -484,8 +482,6 @@ function ChatRow({ chat, onOpen, onDelete, isSelected }: {
     startXRef.current = x;
     endXRef.current   = x;
     didDragRef.current = false;
-    setStartX(x);
-    setEndX(x);
   };
   const onTouchMove = (e: React.TouchEvent) => {
     const cur = e.targetTouches[0].clientX;
@@ -496,7 +492,6 @@ function ChatRow({ chat, onOpen, onDelete, isSelected }: {
       setIsDragging(true);
     }
     setDragOffset(Math.max(0, Math.min(offset, MAX_DRAG)));
-    setEndX(cur);
   };
   const onTouchEnd = () => {
     setIsDragging(false);
@@ -512,8 +507,29 @@ function ChatRow({ chat, onOpen, onDelete, isSelected }: {
   };
 
   const onMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault(); setIsDragging(true); setEndX(0); setStartX(e.clientX);
+    e.preventDefault(); setIsDragging(true);
     startXRef.current = e.clientX; endXRef.current = e.clientX; didDragRef.current = false;
+  };
+  const onMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return;
+    const cur = e.clientX;
+    endXRef.current = cur;
+    const offset = startXRef.current - cur;
+    if (offset > DRAG_THRESHOLD) didDragRef.current = true;
+    setDragOffset(Math.max(0, Math.min(offset, MAX_DRAG)));
+  };
+  const onMouseUp = () => {
+    if (!isDragging) return;
+    setIsDragging(false);
+    const offset = startXRef.current - endXRef.current;
+    if (offset > MIN_SWIPE) {
+      swipedRef.current = true;
+      setSwiped(true);
+    } else if (didDragRef.current) {
+      swipedRef.current = false;
+      setSwiped(false);
+    }
+    setDragOffset(0);
   };
 
   const handleDelete = (e: React.MouseEvent) => {
@@ -557,8 +573,10 @@ function ChatRow({ chat, onOpen, onDelete, isSelected }: {
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
         onMouseDown={onMouseDown}
+        onMouseMove={onMouseMove}
+        onMouseUp={onMouseUp}
         onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
+        onMouseLeave={() => { setIsHovered(false); onMouseUp(); }}
         className="w-full flex items-center gap-3.5 px-4 py-3.5 text-left select-none cursor-pointer outline-none focus:outline-none shadow-none relative"
         style={{
           transform: swiped ? 'translateX(-80px)' : `translateX(-${dragOffset}px)`,
