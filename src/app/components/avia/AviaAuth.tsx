@@ -238,17 +238,22 @@ export function AviaAuth() {
 
   return (
     <div style={{
-      minHeight: '100dvh',
+      height: '100dvh',
       background: '#060d18',
       display: 'flex', flexDirection: 'column',
       fontFamily: "'Sora', 'Inter', sans-serif",
       position: 'relative', overflow: 'hidden',
     }}>
-      {/* Background glow */}
+      {/* Background glows */}
       <div style={{
-        position: 'absolute', width: 400, height: 400, borderRadius: '50%',
-        background: 'radial-gradient(circle, #0ea5e918 0%, transparent 70%)',
-        top: '10%', left: '50%', transform: 'translateX(-50%)', pointerEvents: 'none',
+        position: 'absolute', width: 500, height: 500, borderRadius: '50%',
+        background: 'radial-gradient(circle, #0ea5e914 0%, transparent 70%)',
+        top: '-10%', left: '50%', transform: 'translateX(-50%)', pointerEvents: 'none',
+      }} />
+      <div style={{
+        position: 'absolute', width: 300, height: 300, borderRadius: '50%',
+        background: 'radial-gradient(circle, #0369a112 0%, transparent 70%)',
+        bottom: '5%', right: '-10%', pointerEvents: 'none',
       }} />
 
       {/* Header */}
@@ -258,7 +263,8 @@ export function AviaAuth() {
         transition={{ duration: 0.4 }}
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: 'clamp(14px, 4vw, 20px) clamp(16px, 5vw, 24px)',
+          padding: 'max(14px, env(safe-area-inset-top, 14px)) clamp(16px, 5vw, 24px) 0',
+          flexShrink: 0,
         }}
       >
         <button onClick={handleBack} style={{
@@ -276,6 +282,7 @@ export function AviaAuth() {
             width: 34, height: 34, borderRadius: 10,
             background: 'linear-gradient(135deg, #0369a1 0%, #0ea5e9 100%)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 4px 16px #0ea5e930',
           }}>
             <Plane style={{ width: 18, height: 18, color: '#fff' }} />
           </div>
@@ -285,12 +292,14 @@ export function AviaAuth() {
         </div>
       </motion.div>
 
-      {/* Content */}
+      {/* Content — scrollable flex column, top-aligned */}
       <div style={{
         flex: 1, display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center',
-        padding: '0 clamp(20px, 6vw, 40px) clamp(30px, 6dvh, 60px)',
+        alignItems: 'center',
+        overflowY: 'auto', WebkitOverflowScrolling: 'touch' as any,
+        padding: 'clamp(20px, 4dvh, 40px) clamp(20px, 6vw, 40px) 0',
         maxWidth: 440, margin: '0 auto', width: '100%',
+        boxSizing: 'border-box',
       }}>
         <AnimatePresence mode="wait">
           {/* ══════════ STEP: PHONE ══════════ */}
@@ -303,70 +312,88 @@ export function AviaAuth() {
               transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
               style={{ width: '100%', textAlign: 'center' }}
             >
+              {/* Brand hero */}
+              <div style={{ marginBottom: 'clamp(24px, 5dvh, 40px)', textAlign: 'center' }}>
+                <div style={{
+                  width: 80, height: 80, borderRadius: 26, margin: '0 auto 18px',
+                  background: 'linear-gradient(135deg, #0369a1 0%, #0ea5e9 100%)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 0 0 1px #0ea5e930, 0 12px 40px #0ea5e940',
+                }}>
+                  <Plane style={{ width: 38, height: 38, color: '#fff' }} />
+                </div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#0ea5e9', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 6 }}>
+                  Ovora · Авиагруз
+                </div>
+                <h2 style={{ fontSize: 'clamp(22px, 6vw, 28px)', fontWeight: 900, color: '#fff', margin: 0, letterSpacing: '-0.5px', lineHeight: 1.1 }}>
+                  Вход в AVIA
+                </h2>
+                <p style={{ fontSize: 13, color: '#6b8299', margin: '8px 0 0', lineHeight: 1.55 }}>
+                  Введите номер телефона для входа<br />или регистрации
+                </p>
+              </div>
+
+              {/* Card */}
               <div style={{
-                width: 64, height: 64, borderRadius: 20, margin: '0 auto 20px',
-                background: '#0ea5e915', border: '1px solid #0ea5e930',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: '100%', borderRadius: 24,
+                background: '#ffffff06', border: '1px solid #ffffff10',
+                padding: 'clamp(18px, 4vw, 24px)',
+                marginBottom: 12,
               }}>
-                <Phone style={{ width: 28, height: 28, color: '#0ea5e9' }} />
-              </div>
+                <div style={{ position: 'relative', marginBottom: 14 }}>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => handlePhoneChange(e.target.value)}
+                    placeholder="+992 XX XXX XX XX"
+                    autoFocus
+                    onKeyDown={(e) => e.key === 'Enter' && handlePhoneSubmit()}
+                    style={{
+                      width: '100%', padding: '15px 18px',
+                      borderRadius: 14, border: '1.5px solid #ffffff18',
+                      background: '#ffffff08', color: '#fff',
+                      fontSize: 18, fontWeight: 600,
+                      outline: 'none', letterSpacing: '0.5px',
+                      textAlign: 'center',
+                      boxSizing: 'border-box',
+                      transition: 'border-color 0.2s',
+                    }}
+                    onFocus={e => (e.target as HTMLInputElement).style.borderColor = '#0ea5e960'}
+                    onBlur={e => (e.target as HTMLInputElement).style.borderColor = '#ffffff18'}
+                  />
+                </div>
 
-              <h2 style={{ fontSize: 24, fontWeight: 800, color: '#fff', margin: '0 0 6px', letterSpacing: '-0.5px' }}>
-                Вход в AVIA
-              </h2>
-              <p style={{ fontSize: 13, color: '#6b8299', margin: '0 0 28px', lineHeight: 1.5 }}>
-                Введите номер телефона для входа или регистрации
-              </p>
+                {error && (
+                  <motion.p
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    style={{ color: '#f87171', fontSize: 13, marginBottom: 14, textAlign: 'center' }}
+                  >
+                    {error}
+                  </motion.p>
+                )}
 
-              <div style={{ position: 'relative', marginBottom: 16 }}>
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => handlePhoneChange(e.target.value)}
-                  placeholder="+992 XX XXX XX XX"
-                  autoFocus
-                  onKeyDown={(e) => e.key === 'Enter' && handlePhoneSubmit()}
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
+                  onClick={handlePhoneSubmit}
+                  disabled={loading || phone.replace(/\D/g, '').length < 9}
                   style={{
-                    width: '100%', padding: '16px 18px',
-                    borderRadius: 16, border: '2px solid #ffffff15',
-                    background: '#ffffff08', color: '#fff',
-                    fontSize: 18, fontWeight: 600,
-                    outline: 'none', letterSpacing: '0.5px',
-                    textAlign: 'center',
-                    boxSizing: 'border-box',
+                    width: '100%', padding: '15px 24px',
+                    borderRadius: 14, border: 'none',
+                    background: loading || phone.replace(/\D/g, '').length < 9
+                      ? '#ffffff10' : 'linear-gradient(135deg, #0369a1 0%, #0ea5e9 100%)',
+                    color: loading || phone.replace(/\D/g, '').length < 9 ? '#3d5268' : '#fff',
+                    fontSize: 15, fontWeight: 700,
+                    cursor: loading ? 'wait' : phone.replace(/\D/g, '').length < 9 ? 'default' : 'pointer',
+                    boxShadow: phone.replace(/\D/g, '').length >= 9 ? '0 6px 20px #0ea5e930' : 'none',
+                    transition: 'all 0.25s',
                   }}
-                />
+                >
+                  {loading ? 'Проверка...' : 'Продолжить'}
+                </motion.button>
               </div>
 
-              {error && (
-                <motion.p
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  style={{ color: '#f87171', fontSize: 13, marginBottom: 16 }}
-                >
-                  {error}
-                </motion.p>
-              )}
-
-              <motion.button
-                whileTap={{ scale: 0.97 }}
-                onClick={handlePhoneSubmit}
-                disabled={loading || phone.replace(/\D/g, '').length < 9}
-                style={{
-                  width: '100%', padding: '16px 24px',
-                  borderRadius: 16, border: 'none',
-                  background: loading || phone.replace(/\D/g, '').length < 9
-                    ? '#ffffff10' : 'linear-gradient(135deg, #0369a1 0%, #0ea5e9 100%)',
-                  color: '#fff', fontSize: 15, fontWeight: 700,
-                  cursor: loading ? 'wait' : 'pointer',
-                  opacity: phone.replace(/\D/g, '').length < 9 ? 0.4 : 1,
-                  boxShadow: '0 8px 24px #0ea5e933',
-                }}
-              >
-                {loading ? 'Проверка...' : 'Продолжить'}
-              </motion.button>
-
-              <p style={{ fontSize: 11, color: '#3d5268', marginTop: 16, lineHeight: 1.5 }}>
+              <p style={{ fontSize: 11, color: '#3d5268', marginTop: 4, lineHeight: 1.5, textAlign: 'center' }}>
                 Поддерживаются номера: +992 (TJ), +7 (RU), +998 (UZ)
               </p>
             </motion.div>
@@ -382,69 +409,77 @@ export function AviaAuth() {
               transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
               style={{ width: '100%', textAlign: 'center' }}
             >
-              <div style={{
-                width: 64, height: 64, borderRadius: 20, margin: '0 auto 20px',
-                background: '#0ea5e915', border: '1px solid #0ea5e930',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <Lock style={{ width: 28, height: 28, color: '#0ea5e9' }} />
+              <div style={{ marginBottom: 'clamp(24px, 5dvh, 40px)' }}>
+                <div style={{
+                  width: 80, height: 80, borderRadius: 26, margin: '0 auto 18px',
+                  background: 'linear-gradient(135deg, #0369a1 0%, #0ea5e9 100%)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 0 0 1px #0ea5e930, 0 12px 40px #0ea5e940',
+                }}>
+                  <Lock style={{ width: 36, height: 36, color: '#fff' }} />
+                </div>
+                <h2 style={{ fontSize: 'clamp(22px, 6vw, 28px)', fontWeight: 900, color: '#fff', margin: '0 0 8px', letterSpacing: '-0.5px' }}>
+                  {isConfirming ? 'Подтвердите PIN' : 'Создайте PIN'}
+                </h2>
+                <p style={{ fontSize: 13, color: '#6b8299', margin: 0, lineHeight: 1.55 }}>
+                  {isConfirming
+                    ? 'Введите PIN-код повторно для подтверждения'
+                    : 'Придумайте 4-значный PIN-код для входа'}
+                </p>
               </div>
 
-              <h2 style={{ fontSize: 24, fontWeight: 800, color: '#fff', margin: '0 0 6px', letterSpacing: '-0.5px' }}>
-                {isConfirming ? 'Подтвердите PIN' : 'Создайте PIN'}
-              </h2>
-              <p style={{ fontSize: 13, color: '#6b8299', margin: '0 0 24px', lineHeight: 1.5 }}>
-                {isConfirming
-                  ? 'Введите PIN-код повторно для подтверждения'
-                  : 'Придумайте 4-значный PIN-код для входа'}
-              </p>
+              <div style={{
+                width: '100%', borderRadius: 24,
+                background: '#ffffff06', border: '1px solid #ffffff10',
+                padding: 'clamp(20px, 4vw, 28px)',
+              }}>
+                {!isConfirming ? (
+                  <PinGrid key="pin" values={pin} setValues={setPin} refs={pinRefs} autoFocus />
+                ) : (
+                  <PinGrid key="confirm" values={pinConfirm} setValues={setPinConfirm} refs={confirmRefs} autoFocus />
+                )}
 
-              {!isConfirming ? (
-                <PinGrid key="pin" values={pin} setValues={setPin} refs={pinRefs} autoFocus />
-              ) : (
-                <PinGrid key="confirm" values={pinConfirm} setValues={setPinConfirm} refs={confirmRefs} autoFocus />
-              )}
-
-              {/* Show/hide toggle */}
-              <button
-                onClick={() => setShowPin(!showPin)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  margin: '16px auto 0', padding: '6px 12px',
-                  borderRadius: 10, border: 'none', background: 'transparent',
-                  color: '#6b8299', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                }}
-              >
-                {showPin ? <EyeOff style={{ width: 14, height: 14 }} /> : <Eye style={{ width: 14, height: 14 }} />}
-                {showPin ? 'Скрыть' : 'Показать'}
-              </button>
-
-              {error && (
-                <motion.p
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  style={{ color: '#f87171', fontSize: 13, marginTop: 12 }}
+                <button
+                  onClick={() => setShowPin(!showPin)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    margin: '14px auto 0', padding: '6px 12px',
+                    borderRadius: 10, border: 'none', background: 'transparent',
+                    color: '#6b8299', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  }}
                 >
-                  {error}
-                </motion.p>
-              )}
+                  {showPin ? <EyeOff style={{ width: 14, height: 14 }} /> : <Eye style={{ width: 14, height: 14 }} />}
+                  {showPin ? 'Скрыть' : 'Показать'}
+                </button>
 
-              <motion.button
-                whileTap={{ scale: 0.97 }}
-                onClick={handlePinCreateNext}
-                disabled={(!isConfirming ? pin : pinConfirm).join('').length < 4}
-                style={{
-                  width: '100%', padding: '16px 24px', marginTop: 24,
-                  borderRadius: 16, border: 'none',
-                  background: (!isConfirming ? pin : pinConfirm).join('').length < 4
-                    ? '#ffffff10' : 'linear-gradient(135deg, #0369a1 0%, #0ea5e9 100%)',
-                  color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer',
-                  opacity: (!isConfirming ? pin : pinConfirm).join('').length < 4 ? 0.4 : 1,
-                  boxShadow: '0 8px 24px #0ea5e933',
-                }}
-              >
-                {isConfirming ? 'Подтвердить' : 'Далее'}
-              </motion.button>
+                {error && (
+                  <motion.p
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    style={{ color: '#f87171', fontSize: 13, marginTop: 12 }}
+                  >
+                    {error}
+                  </motion.p>
+                )}
+
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
+                  onClick={handlePinCreateNext}
+                  disabled={(!isConfirming ? pin : pinConfirm).join('').length < 4}
+                  style={{
+                    width: '100%', padding: '15px 24px', marginTop: 20,
+                    borderRadius: 14, border: 'none',
+                    background: (!isConfirming ? pin : pinConfirm).join('').length < 4
+                      ? '#ffffff10' : 'linear-gradient(135deg, #0369a1 0%, #0ea5e9 100%)',
+                    color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer',
+                    opacity: (!isConfirming ? pin : pinConfirm).join('').length < 4 ? 0.4 : 1,
+                    boxShadow: '0 6px 20px #0ea5e930',
+                    transition: 'all 0.25s',
+                  }}
+                >
+                  {isConfirming ? 'Подтвердить' : 'Далее'}
+                </motion.button>
+              </div>
             </motion.div>
           )}
 
@@ -458,70 +493,79 @@ export function AviaAuth() {
               transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
               style={{ width: '100%', textAlign: 'center' }}
             >
-              <div style={{
-                width: 64, height: 64, borderRadius: 20, margin: '0 auto 20px',
-                background: '#34d39915', border: '1px solid #34d39930',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <Lock style={{ width: 28, height: 28, color: '#34d399' }} />
+              <div style={{ marginBottom: 'clamp(24px, 5dvh, 40px)' }}>
+                <div style={{
+                  width: 80, height: 80, borderRadius: 26, margin: '0 auto 18px',
+                  background: 'linear-gradient(135deg, #059669 0%, #34d399 100%)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 0 0 1px #34d39930, 0 12px 40px #34d39940',
+                }}>
+                  <Lock style={{ width: 36, height: 36, color: '#fff' }} />
+                </div>
+                <h2 style={{ fontSize: 'clamp(22px, 6vw, 28px)', fontWeight: 900, color: '#fff', margin: '0 0 8px', letterSpacing: '-0.5px' }}>
+                  Введите PIN
+                </h2>
+                <p style={{ fontSize: 13, color: '#6b8299', margin: '0 0 8px', lineHeight: 1.55 }}>
+                  Введите ваш 4-значный PIN-код
+                </p>
+                <span style={{
+                  fontSize: 12, color: '#3d5268',
+                  padding: '5px 14px', borderRadius: 10,
+                  background: '#ffffff06', display: 'inline-block',
+                }}>
+                  {phone}
+                </span>
               </div>
 
-              <h2 style={{ fontSize: 24, fontWeight: 800, color: '#fff', margin: '0 0 6px', letterSpacing: '-0.5px' }}>
-                Введите PIN
-              </h2>
-              <p style={{ fontSize: 13, color: '#6b8299', margin: '0 0 8px', lineHeight: 1.5 }}>
-                Введите ваш 4-значный PIN-код
-              </p>
-              <p style={{
-                fontSize: 12, color: '#3d5268', margin: '0 0 24px',
-                padding: '6px 14px', borderRadius: 10,
-                background: '#ffffff06', display: 'inline-block',
+              <div style={{
+                width: '100%', borderRadius: 24,
+                background: '#ffffff06', border: '1px solid #ffffff10',
+                padding: 'clamp(20px, 4vw, 28px)',
               }}>
-                {phone}
-              </p>
+                <PinGrid key="login" values={pin} setValues={setPin} refs={pinRefs} autoFocus />
 
-              <PinGrid key="login" values={pin} setValues={setPin} refs={pinRefs} autoFocus />
-
-              <button
-                onClick={() => setShowPin(!showPin)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  margin: '16px auto 0', padding: '6px 12px',
-                  borderRadius: 10, border: 'none', background: 'transparent',
-                  color: '#6b8299', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                }}
-              >
-                {showPin ? <EyeOff style={{ width: 14, height: 14 }} /> : <Eye style={{ width: 14, height: 14 }} />}
-                {showPin ? 'Скрыть' : 'Показать'}
-              </button>
-
-              {error && (
-                <motion.p
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  style={{ color: '#f87171', fontSize: 13, marginTop: 12 }}
+                <button
+                  onClick={() => setShowPin(!showPin)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    margin: '14px auto 0', padding: '6px 12px',
+                    borderRadius: 10, border: 'none', background: 'transparent',
+                    color: '#6b8299', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  }}
                 >
-                  {error}
-                </motion.p>
-              )}
+                  {showPin ? <EyeOff style={{ width: 14, height: 14 }} /> : <Eye style={{ width: 14, height: 14 }} />}
+                  {showPin ? 'Скрыть' : 'Показать'}
+                </button>
 
-              <motion.button
-                whileTap={{ scale: 0.97 }}
-                onClick={handlePinLogin}
-                disabled={loading || pin.join('').length < 4}
-                style={{
-                  width: '100%', padding: '16px 24px', marginTop: 24,
-                  borderRadius: 16, border: 'none',
-                  background: loading || pin.join('').length < 4
-                    ? '#ffffff10' : 'linear-gradient(135deg, #0369a1 0%, #0ea5e9 100%)',
-                  color: '#fff', fontSize: 15, fontWeight: 700,
-                  cursor: loading ? 'wait' : 'pointer',
-                  opacity: pin.join('').length < 4 ? 0.4 : 1,
-                  boxShadow: '0 8px 24px #0ea5e933',
-                }}
-              >
-                {loading ? 'Проверка...' : 'Войти'}
-              </motion.button>
+                {error && (
+                  <motion.p
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    style={{ color: '#f87171', fontSize: 13, marginTop: 12, textAlign: 'center' }}
+                  >
+                    {error}
+                  </motion.p>
+                )}
+
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
+                  onClick={handlePinLogin}
+                  disabled={loading || pin.join('').length < 4}
+                  style={{
+                    width: '100%', padding: '15px 24px', marginTop: 20,
+                    borderRadius: 14, border: 'none',
+                    background: loading || pin.join('').length < 4
+                      ? '#ffffff10' : 'linear-gradient(135deg, #059669 0%, #34d399 100%)',
+                    color: '#fff', fontSize: 15, fontWeight: 700,
+                    cursor: loading ? 'wait' : 'pointer',
+                    opacity: pin.join('').length < 4 ? 0.4 : 1,
+                    boxShadow: '0 6px 20px #34d39930',
+                    transition: 'all 0.25s',
+                  }}
+                >
+                  {loading ? 'Проверка...' : 'Войти'}
+                </motion.button>
+              </div>
             </motion.div>
           )}
 
@@ -621,8 +665,8 @@ export function AviaAuth() {
 
       {/* Step indicator */}
       <div style={{
-        display: 'flex', gap: 6, justifyContent: 'center',
-        paddingBottom: 'clamp(20px, 4dvh, 32px)',
+        display: 'flex', gap: 6, justifyContent: 'center', flexShrink: 0,
+        padding: 'clamp(12px, 2dvh, 20px) 0 max(clamp(16px, 3dvh, 28px), env(safe-area-inset-bottom, 16px))',
       }}>
         {['phone', 'pin', 'role'].map((s, i) => {
           const current =
