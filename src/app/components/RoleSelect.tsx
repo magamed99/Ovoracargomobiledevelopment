@@ -82,62 +82,62 @@ function StatCounter({ target, suffix }: { target: number; suffix: string }) {
 
 // ── truck svg ─────────────────────────────────────────────────────────────────
 function TruckSvg({ size = 48, selected = false }: { size?: number; selected?: boolean }) {
-  const body     = selected ? '#cce4ff' : '#1e6fd0';
-  const cab      = selected ? '#ddeeff' : '#2176e8';
-  const glass    = selected ? '#ffffff' : '#90c8f0';
-  const wheel    = selected ? '#aec8e0' : '#0d1d2e';
-  const rim      = selected ? '#d0e4f5' : '#1a2b3c';
-  const hub      = selected ? '#ffffff' : '#5ba3f5';
-  const accent   = selected ? '#99bfe0' : '#0a3870';
-  const shineOp  = selected ? 0.35 : 0.12;
+  const body    = selected ? '#cce4ff' : '#1e6fd0';
+  const cab     = selected ? '#ddeeff' : '#2176e8';
+  const glass   = selected ? '#ffffff' : '#90c8f0';
+  const wheel   = selected ? '#aec8e0' : '#0d1d2e';
+  const rim     = selected ? '#d0e4f5' : '#1a2b3c';
+  const hub     = selected ? '#ffffff' : '#5ba3f5';
+  const accent  = selected ? '#99bfe0' : '#0a3870';
+  const shineOp = selected ? 0.35 : 0.12;
   return (
-    <svg width={size} height={size} viewBox="0 0 80 52" fill="none"
+    <svg width={size} height={size} viewBox="0 0 64 64" fill="none"
       style={{ animation: 'truck_float 2.8s ease-in-out infinite', display: 'block', flexShrink: 0 }}>
       {/* Trailer */}
-      <rect x="4" y="9" width="46" height="26" rx="3" fill={body}/>
-      <rect x="4" y="9" width="46" height="11" rx="3" fill="white" fillOpacity={shineOp}/>
-      <line x1="26" y1="10" x2="26" y2="34" stroke={accent} strokeWidth="0.8" strokeOpacity="0.5"/>
-      <line x1="40" y1="10" x2="40" y2="34" stroke={accent} strokeWidth="0.8" strokeOpacity="0.5"/>
+      <rect x="2" y="10" width="40" height="20" rx="3" fill={body}/>
+      <rect x="2" y="10" width="40" height="9" rx="3" fill="white" fillOpacity={shineOp}/>
+      <line x1="21" y1="11" x2="21" y2="29" stroke={accent} strokeWidth="0.8" strokeOpacity="0.5"/>
+      <line x1="33" y1="11" x2="33" y2="29" stroke={accent} strokeWidth="0.8" strokeOpacity="0.5"/>
       {/* Chassis */}
-      <rect x="4" y="35" width="71" height="4" rx="2" fill={selected ? '#90b8d8' : '#0b1b2b'}/>
+      <rect x="2" y="29" width="60" height="3" rx="2" fill={selected ? '#90b8d8' : '#0b1b2b'}/>
       {/* Cab roof */}
-      <path d="M51 16 L62 9 L76 16 Z" fill={selected ? '#c8dffa' : '#1a50b8'}/>
+      <path d="M43 16 L52 9 L63 16 Z" fill={selected ? '#c8dffa' : '#1a50b8'}/>
       {/* Cab body */}
-      <rect x="52" y="16" width="24" height="23" rx="3" fill={cab}/>
-      <rect x="52" y="16" width="24" height="10" rx="3" fill="white" fillOpacity={shineOp}/>
+      <rect x="43" y="16" width="20" height="16" rx="3" fill={cab}/>
+      <rect x="43" y="16" width="20" height="8" rx="3" fill="white" fillOpacity={shineOp}/>
       {/* Windshield */}
-      <rect x="56" y="20" width="16" height="12" rx="2" fill={glass} fillOpacity="0.85"/>
-      <rect x="56" y="20" width="16" height="4" rx="2" fill="white" fillOpacity="0.2"/>
+      <rect x="46" y="19" width="14" height="10" rx="2" fill={glass} fillOpacity="0.85"/>
+      <rect x="46" y="19" width="14" height="4" rx="2" fill="white" fillOpacity="0.2"/>
       {/* Side window */}
-      <rect x="53" y="20" width="5" height="9" rx="1.5" fill={glass} fillOpacity="0.6"/>
+      <rect x="44" y="19" width="4" height="8" rx="1.5" fill={glass} fillOpacity="0.6"/>
       {/* Headlight */}
-      <rect x="73" y="26" width="4" height="6" rx="1" fill="#fef9c3" fillOpacity="0.95"/>
-      {/* Exhaust pipe */}
-      <rect x="70" y="6" width="3" height="10" rx="1.5" fill={selected ? '#b0c8e0' : '#182433'}/>
+      <rect x="61" y="23" width="3" height="5" rx="1" fill="#fef9c3" fillOpacity="0.95"/>
+      {/* Exhaust */}
+      <rect x="59" y="7" width="2.5" height="10" rx="1.5" fill={selected ? '#b0c8e0' : '#182433'}/>
       {/* Rear wheel */}
       <g style={{ transformBox: 'fill-box', transformOrigin: 'center', animation: 'truck_wheel 1.4s linear infinite' }}>
-        <circle cx="18" cy="42" r="9" fill={wheel}/>
-        <circle cx="18" cy="42" r="5.5" fill={rim}/>
-        <circle cx="18" cy="42" r="2" fill={hub}/>
-        <line x1="18" y1="33" x2="18" y2="37.5" stroke={hub} strokeWidth="1.5" strokeOpacity="0.7"/>
-        <line x1="18" y1="46.5" x2="18" y2="51" stroke={hub} strokeWidth="1.5" strokeOpacity="0.7"/>
-        <line x1="9" y1="42" x2="13.5" y2="42" stroke={hub} strokeWidth="1.5" strokeOpacity="0.7"/>
-        <line x1="22.5" y1="42" x2="27" y2="42" stroke={hub} strokeWidth="1.5" strokeOpacity="0.7"/>
+        <circle cx="14" cy="38" r="8" fill={wheel}/>
+        <circle cx="14" cy="38" r="5" fill={rim}/>
+        <circle cx="14" cy="38" r="2" fill={hub}/>
+        <line x1="14" y1="30" x2="14" y2="33.5" stroke={hub} strokeWidth="1.5" strokeOpacity="0.7"/>
+        <line x1="14" y1="42.5" x2="14" y2="46" stroke={hub} strokeWidth="1.5" strokeOpacity="0.7"/>
+        <line x1="6" y1="38" x2="9.5" y2="38" stroke={hub} strokeWidth="1.5" strokeOpacity="0.7"/>
+        <line x1="18.5" y1="38" x2="22" y2="38" stroke={hub} strokeWidth="1.5" strokeOpacity="0.7"/>
       </g>
       {/* Front wheel */}
       <g style={{ transformBox: 'fill-box', transformOrigin: 'center', animation: 'truck_wheel 1.4s linear infinite' }}>
-        <circle cx="63" cy="42" r="9" fill={wheel}/>
-        <circle cx="63" cy="42" r="5.5" fill={rim}/>
-        <circle cx="63" cy="42" r="2" fill={hub}/>
-        <line x1="63" y1="33" x2="63" y2="37.5" stroke={hub} strokeWidth="1.5" strokeOpacity="0.7"/>
-        <line x1="63" y1="46.5" x2="63" y2="51" stroke={hub} strokeWidth="1.5" strokeOpacity="0.7"/>
-        <line x1="54" y1="42" x2="58.5" y2="42" stroke={hub} strokeWidth="1.5" strokeOpacity="0.7"/>
-        <line x1="67.5" y1="42" x2="72" y2="42" stroke={hub} strokeWidth="1.5" strokeOpacity="0.7"/>
+        <circle cx="53" cy="38" r="8" fill={wheel}/>
+        <circle cx="53" cy="38" r="5" fill={rim}/>
+        <circle cx="53" cy="38" r="2" fill={hub}/>
+        <line x1="53" y1="30" x2="53" y2="33.5" stroke={hub} strokeWidth="1.5" strokeOpacity="0.7"/>
+        <line x1="53" y1="42.5" x2="53" y2="46" stroke={hub} strokeWidth="1.5" strokeOpacity="0.7"/>
+        <line x1="45" y1="38" x2="48.5" y2="38" stroke={hub} strokeWidth="1.5" strokeOpacity="0.7"/>
+        <line x1="57.5" y1="38" x2="61" y2="38" stroke={hub} strokeWidth="1.5" strokeOpacity="0.7"/>
       </g>
       {/* Speed lines */}
-      <line x1="0" y1="20" x2="6" y2="20" stroke={hub} strokeWidth="1.5" strokeOpacity="0.3"
+      <line x1="0" y1="17" x2="5" y2="17" stroke={hub} strokeWidth="1.5" strokeOpacity="0.3"
         style={{ animation: 'truck_line 1.4s ease-in-out infinite' }}/>
-      <line x1="0" y1="26" x2="8" y2="26" stroke={hub} strokeWidth="1" strokeOpacity="0.2"
+      <line x1="0" y1="22" x2="7" y2="22" stroke={hub} strokeWidth="1" strokeOpacity="0.2"
         style={{ animation: 'truck_line 1.4s ease-in-out infinite 0.2s' }}/>
     </svg>
   );
@@ -274,9 +274,9 @@ export function RoleSelect() {
                   style={{ position: 'relative', zIndex: 3 }}
                 >
                   {activeRole?.id === 'sender' ? (
-                    <Package style={{ width: 36, height: 36, color: '#fff', filter: 'drop-shadow(0 2px 8px #00000060)' }} />
+                    <Package style={{ width: 34, height: 34, color: '#fff', filter: 'drop-shadow(0 2px 8px #00000060)' }} />
                   ) : (
-                    <TruckSvg size={38} />
+                    <TruckSvg size={44} />
                   )}
                 </motion.div>
               </AnimatePresence>
@@ -331,7 +331,7 @@ export function RoleSelect() {
                   }}
                 >
                   {role.id === 'driver' ? (
-                    <TruckSvg size={36} selected={isSelected} />
+                    <TruckSvg size={44} selected={isSelected} />
                   ) : (
                     <Icon className="w-7 h-7 transition-colors duration-300" style={{ color: isSelected ? '#fff' : role.color }} />
                   )}
@@ -728,7 +728,7 @@ export function RoleSelect() {
                         flexShrink: 0,
                       }}>
                         {role.id === 'driver' ? (
-                          <TruckSvg size={34} selected={isSelected} />
+                          <TruckSvg size={42} selected={isSelected} />
                         ) : (
                           <Icon style={{ width: 26, height: 26, color: isSelected ? '#fff' : role.color, transition: 'color 0.3s' }} />
                         )}
