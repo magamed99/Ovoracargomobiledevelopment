@@ -147,21 +147,20 @@ export function Welcome() {
               return (
                 <motion.button
                   key={l.code}
-                  whileTap={{ scale: 0.92 }}
+                  whileTap={{ scale: 0.94 }}
                   onClick={() => handleLangSelect(l.code)}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: 5,
-                    padding: '6px 12px', borderRadius: 10,
-                    border: isActive ? '1px solid #5ba3f550' : '1px solid #ffffff0f',
-                    background: isActive ? '#2176e820' : '#ffffff07',
+                    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                    padding: '8px 16px', borderRadius: 11,
+                    border: isActive ? '1px solid #5ba3f560' : '1px solid #ffffff0f',
+                    background: isActive ? '#2176e820' : '#ffffff08',
                     cursor: 'pointer',
-                    transition: 'border-color 0.2s, background 0.2s',
                   }}
                 >
-                  <span style={{ fontSize: 15 }}>{l.flag}</span>
+                  <span style={{ fontSize: 16 }}>{l.flag}</span>
                   <span style={{
                     fontSize: 11, fontWeight: 700, letterSpacing: '0.04em',
-                    color: isActive ? '#c8deff' : '#3d5268',
+                    color: isActive ? '#e8f0ff' : '#3d5268',
                   }}>
                     {l.label}
                   </span>
@@ -541,11 +540,13 @@ export function Welcome() {
             display: none;
           }
 
-          /* Lang in header — shown on desktop */
+          /* Lang in header — shown on desktop, same style as mobile buttons */
           .wc-lang-header {
             display: flex;
             align-items: center;
             gap: 6px;
+            width: 200px;
+            flex-shrink: 0;
           }
 
           .wc-cards {
