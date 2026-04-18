@@ -111,8 +111,9 @@ function DealOfferBubble({ msg, myPhone, refreshTick }: { msg: AviaChatMessage; 
   const [alreadyReviewed, setAlreadyReviewed] = useState(false);
   const [reviewChecked, setReviewChecked]     = useState(false);
 
-  const isMine      = msg.senderPhone === myPhone;
-  const meta        = msg.meta;
+  const cleanMyPhone = myPhone.replace(/\D/g, '');
+  const isMine       = msg.senderPhone.replace(/\D/g, '') === cleanMyPhone;
+  const meta         = msg.meta;
   const accentColor = meta?.adType === 'request' ? '#a78bfa' : '#0ea5e9';
   const AdIcon      = meta?.adType === 'request' ? Package : Plane;
 
@@ -182,8 +183,8 @@ function DealOfferBubble({ msg, myPhone, refreshTick }: { msg: AviaChatMessage; 
 
   const status      = deal?.status;
   const isPending   = status === 'pending';
-  const amRecipient = deal?.recipientPhone === myPhone.replace(/\D/g, '');
-  const amInitiator = deal?.initiatorPhone === myPhone.replace(/\D/g, '');
+  const amRecipient = deal?.recipientPhone === cleanMyPhone;
+  const amInitiator = deal?.initiatorPhone === cleanMyPhone;
 
   return (
     <>

@@ -646,7 +646,7 @@ export function ChatPage() {
                 ? isDark ? 'bg-[#1978e5]/20 text-[#5ba3f5]' : 'bg-[#1978e5]/10 text-[#1978e5]'
                 : isDark ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-500/10 text-emerald-600'
             }`}>
-              {contact.name.slice(0, 2).toUpperCase()}
+              {(contact.name || '??').slice(0, 2).toUpperCase()}
             </div>
           )}
           {/* Онлайн-индикатор */}
@@ -856,7 +856,7 @@ export function ChatPage() {
                   <div className="w-7 h-7 rounded-full shrink-0 overflow-hidden">
                     {contact.avatar
                       ? <img src={contact.avatar} className="w-full h-full object-cover" />
-                      : <div className={`w-full h-full flex items-center justify-center text-[10px] font-bold ${isDark ? 'bg-[#1978e5]/20 text-[#1978e5]' : 'bg-[#e6f2f6] text-[#1978e5]'}`}>{contact.name.slice(0,2).toUpperCase()}</div>
+                      : <div className={`w-full h-full flex items-center justify-center text-[10px] font-bold ${isDark ? 'bg-[#1978e5]/20 text-[#1978e5]' : 'bg-[#e6f2f6] text-[#1978e5]'}`}>{(contact.name || '??').slice(0,2).toUpperCase()}</div>
                     }
                   </div>
                 )}

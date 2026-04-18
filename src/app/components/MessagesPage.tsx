@@ -123,7 +123,7 @@ export function MessagesPage() {
   const filtered = chats
     .filter(c => !c.id.startsWith('demo_'))
     .filter(c =>
-      c.contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (c.contact.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
@@ -375,7 +375,7 @@ function ChatPreview({ chat, onOpenFull, onDelete }: {
 }) {
   const contact = chat.contact;
   const hasUnread = (chat.unread || 0) > 0;
-  const initials = contact.name.split(' ').map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+  const initials = (contact.name || '').split(' ').map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '??';
 
   return (
     <div className="flex-1 flex flex-col">
@@ -537,7 +537,7 @@ function ChatRow({ chat, onOpen, onDelete, isSelected }: {
     setTimeout(() => { onDelete?.(chat.id); }, 280);
   };
 
-  const initials = contact.name.split(' ').map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+  const initials = (contact.name || '').split(' ').map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '??';
 
   const proposalLabel =
     chat.proposalStatus === 'accepted' ? { text: 'Принята',   cls: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25' } :
