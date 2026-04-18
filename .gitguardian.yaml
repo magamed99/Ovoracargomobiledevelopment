@@ -1,0 +1,6 @@
+version: 2
+
+# Supabase anon key is a public client-side key by design (not a secret).
+# RLS policies protect data, not this key.
+paths-ignore:
+  - utils/supabase/info.tsx
