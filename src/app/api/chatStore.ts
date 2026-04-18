@@ -107,12 +107,16 @@ export function getMessages(chatId: string): ChatMessage[] {
 }
 
 function saveChats(chats: Chat[]) {
-  chats.sort((a, b) => (b.lastTs || 0) - (a.lastTs || 0));
-  localStorage.setItem(CHATS_KEY, JSON.stringify(chats));
+  const sorted = [...chats].sort((a, b) => (b.lastTs || 0) - (a.lastTs || 0));
+  localStorage.setItem(CHATS_KEY, JSON.stringify(sorted));
 }
 
+const MSG_CACHE_LIMIT = 200;
+
 function saveMessages(chatId: string, msgs: ChatMessage[]) {
-  localStorage.setItem(msgKey(chatId), JSON.stringify(msgs));
+  // Держим только последние MSG_CACHE_LIMIT сообщений — защита от переполнения localStorage
+  const capped = msgs.length > MSG_CACHE_LIMIT ? msgs.slice(-MSG_CACHE_LIMIT) : msgs;
+  localStorage.setItem(msgKey(chatId), JSON.stringify(capped));
 }
 
 function saveContact(chatId: string, contact: ChatContact) {
@@ -250,8 +254,12 @@ export async function pushMessage(
   msg: ChatMessage,
 ): Promise<ChatMessage[]> {
   const currentUser = getCachedUser();
-  const myEmail = currentUser?.email || 'guest';
-  const myName  = currentUser ? `${currentUser.firstName} ${currentUser.lastName || ''}`.trim() : 'Пользователь';
+  if (!currentUser?.email) {
+    console.warn('[chatStore] pushMessage: нет авторизованного пользователя');
+    return getMessages(chatId);
+  }
+  const myEmail = currentUser.email;
+  const myName  = `${currentUser.firstName} ${currentUser.lastName || ''}`.trim() || 'Пользователь';
   const contact = loadContact(chatId);
 
   // 1. Optimistic insert into local cache
@@ -308,7 +316,8 @@ export async function pushMessage(
  * Fetch messages from API, merge with local cache (server is source of truth).
  */
 export async function fetchMessages(chatId: string): Promise<ChatMessage[]> {
-  const myEmail = getCachedUser()?.email || 'guest';
+  const myEmail = getCachedUser()?.email;
+  if (!myEmail) return getMessages(chatId);
   const myRole  = localStorage.getItem('userRole') || 'sender';
 
   try {
