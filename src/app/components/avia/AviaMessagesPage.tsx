@@ -29,6 +29,7 @@ import type { AviaDeal } from '../../api/aviaDealApi';
 import { getAviaDealReviewStatus } from '../../api/aviaReviewApi';
 import { AviaReviewModal } from './AviaReviewModal';
 import { useAvia } from './AviaContext';
+import { getAviaProfile } from '../../api/aviaApi';
 
 // ── Хелперы ──────────────────────────────────────────────────────────────────
 
@@ -344,9 +345,9 @@ function DateDivider({ date }: { date: string }) {
 // ── Элемент списка чатов ──────────────────────────────────────────────────────
 
 function ChatListItem({
-  chat, myPhone, isActive, onClick,
+  chat, myPhone, isActive, onClick, contactName,
 }: {
-  chat: AviaChat; myPhone: string; isActive: boolean; onClick: () => void;
+  chat: AviaChat; myPhone: string; isActive: boolean; onClick: () => void; contactName?: string;
 }) {
   const otherPhone = chat.participants.find(p => p !== myPhone) || '';
   const hasUnread  = (chat.unread || 0) > 0;
@@ -387,7 +388,7 @@ function ChatListItem({
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 }}>
           <span style={{ fontSize: 13, fontWeight: hasUnread ? 800 : 600, color: hasUnread ? '#e2eaf3' : '#8aa3ba', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {maskPhone(otherPhone)}
+            {contactName || maskPhone(otherPhone)}
           </span>
           {chat.lastMessageAt && (
             <span style={{ fontSize: 10, color: '#2a3d50', fontWeight: 500, flexShrink: 0, marginLeft: 6 }}>
@@ -423,16 +424,17 @@ function ChatListItem({
 // ═══════════════════════════════════════════════════════════════════════════════
 
 interface ChatPanelProps {
-  myPhone:   string;
-  chatId:    string;
-  otherPhone: string;
-  adRef:     AviaChatAdRef | null;
-  onBack:    () => void;
-  onDeleted: () => void;
+  myPhone:     string;
+  chatId:      string;
+  otherPhone:  string;
+  adRef:       AviaChatAdRef | null;
+  onBack:      () => void;
+  onDeleted:   () => void;
   onChatsUpdate: () => void;
+  contactName?: string;
 }
 
-function ChatPanel({ myPhone, chatId, otherPhone, adRef, onBack, onDeleted, onChatsUpdate }: ChatPanelProps) {
+function ChatPanel({ myPhone, chatId, otherPhone, adRef, onBack, onDeleted, onChatsUpdate, contactName: contactNameProp }: ChatPanelProps) {
   const [messages,    setMessages]    = useState<AviaChatMessage[]>([]);
   const [chatMeta,    setChatMeta]    = useState<{ adRef?: AviaChatAdRef; participants?: string[] } | null>(null);
   const [chatLoading, setChatLoading] = useState(true);
@@ -441,6 +443,7 @@ function ChatPanel({ myPhone, chatId, otherPhone, adRef, onBack, onDeleted, onCh
   const [deleting,    setDeleting]    = useState(false);
   const [resolvedAdRef, setResolvedAdRef] = useState<AviaChatAdRef | null>(adRef);
   const [resolvedOtherPhone, setResolvedOtherPhone] = useState(otherPhone);
+  const [otherName, setOtherName] = useState<string>(contactNameProp || '');
   const [refreshTick, setRefreshTick] = useState(0);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -483,6 +486,18 @@ function ChatPanel({ myPhone, chatId, otherPhone, adRef, onBack, onDeleted, onCh
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 60);
     }
   }, [messages.length]);
+
+  // Загружаем имя контакта если не передано пропом
+  useEffect(() => {
+    if (contactNameProp) { setOtherName(contactNameProp); return; }
+    const phone = otherPhone || resolvedOtherPhone;
+    if (!phone) return;
+    getAviaProfile(phone).then(profile => {
+      if (!profile) return;
+      const name = [profile.firstName, profile.lastName].filter(Boolean).join(' ').trim();
+      if (name) setOtherName(name);
+    }).catch(() => {});
+  }, [otherPhone, resolvedOtherPhone, contactNameProp]);
 
   const handleSend = async () => {
     const text = inputText.trim();
@@ -576,7 +591,7 @@ function ChatPanel({ myPhone, chatId, otherPhone, adRef, onBack, onDeleted, onCh
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 14, fontWeight: 800, color: '#e2eaf3', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {resolvedOtherPhone ? maskPhone(resolvedOtherPhone) : 'Загрузка...'}
+            {otherName || (resolvedOtherPhone ? maskPhone(resolvedOtherPhone) : 'Загрузка...')}
           </div>
           {resolvedAdRef && (
             <div style={{ fontSize: 10, color: '#4a6080', fontWeight: 600, marginTop: 1 }}>
@@ -705,6 +720,8 @@ export function AviaMessagesPage() {
   // State
   const [chats,        setChats]        = useState<AviaChat[]>([]);
   const [chatsLoading, setChatsLoading] = useState(true);
+  const [contactNames, setContactNames] = useState<Record<string, string>>({});
+  const fetchedPhonesRef = useRef<Set<string>>(new Set());
   const totalUnread = useMemo(() => chats.reduce((s, c) => s + (c.unread || 0), 0), [chats]);
 
   // Активный чат
@@ -736,6 +753,23 @@ export function AviaMessagesPage() {
       const list = await getAviaUserChats(myPhone);
       setChats(list);
       refreshChatUnread();
+      // Загружаем имена контактов для новых телефонов
+      const phones = list
+        .map(c => c.participants.find(p => p !== myPhone) || '')
+        .filter(p => p && !fetchedPhonesRef.current.has(p));
+      if (phones.length > 0) {
+        phones.forEach(p => fetchedPhonesRef.current.add(p));
+        Promise.allSettled(phones.map(p => getAviaProfile(p))).then(results => {
+          const newNames: Record<string, string> = {};
+          results.forEach((r, i) => {
+            if (r.status === 'fulfilled' && r.value) {
+              const name = [r.value.firstName, r.value.lastName].filter(Boolean).join(' ').trim();
+              if (name) newNames[phones[i]] = name;
+            }
+          });
+          if (Object.keys(newNames).length > 0) setContactNames(prev => ({ ...prev, ...newNames }));
+        });
+      }
     } catch (err) {
       console.warn('[AviaMessagesPage] loadChats error:', err);
     } finally {
@@ -838,15 +872,19 @@ export function AviaMessagesPage() {
           </motion.div>
         ) : (
           <AnimatePresence initial={false}>
-            {chats.map(chat => (
-              <ChatListItem
-                key={chat.chatId}
-                chat={chat}
-                myPhone={myPhone}
-                isActive={chat.chatId === activeChatId}
-                onClick={() => openChat(chat)}
-              />
-            ))}
+            {chats.map(chat => {
+              const op = chat.participants.find(p => p !== myPhone) || '';
+              return (
+                <ChatListItem
+                  key={chat.chatId}
+                  chat={chat}
+                  myPhone={myPhone}
+                  isActive={chat.chatId === activeChatId}
+                  onClick={() => openChat(chat)}
+                  contactName={contactNames[op]}
+                />
+              );
+            })}
           </AnimatePresence>
         )}
         <div style={{ height: 'env(safe-area-inset-bottom, 12px)' }} />
@@ -897,6 +935,7 @@ export function AviaMessagesPage() {
                   onBack={() => { setActiveChatId(''); setActiveOtherPhone(''); setActiveAdRef(null); navigate('/avia/messages', { replace: true }); }}
                   onDeleted={handleChatDeleted}
                   onChatsUpdate={loadChats}
+                  contactName={contactNames[activeOtherPhone]}
                 />
               </motion.div>
             ) : (
@@ -949,6 +988,7 @@ export function AviaMessagesPage() {
                 onBack={handleBack}
                 onDeleted={handleChatDeleted}
                 onChatsUpdate={loadChats}
+                contactName={contactNames[activeOtherPhone]}
               />
             </motion.div>
           )}
