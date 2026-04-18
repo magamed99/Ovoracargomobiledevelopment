@@ -187,7 +187,7 @@ export function RoleSelect() {
   // MOBILE LAYOUT (unchanged)
   // ══════════════════════════════════════════════════════
   const MobileContent = (
-    <div className="md:hidden w-full flex flex-col font-['Sora'] bg-[#0e1621] text-white overflow-hidden" style={{ height: '100dvh' }}>
+    <div className="md:hidden w-full flex flex-col font-['Sora'] bg-[#0e1621] text-white overflow-x-hidden" style={{ minHeight: '100dvh' }}>
 
       {/* ── HERO / BG ── */}
       <div className="relative overflow-hidden shrink-0">
@@ -293,7 +293,7 @@ export function RoleSelect() {
       </div>
 
       {/* ── ROLE CARDS ── */}
-      <div className="flex-1 flex flex-col px-4 gap-3 overflow-y-auto pb-6">
+      <div className="flex flex-col px-4 gap-3 pb-6">
         {ROLES.map((role, idx) => {
           const isSelected = selected === role.id;
           const Icon = role.icon;
