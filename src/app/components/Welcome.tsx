@@ -139,6 +139,36 @@ export function Welcome() {
               ОНЛАЙН
             </span>
           </div>
+
+          {/* Lang selector — desktop header only */}
+          <div className="wc-lang-header">
+            {LANGS.map(l => {
+              const isActive = selectedLang === l.code;
+              return (
+                <motion.button
+                  key={l.code}
+                  whileTap={{ scale: 0.92 }}
+                  onClick={() => handleLangSelect(l.code)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    padding: '6px 12px', borderRadius: 10,
+                    border: isActive ? '1px solid #5ba3f550' : '1px solid #ffffff0f',
+                    background: isActive ? '#2176e820' : '#ffffff07',
+                    cursor: 'pointer',
+                    transition: 'border-color 0.2s, background 0.2s',
+                  }}
+                >
+                  <span style={{ fontSize: 15 }}>{l.flag}</span>
+                  <span style={{
+                    fontSize: 11, fontWeight: 700, letterSpacing: '0.04em',
+                    color: isActive ? '#c8deff' : '#3d5268',
+                  }}>
+                    {l.label}
+                  </span>
+                </motion.button>
+              );
+            })}
+          </div>
         </motion.div>
 
         {/* ── HERO ── */}
@@ -453,6 +483,11 @@ export function Welcome() {
           .wc-card-tags  { padding: 0 12px 11px; }
         }
 
+        /* Lang in header — hidden on mobile */
+        .wc-lang-header {
+          display: none;
+        }
+
         /* ── TABLET / DESKTOP (≥ 700px) ── */
         @media (min-width: 700px) {
           .wc-outer {
@@ -501,9 +536,16 @@ export function Welcome() {
             max-width: 360px;
           }
 
-          /* Lang selector hidden on desktop — only visible on mobile */
+          /* Lang selector hidden on desktop (shown in header instead) */
           .wc-lang {
             display: none;
+          }
+
+          /* Lang in header — shown on desktop */
+          .wc-lang-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
           }
 
           .wc-cards {
