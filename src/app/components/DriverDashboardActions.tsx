@@ -5,7 +5,7 @@
  * NOTE: background/borderColor NEVER go into motion props (initial/animate/whileHover)
  * because motion/react cannot parse 8-digit hex. Colors are handled via CSS transition.
  */
-import { Plus, List, Heart, ChevronRight, Package } from 'lucide-react';
+import { Plus, List, Heart, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { motion } from 'motion/react';
 import { useState } from 'react';
@@ -21,17 +21,6 @@ const ACTIONS = [
     bgHover: '#5ba3f528',
     border: '#5ba3f530',
     borderHover: '#5ba3f560',
-  },
-  {
-    icon: Package,
-    label: 'Найти грузы',
-    sub: 'Объявления отправителей',
-    action: '/search-results?type=cargo',
-    color: '#f59e0b',
-    bg: '#f59e0b14',
-    bgHover: '#f59e0b28',
-    border: '#f59e0b30',
-    borderHover: '#f59e0b60',
   },
   {
     icon: List,
