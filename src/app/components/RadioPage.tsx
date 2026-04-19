@@ -1,24 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import {
-  ArrowLeft, Radio, Send, Truck, Package,
-  Users, Wifi, WifiOff, ChevronRight, Hash,
-  Zap, AlertTriangle, Shield,
-} from 'lucide-react';
+import { ArrowLeft, Send, Truck, Package, Wifi, WifiOff, Mic, MicOff, Play, Pause, Square, X } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import { projectId, publicAnonKey } from '/utils/supabase/info';
 
 const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;
-const H = { 'Content-Type': 'application/json', Authorization: `Bearer ${publicAnonKey}` };
+const H    = { 'Content-Type': 'application/json', Authorization: `Bearer ${publicAnonKey}` };
 
-interface Channel {
-  id: string;
-  name: string;
-  emoji: string;
-  color: string;
-  desc: string;
-}
+const RUSSIA_CHANNEL = { id: 'ch-russia', name: 'Россия', emoji: '🇷🇺', color: '#5ba3f5', desc: 'Общий канал водителей по России' };
 
 interface Message {
   id: string;
@@ -26,183 +16,223 @@ interface Message {
   userEmail: string;
   userName: string;
   userRole: string;
-  text: string;
+  type: 'text' | 'voice';
+  text?: string;
+  audioUrl?: string;
+  audioDuration?: number;
   ts: number;
   createdAt: string;
 }
 
 function timeShort(iso: string) {
-  try {
-    const d = new Date(iso);
-    return d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-  } catch { return ''; }
+  try { return new Date(iso).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }); }
+  catch { return ''; }
 }
 
 function dateLine(ts: number) {
-  const d = new Date(ts);
-  const today = new Date();
+  const d = new Date(ts); const today = new Date();
   if (d.toDateString() === today.toDateString()) return 'Сегодня';
   const diff = Math.floor((today.getTime() - d.getTime()) / 86400000);
   if (diff === 1) return 'Вчера';
   return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
 }
 
-/* ─── Channel List ──────────────────────────────────────────────────────────── */
-function ChannelList({ channels, onSelect }: { channels: Channel[]; onSelect: (c: Channel) => void }) {
-  const ICONS: Record<string, typeof Zap> = {
-    'ch-sos': AlertTriangle,
-    'ch-lars': Shield,
+function fmtDur(sec: number) {
+  const m = Math.floor(sec / 60); const s = Math.floor(sec % 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+/* ─── Voice bubble player ─────────────────────────────────────────── */
+function VoiceBubble({ audioUrl, duration, isMe }: { audioUrl: string; duration: number; isMe: boolean }) {
+  const [playing, setPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    const a = new Audio(audioUrl);
+    audioRef.current = a;
+    a.onended = () => { setPlaying(false); setProgress(0); setElapsed(0); };
+    a.ontimeupdate = () => {
+      if (a.duration) { setProgress(a.currentTime / a.duration); setElapsed(a.currentTime); }
+    };
+    return () => { a.pause(); };
+  }, [audioUrl]);
+
+  const toggle = () => {
+    const a = audioRef.current; if (!a) return;
+    if (playing) { a.pause(); setPlaying(false); }
+    else { a.play(); setPlaying(true); }
   };
 
+  const barW = 90;
+  const accent = isMe ? '#93c5fd' : '#5ba3f5';
+
   return (
-    <div style={{ background: '#0E1621', minHeight: '100vh', fontFamily: "'Sora', sans-serif" }}>
-      {/* Top banner */}
-      <div style={{ background: 'linear-gradient(135deg,#0d1e38,#0a1628)', padding: '20px 16px 18px', borderBottom: '1px solid #0d2035' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 46, height: 46, borderRadius: 15, background: 'linear-gradient(135deg,#1a47c8,#2f8fe0)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 20px #1a47c855' }}>
-            <Radio style={{ width: 22, height: 22, color: '#fff' }} />
-          </div>
-          <div>
-            <h1 style={{ fontSize: 20, fontWeight: 900, color: '#e2e8f0', lineHeight: 1 }}>Рация Ovora</h1>
-            <p style={{ fontSize: 12, color: '#4a6880', marginTop: 3 }}>Текстовые каналы для дальнобойщиков</p>
-          </div>
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, background: '#052015', border: '1px solid #0a3020', borderRadius: 10, padding: '5px 10px' }}>
-            <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 8px #22c55e' }} />
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#22c55e' }}>В сети</span>
-          </div>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 180 }}>
+      <button onClick={toggle} style={{
+        width: 36, height: 36, borderRadius: 12, flexShrink: 0,
+        background: isMe ? 'rgba(255,255,255,0.18)' : '#1a2d45',
+        border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+      }}>
+        {playing
+          ? <Pause style={{ width: 14, height: 14, color: '#fff' }} />
+          : <Play  style={{ width: 14, height: 14, color: accent }} />
+        }
+      </button>
+      <div style={{ flex: 1 }}>
+        {/* waveform bar */}
+        <div style={{ position: 'relative', height: 4, background: isMe ? 'rgba(255,255,255,0.25)' : '#1a2d45', borderRadius: 2, width: barW }}>
+          <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${progress * 100}%`, background: accent, borderRadius: 2, transition: 'width .1s linear' }} />
         </div>
+        <span style={{ fontSize: 10, color: isMe ? 'rgba(255,255,255,0.55)' : '#3a5070', marginTop: 3, display: 'block' }}>
+          {fmtDur(playing ? elapsed : duration)}
+        </span>
       </div>
-
-      <div style={{ maxWidth: 680, margin: '0 auto', padding: '16px 16px 80px' }}>
-        {/* Info card */}
-        <div style={{ background: 'linear-gradient(135deg,#0f2448,#091428)', border: '1px solid #1a3560', borderRadius: 16, padding: '14px 18px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Wifi style={{ width: 20, height: 20, color: '#5ba3f5', flexShrink: 0 }} />
-          <p style={{ fontSize: 13, color: '#7a9ab8', lineHeight: 1.5 }}>
-            Выберите канал и общайтесь с водителями на маршруте. Сообщения хранятся 24 часа.
-          </p>
-        </div>
-
-        <p style={{ fontSize: 11, fontWeight: 700, color: '#2a4060', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 12 }}>Каналы</p>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {channels.map((ch, i) => {
-            const SpecialIcon = ICONS[ch.id];
-            return (
-              <motion.button
-                key={ch.id}
-                onClick={() => onSelect(ch)}
-                style={{
-                  width: '100%', textAlign: 'left', cursor: 'pointer',
-                  background: 'linear-gradient(145deg,#0d1929,#091420)',
-                  border: `1px solid #1a2d45`,
-                  borderRadius: 18, padding: '14px 16px',
-                  display: 'flex', alignItems: 'center', gap: 14,
-                  transition: 'all .15s',
-                }}
-                initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
-                whileHover={{ scale: 1.01, borderColor: ch.color + '44' }}
-                whileTap={{ scale: 0.98 }}
-              >
-                {/* Channel icon */}
-                <div style={{
-                  width: 48, height: 48, borderRadius: 16, flexShrink: 0,
-                  background: ch.color + '18', border: `1px solid ${ch.color}30`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 22,
-                }}>
-                  {ch.emoji}
-                </div>
-
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: 15, fontWeight: 800, color: '#e2e8f0', marginBottom: 4 }}>{ch.name}</p>
-                  <p style={{ fontSize: 12, color: '#4a6880', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ch.desc}</p>
-                </div>
-
-                <ChevronRight style={{ width: 16, height: 16, color: '#2a4060', flexShrink: 0 }} />
-              </motion.button>
-            );
-          })}
-        </div>
-
-        {/* Rules */}
-        <div style={{ marginTop: 24, padding: '14px 18px', borderRadius: 14, background: '#080f1a', border: '1px solid #0d2035' }}>
-          <p style={{ fontSize: 12, color: '#3a5070', lineHeight: 1.7 }}>
-            📋 <strong style={{ color: '#4a6880' }}>Правила:</strong> Уважайте участников · Только тематические сообщения · Запрещена реклама и грубость
-          </p>
-        </div>
-      </div>
+      <Mic style={{ width: 11, height: 11, color: isMe ? 'rgba(255,255,255,0.4)' : '#2a4060', flexShrink: 0 }} />
     </div>
   );
 }
 
-/* ─── Chat View ─────────────────────────────────────────────────────────────── */
-function ChatView({ channel, onBack }: { channel: Channel; onBack: () => void }) {
-  const userEmail = sessionStorage.getItem('ovora_user_email') || '';
-  const userRole  = sessionStorage.getItem('userRole') || 'sender';
-  const isDriver  = userRole === 'driver';
+/* ─── Voice recorder hook ─────────────────────────────────────────── */
+function useVoiceRecorder() {
+  const [recording, setRecording] = useState(false);
+  const [seconds, setSeconds]     = useState(0);
+  const [blob, setBlob]           = useState<Blob | null>(null);
+  const mrRef    = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const timerRef  = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const rawName = sessionStorage.getItem('ovora_user_name') || userEmail.split('@')[0] || 'Аноним';
-  const userName = rawName;
+  const start = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream, { mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg' });
+      mrRef.current = mr;
+      chunksRef.current = [];
+      mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      mr.onstop = () => {
+        stream.getTracks().forEach(t => t.stop());
+        const b = new Blob(chunksRef.current, { type: mr.mimeType });
+        setBlob(b);
+      };
+      mr.start();
+      setRecording(true);
+      setSeconds(0);
+      timerRef.current = setInterval(() => setSeconds(s => s + 1), 1000);
+    } catch {
+      toast.error('Нет доступа к микрофону');
+    }
+  }, []);
 
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [text, setText]         = useState('');
-  const [sending, setSending]   = useState(false);
-  const [connected, setConnected] = useState(true);
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const inputRef  = useRef<HTMLInputElement>(null);
+  const stop = useCallback(() => {
+    mrRef.current?.stop();
+    if (timerRef.current) clearInterval(timerRef.current);
+    setRecording(false);
+  }, []);
+
+  const cancel = useCallback(() => {
+    mrRef.current?.stop();
+    if (timerRef.current) clearInterval(timerRef.current);
+    mrRef.current = null;
+    chunksRef.current = [];
+    setRecording(false);
+    setSeconds(0);
+    setBlob(null);
+  }, []);
+
+  const clear = useCallback(() => setBlob(null), []);
+
+  return { recording, seconds, blob, start, stop, cancel, clear };
+}
+
+/* ─── Chat View ──────────────────────────────────────────────────── */
+export function RadioPage() {
+  const navigate   = useNavigate();
+  const channel    = RUSSIA_CHANNEL;
+  const userEmail  = sessionStorage.getItem('ovora_user_email') || '';
+  const userRole   = sessionStorage.getItem('userRole') || 'sender';
+  const isDriver   = userRole === 'driver';
+  const userName   = sessionStorage.getItem('ovora_user_name') || userEmail.split('@')[0] || 'Аноним';
+
+  const [messages,   setMessages]   = useState<Message[]>([]);
+  const [text,       setText]       = useState('');
+  const [sending,    setSending]    = useState(false);
+  const [connected,  setConnected]  = useState(true);
+  const bottomRef  = useRef<HTMLDivElement>(null);
+  const inputRef   = useRef<HTMLInputElement>(null);
+  const voice      = useVoiceRecorder();
 
   const loadMessages = useCallback(async () => {
     try {
-      const res = await fetch(`${BASE}/radio/channels/${channel.id}/messages`, { headers: H });
+      const res  = await fetch(`${BASE}/radio/channels/${channel.id}/messages`, { headers: H });
       const data = await res.json();
-      if (data.messages) {
-        setMessages(data.messages);
-        setConnected(true);
-      }
+      if (data.messages) { setMessages(data.messages); setConnected(true); }
+      else if (data.error) { setConnected(false); }
     } catch { setConnected(false); }
   }, [channel.id]);
 
   useEffect(() => { loadMessages(); }, [loadMessages]);
+  useEffect(() => { const t = setInterval(loadMessages, 5_000); return () => clearInterval(t); }, [loadMessages]);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages.length]);
 
-  // Poll every 5 seconds
-  useEffect(() => {
-    const t = setInterval(loadMessages, 5_000);
-    return () => clearInterval(t);
-  }, [loadMessages]);
+  /* Upload voice blob → get URL */
+  const uploadVoice = async (b: Blob, duration: number): Promise<string> => {
+    const ext  = b.type.includes('ogg') ? 'ogg' : 'webm';
+    const form = new FormData();
+    form.append('file', b, `voice_${Date.now()}.${ext}`);
+    form.append('userEmail', userEmail);
+    const res  = await fetch(`${BASE}/radio/voice-upload`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${publicAnonKey}` },
+      body: form,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'upload failed');
+    return data.audioUrl as string;
+  };
 
-  // Scroll to bottom on new messages
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages.length]);
-
-  const send = async () => {
+  const sendText = async () => {
     const trimmed = text.trim();
     if (!trimmed || sending) return;
     if (!userEmail) { toast.error('Необходима авторизация'); return; }
-    setSending(true);
-    setText('');
+    setSending(true); setText('');
     try {
-      const res = await fetch(`${BASE}/radio/channels/${channel.id}/messages`, {
+      const res  = await fetch(`${BASE}/radio/channels/${channel.id}/messages`, {
         method: 'POST', headers: H,
-        body: JSON.stringify({ userEmail, userName, userRole, text: trimmed }),
+        body: JSON.stringify({ userEmail, userName, userRole, type: 'text', text: trimmed }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       await loadMessages();
-    } catch (e: any) {
-      toast.error(`Ошибка: ${e.message}`);
-      setText(trimmed);
-    } finally {
-      setSending(false);
-      inputRef.current?.focus();
-    }
+    } catch (e: any) { toast.error(`Ошибка: ${e.message}`); setText(trimmed); }
+    finally { setSending(false); inputRef.current?.focus(); }
+  };
+
+  const sendVoice = async () => {
+    if (!voice.blob || sending) return;
+    if (!userEmail) { toast.error('Необходима авторизация'); return; }
+    setSending(true);
+    const duration = voice.seconds;
+    const b = voice.blob;
+    voice.clear();
+    try {
+      const audioUrl = await uploadVoice(b, duration);
+      const res = await fetch(`${BASE}/radio/channels/${channel.id}/messages`, {
+        method: 'POST', headers: H,
+        body: JSON.stringify({ userEmail, userName, userRole, type: 'voice', audioUrl, audioDuration: duration }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      await loadMessages();
+    } catch (e: any) { toast.error(`Ошибка: ${e.message}`); }
+    finally { setSending(false); }
   };
 
   const handleKey = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendText(); }
   };
 
-  // Group messages by date
+  /* Group by date */
   const grouped: { date: string; msgs: Message[] }[] = [];
   let lastDate = '';
   for (const m of messages) {
@@ -212,63 +242,64 @@ function ChatView({ channel, onBack }: { channel: Channel; onBack: () => void })
   }
 
   return (
-    <div style={{ background: '#0E1621', height: '100vh', display: 'flex', flexDirection: 'column', fontFamily: "'Sora', sans-serif" }}>
-      {/* Header */}
-      <header style={{ background: '#0a1220', borderBottom: '1px solid #0d2035', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-        <button onClick={onBack}
-          style={{ width: 36, height: 36, borderRadius: 11, background: '#0a1828', border: '1px solid #1a2d45', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+    <div style={{ background: '#0b1420', height: '100dvh', display: 'flex', flexDirection: 'column', fontFamily: "'Sora',sans-serif", overflow: 'hidden' }}>
+
+      {/* ── Header ── */}
+      <header style={{ background: '#080f1c', borderBottom: '1px solid #0d2035', padding: '0 16px', height: 60, display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+        <button onClick={() => navigate(-1)} style={{ width: 36, height: 36, borderRadius: 11, background: '#0a1828', border: '1px solid #1a2d45', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
           <ArrowLeft style={{ width: 16, height: 16, color: '#7a9ab8' }} />
         </button>
 
-        <div style={{ width: 40, height: 40, borderRadius: 13, background: channel.color + '18', border: `1px solid ${channel.color}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
+        <div style={{ width: 38, height: 38, borderRadius: 12, background: `${channel.color}18`, border: `1px solid ${channel.color}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>
           {channel.emoji}
         </div>
 
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ fontSize: 15, fontWeight: 800, color: '#e2e8f0', lineHeight: 1 }}>{channel.name}</p>
-          <p style={{ fontSize: 11, color: '#4a6880', marginTop: 2, display: 'flex', alignItems: 'center', gap: 5 }}>
+          <p style={{ fontSize: 15, fontWeight: 800, color: '#e2e8f0', lineHeight: 1, marginBottom: 3 }}>{channel.name}</p>
+          <p style={{ fontSize: 11, color: '#2a4060', display: 'flex', alignItems: 'center', gap: 5 }}>
             {connected
               ? <><Wifi style={{ width: 10, height: 10, color: '#22c55e' }} /><span style={{ color: '#22c55e' }}>Подключён</span></>
               : <><WifiOff style={{ width: 10, height: 10, color: '#ef4444' }} /><span style={{ color: '#ef4444' }}>Нет соединения</span></>
             }
-            <span>· обновление каждые 5с</span>
+            <span>· {messages.length} сообщ.</span>
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: '#0a1828', border: '1px solid #1a2d45', borderRadius: 9, padding: '5px 10px' }}>
-          <Hash style={{ width: 11, height: 11, color: channel.color }} />
-          <span style={{ fontSize: 11, fontWeight: 700, color: channel.color }}>{messages.length}</span>
-        </div>
+        {/* Online dot */}
+        <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 8px #22c55e80', flexShrink: 0 }} />
       </header>
 
-      {/* Messages */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+      {/* ── Messages ── */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', WebkitOverflowScrolling: 'touch' as any }}>
         {messages.length === 0 && (
           <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-            <div style={{ fontSize: 48, marginBottom: 14 }}>{channel.emoji}</div>
-            <p style={{ fontSize: 15, fontWeight: 700, color: '#e2e8f0', marginBottom: 8 }}>Канал пока пуст</p>
-            <p style={{ fontSize: 13, color: '#3a5070' }}>Будьте первым! Напишите сообщение водителям на маршруте.</p>
+            <div style={{ fontSize: 56, marginBottom: 16 }}>🇷🇺</div>
+            <p style={{ fontSize: 16, fontWeight: 700, color: '#c0d4e8', marginBottom: 8 }}>Канал пока пуст</p>
+            <p style={{ fontSize: 13, color: '#3a5070', lineHeight: 1.5 }}>
+              {isDriver ? 'Напишите первым — водители ждут!' : 'Тут общаются водители по России.'}
+            </p>
           </div>
         )}
 
         {grouped.map(group => (
           <div key={group.date}>
             {/* Date divider */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '14px 0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '16px 0 12px' }}>
               <div style={{ flex: 1, height: 1, background: '#0d2035' }} />
               <span style={{ fontSize: 11, fontWeight: 600, color: '#2a4060', padding: '3px 10px', borderRadius: 100, background: '#080f1a', border: '1px solid #0d2035' }}>{group.date}</span>
               <div style={{ flex: 1, height: 1, background: '#0d2035' }} />
             </div>
 
             {group.msgs.map((msg, i) => {
-              const isMe = msg.userEmail === userEmail;
-              const isSameUser = i > 0 && group.msgs[i-1].userEmail === msg.userEmail;
+              const isMe        = msg.userEmail === userEmail;
+              const isSameUser  = i > 0 && group.msgs[i - 1].userEmail === msg.userEmail;
               const msgIsDriver = msg.userRole === 'driver';
 
               return (
                 <motion.div key={msg.id}
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.15 }}
-                  style={{ display: 'flex', flexDirection: isMe ? 'row-reverse' : 'row', gap: 8, marginBottom: isSameUser ? 3 : 10, alignItems: 'flex-end' }}>
+                  style={{ display: 'flex', flexDirection: isMe ? 'row-reverse' : 'row', gap: 8, marginBottom: isSameUser ? 3 : 10, alignItems: 'flex-end' }}
+                >
                   {/* Avatar */}
                   {!isMe && !isSameUser && (
                     <div style={{ width: 30, height: 30, borderRadius: 10, flexShrink: 0, background: msgIsDriver ? 'linear-gradient(135deg,#1a47c8,#2f8fe0)' : 'linear-gradient(135deg,#047857,#34d399)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -292,7 +323,10 @@ function ChatView({ channel, onBack }: { channel: Channel; onBack: () => void })
                       border: isMe ? 'none' : '1px solid #1a2d45',
                       boxShadow: isMe ? '0 4px 16px #1a47c830' : 'none',
                     }}>
-                      <p style={{ fontSize: 14, color: isMe ? '#e8f4ff' : '#c0d4e8', lineHeight: 1.5, wordBreak: 'break-word' }}>{msg.text}</p>
+                      {msg.type === 'voice' && msg.audioUrl
+                        ? <VoiceBubble audioUrl={msg.audioUrl} duration={msg.audioDuration || 0} isMe={isMe} />
+                        : <p style={{ fontSize: 14, color: isMe ? '#e8f4ff' : '#c0d4e8', lineHeight: 1.5, wordBreak: 'break-word' }}>{msg.text}</p>
+                      }
                       <p style={{ fontSize: 10, color: isMe ? '#93c5fd60' : '#2a4060', marginTop: 4, textAlign: isMe ? 'right' : 'left' }}>{timeShort(msg.createdAt)}</p>
                     </div>
                   </div>
@@ -304,72 +338,122 @@ function ChatView({ channel, onBack }: { channel: Channel; onBack: () => void })
         <div ref={bottomRef} />
       </div>
 
-      {/* Input — drivers only */}
+      {/* ── Input zone ── */}
       {isDriver ? (
-        <div style={{ background: '#080f1a', borderTop: '1px solid #0d2035', padding: '12px 16px', paddingBottom: 'calc(12px + env(safe-area-inset-bottom))', flexShrink: 0 }}>
-          {/* Role badge */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-            <div style={{ width: 22, height: 22, borderRadius: 7, background: 'linear-gradient(135deg,#1a47c8,#2f8fe0)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Truck style={{ width: 10, height: 10, color: '#fff' }} />
-            </div>
-            <span style={{ fontSize: 11, color: '#3a5070' }}>Вы пишете как <strong style={{ color: '#5a8ab0' }}>{userName}</strong> (Водитель)</span>
-          </div>
+        <div style={{ background: '#080f1c', borderTop: '1px solid #0d2035', padding: '10px 16px', paddingBottom: 'calc(10px + env(safe-area-inset-bottom))', flexShrink: 0 }}>
 
-          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
-            <input
-              ref={inputRef}
-              value={text}
-              onChange={e => setText(e.target.value)}
-              onKeyDown={handleKey}
-              placeholder="Написать в канал..."
-              maxLength={500}
-              style={{ flex: 1, background: '#0d1929', border: '1px solid #1a2d45', borderRadius: 14, padding: '12px 16px', color: '#c0d4e8', fontSize: 14, outline: 'none', transition: 'border-color .15s' }}
-              onFocus={e => { e.currentTarget.style.borderColor = '#2a5090'; }}
-              onBlur={e => { e.currentTarget.style.borderColor = '#1a2d45'; }}
-            />
-            <button onClick={send} disabled={sending || !text.trim()}
-              style={{
-                width: 46, height: 46, borderRadius: 14, flexShrink: 0,
-                background: text.trim() ? 'linear-gradient(135deg,#1a47c8,#2f8fe0)' : '#0a1828',
-                border: `1px solid ${text.trim() ? 'transparent' : '#1a2d45'}`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: text.trim() ? 'pointer' : 'default',
-                transition: 'all .2s',
-                boxShadow: text.trim() ? '0 4px 16px #1a47c840' : 'none',
-              }}>
-              <Send style={{ width: 18, height: 18, color: text.trim() ? '#fff' : '#1a3050' }} />
-            </button>
-          </div>
+          {/* Voice preview — after recording stopped */}
+          <AnimatePresence>
+            {voice.blob && !voice.recording && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+                style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 10, background: '#0d1929', border: '1px solid #1a3560', borderRadius: 14, padding: '10px 14px' }}
+              >
+                <Mic style={{ width: 14, height: 14, color: '#5ba3f5', flexShrink: 0 }} />
+                <span style={{ fontSize: 13, color: '#7ab0d4', flex: 1 }}>Голосовое · {fmtDur(voice.seconds)}</span>
+                <button onClick={voice.clear} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
+                  <X style={{ width: 14, height: 14, color: '#3a5070' }} />
+                </button>
+                <button onClick={sendVoice} disabled={sending} style={{
+                  padding: '6px 14px', borderRadius: 10, background: 'linear-gradient(135deg,#1a47c8,#2f8fe0)', border: 'none', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                }}>
+                  Отправить
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Recording indicator */}
+          <AnimatePresence>
+            {voice.recording && (
+              <motion.div
+                initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
+                style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 10, background: '#1a0a0a', border: '1px solid #4a1a1a', borderRadius: 14, padding: '10px 14px' }}
+              >
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', boxShadow: '0 0 8px #ef4444', animation: 'pulse 1s infinite' }} />
+                <span style={{ fontSize: 13, color: '#f87171', flex: 1 }}>Запись… {fmtDur(voice.seconds)}</span>
+                <button onClick={voice.cancel} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
+                  <X style={{ width: 14, height: 14, color: '#6a2a2a' }} />
+                </button>
+                <button onClick={voice.stop} style={{
+                  padding: '6px 14px', borderRadius: 10, background: '#7f1d1d', border: '1px solid #991b1b', color: '#fca5a5', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                }}>
+                  <Square style={{ width: 10, height: 10, display: 'inline', marginRight: 4 }} />Стоп
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Role badge */}
+          {!voice.recording && !voice.blob && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+              <div style={{ width: 20, height: 20, borderRadius: 6, background: 'linear-gradient(135deg,#1a47c8,#2f8fe0)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Truck style={{ width: 10, height: 10, color: '#fff' }} />
+              </div>
+              <span style={{ fontSize: 11, color: '#2a4060' }}>
+                <strong style={{ color: '#4a7090' }}>{userName}</strong> · Водитель
+              </span>
+            </div>
+          )}
+
+          {/* Text + mic row */}
+          {!voice.recording && !voice.blob && (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+              <input
+                ref={inputRef}
+                value={text}
+                onChange={e => setText(e.target.value)}
+                onKeyDown={handleKey}
+                placeholder="Написать в канал…"
+                maxLength={500}
+                style={{ flex: 1, background: '#0d1929', border: '1px solid #1a2d45', borderRadius: 14, padding: '12px 14px', color: '#c0d4e8', fontSize: 14, outline: 'none', transition: 'border-color .15s', fontFamily: 'inherit' }}
+                onFocus={e => { e.currentTarget.style.borderColor = '#2a5090'; }}
+                onBlur={e => { e.currentTarget.style.borderColor = '#1a2d45'; }}
+              />
+
+              {/* Mic button */}
+              <button
+                onClick={voice.start}
+                style={{
+                  width: 46, height: 46, borderRadius: 14, flexShrink: 0,
+                  background: '#0d1929', border: '1px solid #1a3560',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                }}
+                title="Голосовое сообщение"
+              >
+                <Mic style={{ width: 17, height: 17, color: '#5ba3f5' }} />
+              </button>
+
+              {/* Send text button */}
+              <button
+                onClick={sendText}
+                disabled={sending || !text.trim()}
+                style={{
+                  width: 46, height: 46, borderRadius: 14, flexShrink: 0,
+                  background: text.trim() ? 'linear-gradient(135deg,#1a47c8,#2f8fe0)' : '#0a1828',
+                  border: `1px solid ${text.trim() ? 'transparent' : '#1a2d45'}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: text.trim() ? 'pointer' : 'default', transition: 'all .2s',
+                  boxShadow: text.trim() ? '0 4px 16px #1a47c840' : 'none',
+                }}
+              >
+                <Send style={{ width: 17, height: 17, color: text.trim() ? '#fff' : '#1a3050' }} />
+              </button>
+            </div>
+          )}
         </div>
       ) : (
-        <div style={{ background: '#080f1a', borderTop: '1px solid #0d2035', padding: '14px 16px', paddingBottom: 'calc(14px + env(safe-area-inset-bottom))', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-          <span style={{ fontSize: 16 }}>🚛</span>
-          <span style={{ fontSize: 12, color: '#5a8ab0', textAlign: 'center', lineHeight: 1.4 }}>
-            Только водители могут писать в этот канал
-          </span>
+        /* Sender: read-only notice */
+        <div style={{ background: '#080f1c', borderTop: '1px solid #0d2035', padding: '16px', paddingBottom: 'calc(16px + env(safe-area-inset-bottom))', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+          <MicOff style={{ width: 16, height: 16, color: '#2a4060' }} />
+          <span style={{ fontSize: 13, color: '#3a5070' }}>Только водители могут писать в этот канал</span>
         </div>
       )}
+
+      <style>{`
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+      `}</style>
     </div>
-  );
-}
-
-const RUSSIA_CHANNEL: Channel = {
-  id: 'ch-russia',
-  name: 'Россия',
-  emoji: '🇷🇺',
-  color: '#5ba3f5',
-  desc: 'Общий канал водителей по России',
-};
-
-/* ─── Main Page ─────────────────────────────────────────────────────────────── */
-export function RadioPage() {
-  const navigate = useNavigate();
-  return (
-    <AnimatePresence mode="wait">
-      <motion.div key="russia" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} transition={{ duration: 0.2 }}>
-        <ChatView channel={RUSSIA_CHANNEL} onBack={() => navigate(-1)} />
-      </motion.div>
-    </AnimatePresence>
   );
 }
 

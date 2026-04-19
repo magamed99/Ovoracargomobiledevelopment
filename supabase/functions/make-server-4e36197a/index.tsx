@@ -70,6 +70,7 @@ const AVATAR_BUCKET = 'make-4e36197a-avatars';
 const ADS_BUCKET = 'make-4e36197a-ads';
 const AVIA_PASSPORT_BUCKET = 'make-4e36197a-avia-passports';
 const POD_BUCKET = 'make-4e36197a-pod';
+const RADIO_VOICE_BUCKET = 'make-4e36197a-radio-voice';
 (async () => {
   const { data: buckets } = await supabase.storage.listBuckets();
   if (!buckets?.some(b => b.name === BUCKET)) {
@@ -89,6 +90,10 @@ const POD_BUCKET = 'make-4e36197a-pod';
   if (!buckets?.some(b => b.name === POD_BUCKET)) {
     await supabase.storage.createBucket(POD_BUCKET);
     console.log('[Startup] Created POD (Proof of Delivery) bucket:', POD_BUCKET);
+  }
+  if (!buckets?.some(b => b.name === RADIO_VOICE_BUCKET)) {
+    await supabase.storage.createBucket(RADIO_VOICE_BUCKET, { public: true, fileSizeLimit: 2_000_000 });
+    console.log('[Startup] Created radio voice bucket:', RADIO_VOICE_BUCKET);
   }
 })();
 
@@ -5126,6 +5131,7 @@ app.post('/make-server-4e36197a/rest-stops/:id/review', async (c) => {
 // ══════════════════════════════════════════════════════════════════════════════
 
 const DEFAULT_CHANNELS = [
+  { id: 'ch-russia', name: 'Россия',                 emoji: '🇷🇺', color: '#5ba3f5', desc: 'Общий канал водителей по России' },
   { id: 'ch-m5',    name: 'М-5 Урал',               emoji: '🛣️', color: '#1a47c8', desc: 'Москва — Уфа — Челябинск' },
   { id: 'ch-m4',    name: 'М-4 Дон',                 emoji: '🌾', color: '#059669', desc: 'Москва — Воронеж — Ростов' },
   { id: 'ch-m7',    name: 'М-7 Волга',               emoji: '🌊', color: '#7c3aed', desc: 'Москва — Казань — Уфа' },
@@ -5135,14 +5141,17 @@ const DEFAULT_CHANNELS = [
   { id: 'ch-sos',   name: 'SOS / Помощь',            emoji: '🆘', color: '#ef4444', desc: 'Срочная помощь на трассе' },
 ];
 
+// Upsert каждый дефолтный канал: если отсутствует — добавить. Уже существующие не перезаписываем (чтобы сохранить createdAt).
 async function seedChannels() {
-  const existing = await kv.getByPrefix('ovora:radio:channel:');
-  if (existing.filter(c => c).length === 0) {
-    for (const ch of DEFAULT_CHANNELS) {
+  let created = 0;
+  for (const ch of DEFAULT_CHANNELS) {
+    const existing = await kv.get(`ovora:radio:channel:${ch.id}`);
+    if (!existing) {
       await kv.set(`ovora:radio:channel:${ch.id}`, { ...ch, createdAt: new Date().toISOString() });
+      created++;
     }
-    console.log('[radio] Seeded', DEFAULT_CHANNELS.length, 'channels');
   }
+  if (created > 0) console.log('[radio] Seeded', created, 'new channels');
 }
 seedChannels().catch(console.warn);
 
@@ -5174,13 +5183,35 @@ app.post('/make-server-4e36197a/radio/channels/:channelId/messages', async (c) =
   try {
     const channelId = c.req.param('channelId');
     const body = await c.req.json();
-    const { userEmail, userName, text, userRole } = body;
-    if (!userEmail || !text?.trim()) return c.json({ error: 'userEmail and text required' }, 400);
+    const { userEmail, userName, userRole, type, text, audioUrl, audioDuration } = body;
+    const msgType: 'text' | 'voice' = type === 'voice' ? 'voice' : 'text';
+
+    if (!userEmail) return c.json({ error: 'userEmail required' }, 400);
+    // Только водители могут писать
+    if ((userRole || 'sender') !== 'driver') return c.json({ error: 'Only drivers can write to this channel' }, 403);
+
+    if (msgType === 'text' && !text?.trim()) return c.json({ error: 'text required' }, 400);
+    if (msgType === 'voice' && !audioUrl) return c.json({ error: 'audioUrl required' }, 400);
+
     const channel: any = await kv.get(`ovora:radio:channel:${channelId}`);
     if (!channel) return c.json({ error: 'Channel not found' }, 404);
+
     const msgId = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const now = new Date().toISOString();
-    const message = { id: msgId, channelId, userEmail, userName: userName || 'По��ьзователь', userRole: userRole || 'sender', text: text.trim().substring(0, 500), ts: Date.now(), createdAt: now };
+    const message: any = {
+      id: msgId, channelId, userEmail,
+      userName: userName || 'Пользователь',
+      userRole: userRole || 'driver',
+      type: msgType,
+      ts: Date.now(), createdAt: now,
+    };
+    if (msgType === 'text') {
+      message.text = String(text).trim().substring(0, 500);
+    } else {
+      message.audioUrl = String(audioUrl);
+      message.audioDuration = Math.min(Math.max(Number(audioDuration) || 0, 0), 60);
+    }
+
     await kv.set(`ovora:radio:msg:${channelId}:${msgId}`, message);
     // Trim: keep last 200
     const allMsgs: any[] = await kv.getByPrefix(`ovora:radio:msg:${channelId}:`);
@@ -5191,6 +5222,32 @@ app.post('/make-server-4e36197a/radio/channels/:channelId/messages', async (c) =
     return c.json({ success: true, message });
   } catch (err) {
     console.log('Error POST /radio/:id/messages:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// Voice upload: принимает multipart file → загружает в Supabase Storage → возвращает публичный URL
+app.post('/make-server-4e36197a/radio/voice-upload', async (c) => {
+  try {
+    const form = await c.req.formData();
+    const file = form.get('file') as File | null;
+    const userEmail = String(form.get('userEmail') || '');
+    if (!file) return c.json({ error: 'file required' }, 400);
+    if (!userEmail) return c.json({ error: 'userEmail required' }, 400);
+    if (file.size > 2_000_000) return c.json({ error: 'file too large (max 2MB)' }, 400);
+
+    const ext = (file.name?.split('.').pop() || 'webm').toLowerCase().substring(0, 5);
+    const safeEmail = userEmail.replace(/[^a-z0-9]/gi, '_').substring(0, 40);
+    const path = `${safeEmail}/${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext}`;
+    const buf = new Uint8Array(await file.arrayBuffer());
+    const { error: upErr } = await supabase.storage.from(RADIO_VOICE_BUCKET).upload(path, buf, {
+      contentType: file.type || 'audio/webm', upsert: false,
+    });
+    if (upErr) return c.json({ error: `upload failed: ${upErr.message}` }, 500);
+    const { data: pub } = supabase.storage.from(RADIO_VOICE_BUCKET).getPublicUrl(path);
+    return c.json({ success: true, audioUrl: pub.publicUrl });
+  } catch (err) {
+    console.log('Error POST /radio/voice-upload:', err);
     return c.json({ error: `${err}` }, 500);
   }
 });

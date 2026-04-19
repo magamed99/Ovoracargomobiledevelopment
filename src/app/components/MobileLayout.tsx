@@ -634,7 +634,9 @@ export function MobileLayout() {
   if (userRole === 'driver') nav.splice(1, 0, { name: 'Создать', href: '/create-trip', icon: Plus, badge: null });
   if (userRole === 'sender') nav.splice(1, 0, { name: 'Поиск', href: '/search', icon: Search, badge: null });
 
-  const hideNav = location.pathname.startsWith('/chat/') || location.pathname.startsWith('/trip/');
+  const hideNav = location.pathname.startsWith('/chat/')
+    || location.pathname.startsWith('/trip/')
+    || location.pathname === '/radio';
 
   const SIDEBAR_HIDDEN_PATHS = [
     '/home', '/dashboard', '/create-trip', '/trips', '/profile', '/profile/edit',
