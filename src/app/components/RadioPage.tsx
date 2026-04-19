@@ -201,8 +201,10 @@ export function RadioPage() {
       headers: { Authorization: `Bearer ${publicAnonKey}` },
       body: form,
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'upload failed');
+    let data: any = {};
+    try { data = await res.json(); } catch { /* non-JSON response */ }
+    if (!res.ok) throw new Error(data.error || `Ошибка загрузки (${res.status})`);
+    if (!data.audioUrl) throw new Error('Сервер не вернул URL аудио');
     return data.audioUrl as string;
   };
 
