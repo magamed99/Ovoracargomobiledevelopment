@@ -304,94 +304,70 @@ function ChatView({ channel, onBack }: { channel: Channel; onBack: () => void })
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
-      <div style={{ background: '#080f1a', borderTop: '1px solid #0d2035', padding: '12px 16px', paddingBottom: 'calc(12px + env(safe-area-inset-bottom))', flexShrink: 0 }}>
-        {/* Role badge */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-          <div style={{ width: 22, height: 22, borderRadius: 7, background: isDriver ? 'linear-gradient(135deg,#1a47c8,#2f8fe0)' : 'linear-gradient(135deg,#047857,#34d399)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {isDriver ? <Truck style={{ width: 10, height: 10, color: '#fff' }} /> : <Package style={{ width: 10, height: 10, color: '#fff' }} />}
+      {/* Input — drivers only */}
+      {isDriver ? (
+        <div style={{ background: '#080f1a', borderTop: '1px solid #0d2035', padding: '12px 16px', paddingBottom: 'calc(12px + env(safe-area-inset-bottom))', flexShrink: 0 }}>
+          {/* Role badge */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+            <div style={{ width: 22, height: 22, borderRadius: 7, background: 'linear-gradient(135deg,#1a47c8,#2f8fe0)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Truck style={{ width: 10, height: 10, color: '#fff' }} />
+            </div>
+            <span style={{ fontSize: 11, color: '#3a5070' }}>Вы пишете как <strong style={{ color: '#5a8ab0' }}>{userName}</strong> (Водитель)</span>
           </div>
-          <span style={{ fontSize: 11, color: '#3a5070' }}>Вы пишете как <strong style={{ color: '#5a8ab0' }}>{userName}</strong> ({isDriver ? 'Водитель' : 'Отправитель'})</span>
-        </div>
 
-        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
-          <input
-            ref={inputRef}
-            value={text}
-            onChange={e => setText(e.target.value)}
-            onKeyDown={handleKey}
-            placeholder="Написать в канал..."
-            maxLength={500}
-            style={{ flex: 1, background: '#0d1929', border: '1px solid #1a2d45', borderRadius: 14, padding: '12px 16px', color: '#c0d4e8', fontSize: 14, outline: 'none', transition: 'border-color .15s' }}
-            onFocus={e => { e.currentTarget.style.borderColor = '#2a5090'; }}
-            onBlur={e => { e.currentTarget.style.borderColor = '#1a2d45'; }}
-          />
-          <button onClick={send} disabled={sending || !text.trim()}
-            style={{
-              width: 46, height: 46, borderRadius: 14, flexShrink: 0,
-              background: text.trim() ? 'linear-gradient(135deg,#1a47c8,#2f8fe0)' : '#0a1828',
-              border: `1px solid ${text.trim() ? 'transparent' : '#1a2d45'}`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: text.trim() ? 'pointer' : 'default',
-              transition: 'all .2s',
-              boxShadow: text.trim() ? '0 4px 16px #1a47c840' : 'none',
-            }}>
-            <Send style={{ width: 18, height: 18, color: text.trim() ? '#fff' : '#1a3050' }} />
-          </button>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
+            <input
+              ref={inputRef}
+              value={text}
+              onChange={e => setText(e.target.value)}
+              onKeyDown={handleKey}
+              placeholder="Написать в канал..."
+              maxLength={500}
+              style={{ flex: 1, background: '#0d1929', border: '1px solid #1a2d45', borderRadius: 14, padding: '12px 16px', color: '#c0d4e8', fontSize: 14, outline: 'none', transition: 'border-color .15s' }}
+              onFocus={e => { e.currentTarget.style.borderColor = '#2a5090'; }}
+              onBlur={e => { e.currentTarget.style.borderColor = '#1a2d45'; }}
+            />
+            <button onClick={send} disabled={sending || !text.trim()}
+              style={{
+                width: 46, height: 46, borderRadius: 14, flexShrink: 0,
+                background: text.trim() ? 'linear-gradient(135deg,#1a47c8,#2f8fe0)' : '#0a1828',
+                border: `1px solid ${text.trim() ? 'transparent' : '#1a2d45'}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: text.trim() ? 'pointer' : 'default',
+                transition: 'all .2s',
+                boxShadow: text.trim() ? '0 4px 16px #1a47c840' : 'none',
+              }}>
+              <Send style={{ width: 18, height: 18, color: text.trim() ? '#fff' : '#1a3050' }} />
+            </button>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div style={{ background: '#080f1a', borderTop: '1px solid #0d2035', padding: '14px 16px', paddingBottom: 'calc(14px + env(safe-area-inset-bottom))', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <span style={{ fontSize: 16 }}>🚛</span>
+          <span style={{ fontSize: 12, color: '#5a8ab0', textAlign: 'center', lineHeight: 1.4 }}>
+            Только водители могут писать в этот канал
+          </span>
+        </div>
+      )}
     </div>
   );
 }
 
+const RUSSIA_CHANNEL: Channel = {
+  id: 'ch-russia',
+  name: 'Россия',
+  emoji: '🇷🇺',
+  color: '#5ba3f5',
+  desc: 'Общий канал водителей по России',
+};
+
 /* ─── Main Page ─────────────────────────────────────────────────────────────── */
 export function RadioPage() {
   const navigate = useNavigate();
-  const [channels, setChannels] = useState<Channel[]>([]);
-  const [loading, setLoading]   = useState(true);
-  const [active, setActive]     = useState<Channel | null>(null);
-
-  useEffect(() => {
-    fetch(`${BASE}/radio/channels`, { headers: H })
-      .then(r => r.json())
-      .then(d => { if (d.channels) setChannels(d.channels); })
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (active) {
-    return (
-      <AnimatePresence mode="wait">
-        <motion.div key={active.id} initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} transition={{ duration: 0.2 }}>
-          <ChatView channel={active} onBack={() => setActive(null)} />
-        </motion.div>
-      </AnimatePresence>
-    );
-  }
-
   return (
     <AnimatePresence mode="wait">
-      <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-        <div style={{ background: '#0E1621', minHeight: '100vh', fontFamily: "'Sora', sans-serif" }}>
-          <header style={{ position: 'sticky', top: 0, zIndex: 30, background: '#0E1621ee', backdropFilter: 'blur(16px)', borderBottom: '1px solid #0d2035', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
-            <button onClick={() => navigate(-1)}
-              style={{ width: 36, height: 36, borderRadius: 11, background: '#0a1828', border: '1px solid #1a2d45', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-              <ArrowLeft style={{ width: 16, height: 16, color: '#7a9ab8' }} />
-            </button>
-            <div>
-              <h1 style={{ fontSize: 18, fontWeight: 900, color: '#e2e8f0' }}>Рация Ovora</h1>
-              <p style={{ fontSize: 11, color: '#4a6880' }}>Каналы для дальнобойщиков</p>
-            </div>
-          </header>
-
-          {loading ? (
-            <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {[1,2,3,4,5].map(i => <div key={i} style={{ height: 76, borderRadius: 18, background: '#0a1220', border: '1px solid #0d1e30', animation: 'pulse 1.5s ease-in-out infinite' }} />)}
-            </div>
-          ) : (
-            <ChannelList channels={channels} onSelect={setActive} />
-          )}
-        </div>
+      <motion.div key="russia" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} transition={{ duration: 0.2 }}>
+        <ChatView channel={RUSSIA_CHANNEL} onBack={() => navigate(-1)} />
       </motion.div>
     </AnimatePresence>
   );

@@ -213,7 +213,8 @@ export function Home() {
           {isDriver ? <DriverDashboardActions /> : <SenderDashboardActions />}
         </div>
 
-        {/* ── НОВЫЕ СЕРВИСЫ ───────────────────────────────────────────────── */}
+        {/* ── НОВЫЕ СЕРВИСЫ — только для водителей ───────────────────────── */}
+        {isDriver && (
         <div className="px-4 pb-5">
           <div className="flex items-center gap-2 mb-3">
             <MapPin className="w-3.5 h-3.5 text-[#f59e0b]" />
@@ -272,6 +273,7 @@ export function Home() {
             ))}
           </div>
         </div>
+        )}
 
         {hasAds && (
           <motion.div
