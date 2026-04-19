@@ -8,7 +8,9 @@ import { projectId, publicAnonKey } from '/utils/supabase/info';
 const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;
 const H    = { 'Content-Type': 'application/json', Authorization: `Bearer ${publicAnonKey}` };
 
-const RUSSIA_CHANNEL = { id: 'ch-russia', name: 'Россия', emoji: '🇷🇺', color: '#5ba3f5', desc: 'Общий канал водителей по России' };
+// Preferred channel; if backend doesn't have it yet (not deployed), falls back to first available
+const PREFERRED_CHANNEL_ID = 'ch-russia';
+const FALLBACK_CHANNEL = { id: 'ch-m5', name: 'Россия (М-5)', emoji: '🇷🇺', color: '#5ba3f5', desc: 'Общий канал водителей по России' };
 
 interface Message {
   id: string;
@@ -148,11 +150,24 @@ function useVoiceRecorder() {
 /* ─── Chat View ──────────────────────────────────────────────────── */
 export function RadioPage() {
   const navigate   = useNavigate();
-  const channel    = RUSSIA_CHANNEL;
   const userEmail  = sessionStorage.getItem('ovora_user_email') || '';
   const userRole   = sessionStorage.getItem('userRole') || 'sender';
   const isDriver   = userRole === 'driver';
   const userName   = sessionStorage.getItem('ovora_user_name') || userEmail.split('@')[0] || 'Аноним';
+
+  // Resolve channel: prefer ch-russia; fall back to first from backend if not seeded yet
+  const [channel, setChannel] = useState(FALLBACK_CHANNEL);
+  useEffect(() => {
+    fetch(`${BASE}/radio/channels`, { headers: H })
+      .then(r => r.json())
+      .then((data: { channels?: { id: string; name: string; emoji: string; color: string; desc: string }[] }) => {
+        const list = data.channels || [];
+        const russia = list.find(c => c.id === PREFERRED_CHANNEL_ID);
+        if (russia) setChannel(russia);
+        else if (list.length > 0) setChannel({ ...list[0], emoji: '🇷🇺', name: 'Россия', color: '#5ba3f5' });
+      })
+      .catch(() => {});
+  }, []);
 
   const [messages,   setMessages]   = useState<Message[]>([]);
   const [text,       setText]       = useState('');
