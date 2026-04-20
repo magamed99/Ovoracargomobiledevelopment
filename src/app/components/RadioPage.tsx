@@ -169,21 +169,76 @@ export function RadioPage() {
       .catch(() => {});
   }, []);
 
-  const [messages,   setMessages]   = useState<Message[]>([]);
-  const [text,       setText]       = useState('');
-  const [sending,    setSending]    = useState(false);
-  const [connected,  setConnected]  = useState(true);
+  const [messages,    setMessages]    = useState<Message[]>([]);
+  const [text,        setText]        = useState('');
+  const [sending,     setSending]     = useState(false);
+  const [connected,   setConnected]   = useState(true);
+  const [hasMore,     setHasMore]     = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [online,      setOnline]      = useState<{ userEmail: string; userName: string; userRole: string }[]>([]);
   const bottomRef  = useRef<HTMLDivElement>(null);
+  const scrollRef  = useRef<HTMLDivElement>(null);
   const inputRef   = useRef<HTMLInputElement>(null);
+  const pttRef     = useRef(false);
   const voice      = useVoiceRecorder();
 
   const loadMessages = useCallback(async () => {
     try {
-      const res  = await fetch(`${BASE}/radio/channels/${channel.id}/messages`, { headers: H });
+      const res  = await fetch(`${BASE}/radio/channels/${channel.id}/messages?limit=30`, { headers: H });
       const data = await res.json();
-      if (data.messages) { setMessages(data.messages); setConnected(true); }
-      else if (data.error) { setConnected(false); }
+      if (data.messages) {
+        setMessages(data.messages);
+        setHasMore(!!data.hasMore);
+        setConnected(true);
+      } else if (data.error) { setConnected(false); }
     } catch { setConnected(false); }
+  }, [channel.id]);
+
+  const loadMore = useCallback(async () => {
+    if (!hasMore || loadingMore || messages.length === 0) return;
+    setLoadingMore(true);
+    const oldestTs = messages[0].ts;
+    const scroller = scrollRef.current;
+    const prevScrollHeight = scroller?.scrollHeight || 0;
+    try {
+      const res  = await fetch(`${BASE}/radio/channels/${channel.id}/messages?limit=30&before=${oldestTs}`, { headers: H });
+      const data = await res.json();
+      if (data.messages && data.messages.length > 0) {
+        setMessages(prev => [...data.messages, ...prev]);
+        setHasMore(!!data.hasMore);
+        // preserve scroll position after prepending
+        requestAnimationFrame(() => {
+          if (scroller) scroller.scrollTop = scroller.scrollHeight - prevScrollHeight;
+        });
+      } else {
+        setHasMore(false);
+      }
+    } catch {}
+    setLoadingMore(false);
+  }, [channel.id, hasMore, loadingMore, messages]);
+
+  // Heartbeat: announce presence every 30s
+  useEffect(() => {
+    if (!userEmail || !channel.id) return;
+    const beat = () => fetch(`${BASE}/radio/channels/${channel.id}/heartbeat`, {
+      method: 'POST', headers: H,
+      body: JSON.stringify({ userEmail, userName, userRole }),
+    }).catch(() => {});
+    beat();
+    const t = setInterval(beat, 30_000);
+    return () => clearInterval(t);
+  }, [channel.id, userEmail, userName, userRole]);
+
+  // Presence: poll online users every 10s
+  useEffect(() => {
+    if (!channel.id) return;
+    const load = () => fetch(`${BASE}/radio/channels/${channel.id}/presence`, { headers: H })
+      .then(r => r.json())
+      .then((data: { users?: any[] }) => { if (data.users) setOnline(data.users); })
+      .catch(() => {});
+    load();
+    const t = setInterval(load, 10_000);
+    return () => clearInterval(t);
   }, [channel.id]);
 
   useEffect(() => { loadMessages(); }, [loadMessages]);
@@ -245,6 +300,15 @@ export function RadioPage() {
     finally { setSending(false); }
   };
 
+  // PTT: when blob ready and PTT was active → auto-send (or discard if < 1s)
+  useEffect(() => {
+    if (!voice.blob || !pttRef.current) return;
+    pttRef.current = false;
+    if (voice.seconds < 1) { voice.clear(); return; }
+    sendVoice();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voice.blob]);
+
   const handleKey = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendText(); }
   };
@@ -278,16 +342,33 @@ export function RadioPage() {
               ? <><Wifi style={{ width: 10, height: 10, color: '#22c55e' }} /><span style={{ color: '#22c55e' }}>Подключён</span></>
               : <><WifiOff style={{ width: 10, height: 10, color: '#ef4444' }} /><span style={{ color: '#ef4444' }}>Нет соединения</span></>
             }
-            <span>· {messages.length} сообщ.</span>
+            <span>· {online.length} в эфире</span>
           </p>
         </div>
 
-        {/* Online dot */}
-        <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 8px #22c55e80', flexShrink: 0 }} />
+        {/* Online count badge */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 100,
+          background: online.length > 0 ? '#072418' : '#0a1828', border: `1px solid ${online.length > 0 ? '#0a4a2a' : '#1a2d45'}`, flexShrink: 0,
+        }}>
+          <div style={{ width: 6, height: 6, borderRadius: '50%', background: online.length > 0 ? '#22c55e' : '#2a4060', boxShadow: online.length > 0 ? '0 0 6px #22c55e' : 'none', animation: online.length > 0 ? 'pulse 2s infinite' : 'none' }} />
+          <span style={{ fontSize: 11, fontWeight: 700, color: online.length > 0 ? '#22c55e' : '#3a5070' }}>{online.length}</span>
+        </div>
       </header>
 
       {/* ── Messages ── */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', WebkitOverflowScrolling: 'touch' as any }}>
+      <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', WebkitOverflowScrolling: 'touch' as any }}>
+        {hasMore && messages.length > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}>
+            <button onClick={loadMore} disabled={loadingMore} style={{
+              padding: '6px 16px', borderRadius: 100, background: '#0d1929', border: '1px solid #1a3560',
+              color: '#5ba3f5', fontSize: 12, fontWeight: 600, cursor: loadingMore ? 'default' : 'pointer',
+              opacity: loadingMore ? 0.6 : 1,
+            }}>
+              {loadingMore ? 'Загрузка…' : '↑ Загрузить ещё'}
+            </button>
+          </div>
+        )}
         {messages.length === 0 && (
           <div style={{ textAlign: 'center', padding: '60px 20px' }}>
             <div style={{ fontSize: 56, marginBottom: 16 }}>🇷🇺</div>
@@ -428,15 +509,20 @@ export function RadioPage() {
                 onBlur={e => { e.currentTarget.style.borderColor = '#1a2d45'; }}
               />
 
-              {/* Mic button */}
+              {/* PTT Mic button — hold to talk, release to send */}
               <button
-                onClick={voice.start}
+                onPointerDown={(e) => { e.preventDefault(); pttRef.current = true; voice.start(); }}
+                onPointerUp={() => { if (pttRef.current) voice.stop(); }}
+                onPointerLeave={() => { if (pttRef.current && voice.recording) voice.stop(); }}
+                onPointerCancel={() => { if (pttRef.current && voice.recording) voice.stop(); }}
+                onContextMenu={(e) => e.preventDefault()}
                 style={{
                   width: 46, height: 46, borderRadius: 14, flexShrink: 0,
                   background: '#0d1929', border: '1px solid #1a3560',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none',
                 }}
-                title="Голосовое сообщение"
+                title="Зажмите для записи"
               >
                 <Mic style={{ width: 17, height: 17, color: '#5ba3f5' }} />
               </button>
