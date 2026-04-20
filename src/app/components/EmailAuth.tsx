@@ -423,7 +423,7 @@ export function EmailAuth() {
 
   // ═══════════════════════════════════════════════════════════════════════════
   return (
-    <div className="min-h-screen flex flex-col font-['Sora'] bg-[#0e1621] text-white">
+    <div className="min-h-screen font-['Sora'] bg-[#0e1621] text-white">
 
       {/* ── HERO / BG ── */}
       <div className="relative overflow-hidden shrink-0">
@@ -457,7 +457,7 @@ export function EmailAuth() {
       </div>
 
       {/* ── CONTENT ── */}
-      <main className="flex-1 min-h-0 overflow-y-auto flex flex-col px-4 pb-14 pt-3 max-w-md mx-auto w-full">
+      <main className="flex flex-col px-4 pb-20 pt-3 max-w-md mx-auto w-full">
 
         {/* Step progress dots */}
         {step !== 'forgot' && (
