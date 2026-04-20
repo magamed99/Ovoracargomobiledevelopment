@@ -5287,13 +5287,12 @@ app.post('/make-server-4e36197a/radio/voice-upload', async (c) => {
   }
 });
 
-// DELETE own message
-app.delete('/make-server-4e36197a/radio/channels/:channelId/messages/:msgId', async (c) => {
+// DELETE own message (using app.on to avoid 'delete' reserved word issues)
+app.on('DELETE', '/make-server-4e36197a/radio/channels/:channelId/messages/:msgId', async (c) => {
   try {
     const channelId = c.req.param('channelId');
     const msgId     = c.req.param('msgId');
-    const body = await c.req.json();
-    const { userEmail } = body;
+    const { userEmail } = await c.req.json();
     if (!userEmail) return c.json({ error: 'userEmail required' }, 400);
     const msg: any = await kv.get(`ovora:radio:msg:${channelId}:${msgId}`);
     if (!msg) return c.json({ error: 'Message not found' }, 404);
