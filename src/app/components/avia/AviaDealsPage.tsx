@@ -76,16 +76,14 @@ function DealCard({
   const statusMeta = STATUS_META[deal.status];
   const StatusIcon = statusMeta.icon;
 
-  const isInitiator = deal.initiatorPhone === myPhone;
-  const isRecipient = deal.recipientPhone === myPhone;
+  const cleanMyPhone   = myPhone.replace(/\D/g, '');
+  const isInitiator    = deal.initiatorPhone === cleanMyPhone;
+  const isRecipient    = deal.recipientPhone === cleanMyPhone;
   const adIsFlightType = deal.adType === 'flight';
-  const AdIcon = adIsFlightType ? Plane : Package;
-  const adColor = adIsFlightType ? '#0ea5e9' : '#a78bfa';
+  const AdIcon         = adIsFlightType ? Plane : Package;
+  const adColor        = adIsFlightType ? '#0ea5e9' : '#a78bfa';
 
   const otherPhone = isInitiator ? deal.recipientPhone : deal.initiatorPhone;
-  const otherName = isInitiator
-    ? (deal.recipientName || deal.recipientPhone)
-    : (deal.initiatorName || deal.initiatorPhone);
 
   const act = async (action: string, fn: () => Promise<any>) => {
     setActing(action);

@@ -32,6 +32,7 @@ function getDaysLeft(expiryDate?: string): number | null {
   if (!expiryDate) return null;
   try {
     const diff = new Date(expiryDate).getTime() - Date.now();
+    if (isNaN(diff)) return null;
     return Math.floor(diff / 86_400_000);
   } catch {
     return null;
@@ -251,25 +252,8 @@ export function AviaProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export function useAvia() {
+export function useAvia(): AviaContextType {
   const ctx = useContext(AviaContext);
-  if (!ctx) {
-    return {
-      user: null,
-      loading: false,
-      isAuth: false,
-      login: () => {},
-      logout: () => {},
-      refreshUser: async () => {},
-      updateUserLocal: () => {},
-      notifications: [],
-      unreadCount: 0,
-      refreshNotifications: () => {},
-      updateNotifications: () => {},
-      chatUnreadCount: 0,
-      refreshChatUnread: () => {},
-      passportDaysLeft: null,
-    } as AviaContextType;
-  }
+  if (!ctx) throw new Error('[useAvia] Компонент вызван вне <AviaProvider>');
   return ctx;
 }

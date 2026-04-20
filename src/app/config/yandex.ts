@@ -20,7 +20,7 @@ export const YANDEX_MAPS_CONFIG = {
 } as const;
 
 /** Один попытка fetch с таймаутом */
-async function fetchYandexKey(timeoutMs = 8000): Promise<string> {
+async function fetchYandexKey(timeoutMs = 4000): Promise<string> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -86,7 +86,7 @@ export async function initYandexApiKey(): Promise<string> {
   if (initPromise) return initPromise;
 
   initPromise = (async () => {
-    const key = await fetchWithRetry(3, 1000);
+    const key = await fetchWithRetry(2, 500);
     cachedApiKey = key;
     if (key) {
       console.log('[Yandex Config] API key loaded: ✓');

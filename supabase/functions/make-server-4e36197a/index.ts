@@ -70,6 +70,7 @@ const AVATAR_BUCKET = 'make-4e36197a-avatars';
 const ADS_BUCKET = 'make-4e36197a-ads';
 const AVIA_PASSPORT_BUCKET = 'make-4e36197a-avia-passports';
 const POD_BUCKET = 'make-4e36197a-pod';
+const RADIO_VOICE_BUCKET = 'make-4e36197a-radio-voice';
 (async () => {
   const { data: buckets } = await supabase.storage.listBuckets();
   if (!buckets?.some(b => b.name === BUCKET)) {
@@ -89,6 +90,10 @@ const POD_BUCKET = 'make-4e36197a-pod';
   if (!buckets?.some(b => b.name === POD_BUCKET)) {
     await supabase.storage.createBucket(POD_BUCKET);
     console.log('[Startup] Created POD (Proof of Delivery) bucket:', POD_BUCKET);
+  }
+  if (!buckets?.some(b => b.name === RADIO_VOICE_BUCKET)) {
+    await supabase.storage.createBucket(RADIO_VOICE_BUCKET, { public: true, fileSizeLimit: 2_000_000 });
+    console.log('[Startup] Created radio voice bucket:', RADIO_VOICE_BUCKET);
   }
 })();
 
@@ -5126,23 +5131,28 @@ app.post('/make-server-4e36197a/rest-stops/:id/review', async (c) => {
 // ══════════════════════════════════════════════════════════════════════════════
 
 const DEFAULT_CHANNELS = [
-  { id: 'ch-m5',    name: 'М-5 Урал',               emoji: '🛣️', color: '#1a47c8', desc: 'Москва — Уфа — Челябинск' },
-  { id: 'ch-m4',    name: 'М-4 Дон',                 emoji: '🌾', color: '#059669', desc: 'Москва — Воронеж — Ростов' },
-  { id: 'ch-m7',    name: 'М-7 Волга',               emoji: '🌊', color: '#7c3aed', desc: 'Москва — Казань — Уфа' },
-  { id: 'ch-tajik', name: 'Дальнобой Таджикистан',   emoji: '🏔️', color: '#d97706', desc: 'Душанбе · Худжанд · Курган-Тюбе' },
-  { id: 'ch-lars',  name: 'Верхний Ларс',            emoji: '🛂', color: '#dc2626', desc: 'Обстановка на границе' },
-  { id: 'ch-kz',    name: 'Граница Казахстан',       emoji: '🏳️', color: '#0891b2', desc: 'Сагарчин · Маштаково · Петухово' },
-  { id: 'ch-sos',   name: 'SOS / Помощь',            emoji: '🆘', color: '#ef4444', desc: 'Срочная помощь на трассе' },
+  { id: 'ch-russia', name: 'Россия',                emoji: '🇷🇺', color: '#5ba3f5', desc: 'Общий канал — внутренние рейсы по России' },
+  { id: 'ch-ru-kz',  name: 'Россия → Казахстан',   emoji: '🇰🇿', color: '#00AFCA', desc: 'Сагарчин · Маштаково · Петухово · Троицк' },
+  { id: 'ch-ru-uz',  name: 'Россия → Узбекистан',  emoji: '🇺🇿', color: '#1eb854', desc: 'Транзит через Казахстан · Ташкент · Самарканд' },
+  { id: 'ch-ru-kg',  name: 'Россия → Кыргызстан',  emoji: '🇰🇬', color: '#e63946', desc: 'Бишкек · Ош · транзит КЗ' },
+  { id: 'ch-ru-by',  name: 'Россия → Беларусь',    emoji: '🇧🇾', color: '#d62828', desc: 'М-1 · Смоленск · Брест · Минск' },
+  { id: 'ch-ru-tj',  name: 'Россия → Таджикистан', emoji: '🇹🇯', color: '#d97706', desc: 'Душанбе · Худжанд · транзит УЗ/КЗ' },
+  { id: 'ch-ru-am',  name: 'Россия → Кавказ',      emoji: '🏔️', color: '#7c3aed', desc: 'Верхний Ларс · Армения · Грузия · Азербайджан' },
+  { id: 'ch-ru-cn',  name: 'Россия → Китай',       emoji: '🇨🇳', color: '#dc2626', desc: 'Забайкальск · Маньчжурия · Достык' },
+  { id: 'ch-sos',    name: 'SOS / Помощь',          emoji: '🆘', color: '#ef4444', desc: 'Срочная помощь — авария · поломка · опасность' },
 ];
 
+// Upsert каждый дефолтный канал: если отсутствует — добавить. Уже существующие не перезаписываем (чтобы сохранить createdAt).
 async function seedChannels() {
-  const existing = await kv.getByPrefix('ovora:radio:channel:');
-  if (existing.filter(c => c).length === 0) {
-    for (const ch of DEFAULT_CHANNELS) {
+  let created = 0;
+  for (const ch of DEFAULT_CHANNELS) {
+    const existing = await kv.get(`ovora:radio:channel:${ch.id}`);
+    if (!existing) {
       await kv.set(`ovora:radio:channel:${ch.id}`, { ...ch, createdAt: new Date().toISOString() });
+      created++;
     }
-    console.log('[radio] Seeded', DEFAULT_CHANNELS.length, 'channels');
   }
+  if (created > 0) console.log('[radio] Seeded', created, 'new channels');
 }
 seedChannels().catch(console.warn);
 
@@ -5161,11 +5171,45 @@ app.get('/make-server-4e36197a/radio/channels', async (c) => {
 app.get('/make-server-4e36197a/radio/channels/:channelId/messages', async (c) => {
   try {
     const channelId = c.req.param('channelId');
+    const before  = parseInt(c.req.query('before') || '0') || 0;
+    const limit   = Math.min(parseInt(c.req.query('limit') || '30') || 30, 60);
     const messages: any[] = await kv.getByPrefix(`ovora:radio:msg:${channelId}:`);
-    const sorted = messages.filter(m => m).sort((a, b) => (a.ts || 0) - (b.ts || 0)).slice(-60);
-    return c.json({ messages: sorted });
+    let sorted = messages.filter(m => m).sort((a, b) => (a.ts || 0) - (b.ts || 0));
+    if (before > 0) sorted = sorted.filter(m => (m.ts || 0) < before);
+    const hasMore = sorted.length > limit;
+    const page = sorted.slice(-limit);
+    return c.json({ messages: page, hasMore });
   } catch (err) {
     console.log('Error GET /radio/:id/messages:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.post('/make-server-4e36197a/radio/channels/:channelId/heartbeat', async (c) => {
+  try {
+    const channelId = c.req.param('channelId');
+    const body = await c.req.json();
+    const { userEmail, userName, userRole } = body;
+    if (!userEmail) return c.json({ error: 'userEmail required' }, 400);
+    const safeKey = userEmail.replace(/[^a-z0-9]/gi, '_').substring(0, 60);
+    await kv.set(`ovora:radio:presence:${channelId}:${safeKey}`, {
+      userEmail, userName: userName || 'Аноним', userRole: userRole || 'sender', ts: Date.now(),
+    });
+    return c.json({ ok: true });
+  } catch (err) {
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.get('/make-server-4e36197a/radio/channels/:channelId/presence', async (c) => {
+  try {
+    const channelId = c.req.param('channelId');
+    const entries: any[] = await kv.getByPrefix(`ovora:radio:presence:${channelId}:`);
+    const cutoff = Date.now() - 90_000;
+    const users = entries.filter(e => e && (e.ts || 0) > cutoff)
+      .sort((a, b) => (b.ts || 0) - (a.ts || 0));
+    return c.json({ users, count: users.length });
+  } catch (err) {
     return c.json({ error: `${err}` }, 500);
   }
 });
@@ -5174,13 +5218,35 @@ app.post('/make-server-4e36197a/radio/channels/:channelId/messages', async (c) =
   try {
     const channelId = c.req.param('channelId');
     const body = await c.req.json();
-    const { userEmail, userName, text, userRole } = body;
-    if (!userEmail || !text?.trim()) return c.json({ error: 'userEmail and text required' }, 400);
+    const { userEmail, userName, userRole, type, text, audioUrl, audioDuration } = body;
+    const msgType: 'text' | 'voice' = type === 'voice' ? 'voice' : 'text';
+
+    if (!userEmail) return c.json({ error: 'userEmail required' }, 400);
+    // Только водители могут писать
+    if ((userRole || 'sender') !== 'driver') return c.json({ error: 'Only drivers can write to this channel' }, 403);
+
+    if (msgType === 'text' && !text?.trim()) return c.json({ error: 'text required' }, 400);
+    if (msgType === 'voice' && !audioUrl) return c.json({ error: 'audioUrl required' }, 400);
+
     const channel: any = await kv.get(`ovora:radio:channel:${channelId}`);
     if (!channel) return c.json({ error: 'Channel not found' }, 404);
+
     const msgId = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const now = new Date().toISOString();
-    const message = { id: msgId, channelId, userEmail, userName: userName || 'По��ьзователь', userRole: userRole || 'sender', text: text.trim().substring(0, 500), ts: Date.now(), createdAt: now };
+    const message: any = {
+      id: msgId, channelId, userEmail,
+      userName: userName || 'Пользователь',
+      userRole: userRole || 'driver',
+      type: msgType,
+      ts: Date.now(), createdAt: now,
+    };
+    if (msgType === 'text') {
+      message.text = String(text).trim().substring(0, 500);
+    } else {
+      message.audioUrl = String(audioUrl);
+      message.audioDuration = Math.min(Math.max(Number(audioDuration) || 0, 0), 60);
+    }
+
     await kv.set(`ovora:radio:msg:${channelId}:${msgId}`, message);
     // Trim: keep last 200
     const allMsgs: any[] = await kv.getByPrefix(`ovora:radio:msg:${channelId}:`);
@@ -5191,6 +5257,94 @@ app.post('/make-server-4e36197a/radio/channels/:channelId/messages', async (c) =
     return c.json({ success: true, message });
   } catch (err) {
     console.log('Error POST /radio/:id/messages:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// Voice upload: принимает multipart file → загружает в Supabase Storage → возвращает публичный URL
+app.post('/make-server-4e36197a/radio/voice-upload', async (c) => {
+  try {
+    const form = await c.req.formData();
+    const file = form.get('file') as File | null;
+    const userEmail = String(form.get('userEmail') || '');
+    if (!file) return c.json({ error: 'file required' }, 400);
+    if (!userEmail) return c.json({ error: 'userEmail required' }, 400);
+    if (file.size > 2_000_000) return c.json({ error: 'file too large (max 2MB)' }, 400);
+
+    const ext = (file.name?.split('.').pop() || 'webm').toLowerCase().substring(0, 5);
+    const safeEmail = userEmail.replace(/[^a-z0-9]/gi, '_').substring(0, 40);
+    const path = `${safeEmail}/${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext}`;
+    const buf = new Uint8Array(await file.arrayBuffer());
+    const { error: upErr } = await supabase.storage.from(RADIO_VOICE_BUCKET).upload(path, buf, {
+      contentType: file.type || 'audio/webm', upsert: false,
+    });
+    if (upErr) return c.json({ error: `upload failed: ${upErr.message}` }, 500);
+    const { data: pub } = supabase.storage.from(RADIO_VOICE_BUCKET).getPublicUrl(path);
+    return c.json({ success: true, audioUrl: pub.publicUrl });
+  } catch (err) {
+    console.log('Error POST /radio/voice-upload:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// DELETE own message (using app.on to avoid 'delete' reserved word issues)
+app.on('DELETE', '/make-server-4e36197a/radio/channels/:channelId/messages/:msgId', async (c) => {
+  try {
+    const channelId = c.req.param('channelId');
+    const msgId     = c.req.param('msgId');
+    const { userEmail } = await c.req.json();
+    if (!userEmail) return c.json({ error: 'userEmail required' }, 400);
+    const msg: any = await kv.get(`ovora:radio:msg:${channelId}:${msgId}`);
+    if (!msg) return c.json({ error: 'Message not found' }, 404);
+    if (msg.userEmail !== userEmail) return c.json({ error: 'Forbidden' }, 403);
+    await kv.del(`ovora:radio:msg:${channelId}:${msgId}`);
+    return c.json({ success: true });
+  } catch (err) {
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// Toggle reaction on message
+app.post('/make-server-4e36197a/radio/channels/:channelId/messages/:msgId/react', async (c) => {
+  try {
+    const channelId = c.req.param('channelId');
+    const msgId     = c.req.param('msgId');
+    const { userEmail, emoji } = await c.req.json();
+    if (!userEmail || !emoji) return c.json({ error: 'userEmail and emoji required' }, 400);
+    const ALLOWED = ['👍','⚠️','✅','🚛','❤️'];
+    if (!ALLOWED.includes(emoji)) return c.json({ error: 'emoji not allowed' }, 400);
+    const msg: any = await kv.get(`ovora:radio:msg:${channelId}:${msgId}`);
+    if (!msg) return c.json({ error: 'Message not found' }, 404);
+    const oldReactions: Record<string, string[]> = msg.reactions || {};
+    const users: string[] = oldReactions[emoji] || [];
+    const updatedUsers = users.includes(userEmail)
+      ? users.filter((u: string) => u !== userEmail)
+      : [...users, userEmail];
+    const reactions: Record<string, string[]> = {};
+    for (const [k, v] of Object.entries(oldReactions)) {
+      if (k !== emoji && (v as string[]).length > 0) reactions[k] = v as string[];
+    }
+    if (updatedUsers.length > 0) reactions[emoji] = updatedUsers;
+    await kv.set(`ovora:radio:msg:${channelId}:${msgId}`, { ...msg, reactions });
+    return c.json({ success: true, reactions });
+  } catch (err) {
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// Report message
+app.post('/make-server-4e36197a/radio/channels/:channelId/messages/:msgId/report', async (c) => {
+  try {
+    const channelId = c.req.param('channelId');
+    const msgId     = c.req.param('msgId');
+    const { userEmail, reason } = await c.req.json();
+    if (!userEmail) return c.json({ error: 'userEmail required' }, 400);
+    const reportId = `${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
+    await kv.set(`ovora:radio:report:${reportId}`, {
+      channelId, msgId, reportedBy: userEmail, reason: reason || '', ts: Date.now(),
+    });
+    return c.json({ success: true });
+  } catch (err) {
     return c.json({ error: `${err}` }, 500);
   }
 });
@@ -7160,3 +7314,5 @@ app.get("/make-server-4e36197a/avia/profile/:phone", async (c) => {
 }); } // end if(false) — legacy AVIA routes placeholder
 
 Deno.serve(app.fetch);
+
+

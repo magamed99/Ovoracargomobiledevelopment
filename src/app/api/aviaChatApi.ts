@@ -6,6 +6,19 @@ const HEADERS = {
   Authorization:  `Bearer ${publicAnonKey}`,
 };
 
+// ── Fetch timeout ─────────────────────────────────────────────────────────────
+
+const FETCH_TIMEOUT_MS = 10_000;
+
+function withTimeout(signal?: AbortSignal): AbortSignal {
+  const timeoutSignal = AbortSignal.timeout(FETCH_TIMEOUT_MS);
+  if (!signal) return timeoutSignal;
+  const controller = new AbortController();
+  signal.addEventListener('abort', () => controller.abort(signal.reason), { once: true });
+  timeoutSignal.addEventListener('abort', () => controller.abort(new DOMException('Request timeout', 'TimeoutError')), { once: true });
+  return controller.signal;
+}
+
 // ── Типы ─────────────────────────────────────────────────────────────────────
 
 export type AviaChatMessageType = 'text' | 'deal_offer' | 'deal_update';
@@ -62,7 +75,8 @@ export interface AviaChat extends AviaChatMeta {
 // ── Хелпер: канонический chatId (совпадает с серверным) ──────────────────────
 
 export function makeAviaChatId(phone1: string, phone2: string): string {
-  const [a, b] = [phone1, phone2].sort();
+  if (!phone1?.trim() || !phone2?.trim()) throw new Error('[aviaChatApi] makeAviaChatId: пустой номер телефона');
+  const [a, b] = [phone1.trim(), phone2.trim()].sort();
   return `${a}_${b}`;
 }
 
@@ -81,6 +95,7 @@ export async function initAviaChat(
     method:  'POST',
     headers: HEADERS,
     body:    JSON.stringify({ senderPhone, recipientPhone, adRef }),
+    signal:  withTimeout(),
   });
   const data = await res.json();
   if (!res.ok || data.error) throw new Error(data.error || 'Ошибка инициализации чата');
@@ -94,6 +109,7 @@ export async function getAviaChatMessages(
   try {
     const res  = await fetch(`${BASE}/avia/chat/${encodeURIComponent(chatId)}/messages`, {
       headers: HEADERS,
+      signal:  withTimeout(),
     });
     if (!res.ok) return { messages: [], meta: { chatId, participants: [], unread: 0 } as any };
     return await res.json();
@@ -113,6 +129,7 @@ export async function sendAviaChatMessage(
     method:  'POST',
     headers: HEADERS,
     body:    JSON.stringify({ senderPhone, text, type: 'text' }),
+    signal:  withTimeout(),
   });
   const data = await res.json();
   if (!res.ok || data.error) throw new Error(data.error || 'Ошибка отправки сообщения');
@@ -131,6 +148,7 @@ export async function sendTypedChatMessage(
     method:  'POST',
     headers: HEADERS,
     body:    JSON.stringify({ senderPhone, text, type, meta }),
+    signal:  withTimeout(),
   });
   const data = await res.json();
   if (!res.ok || data.error) throw new Error(data.error || 'Ошибка отправки сообщения');
@@ -150,7 +168,7 @@ export async function markAviaChatSeen(
       method:  'POST',
       headers: HEADERS,
       body:    JSON.stringify({ phone: phone.trim() }),
-      signal,
+      signal:  withTimeout(signal),
     });
   } catch (err: any) {
     // AbortError — нормальное поведение при размонтировании
@@ -166,9 +184,10 @@ export async function deleteAviaChat(
 ): Promise<{ success: boolean; cancelledDealIds: string[]; error?: string }> {
   try {
     const res = await fetch(`${BASE}/avia/chat/${encodeURIComponent(chatId)}`, {
-      method: 'DELETE',
+      method:  'DELETE',
       headers: HEADERS,
-      body: JSON.stringify({ phone }),
+      body:    JSON.stringify({ phone }),
+      signal:  withTimeout(),
     });
     const data = await res.json();
     if (!res.ok || data.error) {
@@ -187,6 +206,7 @@ export async function getAviaUserChats(phone: string): Promise<AviaChat[]> {
     const clean = phone.replace(/\D/g, '');
     const res   = await fetch(`${BASE}/avia/chats/user/${encodeURIComponent(clean)}`, {
       headers: HEADERS,
+      signal:  withTimeout(),
     });
     if (!res.ok) return [];
     const data = await res.json();

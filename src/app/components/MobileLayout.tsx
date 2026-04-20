@@ -192,7 +192,6 @@ function DesktopSidebar({
               display: 'flex', alignItems: 'center', gap: 11,
               padding: '9px 12px', borderRadius: 11, textDecoration: 'none',
               color: '#1e3a55', fontSize: 13, fontWeight: 500,
-              borderRadius: 11,
             }}
           >
             <span style={{
@@ -635,7 +634,9 @@ export function MobileLayout() {
   if (userRole === 'driver') nav.splice(1, 0, { name: 'Создать', href: '/create-trip', icon: Plus, badge: null });
   if (userRole === 'sender') nav.splice(1, 0, { name: 'Поиск', href: '/search', icon: Search, badge: null });
 
-  const hideNav = location.pathname.startsWith('/chat/') || location.pathname.startsWith('/trip/');
+  const hideNav = location.pathname.startsWith('/chat/')
+    || location.pathname.startsWith('/trip/')
+    || location.pathname === '/radio';
 
   const SIDEBAR_HIDDEN_PATHS = [
     '/home', '/dashboard', '/create-trip', '/trips', '/profile', '/profile/edit',
@@ -660,7 +661,10 @@ export function MobileLayout() {
   const sidebarWidth = !hideDesktopSidebar && !hideNav ? 'md:pl-[264px]' : '';
 
   return (
-    <div className="min-h-screen flex" style={{ background: '#060e1a' }}>
+    <div
+      className="flex overflow-hidden"
+      style={{ background: '#060e1a', height: '100dvh' }}
+    >
       {/* Desktop Sidebar */}
       {!hideDesktopSidebar && (
         <DesktopSidebar nav={nav} isActive={isActive} getBadge={getBadge} userRole={userRole} />
@@ -675,13 +679,13 @@ export function MobileLayout() {
       )}
 
       {/* Main content */}
-      <div className={`flex-1 flex flex-col min-h-screen ${sidebarWidth}`}>
+      <div className={`flex-1 flex flex-col overflow-hidden ${sidebarWidth}`}>
         <OfflineBanner />
         {userEmail && <PushPermissionBanner userEmail={userEmail} />}
 
         <main
           className={`flex-1 overflow-y-auto ${hideNav ? 'pb-0' : 'pb-24 md:pb-0'}`}
-          style={{ background: '#060e1a' }}
+          style={{ background: '#060e1a', WebkitOverflowScrolling: 'touch' }}
         >
           <Outlet />
         </main>

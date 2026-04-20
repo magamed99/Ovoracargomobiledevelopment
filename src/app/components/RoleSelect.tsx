@@ -8,7 +8,6 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { useLanguage } from '../context/LanguageContext';
 import dispatchSvg from '../../imports/dispatch_17418872.svg';
-import ovoraIcon from 'figma:asset/5c0cf8dea5e111dcce9003a04994750240fc2690.png';
 import { getPublicStats } from '../api/dataApi';
 import { getAllReviews } from '../api/dataApi';
 
@@ -81,6 +80,69 @@ function StatCounter({ target, suffix }: { target: number; suffix: string }) {
   return <>{count.toLocaleString('ru-RU')}{suffix}</>;
 }
 
+// ── truck svg ─────────────────────────────────────────────────────────────────
+function TruckSvg({ size = 48, selected = false }: { size?: number; selected?: boolean }) {
+  const body    = selected ? '#cce4ff' : '#1e6fd0';
+  const cab     = selected ? '#ddeeff' : '#2176e8';
+  const glass   = selected ? '#ffffff' : '#90c8f0';
+  const wheel   = selected ? '#aec8e0' : '#0d1d2e';
+  const rim     = selected ? '#d0e4f5' : '#1a2b3c';
+  const hub     = selected ? '#ffffff' : '#5ba3f5';
+  const accent  = selected ? '#99bfe0' : '#0a3870';
+  const shineOp = selected ? 0.35 : 0.12;
+  return (
+    <svg width={size} height={size} viewBox="0 0 64 64" fill="none"
+      style={{ animation: 'truck_float 2.8s ease-in-out infinite', display: 'block', flexShrink: 0 }}>
+      {/* Trailer */}
+      <rect x="2" y="10" width="40" height="20" rx="3" fill={body}/>
+      <rect x="2" y="10" width="40" height="9" rx="3" fill="white" fillOpacity={shineOp}/>
+      <line x1="21" y1="11" x2="21" y2="29" stroke={accent} strokeWidth="0.8" strokeOpacity="0.5"/>
+      <line x1="33" y1="11" x2="33" y2="29" stroke={accent} strokeWidth="0.8" strokeOpacity="0.5"/>
+      {/* Chassis */}
+      <rect x="2" y="29" width="60" height="3" rx="2" fill={selected ? '#90b8d8' : '#0b1b2b'}/>
+      {/* Cab roof */}
+      <path d="M43 16 L52 9 L63 16 Z" fill={selected ? '#c8dffa' : '#1a50b8'}/>
+      {/* Cab body */}
+      <rect x="43" y="16" width="20" height="16" rx="3" fill={cab}/>
+      <rect x="43" y="16" width="20" height="8" rx="3" fill="white" fillOpacity={shineOp}/>
+      {/* Windshield */}
+      <rect x="46" y="19" width="14" height="10" rx="2" fill={glass} fillOpacity="0.85"/>
+      <rect x="46" y="19" width="14" height="4" rx="2" fill="white" fillOpacity="0.2"/>
+      {/* Side window */}
+      <rect x="44" y="19" width="4" height="8" rx="1.5" fill={glass} fillOpacity="0.6"/>
+      {/* Headlight */}
+      <rect x="61" y="23" width="3" height="5" rx="1" fill="#fef9c3" fillOpacity="0.95"/>
+      {/* Exhaust */}
+      <rect x="59" y="7" width="2.5" height="10" rx="1.5" fill={selected ? '#b0c8e0' : '#182433'}/>
+      {/* Rear wheel */}
+      <g style={{ transformBox: 'fill-box', transformOrigin: 'center', animation: 'truck_wheel 1.4s linear infinite' }}>
+        <circle cx="14" cy="38" r="8" fill={wheel}/>
+        <circle cx="14" cy="38" r="5" fill={rim}/>
+        <circle cx="14" cy="38" r="2" fill={hub}/>
+        <line x1="14" y1="30" x2="14" y2="33.5" stroke={hub} strokeWidth="1.5" strokeOpacity="0.7"/>
+        <line x1="14" y1="42.5" x2="14" y2="46" stroke={hub} strokeWidth="1.5" strokeOpacity="0.7"/>
+        <line x1="6" y1="38" x2="9.5" y2="38" stroke={hub} strokeWidth="1.5" strokeOpacity="0.7"/>
+        <line x1="18.5" y1="38" x2="22" y2="38" stroke={hub} strokeWidth="1.5" strokeOpacity="0.7"/>
+      </g>
+      {/* Front wheel */}
+      <g style={{ transformBox: 'fill-box', transformOrigin: 'center', animation: 'truck_wheel 1.4s linear infinite' }}>
+        <circle cx="53" cy="38" r="8" fill={wheel}/>
+        <circle cx="53" cy="38" r="5" fill={rim}/>
+        <circle cx="53" cy="38" r="2" fill={hub}/>
+        <line x1="53" y1="30" x2="53" y2="33.5" stroke={hub} strokeWidth="1.5" strokeOpacity="0.7"/>
+        <line x1="53" y1="42.5" x2="53" y2="46" stroke={hub} strokeWidth="1.5" strokeOpacity="0.7"/>
+        <line x1="45" y1="38" x2="48.5" y2="38" stroke={hub} strokeWidth="1.5" strokeOpacity="0.7"/>
+        <line x1="57.5" y1="38" x2="61" y2="38" stroke={hub} strokeWidth="1.5" strokeOpacity="0.7"/>
+      </g>
+      {/* Speed lines */}
+      <line x1="0" y1="17" x2="5" y2="17" stroke={hub} strokeWidth="1.5" strokeOpacity="0.3"
+        style={{ animation: 'truck_line 1.4s ease-in-out infinite' }}/>
+      <line x1="0" y1="22" x2="7" y2="22" stroke={hub} strokeWidth="1" strokeOpacity="0.2"
+        style={{ animation: 'truck_line 1.4s ease-in-out infinite 0.2s' }}/>
+    </svg>
+  );
+}
+
 // ── component ─────────────────────────────────────────────────────────────────
 export function RoleSelect() {
   const navigate = useNavigate();
@@ -125,7 +187,7 @@ export function RoleSelect() {
   // MOBILE LAYOUT (unchanged)
   // ══════════════════════════════════════════════════════
   const MobileContent = (
-    <div className="md:hidden min-h-screen w-full flex flex-col font-['Sora'] bg-[#0e1621] text-white overflow-hidden">
+    <div className="md:hidden w-full flex flex-col font-['Sora'] bg-[#0e1621] text-white overflow-x-hidden" style={{ minHeight: '100dvh' }}>
 
       {/* ── HERO / BG ── */}
       <div className="relative overflow-hidden shrink-0">
@@ -212,9 +274,9 @@ export function RoleSelect() {
                   style={{ position: 'relative', zIndex: 3 }}
                 >
                   {activeRole?.id === 'sender' ? (
-                    <Package style={{ width: 36, height: 36, color: '#fff', filter: 'drop-shadow(0 2px 8px #00000060)' }} />
+                    <Package style={{ width: 34, height: 34, color: '#fff', filter: 'drop-shadow(0 2px 8px #00000060)' }} />
                   ) : (
-                    <img src={ovoraIcon} alt="Ovora" style={{ width: 56, height: 56, objectFit: 'contain', filter: 'drop-shadow(0 2px 8px #00000060)' }} />
+                    <TruckSvg size={44} />
                   )}
                 </motion.div>
               </AnimatePresence>
@@ -231,7 +293,7 @@ export function RoleSelect() {
       </div>
 
       {/* ── ROLE CARDS ── */}
-      <div className="flex-1 flex flex-col px-4 gap-3 overflow-y-auto pb-6">
+      <div className="flex flex-col px-4 gap-3 pb-6">
         {ROLES.map((role, idx) => {
           const isSelected = selected === role.id;
           const Icon = role.icon;
@@ -269,11 +331,7 @@ export function RoleSelect() {
                   }}
                 >
                   {role.id === 'driver' ? (
-                    <img src={ovoraIcon} alt={role.label} style={{
-                      width: 56, height: 56, objectFit: 'cover',
-                      filter: isSelected ? 'brightness(0) invert(1) drop-shadow(0 2px 6px #00000060)' : 'drop-shadow(0 1px 4px #00000040)',
-                      transition: 'filter 0.3s',
-                    }} />
+                    <TruckSvg size={44} selected={isSelected} />
                   ) : (
                     <Icon className="w-7 h-7 transition-colors duration-300" style={{ color: isSelected ? '#fff' : role.color }} />
                   )}
@@ -367,7 +425,7 @@ export function RoleSelect() {
               )}
             </AnimatePresence>
           </motion.button>
-          <motion.p className="text-center text-[11px] text-[#607080]/70 mt-3 leading-snug"
+          <motion.p className="text-center text-[12px] text-[#607080] mt-3 leading-snug"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
             {t('role_helper')}
           </motion.p>
@@ -495,7 +553,7 @@ export function RoleSelect() {
                   <div style={{ fontSize: 'clamp(20px,2vw,26px)', fontWeight: 900, color: s.color, letterSpacing: '-0.03em', lineHeight: 1 }}>
                     <StatCounter key={`${s.label}-${s.value}`} target={s.value} suffix={s.suffix} />
                   </div>
-                  <div style={{ fontSize: 10, color: '#3a5570', fontWeight: 600, marginTop: 5, letterSpacing: '0.04em' }}>{s.label}</div>
+                  <div style={{ fontSize: 11, color: '#4a6880', fontWeight: 600, marginTop: 5, letterSpacing: '0.04em' }}>{s.label}</div>
                 </div>
               ))}
             </div>
@@ -547,14 +605,14 @@ export function RoleSelect() {
                   fontSize: 14, fontWeight: 800, color: '#fff',
                 }}>{realReview.initial}</div>
                 <div>
-                  <p style={{ fontSize: 12, color: '#7a9ab5', lineHeight: 1.6, margin: 0, marginBottom: 6 }}>
+                  <p style={{ fontSize: 13, color: '#8aacc5', lineHeight: 1.6, margin: 0, marginBottom: 6 }}>
                     «{realReview.text}»
                   </p>
                   <div style={{ display: 'flex', gap: 2 }}>
                     {[0,1,2,3,4].map(i => (
                       <Star key={i} style={{ width: 11, height: 11, color: '#fbbf24', fill: '#fbbf24' }} />
                     ))}
-                    <span style={{ fontSize: 11, color: '#4a6880', marginLeft: 6, fontWeight: 600 }}>{realReview.author}</span>
+                    <span style={{ fontSize: 12, color: '#5a7890', marginLeft: 6, fontWeight: 600 }}>{realReview.author}</span>
                   </div>
                 </div>
               </div>
@@ -567,14 +625,14 @@ export function RoleSelect() {
                   fontSize: 14, fontWeight: 800, color: '#fff',
                 }}>А</div>
                 <div>
-                  <p style={{ fontSize: 12, color: '#7a9ab5', lineHeight: 1.6, margin: 0, marginBottom: 6 }}>
+                  <p style={{ fontSize: 13, color: '#8aacc5', lineHeight: 1.6, margin: 0, marginBottom: 6 }}>
                     «Уже 2 года вожу через Ovora Cargo — клиенты всегда на связи, оплата без задержек»
                   </p>
                   <div style={{ display: 'flex', gap: 2 }}>
                     {[0,1,2,3,4].map(i => (
                       <Star key={i} style={{ width: 11, height: 11, color: '#fbbf24', fill: '#fbbf24' }} />
                     ))}
-                    <span style={{ fontSize: 11, color: '#4a6880', marginLeft: 6, fontWeight: 600 }}>Акбар М., Душанбе</span>
+                    <span style={{ fontSize: 12, color: '#5a7890', marginLeft: 6, fontWeight: 600 }}>Акбар М., Душанбе</span>
                   </div>
                 </div>
               </div>
@@ -670,11 +728,7 @@ export function RoleSelect() {
                         flexShrink: 0,
                       }}>
                         {role.id === 'driver' ? (
-                          <img src={ovoraIcon} alt={role.label} style={{
-                            width: 52, height: 52, objectFit: 'cover',
-                            filter: isSelected ? 'brightness(0) invert(1)' : 'none',
-                            transition: 'filter 0.3s',
-                          }} />
+                          <TruckSvg size={42} selected={isSelected} />
                         ) : (
                           <Icon style={{ width: 26, height: 26, color: isSelected ? '#fff' : role.color, transition: 'color 0.3s' }} />
                         )}
@@ -829,7 +883,7 @@ export function RoleSelect() {
             {selected && <ArrowRight style={{ width: 20, height: 20, position: 'relative', zIndex: 1 }} />}
           </motion.button>
 
-          <p style={{ textAlign: 'center', fontSize: 11, color: '#2a4060', marginTop: 12 }}>
+          <p style={{ textAlign: 'center', fontSize: 12, color: '#4a6880', marginTop: 12 }}>
             {t('role_helper')}
           </p>
         </div>
@@ -837,6 +891,17 @@ export function RoleSelect() {
       </div>
 
       <style>{`
+        @keyframes truck_wheel {
+          to { transform: rotate(360deg); }
+        }
+        @keyframes truck_float {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-3px); }
+        }
+        @keyframes truck_line {
+          0%, 100% { opacity: 0.2; transform: translateX(0); }
+          50% { opacity: 0; transform: translateX(-6px); }
+        }
         @keyframes rs_orb1 {
           0%, 100% { transform: translateY(0) scale(1); }
           50% { transform: translateY(-28px) scale(1.06); }

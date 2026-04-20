@@ -1,0 +1,12 @@
+# project_id is used to configure the Supabase CLI
+project_id = "mkbcjxnoeevtkzaqcpsh"
+
+[api]
+enabled = true
+port = 54321
+
+[db]
+port = 54322
+
+[functions.make-server-4e36197a]
+verify_jwt = false

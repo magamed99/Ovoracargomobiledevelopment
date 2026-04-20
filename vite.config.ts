@@ -17,6 +17,8 @@ function figmaAssetResolver() {
 }
 
 export default defineConfig({
+  // GitHub Pages subdomain — app serves from repo sub-path
+  base: '/Ovoracargomobiledevelopment/',
   plugins: [
     figmaAssetResolver(),
     // The React and Tailwind plugins are both required for Make, even if
@@ -36,14 +38,8 @@ export default defineConfig({
 
   // 🚀 ОПТИМИЗАЦИЯ: Настройки производительности
   build: {
-    // Минификация кода
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true, // Удалить console.log в продакшене
-        drop_debugger: true,
-      },
-    },
+    // Минификация кода (esbuild встроен в Vite, terser не нужен)
+    minify: 'esbuild',
     // Разделение кода на чанки
     rollupOptions: {
       output: {

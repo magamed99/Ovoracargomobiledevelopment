@@ -90,9 +90,10 @@ function AviaLayoutInner() {
   return (
     <div
       style={{
-        minHeight: '100vh',
+        height: '100dvh',
         background: 'var(--avia-bg)',
         display: 'flex',
+        overflow: 'hidden',
         paddingLeft: 0,
       }}
     >
@@ -103,7 +104,7 @@ function AviaLayoutInner() {
           flex: 1,
           display: 'flex',
           flexDirection: 'column',
-          minHeight: '100vh',
+          overflow: 'hidden',
         }}
         className="avia-main-wrapper"
       >
@@ -111,7 +112,7 @@ function AviaLayoutInner() {
 
         <main
           className="avia-scroll-content avia-page-main"
-          style={{ flex: 1 }}
+          style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}
         >
           <Suspense fallback={<LoadingSpinner />}>
             <Outlet />

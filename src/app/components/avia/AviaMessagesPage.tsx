@@ -29,6 +29,7 @@ import type { AviaDeal } from '../../api/aviaDealApi';
 import { getAviaDealReviewStatus } from '../../api/aviaReviewApi';
 import { AviaReviewModal } from './AviaReviewModal';
 import { useAvia } from './AviaContext';
+import { getAviaProfile } from '../../api/aviaApi';
 
 // ── Хелперы ──────────────────────────────────────────────────────────────────
 
@@ -101,7 +102,7 @@ function DealUpdateBubble({ msg }: { msg: AviaChatMessage }) {
 
 // ── Bubble: предложение о сделке ─────────────────────────────────────────────
 
-function DealOfferBubble({ msg, myPhone }: { msg: AviaChatMessage; myPhone: string }) {
+function DealOfferBubble({ msg, myPhone, refreshTick }: { msg: AviaChatMessage; myPhone: string; refreshTick?: number }) {
   const [deal, setDeal]               = useState<AviaDeal | null>(null);
   const [loading, setLoading]         = useState(true);
   const [acting, setActing]           = useState<'accept' | 'reject' | 'cancel' | null>(null);
@@ -111,8 +112,9 @@ function DealOfferBubble({ msg, myPhone }: { msg: AviaChatMessage; myPhone: stri
   const [alreadyReviewed, setAlreadyReviewed] = useState(false);
   const [reviewChecked, setReviewChecked]     = useState(false);
 
-  const isMine      = msg.senderPhone === myPhone;
-  const meta        = msg.meta;
+  const cleanMyPhone = myPhone.replace(/\D/g, '');
+  const isMine       = msg.senderPhone.replace(/\D/g, '') === cleanMyPhone;
+  const meta         = msg.meta;
   const accentColor = meta?.adType === 'request' ? '#a78bfa' : '#0ea5e9';
   const AdIcon      = meta?.adType === 'request' ? Package : Plane;
 
@@ -135,12 +137,10 @@ function DealOfferBubble({ msg, myPhone }: { msg: AviaChatMessage; myPhone: stri
 
   useEffect(() => {
     if (!meta?.dealId || !deal || deal.status !== 'pending') return;
-    const timer = setInterval(async () => {
-      const fresh = await getAviaDeal(meta.dealId!);
+    getAviaDeal(meta.dealId).then(fresh => {
       if (fresh && fresh.status !== deal.status) setDeal(fresh);
-    }, 4_000);
-    return () => clearInterval(timer);
-  }, [meta?.dealId, deal?.status]);
+    });
+  }, [refreshTick]);
 
   const handleAccept = async () => {
     if (!deal || acting) return;
@@ -165,22 +165,27 @@ function DealOfferBubble({ msg, myPhone }: { msg: AviaChatMessage; myPhone: stri
     setActing(null);
   };
 
-  const handleCancel = async () => {
+  const handleCancel = () => {
     if (!deal || acting) return;
-    if (!confirm('Отменить предложение о сделке?')) return;
-    setActing('cancel');
-    const result = await cancelAviaDeal(deal.id, myPhone);
-    if (result.success) {
-      setDeal(result.deal || { ...deal, status: 'cancelled' });
-      toast('Предложение отменено');
-    } else toast.error(result.error || 'Ошибка отмены');
-    setActing(null);
+    toast('Отменить предложение о сделке?', {
+      action: { label: 'Отменить', onClick: async () => {
+        setActing('cancel');
+        const result = await cancelAviaDeal(deal.id, myPhone);
+        if (result.success) {
+          setDeal(result.deal || { ...deal, status: 'cancelled' });
+          toast('Предложение отменено');
+        } else toast.error(result.error || 'Ошибка отмены');
+        setActing(null);
+      }},
+      cancel: { label: 'Нет', onClick: () => {} },
+      duration: 6000,
+    });
   };
 
   const status      = deal?.status;
   const isPending   = status === 'pending';
-  const amRecipient = deal?.recipientPhone === myPhone.replace(/\D/g, '');
-  const amInitiator = deal?.initiatorPhone === myPhone.replace(/\D/g, '');
+  const amRecipient = deal?.recipientPhone === cleanMyPhone;
+  const amInitiator = deal?.initiatorPhone === cleanMyPhone;
 
   return (
     <>
@@ -340,9 +345,9 @@ function DateDivider({ date }: { date: string }) {
 // ── Элемент списка чатов ──────────────────────────────────────────────────────
 
 function ChatListItem({
-  chat, myPhone, isActive, onClick,
+  chat, myPhone, isActive, onClick, contactName,
 }: {
-  chat: AviaChat; myPhone: string; isActive: boolean; onClick: () => void;
+  chat: AviaChat; myPhone: string; isActive: boolean; onClick: () => void; contactName?: string;
 }) {
   const otherPhone = chat.participants.find(p => p !== myPhone) || '';
   const hasUnread  = (chat.unread || 0) > 0;
@@ -383,7 +388,7 @@ function ChatListItem({
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 }}>
           <span style={{ fontSize: 13, fontWeight: hasUnread ? 800 : 600, color: hasUnread ? '#e2eaf3' : '#8aa3ba', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {maskPhone(otherPhone)}
+            {contactName || maskPhone(otherPhone)}
           </span>
           {chat.lastMessageAt && (
             <span style={{ fontSize: 10, color: '#2a3d50', fontWeight: 500, flexShrink: 0, marginLeft: 6 }}>
@@ -419,24 +424,27 @@ function ChatListItem({
 // ═══════════════════════════════════════════════════════════════════════════════
 
 interface ChatPanelProps {
-  myPhone:   string;
-  chatId:    string;
-  otherPhone: string;
-  adRef:     AviaChatAdRef | null;
-  onBack:    () => void;
-  onDeleted: (cancelledDealIds: string[]) => void;
+  myPhone:     string;
+  chatId:      string;
+  otherPhone:  string;
+  adRef:       AviaChatAdRef | null;
+  onBack:      () => void;
+  onDeleted:   () => void;
   onChatsUpdate: () => void;
+  contactName?: string;
 }
 
-function ChatPanel({ myPhone, chatId, otherPhone, adRef, onBack, onDeleted, onChatsUpdate }: ChatPanelProps) {
+function ChatPanel({ myPhone, chatId, otherPhone, adRef, onBack, onDeleted, onChatsUpdate, contactName: contactNameProp }: ChatPanelProps) {
   const [messages,    setMessages]    = useState<AviaChatMessage[]>([]);
-  const [chatMeta,    setChatMeta]    = useState<any>(null);
+  const [chatMeta,    setChatMeta]    = useState<{ adRef?: AviaChatAdRef; participants?: string[] } | null>(null);
   const [chatLoading, setChatLoading] = useState(true);
   const [inputText,   setInputText]   = useState('');
   const [sending,     setSending]     = useState(false);
   const [deleting,    setDeleting]    = useState(false);
   const [resolvedAdRef, setResolvedAdRef] = useState<AviaChatAdRef | null>(adRef);
   const [resolvedOtherPhone, setResolvedOtherPhone] = useState(otherPhone);
+  const [otherName, setOtherName] = useState<string>(contactNameProp || '');
+  const [refreshTick, setRefreshTick] = useState(0);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef       = useRef<HTMLTextAreaElement>(null);
@@ -451,6 +459,7 @@ function ChatPanel({ myPhone, chatId, otherPhone, adRef, onBack, onDeleted, onCh
       if (meta?.adRef) setResolvedAdRef(meta.adRef);
       const other = (meta?.participants || []).find((p: string) => p !== myPhone) || '';
       if (other) setResolvedOtherPhone(other);
+      setRefreshTick(t => t + 1);
     } catch (err) {
       console.warn('[ChatPanel] loadMessages error:', err);
     }
@@ -470,13 +479,25 @@ function ChatPanel({ myPhone, chatId, otherPhone, adRef, onBack, onDeleted, onCh
       if (pollTimer.current) clearInterval(pollTimer.current);
       seenAbort.abort();
     };
-  }, [chatId]);
+  }, [chatId, loadMessages, onChatsUpdate]);
 
   useEffect(() => {
     if (messages.length > 0) {
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 60);
     }
   }, [messages.length]);
+
+  // Загружаем имя контакта если не передано пропом
+  useEffect(() => {
+    if (contactNameProp) { setOtherName(contactNameProp); return; }
+    const phone = otherPhone || resolvedOtherPhone;
+    if (!phone) return;
+    getAviaProfile(phone).then(profile => {
+      if (!profile) return;
+      const name = [profile.firstName, profile.lastName].filter(Boolean).join(' ').trim();
+      if (name) setOtherName(name);
+    }).catch(() => {});
+  }, [otherPhone, resolvedOtherPhone, contactNameProp]);
 
   const handleSend = async () => {
     const text = inputText.trim();
@@ -506,25 +527,32 @@ function ChatPanel({ myPhone, chatId, otherPhone, adRef, onBack, onDeleted, onCh
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
-  const handleDeleteChat = async () => {
+  const handleDeleteChat = () => {
     if (!chatId || deleting) return;
-    if (!confirm('Удалить чат? Все связанные незавершённые сделки будут отменены.')) return;
-    setDeleting(true);
-    try {
-      const result = await deleteAviaChat(chatId, myPhone);
-      if (result.success) {
-        toast.success(result.cancelledDealIds.length > 0 ? `Чат удалён. Отменено сделок: ${result.cancelledDealIds.length}` : 'Чат удалён');
-        onDeleted(result.cancelledDealIds);
-        onBack();
-      } else {
-        toast.error(result.error || 'Ошибка удаления');
-      }
-    } catch (err) {
-      toast.error('Ошибка удаления чата');
-      console.error('[ChatPanel] deleteChat error:', err);
-    } finally {
-      setDeleting(false);
-    }
+    toast('Удалить чат? Незавершённые сделки будут отменены.', {
+      action: { label: 'Удалить', onClick: async () => {
+        setDeleting(true);
+        try {
+          const result = await deleteAviaChat(chatId, myPhone);
+          if (result.success) {
+            toast.success(result.cancelledDealIds.length > 0
+              ? `Чат удалён. Отменено сделок: ${result.cancelledDealIds.length}`
+              : 'Чат удалён');
+            onDeleted();
+            onBack();
+          } else {
+            toast.error(result.error || 'Ошибка удаления');
+          }
+        } catch (err) {
+          toast.error('Ошибка удаления чата');
+          console.error('[ChatPanel] deleteChat error:', err);
+        } finally {
+          setDeleting(false);
+        }
+      }},
+      cancel: { label: 'Отмена', onClick: () => {} },
+      duration: 6000,
+    });
   };
 
   const groupedMessages = useMemo(() => {
@@ -563,7 +591,7 @@ function ChatPanel({ myPhone, chatId, otherPhone, adRef, onBack, onDeleted, onCh
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 14, fontWeight: 800, color: '#e2eaf3', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {resolvedOtherPhone ? maskPhone(resolvedOtherPhone) : 'Загрузка...'}
+            {otherName || (resolvedOtherPhone ? maskPhone(resolvedOtherPhone) : 'Загрузка...')}
           </div>
           {resolvedAdRef && (
             <div style={{ fontSize: 10, color: '#4a6080', fontWeight: 600, marginTop: 1 }}>
@@ -603,7 +631,7 @@ function ChatPanel({ myPhone, chatId, otherPhone, adRef, onBack, onDeleted, onCh
                 msg.type === 'deal_update' ? (
                   <DealUpdateBubble key={msg.id} msg={msg} />
                 ) : msg.type === 'deal_offer' ? (
-                  <DealOfferBubble key={msg.id} msg={msg} myPhone={myPhone} />
+                  <DealOfferBubble key={msg.id} msg={msg} myPhone={myPhone} refreshTick={refreshTick} />
                 ) : (
                   <MessageBubble key={msg.id} msg={msg} isMine={msg.senderPhone === myPhone} />
                 )
@@ -692,6 +720,9 @@ export function AviaMessagesPage() {
   // State
   const [chats,        setChats]        = useState<AviaChat[]>([]);
   const [chatsLoading, setChatsLoading] = useState(true);
+  const [contactNames, setContactNames] = useState<Record<string, string>>({});
+  const fetchedPhonesRef = useRef<Set<string>>(new Set());
+  const totalUnread = useMemo(() => chats.reduce((s, c) => s + (c.unread || 0), 0), [chats]);
 
   // Активный чат
   const [activeChatId,   setActiveChatId]   = useState<string>('');
@@ -722,6 +753,23 @@ export function AviaMessagesPage() {
       const list = await getAviaUserChats(myPhone);
       setChats(list);
       refreshChatUnread();
+      // Загружаем имена контактов для новых телефонов
+      const phones = list
+        .map(c => c.participants.find(p => p !== myPhone) || '')
+        .filter(p => p && !fetchedPhonesRef.current.has(p));
+      if (phones.length > 0) {
+        phones.forEach(p => fetchedPhonesRef.current.add(p));
+        Promise.allSettled(phones.map(p => getAviaProfile(p))).then(results => {
+          const newNames: Record<string, string> = {};
+          results.forEach((r, i) => {
+            if (r.status === 'fulfilled' && r.value) {
+              const name = [r.value.firstName, r.value.lastName].filter(Boolean).join(' ').trim();
+              if (name) newNames[phones[i]] = name;
+            }
+          });
+          if (Object.keys(newNames).length > 0) setContactNames(prev => ({ ...prev, ...newNames }));
+        });
+      }
     } catch (err) {
       console.warn('[AviaMessagesPage] loadChats error:', err);
     } finally {
@@ -753,7 +801,7 @@ export function AviaMessagesPage() {
     navigate('/avia/messages', { replace: true });
   };
 
-  const handleChatDeleted = (cancelledDealIds: string[]) => {
+  const handleChatDeleted = () => {
     setChats(prev => prev.filter(c => c.chatId !== activeChatId));
     loadChats();
   };
@@ -792,9 +840,9 @@ export function AviaMessagesPage() {
             </div>
           </div>
           {/* Unread badge */}
-          {chats.reduce((s, c) => s + (c.unread || 0), 0) > 0 && (
+          {totalUnread > 0 && (
             <div style={{ marginLeft: 'auto', minWidth: 22, height: 22, borderRadius: 11, background: 'linear-gradient(135deg, #0369a1, #0ea5e9)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff', padding: '0 5px', boxShadow: '0 2px 8px rgba(14,165,233,0.4)' }}>
-              {chats.reduce((s, c) => s + (c.unread || 0), 0) > 99 ? '99+' : chats.reduce((s, c) => s + (c.unread || 0), 0)}
+              {totalUnread > 99 ? '99+' : totalUnread}
             </div>
           )}
         </div>
@@ -824,15 +872,19 @@ export function AviaMessagesPage() {
           </motion.div>
         ) : (
           <AnimatePresence initial={false}>
-            {chats.map(chat => (
-              <ChatListItem
-                key={chat.chatId}
-                chat={chat}
-                myPhone={myPhone}
-                isActive={chat.chatId === activeChatId}
-                onClick={() => openChat(chat)}
-              />
-            ))}
+            {chats.map(chat => {
+              const op = chat.participants.find(p => p !== myPhone) || '';
+              return (
+                <ChatListItem
+                  key={chat.chatId}
+                  chat={chat}
+                  myPhone={myPhone}
+                  isActive={chat.chatId === activeChatId}
+                  onClick={() => openChat(chat)}
+                  contactName={contactNames[op]}
+                />
+              );
+            })}
           </AnimatePresence>
         )}
         <div style={{ height: 'env(safe-area-inset-bottom, 12px)' }} />
@@ -848,7 +900,7 @@ export function AviaMessagesPage() {
       <div
         className="hidden md:flex"
         style={{
-          height: 'calc(100vh - 0px)',
+          height: '100dvh',
           background: 'var(--avia-bg)',
           fontFamily: "'Sora', 'Inter', sans-serif",
         }}
@@ -883,6 +935,7 @@ export function AviaMessagesPage() {
                   onBack={() => { setActiveChatId(''); setActiveOtherPhone(''); setActiveAdRef(null); navigate('/avia/messages', { replace: true }); }}
                   onDeleted={handleChatDeleted}
                   onChatsUpdate={loadChats}
+                  contactName={contactNames[activeOtherPhone]}
                 />
               </motion.div>
             ) : (
@@ -900,7 +953,7 @@ export function AviaMessagesPage() {
         style={{
           background: 'var(--avia-bg)',
           fontFamily: "'Sora', 'Inter', sans-serif",
-          minHeight: '100vh',
+          minHeight: '100dvh',
           position: 'relative',
         }}
       >
@@ -935,15 +988,13 @@ export function AviaMessagesPage() {
                 onBack={handleBack}
                 onDeleted={handleChatDeleted}
                 onChatsUpdate={loadChats}
+                contactName={contactNames[activeOtherPhone]}
               />
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      <style>{`
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-      `}</style>
     </>
   );
 }

@@ -9,6 +9,7 @@ import { TripsProvider } from './contexts/TripsContext';
 import { AviaProvider } from './components/avia/AviaContext';
 import { YandexMetrika } from './components/YandexMetrika';
 import { initYandexApiKey } from './config/yandex';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
 
 function AppLoadingFallback() {
   return (
@@ -50,6 +51,11 @@ export default function App() {
     document.head.appendChild(themeColor);
 
     document.body.style.overscrollBehavior = 'none';
+
+    // Pre-warm Edge Function to reduce cold start latency on first real request
+    fetch(`https://${projectId}.supabase.co/functions/v1/make-server-4e36197a/health`, {
+      headers: { 'Authorization': `Bearer ${publicAnonKey}` },
+    }).catch(() => {});
 
     initYandexApiKey().then((key) => {
       if (key) console.log('[App] Yandex Maps API initialized successfully');

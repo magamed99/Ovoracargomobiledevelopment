@@ -1,12 +1,13 @@
-import { useState } from 'react';
-import { ArrowLeft, Camera, Plus, CheckCircle2 } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { ArrowLeft, Truck, FileText, ImagePlus, X, CheckCircle2, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../contexts/UserContext';
 import { toast } from 'sonner';
-import { registerUser, updateUser as updateUserApi } from '../api/authApi';
+import { updateUser as updateUserApi, registerUser } from '../api/authApi';
 
-type RegistrationStep = 1 | 2;
+const CAR_BRANDS = ['КАМАЗ', 'МАЗ', 'ГАЗ', 'Volvo', 'Scania', 'MAN', 'Mercedes', 'DAF', 'Iveco', 'Другое'];
+const DOC_SLOTS = ['Паспорт', 'Техпаспорт (СТС)'];
 
 export function DriverRegistrationForm() {
   const navigate = useNavigate();
@@ -14,286 +15,233 @@ export function DriverRegistrationForm() {
   const isDark = theme === 'dark';
   const { user: cachedUser, setUserDirectly } = useUser();
 
-  const [step, setStep] = useState<RegistrationStep>(cachedUser ? 2 : 1);
-  const [formData, setFormData] = useState({
-    firstName: cachedUser?.firstName || '',
-    lastName: cachedUser?.lastName || '',
-    phone: cachedUser?.phone || '',
-    carBrand: 'Toyota',
-    carModel: '',
-    carYear: '',
-    plateNumber: '',
-  });
+  const [form, setForm] = useState({ carBrand: '', carModel: '', carYear: '', plateNumber: '' });
   const [submitting, setSubmitting] = useState(false);
+  const [docPhotos, setDocPhotos] = useState<(string | null)[]>([null, null]);
+  const [carPhotos, setCarPhotos] = useState<string[]>([]);
+  const docInputRef = useRef<HTMLInputElement>(null);
+  const carInputRef = useRef<HTMLInputElement>(null);
+  const activeDocSlot = useRef<number>(0);
 
-  const bg  = isDark ? 'bg-[#0e1621]' : 'bg-white';
-  const txt = isDark ? 'text-white'   : 'text-[#0f172a]';
-  const sub = isDark ? 'text-[#6b7f94]' : 'text-[#94a3b8]';
-  const div = isDark ? 'border-[#1e2d3d]' : 'border-[#f0f2f5]';
-  const hdr = isDark ? 'bg-[#0e1621]/95 border-[#1e2d3d]' : 'bg-white/95 border-[#e8eaed]';
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm(f => ({ ...f, [k]: e.target.value }));
 
-  const inputCls = `w-full bg-transparent outline-none text-[15px] font-medium py-3 border-b transition-colors focus:border-b-[#1978e5] ${
-    isDark ? `text-white placeholder-[#3d5263] border-b-[#1e2d3d]` : `text-[#0f172a] placeholder-[#94a3b8] border-b-[#f0f2f5]`
-  }`;
+  const complete = !!(form.carBrand && form.carModel && form.carYear && form.plateNumber);
+
+  function openDocPicker(slot: number) {
+    activeDocSlot.current = slot;
+    if (docInputRef.current) { docInputRef.current.value = ''; docInputRef.current.click(); }
+  }
+
+  function onDocChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]; if (!file) return;
+    const url = URL.createObjectURL(file);
+    setDocPhotos(p => { const n = [...p]; n[activeDocSlot.current] = url; return n; });
+  }
+
+  function onCarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || []);
+    const urls = files.slice(0, 5 - carPhotos.length).map(f => URL.createObjectURL(f));
+    setCarPhotos(p => [...p, ...urls].slice(0, 5));
+  }
 
   const handleSubmit = async () => {
-    if (!formData.carBrand || !formData.carModel || !formData.carYear || !formData.plateNumber) {
-      toast.error('Заполните все поля');
-      return;
-    }
+    if (!complete) { toast.error('Заполните все поля'); return; }
     setSubmitting(true);
     try {
-      const vehicle = {
-        brand: formData.carBrand,
-        model: formData.carModel,
-        year: formData.carYear,
-        plate: formData.plateNumber,
-      };
-
+      const vehicle = { brand: form.carBrand, model: form.carModel, year: form.carYear, plate: form.plateNumber.toUpperCase() };
       if (cachedUser?.email) {
-        const updatedUser = await updateUserApi({
-          email: cachedUser.email,
-          firstName: formData.firstName || cachedUser.firstName,
-          lastName: formData.lastName || cachedUser.lastName,
-          phone: formData.phone || cachedUser.phone,
-          vehicle,
-        });
-        setUserDirectly({ ...cachedUser, ...updatedUser });
+        const updated = await updateUserApi({ email: cachedUser.email, firstName: cachedUser.firstName, lastName: cachedUser.lastName, phone: cachedUser.phone, vehicle });
+        setUserDirectly({ ...cachedUser, ...updated });
       } else {
-        const savedUser = await registerUser({
-          email: `driver_${Date.now()}@ovora.local`,
-          role: 'driver',
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          phone: formData.phone,
-          vehicle,
-        });
-        setUserDirectly(savedUser);
+        const saved = await registerUser({ email: `driver_${Date.now()}@ovora.local`, role: 'driver', firstName: '', lastName: '', phone: '', vehicle });
+        setUserDirectly(saved);
       }
-
       sessionStorage.setItem('isAuthenticated', 'true');
       sessionStorage.setItem('userRole', 'driver');
-      setSubmitting(false);
-      toast.success('Регистрация успешно завершена!');
+      toast.success('Регистрация завершена!');
       navigate('/dashboard');
     } catch (err) {
-      setSubmitting(false);
-      console.error('Driver registration error:', err);
       toast.error(`Ошибка: ${err}`);
+    } finally {
+      setSubmitting(false);
     }
   };
 
+  const dark = isDark;
+
   return (
-    <div className={`min-h-screen flex flex-col font-['Sora'] ${bg} ${txt}`}>
+    <div className={`min-h-screen font-['Sora'] ${dark ? 'bg-[#0e1621] text-white' : 'bg-[#f5f7fa] text-[#0f172a]'}`}>
 
       {/* Header */}
-      <header className={`sticky top-0 z-10 backdrop-blur-md px-4 py-3 flex items-center gap-3 border-b ${hdr}`}>
-        <button
-          onClick={() => step === 1 ? navigate(-1) : (cachedUser ? navigate('/email-auth?role=driver') : setStep(1))}
-          className={`w-8 h-8 flex items-center justify-center transition-colors ${
-            isDark ? 'text-[#8a9bb0] hover:text-white' : 'text-[#6b7280] hover:text-[#0f172a]'
-          }`}
-        >
-          <ArrowLeft className="w-5 h-5" />
+      <header className={`sticky top-0 z-20 flex items-center gap-3 px-4 py-3 border-b backdrop-blur-md ${dark ? 'bg-[#0e1621]/95 border-[#1e2d3d]' : 'bg-white/95 border-[#e8edf2]'}`}>
+        <button onClick={() => navigate(-1)} className={`w-9 h-9 rounded-xl border flex items-center justify-center cursor-pointer transition-colors ${dark ? 'border-[#1e2d3d] bg-[#0a1828] text-[#6b7f94] hover:text-white' : 'border-[#e2e8f0] bg-white text-[#8a97a8] hover:text-[#0f172a]'}`}>
+          <ArrowLeft className="w-4 h-4" />
         </button>
-        <h2 className="text-[16px] font-bold flex-1">Регистрация водителя</h2>
-        <span className={`text-[12px] font-medium ${sub}`}>Шаг {step} из 2</span>
+        <div className="flex-1">
+          <div className="font-bold text-[15px]">Данные автомобиля</div>
+          <div className={`text-[11px] ${dark ? 'text-[#4a6a8a]' : 'text-[#94a3b8]'}`}>Последний шаг регистрации</div>
+        </div>
+        <span className={`text-[11px] font-semibold px-3 py-1 rounded-full border ${complete ? 'text-green-400 border-green-500/30 bg-green-500/10' : dark ? 'text-[#4a6a8a] border-[#1e2d3d]' : 'text-[#94a3b8] border-[#e2e8f0]'}`}>
+          {complete ? '✓ Готово' : '4 поля'}
+        </span>
       </header>
 
-      {/* Progress bar */}
-      <div className="flex">
-        <div className="flex-1 h-[2px] bg-[#1978e5]" />
-        <div className={`flex-1 h-[2px] ${step === 2 ? 'bg-[#1978e5]' : isDark ? 'bg-[#1e2d3d]' : 'bg-[#f0f2f5]'}`} />
+      {/* Progress */}
+      <div className={`h-[3px] ${dark ? 'bg-[#1e2d3d]' : 'bg-[#e8edf2]'}`}>
+        <div className="h-full bg-[#1978e5] transition-all duration-500" style={{ width: complete ? '100%' : '50%' }} />
       </div>
 
-      <main className="flex-1 w-full max-w-md mx-auto pb-32">
+      <div className="max-w-lg mx-auto px-4 pb-32">
 
-        {/* ── STEP 1: Personal Info ── */}
-        {step === 1 && (
-          <section>
-            <div className={`px-4 py-4 border-b ${div}`}>
-              <h1 className={`text-[20px] font-bold mb-1 ${txt}`}>Личные данные</h1>
-              <p className={`text-[13px] ${sub}`}>Укажите информацию, которая будет отображаться в профиле.</p>
+        {/* User info banner */}
+        {cachedUser && (
+          <div className={`mt-4 flex items-center gap-3 px-4 py-3 rounded-2xl border ${dark ? 'bg-[#0a1e36] border-[#1a3560]' : 'bg-blue-50 border-blue-100'}`}>
+            <CheckCircle2 className="w-5 h-5 text-[#1978e5] flex-shrink-0" />
+            <div className="min-w-0">
+              <div className="font-bold text-[13px]">{cachedUser.firstName} {cachedUser.lastName}</div>
+              <div className={`text-[11px] truncate ${dark ? 'text-[#4a6a8a]' : 'text-[#94a3b8]'}`}>{cachedUser.email} · данные сохранены</div>
             </div>
-
-            {/* First Name */}
-            <div className={`px-4 py-2 border-b ${div}`}>
-              <label className={`text-[10px] font-semibold uppercase tracking-wider ${sub}`}>Имя</label>
-              <input
-                type="text"
-                value={formData.firstName}
-                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                className={inputCls}
-                placeholder="Иван"
-              />
-            </div>
-
-            {/* Last Name */}
-            <div className={`px-4 py-2 border-b ${div}`}>
-              <label className={`text-[10px] font-semibold uppercase tracking-wider ${sub}`}>Фамилия</label>
-              <input
-                type="text"
-                value={formData.lastName}
-                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                className={inputCls}
-                placeholder="Иванов"
-              />
-            </div>
-
-            {/* Phone */}
-            <div className={`px-4 py-2 border-b ${div}`}>
-              <label className={`text-[10px] font-semibold uppercase tracking-wider ${sub}`}>Номер телефона</label>
-              <div className="flex items-center gap-2">
-                <span className={`text-[14px] font-medium flex-shrink-0 py-3 ${sub}`}>+992</span>
-                <input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className={inputCls}
-                  placeholder="(900) 123-45-67"
-                />
-              </div>
-            </div>
-
-            <div className="px-4 pt-6">
-              <button
-                type="button"
-                onClick={() => {
-                  if (!formData.firstName || !formData.lastName || !formData.phone) {
-                    toast.error('Заполните все поля');
-                    return;
-                  }
-                  setStep(2);
-                }}
-                className="w-full bg-[#1978e5] hover:bg-[#1565c0] text-white font-bold py-3.5 text-[15px] transition-colors"
-              >
-                Далее
-              </button>
-            </div>
-          </section>
+          </div>
         )}
 
-        {/* ── STEP 2: Vehicle Info ── */}
-        {step === 2 && (
-          <section>
-            {/* Pre-filled banner */}
-            {cachedUser && (
-              <div className={`px-4 py-3 border-b border-l-2 border-l-blue-400 ${div} flex items-center gap-3`}>
-                <CheckCircle2 className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-blue-400' : 'text-blue-500'}`} />
-                <div className="flex-1 min-w-0">
-                  <p className={`text-[12px] font-semibold ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>Личные данные сохранены</p>
-                  <p className={`text-[11px] truncate ${sub}`}>{cachedUser.firstName} {cachedUser.lastName} · {cachedUser.email}</p>
-                </div>
-              </div>
-            )}
+        {/* Hero */}
+        <div className="mt-4 flex flex-col items-center py-6 px-4 rounded-3xl border bg-gradient-to-br from-[#1978e5]/10 to-[#1978e5]/5 border-[#1978e5]/20 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-[#1978e5]/20 flex items-center justify-center mb-3">
+            <Truck className="w-8 h-8 text-[#1978e5]" />
+          </div>
+          <div className="font-extrabold text-[18px] mb-1">Транспортное средство</div>
+          <div className={`text-[13px] leading-relaxed ${dark ? 'text-[#4a6a8a]' : 'text-[#94a3b8]'}`}>
+            Укажите данные вашего грузового автомобиля
+          </div>
+        </div>
 
-            <div className={`px-4 py-4 border-b ${div}`}>
-              <h1 className={`text-[20px] font-bold mb-1 ${txt}`}>Данные автомобиля</h1>
-              <p className={`text-[13px] ${sub}`}>Информация о транспортном средстве для грузоперевозок.</p>
-            </div>
-
-            {/* Car Brand */}
-            <div className={`px-4 py-2 border-b ${div}`}>
-              <label className={`text-[10px] font-semibold uppercase tracking-wider ${sub}`}>Марка автомобиля</label>
+        {/* Car fields */}
+        <div className={`mt-4 rounded-2xl border overflow-hidden ${dark ? 'bg-[#131f2e] border-[#1e2d3d]' : 'bg-white border-[#e8edf2]'}`}>
+          <div className={`px-4 py-3 font-bold text-[13px] border-b ${dark ? 'border-[#1e2d3d]' : 'border-[#e8edf2]'}`}>
+            Основные данные
+          </div>
+          {([
+            { key: 'carBrand',    label: 'Марка',        placeholder: 'КАМАЗ, Volvo, MAN…', type: 'text' },
+            { key: 'carModel',    label: 'Модель',       placeholder: 'Например: 65115, FH16', type: 'text' },
+            { key: 'carYear',     label: 'Год выпуска',  placeholder: '2018', type: 'number' },
+            { key: 'plateNumber', label: 'Госномер',     placeholder: '01 TJ 1234 AA', type: 'text' },
+          ] as const).map((field, i, arr) => (
+            <label key={field.key} className={`flex flex-col px-4 pt-3 pb-3 cursor-text ${i < arr.length - 1 ? `border-b ${dark ? 'border-[#1e2d3d]' : 'border-[#e8edf2]'}` : ''}`}>
+              <span className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${dark ? 'text-[#3a5070]' : 'text-[#94a3b8]'}`}>{field.label}</span>
               <input
-                type="text"
-                value={formData.carBrand}
-                onChange={(e) => setFormData({ ...formData, carBrand: e.target.value })}
-                className={inputCls}
-                placeholder="Toyota"
+                type={field.type}
+                value={form[field.key]}
+                onChange={set(field.key)}
+                placeholder={field.placeholder}
+                className={`w-full bg-transparent border-none outline-none text-[15px] font-semibold placeholder-[#2a4060] ${dark ? 'text-white' : 'text-[#0f172a]'} ${field.key === 'plateNumber' ? 'uppercase' : ''}`}
               />
-            </div>
+            </label>
+          ))}
+        </div>
 
-            {/* Model */}
-            <div className={`px-4 py-2 border-b ${div}`}>
-              <label className={`text-[10px] font-semibold uppercase tracking-wider ${sub}`}>Модель</label>
-              <input
-                type="text"
-                value={formData.carModel}
-                onChange={(e) => setFormData({ ...formData, carModel: e.target.value })}
-                className={inputCls}
-                placeholder="Camry"
-              />
-            </div>
+        {/* Brand quick-pick */}
+        <div className="mt-3">
+          <div className={`text-[10px] font-bold uppercase tracking-widest mb-2 ${dark ? 'text-[#3a5070]' : 'text-[#94a3b8]'}`}>Быстрый выбор марки</div>
+          <div className="flex flex-wrap gap-2">
+            {CAR_BRANDS.map(b => (
+              <button key={b} type="button" onClick={() => setForm(f => ({ ...f, carBrand: b }))}
+                className={`px-3 py-1.5 rounded-full text-[12px] font-semibold border transition-all cursor-pointer ${
+                  form.carBrand === b
+                    ? 'bg-[#1978e5]/20 border-[#1978e5] text-[#1978e5]'
+                    : dark ? 'bg-transparent border-[#1e2d3d] text-[#4a6a8a] hover:border-[#1978e5]/50' : 'bg-white border-[#e2e8f0] text-[#94a3b8] hover:border-[#1978e5]/50'
+                }`}
+              >
+                {b}
+              </button>
+            ))}
+          </div>
+        </div>
 
-            {/* Year */}
-            <div className={`px-4 py-2 border-b ${div}`}>
-              <label className={`text-[10px] font-semibold uppercase tracking-wider ${sub}`}>Год выпуска</label>
-              <input
-                type="number"
-                value={formData.carYear}
-                onChange={(e) => setFormData({ ...formData, carYear: e.target.value })}
-                className={inputCls}
-                placeholder="2020"
-              />
-            </div>
+        {/* Document photos */}
+        <div className={`mt-4 rounded-2xl border overflow-hidden ${dark ? 'bg-[#131f2e] border-[#1e2d3d]' : 'bg-white border-[#e8edf2]'}`}>
+          <div className={`px-4 py-3 flex items-center gap-2 border-b ${dark ? 'border-[#1e2d3d]' : 'border-[#e8edf2]'}`}>
+            <FileText className="w-4 h-4 text-[#4a6a8a]" />
+            <span className="font-bold text-[13px]">Документы</span>
+            <span className={`ml-auto text-[11px] ${dark ? 'text-[#3a5070]' : 'text-[#94a3b8]'}`}>Необязательно</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3 p-4">
+            {DOC_SLOTS.map((label, i) => (
+              <button key={label} type="button" onClick={() => openDocPicker(i)}
+                className={`relative h-28 rounded-xl border-2 border-dashed flex flex-col items-center justify-center overflow-hidden transition-all cursor-pointer ${
+                  docPhotos[i]
+                    ? 'border-[#1978e5]/40 bg-[#1978e5]/05'
+                    : dark ? 'border-[#1e2d3d] hover:border-[#1978e5]/40' : 'border-[#e2e8f0] hover:border-[#1978e5]/40'
+                }`}
+              >
+                {docPhotos[i] ? (
+                  <>
+                    <img src={docPhotos[i]!} alt={label} className="absolute inset-0 w-full h-full object-cover" />
+                    <div className="absolute inset-x-0 bottom-0 bg-black/50 py-1 text-center text-[9px] text-white font-semibold">{label}</div>
+                    <button type="button" onClick={e => { e.stopPropagation(); setDocPhotos(p => { const n = [...p]; n[i] = null; return n; }); }}
+                      className="absolute top-2 right-2 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center">
+                      <X className="w-3 h-3 text-white" />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <ImagePlus className={`w-5 h-5 mb-2 ${dark ? 'text-[#2a4060]' : 'text-[#94a3b8]'}`} />
+                    <span className={`text-[11px] font-semibold text-center px-2 leading-tight ${dark ? 'text-[#3a5070]' : 'text-[#94a3b8]'}`}>{label}</span>
+                    <span className={`text-[10px] mt-1 ${dark ? 'text-[#1e3050]' : 'text-[#b0bec5]'}`}>Нажмите</span>
+                  </>
+                )}
+              </button>
+            ))}
+          </div>
+          <input ref={docInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onDocChange} />
+        </div>
 
-            {/* Plate */}
-            <div className={`px-4 py-2 border-b ${div}`}>
-              <label className={`text-[10px] font-semibold uppercase tracking-wider ${sub}`}>Госномер</label>
-              <input
-                type="text"
-                value={formData.plateNumber}
-                onChange={(e) => setFormData({ ...formData, plateNumber: e.target.value.toUpperCase() })}
-                className={`${inputCls} uppercase`}
-                placeholder="01 TJ 1234"
-              />
-            </div>
-
-            {/* Document Photos */}
-            <div className={`px-4 py-4 border-b ${div}`}>
-              <p className={`text-[10px] font-semibold uppercase tracking-wider mb-3 ${sub}`}>Фотографии документов</p>
-              <div className="grid grid-cols-2 gap-3">
-                {['Паспорт\n(Лицевая сторона)', 'СТС\n(Техпаспорт)'].map(label => (
-                  <button
-                    key={label}
-                    type="button"
-                    className={`flex flex-col items-center justify-center h-28 border-2 border-dashed transition-all ${
-                      isDark
-                        ? 'border-[#1e2d3d] hover:border-[#1978e5]/50'
-                        : 'border-[#e2e8f0] hover:border-[#1978e5]/50'
-                    }`}
-                  >
-                    <Camera className={`w-5 h-5 mb-2 ${isDark ? 'text-[#3d5263]' : 'text-[#94a3b8]'}`} />
-                    <span className={`text-[11px] font-medium text-center leading-tight whitespace-pre-line ${sub}`}>{label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Car Photos */}
-            <div className={`px-4 py-4 border-b ${div}`}>
-              <div className="flex justify-between items-center mb-3">
-                <p className={`text-[10px] font-semibold uppercase tracking-wider ${sub}`}>Фото автомобиля</p>
-                <span className={`text-[10px] ${sub}`}>Макс. 5 фото</span>
-              </div>
-              <div className="flex gap-3 overflow-x-auto pb-2">
-                <button
-                  type="button"
-                  className={`flex-shrink-0 w-22 h-22 border-2 border-dashed flex flex-col items-center justify-center transition-colors ${
-                    isDark ? 'border-[#1978e5]/30 text-[#1978e5]' : 'border-[#1978e5]/30 text-[#1978e5]'
-                  }`}
-                  style={{ width: 88, height: 88 }}
-                >
-                  <Plus className="w-5 h-5 mb-1" />
-                  <span className="text-[10px] font-bold uppercase tracking-wide">Добавить</span>
+        {/* Car photos */}
+        <div className={`mt-4 rounded-2xl border overflow-hidden ${dark ? 'bg-[#131f2e] border-[#1e2d3d]' : 'bg-white border-[#e8edf2]'}`}>
+          <div className={`px-4 py-3 flex items-center gap-2 border-b ${dark ? 'border-[#1e2d3d]' : 'border-[#e8edf2]'}`}>
+            <ImagePlus className="w-4 h-4 text-[#4a6a8a]" />
+            <span className="font-bold text-[13px]">Фото автомобиля</span>
+            <span className={`ml-auto text-[11px] ${dark ? 'text-[#3a5070]' : 'text-[#94a3b8]'}`}>{carPhotos.length}/5</span>
+          </div>
+          {/* touch-action: pan-y ensures vertical page scroll works while horizontal scroll is active */}
+          <div className="flex gap-3 p-4 overflow-x-auto" style={{ touchAction: 'pan-y' }}>
+            {carPhotos.map((url, i) => (
+              <div key={i} className="relative flex-shrink-0 w-[88px] h-[88px] rounded-xl overflow-hidden">
+                <img src={url} alt="" className="w-full h-full object-cover" />
+                <button type="button" onClick={() => setCarPhotos(p => p.filter((_, j) => j !== i))}
+                  className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center">
+                  <X className="w-3 h-3 text-white" />
                 </button>
               </div>
-            </div>
-
-            <div className="px-4 pt-6">
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={submitting}
-                className="w-full bg-[#1978e5] hover:bg-[#1565c0] disabled:opacity-70 text-white font-bold py-3.5 text-[15px] transition-colors"
-              >
-                {submitting ? 'Загрузка...' : 'Завершить регистрацию'}
+            ))}
+            {carPhotos.length < 5 && (
+              <button type="button" onClick={() => { if (carInputRef.current) { carInputRef.current.value = ''; carInputRef.current.click(); } }}
+                className="flex-shrink-0 w-[88px] h-[88px] rounded-xl border-2 border-dashed border-[#1978e5]/40 bg-[#1978e5]/05 flex flex-col items-center justify-center gap-1 text-[#1978e5] cursor-pointer hover:border-[#1978e5]/70 transition-colors">
+                <ImagePlus className="w-5 h-5" />
+                <span className="text-[9px] font-bold uppercase tracking-wide">Добавить</span>
               </button>
-            </div>
-          </section>
-        )}
-      </main>
+            )}
+          </div>
+          <input ref={carInputRef} type="file" accept="image/*" multiple className="hidden" onChange={onCarChange} />
+        </div>
+
+        {/* Submit */}
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={submitting || !complete}
+          className={`mt-6 w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-extrabold text-[15px] transition-all ${
+            complete
+              ? 'bg-[#1978e5] hover:bg-[#1565c0] text-white shadow-lg shadow-[#1978e5]/30 cursor-pointer'
+              : dark ? 'bg-[#1e2d3d] text-[#3a5070] cursor-not-allowed' : 'bg-[#f0f4f8] text-[#94a3b8] cursor-not-allowed'
+          }`}
+        >
+          {submitting ? 'Сохранение...' : <><span>Завершить регистрацию</span><ChevronRight className="w-5 h-5" /></>}
+        </button>
+        <p className={`mt-3 text-center text-[11px] ${dark ? 'text-[#2a4060]' : 'text-[#b0bec5]'}`}>
+          Данные сохраняются на сервере — можно изменить в профиле
+        </p>
+      </div>
     </div>
   );
 }

@@ -199,6 +199,7 @@ function SwipeableMessage({ messageId, isMine, isDark, onDelete, onCopy, childre
         style={{
           transform: `translateX(${isMine ? -swipeOffset : -swipeOffset}px)`,
           transition: endX === 0 ? 'transform 0.2s ease' : 'none',
+          touchAction: 'pan-y',
         }}
       >
         {children}
@@ -233,6 +234,8 @@ export function ChatPage() {
   const [showChatMenu, setShowChatMenu] = useState(false);
   const chatMenuRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef   = useRef<MediaStream | null>(null);
+  const fileReaderRef    = useRef<FileReader | null>(null);
   const voiceChunksRef = useRef<Blob[]>([]);
   const voiceTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -280,6 +283,22 @@ export function ChatPage() {
     return () => {
       window.removeEventListener('ovora_chat_update', loadMessages);
       if (pollRef.current) clearInterval(pollRef.current);
+      // Освобождаем микрофон при размонтировании (защита от утечки stream)
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach(t => t.stop());
+        mediaStreamRef.current = null;
+      }
+      if (mediaRecorderRef.current) {
+        try { mediaRecorderRef.current.stop(); } catch {}
+        mediaRecorderRef.current = null;
+      }
+      if (voiceTimerRef.current) clearInterval(voiceTimerRef.current);
+      // Отменяем FileReader при размонтировании
+      if (fileReaderRef.current) {
+        fileReaderRef.current.onload = null;
+        try { fileReaderRef.current.abort(); } catch {}
+        fileReaderRef.current = null;
+      }
     };
   }, [chatId, loadMessages, syncMessages]);
 
@@ -299,6 +318,7 @@ export function ChatPage() {
 
     if (isImage) {
       const reader = new FileReader();
+      fileReaderRef.current = reader;
       reader.onload = (ev) => {
         const dataUrl = ev.target?.result as string;
         const msg: ChatMessage = {
@@ -337,6 +357,7 @@ export function ChatPage() {
     if (isVoiceRecording) return;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
       const mr = new MediaRecorder(stream, { mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg' });
       voiceChunksRef.current = [];
       mr.ondataavailable = (e) => { if (e.data.size > 0) voiceChunksRef.current.push(e.data); };
@@ -365,6 +386,7 @@ export function ChatPage() {
       const dur = voiceSeconds || 1;
       const blob = new Blob(voiceChunksRef.current, { type: mr.mimeType });
       const reader = new FileReader();
+      fileReaderRef.current = reader;
       reader.onload = () => {
         const base64 = reader.result as string;
         if (!chatId) { setIsVoiceRecording(false); return; }
@@ -421,31 +443,30 @@ export function ChatPage() {
 
     console.log('[ChatPage] sendProposal called', { chatId, data });
 
-    const proposal: ChatProposal = {
-      ...data,
-      id: `prop_${Date.now()}`,
-      status: 'pending',
-    };
+    try {
+      const proposal: ChatProposal = {
+        ...data,
+        id: `prop_${Date.now()}`,
+        status: 'pending',
+      };
 
-    const msg: ChatMessage = {
-      id: `pm_${Date.now()}`,
-      type: 'proposal',
-      proposal,
-      from: userRole as 'driver' | 'sender',
-      senderId: currentUser?.email || userRole,
-      time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
-      ts: Date.now(),
-      read: false,
-    };
+      const msg: ChatMessage = {
+        id: `pm_${Date.now()}`,
+        type: 'proposal',
+        proposal,
+        from: userRole as 'driver' | 'sender',
+        senderId: currentUser?.email || userRole,
+        time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
+        ts: Date.now(),
+        read: false,
+      };
 
-    pushMessage(chatId, msg);
-    console.log('[ChatPage] ✅ Proposal message pushed to chat');
-    // the 'ovora_chat_update' event will trigger loadMessages() automatically
-    setShowProposalForm(false);
-
-    // Capacity is NOT reduced here — only when the driver accepts the offer.
-    toast.success('Оферта отправлена водителю');
-    isSendingProposalRef.current = false; // ✅ Reset guard after send
+      pushMessage(chatId, msg);
+      setShowProposalForm(false);
+      toast.success('Оферта отправлена водителю');
+    } finally {
+      isSendingProposalRef.current = false; // ✅ Всегда сбрасываем, даже при ошибке
+    }
   };
 
   // ── Counter proposal (driver only) ───────────────────────────────────────────
@@ -625,7 +646,7 @@ export function ChatPage() {
                 ? isDark ? 'bg-[#1978e5]/20 text-[#5ba3f5]' : 'bg-[#1978e5]/10 text-[#1978e5]'
                 : isDark ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-500/10 text-emerald-600'
             }`}>
-              {contact.name.slice(0, 2).toUpperCase()}
+              {(contact.name || '??').slice(0, 2).toUpperCase()}
             </div>
           )}
           {/* Онлайн-индикатор */}
@@ -772,7 +793,7 @@ export function ChatPage() {
       </div>
 
       {/* ── MESSAGES ───────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto py-4 space-y-3">
+      <div className="flex-1 overflow-y-auto py-4 space-y-3" style={{ touchAction: 'pan-y', WebkitOverflowScrolling: 'touch' }}>
         <AnimatePresence initial={false}>
           {messages.map(msg => {
             const isMine = msg.from === userRole || msg.from === 'system' && false;
@@ -835,7 +856,7 @@ export function ChatPage() {
                   <div className="w-7 h-7 rounded-full shrink-0 overflow-hidden">
                     {contact.avatar
                       ? <img src={contact.avatar} className="w-full h-full object-cover" />
-                      : <div className={`w-full h-full flex items-center justify-center text-[10px] font-bold ${isDark ? 'bg-[#1978e5]/20 text-[#1978e5]' : 'bg-[#e6f2f6] text-[#1978e5]'}`}>{contact.name.slice(0,2).toUpperCase()}</div>
+                      : <div className={`w-full h-full flex items-center justify-center text-[10px] font-bold ${isDark ? 'bg-[#1978e5]/20 text-[#1978e5]' : 'bg-[#e6f2f6] text-[#1978e5]'}`}>{(contact.name || '??').slice(0,2).toUpperCase()}</div>
                     }
                   </div>
                 )}

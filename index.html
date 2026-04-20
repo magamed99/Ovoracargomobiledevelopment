@@ -1,16 +1,26 @@
-
-  <!DOCTYPE html>
-  <html lang="en">
-    <head>
-      <meta charset="UTF-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <title>Ovora Cargo Mobile</title>
-      <style>html, body { height: 100%; margin: 0; } #root { height: 100%; }</style>
-    </head>
-
-    <body>
-      <div id="root"></div>
-      <script type="module" src="/src/main.tsx"></script>
-    </body>
-  </html>
-  
+<!DOCTYPE html>
+<html lang="ru" translate="no">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ovora Cargo Mobile</title>
+    <style>html,body,#root{margin:0;padding:0;background:#0e1621;min-height:100%;}</style>
+    <!-- Preconnect to backend to reduce cold start latency -->
+    <link rel="preconnect" href="https://mkbcjxnoeevtkzaqcpsh.supabase.co" crossorigin>
+    <link rel="dns-prefetch" href="https://mkbcjxnoeevtkzaqcpsh.supabase.co">
+  </head>
+  <body>
+    <script>
+      // Restore path after GitHub Pages 404 redirect (see public/404.html)
+      (function() {
+        var redirect = sessionStorage.getItem('__spa_redirect');
+        if (redirect) {
+          sessionStorage.removeItem('__spa_redirect');
+          history.replaceState(null, null, redirect);
+        }
+      })();
+    </script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
