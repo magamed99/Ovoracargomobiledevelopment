@@ -3,6 +3,7 @@ import {
   Globe, Bell, Shield, LogOut, ChevronRight, ArrowLeft, Check,
   Smartphone, Info, Trash2, RefreshCw, Truck, Package,
   BellRing, MessageSquare, Navigation, KeyRound, Star, User,
+  Volume2, Vibrate,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router';
@@ -15,6 +16,11 @@ import {
   subscribeToPush,
   unsubscribeFromPush,
 } from '../utils/pushService';
+import {
+  getSoundEnabled, setSoundEnabled,
+  getHapticEnabled, setHapticEnabled,
+  playTapSound,
+} from '../utils/soundFeedback';
 
 const LANG_OPTIONS: { code: LangCode; label: string; flag: string; native: string }[] = [
   { code: 'ru', label: 'Русский', flag: '🇷🇺', native: 'ru' },
@@ -47,6 +53,26 @@ export function SettingsPage() {
   const [showLang,    setShowLang]    = useState(false);
   const [showLogout,  setShowLogout]  = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
+
+  // Sound & Haptic state
+  const [soundOn, setSoundOn] = useState(getSoundEnabled());
+  const [hapticOn, setHapticOn] = useState(getHapticEnabled());
+
+  const toggleSound = () => {
+    const next = !soundOn;
+    setSoundOn(next);
+    setSoundEnabled(next);
+    if (next) playTapSound(); // demo the sound
+    toast.success(next ? 'Звуки включены' : 'Звуки отключены');
+  };
+
+  const toggleHaptic = () => {
+    const next = !hapticOn;
+    setHapticOn(next);
+    setHapticEnabled(next);
+    if (next) { try { navigator?.vibrate?.(20); } catch {} }
+    toast.success(next ? 'Вибрация включена' : 'Вибрация отключена');
+  };
 
   const toggleNotif = async (key: keyof typeof notifs) => {
     if (key === 'push') {
@@ -130,6 +156,8 @@ export function SettingsPage() {
         toast.success('Кэш очищен! Данные обновлены.');
       }
     },
+    { icon: Volume2,   iconColor: '#5ba3f5', iconBg: '#5ba3f514',         label: 'Звуки',          sublabel: 'Включить/выключить звуки',          onClick: () => toggleSound(),          right: <Toggle value={soundOn}     onChange={() => toggleSound()} /> },
+    { icon: Vibrate,   iconColor: '#5ba3f5', iconBg: '#5ba3f514',         label: 'Вибрация',       sublabel: 'Включить/выключить вибрацию',       onClick: () => toggleHaptic(),         right: <Toggle value={hapticOn}    onChange={() => toggleHaptic()} /> },
   ];
 
   const dangerRows: RowItem[] = [

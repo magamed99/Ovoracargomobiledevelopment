@@ -13,7 +13,7 @@ import { useUser } from '../contexts/UserContext';
 import { useIsMounted } from '../hooks/useIsMounted';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { toast } from 'sonner';
-import { getMyTrips, getOffersForDriver, deleteTrip, updateTrip, submitReview as submitReviewApi, cleanupOrphanedOffers } from '../api/dataApi';
+import { getMyTrips, getOffersForDriver, deleteTrip, updateTrip, submitReview as submitReviewApi, cleanupOrphanedOffers, updateOffer } from '../api/dataApi';
 import { getChats } from '../api/chatStore';
 import { saveActiveShipment } from '../api/trackingApi';
 import { getWeatherByCoords, getCurrentLocation, getApproximateLocation, type WeatherData } from '../api/weatherApi';
@@ -21,6 +21,7 @@ import { cleanAddress } from '../utils/addressUtils';
 import { TripCardSkeleton } from './SkeletonCard';
 import { PullIndicator } from './PullIndicator';
 import { TripCard } from './TripCard';
+import { SwipeableCard } from './SwipeableCard';
 import { StarRow } from './ui/StarRow';
 
 const REVIEWED_TRIPS_KEY = 'ovora_reviewed_trips';
@@ -278,6 +279,13 @@ export function DriverTripsPage() {
       async () => {
         try {
           const now = new Date();
+          // ✅ Feature 1: Find accepted offer → auto-fill senderEmail for shipment
+          const acceptedOffer = trip.incomingOffers?.find(
+            (o: any) => o.status === 'accepted'
+          );
+          const senderEmail = acceptedOffer?.senderEmail || '';
+          const senderName = acceptedOffer?.senderName || '';
+          const senderPhone = acceptedOffer?.senderPhone || '';
           const shipmentData = {
             tripId: trip.tripId || trip.id,
             from: trip.from, to: trip.to,
@@ -294,6 +302,9 @@ export function DriverTripsPage() {
             contactPhone: currentUser?.phone || '',
             driverEmail: currentUser?.email || '',
             driverName: currentUser?.firstName ? `${currentUser.firstName} ${currentUser.lastName || ''}`.trim() : 'Водитель',
+            senderEmail,
+            senderName,
+            senderPhone,
             status: 'inProgress',
           };
           localStorage.setItem('ovora_active_shipment', JSON.stringify(shipmentData));
@@ -385,6 +396,37 @@ export function DriverTripsPage() {
     return getChats()
       .filter((c: any) => c.tripId === tripChatId || c.id.includes(tripChatId))
       .reduce((acc: number, c: any) => acc + (c.unread || 0), 0);
+  };
+
+  // ── Inline offer accept/decline from TripCard ─────────────────────────────
+  const [offerActionId, setOfferActionId] = useState<string | null>(null);
+
+  const handleAcceptOffer = async (offer: any) => {
+    const oid = offer.offerId || offer.id;
+    setOfferActionId(oid);
+    try {
+      await updateOffer(String(offer.tripId), oid, { status: 'accepted' });
+      setOffers(prev => prev.map(o => (o.offerId || o.id) === oid ? { ...o, status: 'accepted' } : o));
+      toast.success(`Оферта от ${offer.senderName || 'отправителя'} принята!`);
+    } catch {
+      toast.error('Ошибка при принятии оферты');
+    } finally {
+      setOfferActionId(null);
+    }
+  };
+
+  const handleDeclineOffer = async (offer: any) => {
+    const oid = offer.offerId || offer.id;
+    setOfferActionId(oid);
+    try {
+      await updateOffer(String(offer.tripId), oid, { status: 'declined' });
+      setOffers(prev => prev.filter(o => (o.offerId || o.id) !== oid));
+      toast.success('Оферта отклонена');
+    } catch {
+      toast.error('Ошибка при отклонении оферты');
+    } finally {
+      setOfferActionId(null);
+    }
   };
 
   const navigateToTracking = (e: React.MouseEvent, trip: any) => {
@@ -482,21 +524,29 @@ export function DriverTripsPage() {
           )}
           {!loading && filteredTrips.map(trip => (
             <div key={trip.id} className="px-4 py-2">
-              <TripCard
-                trip={trip}
-                mode="driver"
-                weather={weatherData[trip.id]}
-                alreadyReviewed={reviewedTrips.includes(String(trip.id))}
-                unreadMessages={getUnread(trip)}
-                onStart={e => startTrip(e, trip)}
-                onFreeze={e => handleFreezeTrip(e, trip)}
-                onComplete={e => completeTrip(e, trip)}
-                onCancel={e => handleCancelTrip(e, trip)}
-                onDelete={e => handleDeleteTrip(e, trip)}
-                onMessages={e => { e.stopPropagation(); navigate(`/trip/${trip.id}`); }}
-                onTrack={e => navigateToTracking(e, trip)}
-                onReview={e => openReview(e, trip)}
-              />
+              <SwipeableCard
+                enabled={(trip.status === 'completed' || trip.status === 'cancelled')}
+                onSwipeDismiss={() => handleDeleteTrip({ stopPropagation: () => {} } as any, trip)}
+              >
+                <TripCard
+                  trip={trip}
+                  mode="driver"
+                  weather={weatherData[trip.id]}
+                  alreadyReviewed={reviewedTrips.includes(String(trip.id))}
+                  unreadMessages={getUnread(trip)}
+                  onStart={e => startTrip(e, trip)}
+                  onFreeze={e => handleFreezeTrip(e, trip)}
+                  onComplete={e => completeTrip(e, trip)}
+                  onCancel={e => handleCancelTrip(e, trip)}
+                  onDelete={e => handleDeleteTrip(e, trip)}
+                  onMessages={e => { e.stopPropagation(); navigate(`/trip/${trip.id}`); }}
+                  onTrack={e => navigateToTracking(e, trip)}
+                  onReview={e => openReview(e, trip)}
+                  onAcceptOffer={handleAcceptOffer}
+                  onDeclineOffer={handleDeclineOffer}
+                  offerActionId={offerActionId}
+                />
+              </SwipeableCard>
             </div>
           ))}
           <div style={{ height: 'env(safe-area-inset-bottom, 16px)', minHeight: 80 }} />
@@ -622,6 +672,9 @@ export function DriverTripsPage() {
                     onMessages={e => { e.stopPropagation(); navigate('/messages'); }}
                     onTrack={e => navigateToTracking(e, trip)}
                     onReview={e => openReview(e, trip)}
+                    onAcceptOffer={handleAcceptOffer}
+                    onDeclineOffer={handleDeclineOffer}
+                    offerActionId={offerActionId}
                   />
                 ))}
               </div>
@@ -630,7 +683,7 @@ export function DriverTripsPage() {
         </div>
       </div>
 
-      {/* ── Review Modal ─────────��───────────────────────────────────────────── */}
+      {/* ── Review Modal ────────────────────────────────────────────────────── */}
       {reviewModal && (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center" onClick={() => setReviewModal(null)}>
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />

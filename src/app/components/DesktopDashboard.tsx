@@ -126,7 +126,7 @@ interface Props {
   SenderActions: React.ComponentType;
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════════════════════
 export function DesktopDashboard({
   currentUser, displayName, initials, isDriver, greeting,
   advertisements, currentAdIndex, setCurrentAdIndex,
@@ -272,7 +272,7 @@ export function DesktopDashboard({
                 </span>
               </h1>
               <p className="text-[13px] text-[#607080] font-medium">
-                {isDriver ? 'Панель управления водителя' : 'Панель управления отправителя'}
+                {isDriver ? 'Панель управленя водителя' : 'Панель управления отправителя'}
               </p>
             </motion.div>
 
@@ -331,7 +331,7 @@ export function DesktopDashboard({
                   <motion.button onClick={() => navigate('/search')}
                     className="flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-bold text-white"
                     style={{ background: accent }} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-                    <Search style={{ width: 14, height: 14 }} /> Найти поездку
+                    <Search style={{ width: 14, height: 14 }} /> Найи поездку
                   </motion.button>
                 </>
               )}
@@ -361,17 +361,6 @@ export function DesktopDashboard({
                 </motion.div>
               ))}
             </div>
-          </div>
-
-          {/* ── Quick actions ── */}
-          <div className="px-6 pb-5">
-            <motion.p className="text-[10px] font-black uppercase tracking-widest text-[#607080] mb-3 flex items-center gap-2"
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
-              <Zap style={{ width: 12, height: 12, color: accent }} /> Быстрые действия
-            </motion.p>
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.52 }}>
-              {isDriver ? <DriverActions /> : <SenderActions />}
-            </motion.div>
           </div>
 
           {/* ── Hot route ── */}
@@ -406,26 +395,59 @@ export function DesktopDashboard({
         <div className="relative flex-1 flex flex-col overflow-y-auto">
 
           {/* Sticky top bar */}
-          <motion.div className="sticky top-0 z-20 flex items-center justify-between px-8 py-4 border-b border-[#ffffff06]"
+          <motion.div className="sticky top-0 z-20 flex flex-col gap-0 border-b border-[#ffffff06]"
             style={{ background: '#080f1acc', backdropFilter: 'blur(16px)' }}
             initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-            <div className="flex items-center gap-3">
-              <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: accent }} />
-              <span className="text-[13px] font-bold text-white">
-                {isDriver ? 'Панель водителя' : 'Панель отправителя'}
-              </span>
-              <span className="text-[11px] text-[#607080]">— Ovora Cargo</span>
+            {/* Top row: branding + nav */}
+            <div className="flex items-center justify-between px-6 pt-3 pb-2">
+              <div className="flex items-center gap-2.5">
+                <div className="w-[6px] h-[6px] rounded-full animate-pulse" style={{ background: accent }} />
+                <span className="text-[13px] font-bold text-white">
+                  {isDriver ? 'Панель водителя' : 'Панель отправителя'}
+                </span>
+                <span className="text-[10px] text-[#505a68]">— Ovora Cargo</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                {navBtns.map((b, i) => (
+                  <motion.button key={b.path} onClick={() => navigate(b.path)}
+                    className="px-3.5 py-[6px] rounded-lg text-[11px] font-bold tracking-wide uppercase"
+                    style={{ color: b.color, background: b.color + '0c', border: `1px solid ${b.color}25`, transition: 'all 0.2s ease' }}
+                    initial={{ opacity: 0, x: 15 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.12 + i * 0.04 }}
+                    onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.background = b.color + '20'; el.style.borderColor = b.color + '60'; }}
+                    onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background = b.color + '0c'; el.style.borderColor = b.color + '25'; }}
+                    whileTap={{ scale: 0.96 }}>
+                    {b.label}
+                  </motion.button>
+                ))}
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              {navBtns.map((b, i) => (
-                <motion.button key={b.path} onClick={() => navigate(b.path)}
-                  className="px-3 py-1.5 rounded-xl text-[12px] font-bold"
-                  style={{ color: b.color, borderWidth: '1px', borderStyle: 'solid', borderColor: b.color + '50', background: b.color + '12', transition: 'background 0.2s, border-color 0.2s' }}
-                  initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.15 + i * 0.05 }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = b.color + '25'; (e.currentTarget as HTMLElement).style.borderColor = b.color + '80'; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = b.color + '12'; (e.currentTarget as HTMLElement).style.borderColor = b.color + '50'; }}
-                  whileTap={{ scale: 0.95 }}>
-                  {b.label}
+            {/* Bottom row: quick actions */}
+            <div className="flex items-center gap-1.5 px-6 pb-3 overflow-x-auto scrollbar-none">
+              <span className="text-[9px] font-black uppercase tracking-[0.15em] text-[#404a58] mr-1.5 shrink-0">Быстрые</span>
+              {[
+                ...(isDriver
+                  ? [
+                      { label: 'Сообщения',   path: '/messages',      icon: '💬', color: '#5ba3f5' },
+                      { label: 'Уведомления', path: '/notifications', icon: '🔔', color: '#f59e0b' },
+                      { label: 'Трекинг',     path: '/tracking',      icon: '📍', color: '#10b981' },
+                      { label: 'Калькулятор',  path: '/calculator',    icon: '🧮', color: '#8b5cf6' },
+                    ]
+                  : [
+                      { label: 'Сообщения',   path: '/messages',      icon: '💬', color: '#5ba3f5' },
+                      { label: 'Уведомления', path: '/notifications', icon: '🔔', color: '#f59e0b' },
+                      { label: 'Избранное',   path: '/favorites',     icon: '⭐', color: '#ef4444' },
+                      { label: 'Калькулятор',  path: '/calculator',    icon: '🧮', color: '#8b5cf6' },
+                    ]
+                ),
+              ].map((q, i) => (
+                <motion.button key={q.path} onClick={() => navigate(q.path)}
+                  className="flex items-center gap-1.5 px-3 py-[5px] rounded-lg text-[10px] font-bold shrink-0"
+                  style={{ color: q.color, background: q.color + '0a', border: `1px solid ${q.color}18`, transition: 'all 0.2s ease' }}
+                  initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 + i * 0.035 }}
+                  onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.background = q.color + '1a'; el.style.borderColor = q.color + '50'; el.style.transform = 'translateY(-1px)'; }}
+                  onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background = q.color + '0a'; el.style.borderColor = q.color + '18'; el.style.transform = 'translateY(0)'; }}
+                  whileTap={{ scale: 0.96 }}>
+                  <span className="text-[11px] leading-none">{q.icon}</span>{q.label}
                 </motion.button>
               ))}
             </div>

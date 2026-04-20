@@ -21,24 +21,47 @@ function Shimmer({ className = '' }: { className?: string }) {
 /** Trip card skeleton — matches the layout of a TripsPage card */
 export function TripCardSkeleton({ isDark = true }: { isDark?: boolean }) {
   const base = isDark ? 'text-white' : 'text-[#0f172a]';
-  const bg   = isDark ? 'bg-[#162030] border-[#1e2d3a]' : 'bg-white border-[#e8edf4]';
+  const bg   = isDark ? 'bg-[#0d1929] border-white/[0.08]' : 'bg-white border-[#e8edf4]';
   return (
-    <div className={`rounded-3xl border overflow-hidden shadow-lg ${bg}`}>
-      {/* Map banner placeholder */}
-      <Shimmer className={`h-[110px] w-full rounded-none ${base}`} />
-      {/* Content */}
+    <div className={`rounded-2xl border overflow-hidden ${bg}`}>
       <div className="p-4 flex flex-col gap-3">
-        <div className="flex items-center gap-3">
-          <Shimmer className={`h-4 flex-1 ${base}`} />
-          <Shimmer className={`h-4 w-20 ${base}`} />
+        {/* ROW 1: Status + date */}
+        <div className="flex items-center justify-between">
+          <Shimmer className={`h-6 w-28 rounded-full ${base}`} />
+          <Shimmer className={`h-4 w-24 ${base}`} />
         </div>
+        {/* ROW 2: Route block */}
+        <div className={`rounded-xl p-3 ${isDark ? 'bg-white/[0.04]' : 'bg-gray-50'}`}>
+          <div className="flex items-stretch gap-3">
+            <div className="flex flex-col items-center gap-1 pt-0.5">
+              <Shimmer className={`w-2.5 h-2.5 rounded-full ${base}`} />
+              <div className={`w-0.5 flex-1 rounded-full ${isDark ? 'bg-white/[0.06]' : 'bg-gray-200'}`} style={{ minHeight: 16 }} />
+              <Shimmer className={`w-2.5 h-2.5 rounded-full ${base}`} />
+            </div>
+            <div className="flex-1 flex flex-col gap-2.5">
+              <Shimmer className={`h-4 w-3/4 ${base}`} />
+              <Shimmer className={`h-3 w-16 ${base}`} />
+              <Shimmer className={`h-4 w-2/3 ${base}`} />
+            </div>
+          </div>
+        </div>
+        {/* ROW 3: Capacity chips */}
+        <div className="flex items-center gap-1.5">
+          <Shimmer className={`h-7 w-24 rounded-xl ${base}`} />
+          <Shimmer className={`h-7 w-20 rounded-xl ${base}`} />
+          <Shimmer className={`h-7 w-28 rounded-xl ${base}`} />
+        </div>
+        {/* ROW 4: Vehicle + Phone */}
         <div className="flex items-center gap-2">
-          <Shimmer className={`h-3 w-24 ${base}`} />
-          <Shimmer className={`h-3 w-16 ${base}`} />
+          <Shimmer className={`h-7 w-32 rounded-xl ${base}`} />
+          <Shimmer className={`h-7 w-28 rounded-xl ${base}`} />
         </div>
-        <div className="flex justify-between items-center pt-1">
-          <Shimmer className={`h-8 w-8 rounded-full ${base}`} />
-          <Shimmer className={`h-8 w-24 rounded-xl ${base}`} />
+        {/* ROW 5: Action buttons */}
+        <div className="flex items-center gap-2 pt-0.5">
+          <Shimmer className={`h-10 flex-1 rounded-xl ${base}`} />
+          <Shimmer className={`h-10 w-10 rounded-xl ${base}`} />
+          <Shimmer className={`h-10 w-10 rounded-xl ${base}`} />
+          <Shimmer className={`h-10 w-10 rounded-xl ${base}`} />
         </div>
       </div>
     </div>

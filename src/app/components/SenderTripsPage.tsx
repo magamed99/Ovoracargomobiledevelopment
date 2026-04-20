@@ -23,6 +23,7 @@ import { generatePairChatId } from '../api/chatUtils';
 import { TripCardSkeleton } from './SkeletonCard';
 import { PullIndicator } from './PullIndicator';
 import { TripCard } from './TripCard';
+import { SwipeableCard } from './SwipeableCard';
 import { StarRow } from './ui/StarRow';
 import { cleanAddress } from '../utils/addressUtils';
 
@@ -266,21 +267,6 @@ export function SenderTripsPage() {
       time: tripData?.time || '',
       status,
       offerStatus,
-      availableSeats: tripData?.availableSeats ?? 0,
-      childSeats:     tripData?.childSeats     ?? 0,
-      cargoCapacity:  tripData?.cargoCapacity  ?? 0,
-      pricePerSeat:   tripData?.pricePerSeat   ?? 0,
-      pricePerChild:  tripData?.pricePerChild  ?? 0,
-      pricePerKg:     tripData?.pricePerKg     ?? 0,
-      vehicle:  tripData?.vehicle  || '',
-      notes:    tripData?.notes    || '',
-      driverName:   tripData?.driverName   || 'Водитель',
-      driverAvatar: tripData?.driverAvatar || '',
-      driverRating: tripData?.driverRating ?? null,
-      driverEmail:  tripData?.driverEmail  || '',
-      driverPhone:  tripData?.driverPhone  || '',
-      pricePaid: offer.price || 0,
-      tripType: 'trip',
     };
   }).filter(Boolean);
 
@@ -532,25 +518,31 @@ export function SenderTripsPage() {
               )}
               {!loading && filteredTrips.map(trip => (
                 <div key={trip.id} className="px-4 py-2">
-                  <TripCard
-                    trip={trip}
-                    mode="sender"
-                    alreadyReviewed={reviewedTrips.includes(String(trip.id))}
-                    unreadMessages={getUnread(trip)}
-                    onChat={e => openDriverChat(e, trip)}
-                    onTrack={e => {
-                      e.stopPropagation();
-                      localStorage.setItem('ovora_sender_tracking_trip', JSON.stringify({
-                        tripId: trip.tripId, from: trip.from, to: trip.to,
-                        driverName: trip.driverName, driverAvatar: trip.driverAvatar,
-                        driverPhone: trip.driverPhone, driverEmail: trip.driverEmail,
-                        vehicle: trip.vehicle, date: trip.date, time: trip.time,
-                      }));
-                      navigate('/tracking');
-                    }}
-                    onReview={e => openReview(e, trip)}
-                    onCancelBooking={e => handleCancelBooking(e, trip)}
-                  />
+                  <SwipeableCard
+                    enabled={trip.status === 'cancelled'}
+                    onSwipeDismiss={() => handleCancelBooking({ stopPropagation: () => {} } as any, trip)}
+                    actionLabel="Удалить"
+                  >
+                    <TripCard
+                      trip={trip}
+                      mode="sender"
+                      alreadyReviewed={reviewedTrips.includes(String(trip.id))}
+                      unreadMessages={getUnread(trip)}
+                      onChat={e => openDriverChat(e, trip)}
+                      onTrack={e => {
+                        e.stopPropagation();
+                        localStorage.setItem('ovora_sender_tracking_trip', JSON.stringify({
+                          tripId: trip.tripId, from: trip.from, to: trip.to,
+                          driverName: trip.driverName, driverAvatar: trip.driverAvatar,
+                          driverPhone: trip.driverPhone, driverEmail: trip.driverEmail,
+                          vehicle: trip.vehicle, date: trip.date, time: trip.time,
+                        }));
+                        navigate('/tracking');
+                      }}
+                      onReview={e => openReview(e, trip)}
+                      onCancelBooking={e => handleCancelBooking(e, trip)}
+                    />
+                  </SwipeableCard>
                 </div>
               ))}
             </>

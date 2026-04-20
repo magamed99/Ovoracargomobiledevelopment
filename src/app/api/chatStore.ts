@@ -190,7 +190,9 @@ export async function initChatRoom(
   const currentUser = getCachedUser();
   const myEmail = currentUser?.email || 'guest';
   const myRole  = localStorage.getItem('userRole') || 'sender';
-  const myName  = currentUser ? `${currentUser.firstName} ${currentUser.lastName || ''}`.trim() : myRole;
+  const myName  = currentUser
+    ? `${currentUser.firstName} ${currentUser.lastName || ''}`.trim() || (myRole === 'driver' ? 'Водитель' : 'Отправитель')
+    : (myRole === 'driver' ? 'Водитель' : 'Отправитель');
 
   // Optimistic: create chat in local cache if not present
   const existing = getChats().find(c => c.id === chatId);
@@ -212,25 +214,35 @@ export async function initChatRoom(
   }
 
   // API call (non-blocking)
+  // Store contact info under BOTH emails so each participant can resolve the other
+  const myInfo = {
+    id: currentUser?.id || myEmail,
+    name: myName,
+    avatar: currentUser?.avatar || '',
+    role: myRole,
+    sub: '',
+    online: true,
+    verified: false,
+    email: myEmail,
+  };
+  const otherInfo = {
+    id: contact.id,
+    name: contact.name,
+    avatar: contact.avatar,
+    role: contact.role,
+    sub: contact.sub,
+    rating: contact.rating,
+    online: contact.online,
+    verified: contact.verified,
+    email: contact.email,
+  };
   const contactInfo: Record<string, any> = {
-    [myEmail]: {
-      id: contact.id,
-      name: contact.name,
-      avatar: contact.avatar,
-      role: contact.role,
-      sub: contact.sub,
-      rating: contact.rating,
-      online: contact.online,
-      verified: contact.verified,
-      email: contact.email,
-    },
+    [myEmail]: otherInfo,                          // initiator sees contact's info
+    [contact.email || contact.id]: myInfo,         // contact sees initiator's info
   };
   const senderInfo: Record<string, any> = {
-    [contact.email || contact.id]: {
-      name: myName,
-      role: myRole,
-      email: myEmail,
-    },
+    [contact.email || contact.id]: myInfo,
+    [myEmail]: otherInfo,
   };
 
   apiInitChat(
@@ -254,12 +266,11 @@ export async function pushMessage(
   msg: ChatMessage,
 ): Promise<ChatMessage[]> {
   const currentUser = getCachedUser();
-  if (!currentUser?.email) {
-    console.warn('[chatStore] pushMessage: нет авторизованного пользователя');
-    return getMessages(chatId);
-  }
-  const myEmail = currentUser.email;
-  const myName  = `${currentUser.firstName} ${currentUser.lastName || ''}`.trim() || 'Пользователь';
+  const myEmail = currentUser?.email || 'guest';
+  const myRole  = localStorage.getItem('userRole') || 'sender';
+  const myName  = currentUser
+    ? `${currentUser.firstName} ${currentUser.lastName || ''}`.trim() || (myRole === 'driver' ? 'Водитель' : 'Отправитель')
+    : (myRole === 'driver' ? 'Водитель' : 'Отправитель');
   const contact = loadContact(chatId);
 
   // 1. Optimistic insert into local cache

@@ -17,7 +17,7 @@ function getResendKey(): string {
 }
 
 function getFromEmail(): string {
-  return Deno.env.get("EMAIL_FROM") || "Ovora Cargo <noreply@ovora.app>";
+  return Deno.env.get("EMAIL_FROM") || "Ovora Cargo <onboarding@resend.dev>";
 }
 
 // ── Core send ──────────────────────────────────────────────────────────────────
@@ -555,7 +555,7 @@ export function newMessageTemplate(params: {
 
   <div class="divider"></div>
   <p style="font-size:12px;color:#3a5570;text-align:center;">
-    Чтобы перестать получать email-уведомления о сообщениях,
+    Чтобы перес��ать получать email-уведомления о сообщениях,
     отключите их в <a href="${appUrl}/settings">настройках профиля</a>.
   </p>
 </div>`;
