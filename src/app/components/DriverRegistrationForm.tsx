@@ -6,7 +6,8 @@ import { useUser } from '../contexts/UserContext';
 import { toast } from 'sonner';
 import { updateUser as updateUserApi, registerUser } from '../api/authApi';
 
-const CAR_BRANDS = ['BMW', 'Ford', 'GAZ', 'KamAZ', 'MAN', 'MAZ', 'Mercedes-Benz', 'Scania', 'Toyota', 'Volvo', 'ГАЗ', 'КАМАЗ', 'МАЗ', 'Другое'];
+const CAR_BRANDS = ['КАМАЗ', 'МАЗ', 'ГАЗ', 'Volvo', 'Scania', 'MAN', 'Mercedes', 'DAF', 'Iveco', 'Другое'];
+const DOC_SLOTS = ['Паспорт', 'Техпаспорт (СТС)'];
 
 export function DriverRegistrationForm() {
   const navigate = useNavigate();
@@ -16,70 +17,44 @@ export function DriverRegistrationForm() {
 
   const [form, setForm] = useState({ carBrand: '', carModel: '', carYear: '', plateNumber: '' });
   const [submitting, setSubmitting] = useState(false);
-  const [docPhotos, setDocPhotos] = useState<{ label: string; url: string }[]>([]);
+  const [docPhotos, setDocPhotos] = useState<(string | null)[]>([null, null]);
   const [carPhotos, setCarPhotos] = useState<string[]>([]);
   const docInputRef = useRef<HTMLInputElement>(null);
   const carInputRef = useRef<HTMLInputElement>(null);
-  const [activeDocSlot, setActiveDocSlot] = useState<number | null>(null);
-
-  const bg   = isDark ? '#0e1621' : '#f5f7fa';
-  const card = isDark ? '#131f2e' : '#ffffff';
-  const brd  = isDark ? '#1e2d3d' : '#e8edf2';
-  const txt  = isDark ? '#e8eef5' : '#0f172a';
-  const sub  = isDark ? '#6b7f94' : '#8a97a8';
-  const blue = '#1978e5';
+  const activeDocSlot = useRef<number>(0);
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }));
 
-  function pickDocPhoto(slot: number) {
-    setActiveDocSlot(slot);
-    docInputRef.current?.click();
+  const complete = !!(form.carBrand && form.carModel && form.carYear && form.plateNumber);
+
+  function openDocPicker(slot: number) {
+    activeDocSlot.current = slot;
+    if (docInputRef.current) { docInputRef.current.value = ''; docInputRef.current.click(); }
   }
 
-  function onDocFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file || activeDocSlot === null) return;
+  function onDocChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]; if (!file) return;
     const url = URL.createObjectURL(file);
-    setDocPhotos(prev => {
-      const next = [...prev];
-      next[activeDocSlot] = { label: DOC_SLOTS[activeDocSlot], url };
-      return next;
-    });
-    e.target.value = '';
+    setDocPhotos(p => { const n = [...p]; n[activeDocSlot.current] = url; return n; });
   }
 
-  function onCarFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function onCarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || []);
     const urls = files.slice(0, 5 - carPhotos.length).map(f => URL.createObjectURL(f));
-    setCarPhotos(prev => [...prev, ...urls].slice(0, 5));
-    e.target.value = '';
+    setCarPhotos(p => [...p, ...urls].slice(0, 5));
   }
 
   const handleSubmit = async () => {
-    if (!form.carBrand || !form.carModel || !form.carYear || !form.plateNumber) {
-      toast.error('Заполните все поля об автомобиле');
-      return;
-    }
+    if (!complete) { toast.error('Заполните все поля'); return; }
     setSubmitting(true);
     try {
       const vehicle = { brand: form.carBrand, model: form.carModel, year: form.carYear, plate: form.plateNumber.toUpperCase() };
       if (cachedUser?.email) {
-        const updated = await updateUserApi({
-          email: cachedUser.email,
-          firstName: cachedUser.firstName,
-          lastName: cachedUser.lastName,
-          phone: cachedUser.phone,
-          vehicle,
-        });
+        const updated = await updateUserApi({ email: cachedUser.email, firstName: cachedUser.firstName, lastName: cachedUser.lastName, phone: cachedUser.phone, vehicle });
         setUserDirectly({ ...cachedUser, ...updated });
       } else {
-        const saved = await registerUser({
-          email: `driver_${Date.now()}@ovora.local`,
-          role: 'driver',
-          firstName: '', lastName: '', phone: '',
-          vehicle,
-        });
+        const saved = await registerUser({ email: `driver_${Date.now()}@ovora.local`, role: 'driver', firstName: '', lastName: '', phone: '', vehicle });
         setUserDirectly(saved);
       }
       sessionStorage.setItem('isAuthenticated', 'true');
@@ -93,130 +68,90 @@ export function DriverRegistrationForm() {
     }
   };
 
-  const DOC_SLOTS = ['Паспорт', 'Техпаспорт (СТС)'];
-  const complete = form.carBrand && form.carModel && form.carYear && form.plateNumber;
+  const dark = isDark;
 
   return (
-    <div style={{ minHeight: '100vh', background: bg, fontFamily: "'Sora', sans-serif", color: txt }}>
+    <div className={`min-h-screen font-['Sora'] ${dark ? 'bg-[#0e1621] text-white' : 'bg-[#f5f7fa] text-[#0f172a]'}`}>
 
       {/* Header */}
-      <div style={{
-        position: 'sticky', top: 0, zIndex: 10, background: isDark ? 'rgba(14,22,33,0.95)' : 'rgba(255,255,255,0.95)',
-        backdropFilter: 'blur(12px)', borderBottom: `1px solid ${brd}`,
-        display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px',
-      }}>
-        <button onClick={() => navigate(-1)} style={{
-          width: 36, height: 36, borderRadius: 10, border: `1px solid ${brd}`,
-          background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          cursor: 'pointer', color: sub,
-        }}>
-          <ArrowLeft size={18} />
+      <header className={`sticky top-0 z-20 flex items-center gap-3 px-4 py-3 border-b backdrop-blur-md ${dark ? 'bg-[#0e1621]/95 border-[#1e2d3d]' : 'bg-white/95 border-[#e8edf2]'}`}>
+        <button onClick={() => navigate(-1)} className={`w-9 h-9 rounded-xl border flex items-center justify-center cursor-pointer transition-colors ${dark ? 'border-[#1e2d3d] bg-[#0a1828] text-[#6b7f94] hover:text-white' : 'border-[#e2e8f0] bg-white text-[#8a97a8] hover:text-[#0f172a]'}`}>
+          <ArrowLeft className="w-4 h-4" />
         </button>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 700, fontSize: 15, color: txt }}>Данные автомобиля</div>
-          <div style={{ fontSize: 11, color: sub }}>Последний шаг регистрации</div>
+        <div className="flex-1">
+          <div className="font-bold text-[15px]">Данные автомобиля</div>
+          <div className={`text-[11px] ${dark ? 'text-[#4a6a8a]' : 'text-[#94a3b8]'}`}>Последний шаг регистрации</div>
         </div>
-        <div style={{
-          background: complete ? '#1eb85420' : isDark ? '#1e2d3d' : '#f0f4f8',
-          color: complete ? '#1eb854' : sub,
-          borderRadius: 20, padding: '4px 10px', fontSize: 11, fontWeight: 600,
-        }}>
+        <span className={`text-[11px] font-semibold px-3 py-1 rounded-full border ${complete ? 'text-green-400 border-green-500/30 bg-green-500/10' : dark ? 'text-[#4a6a8a] border-[#1e2d3d]' : 'text-[#94a3b8] border-[#e2e8f0]'}`}>
           {complete ? '✓ Готово' : '4 поля'}
-        </div>
-      </div>
+        </span>
+      </header>
 
       {/* Progress */}
-      <div style={{ height: 3, background: isDark ? '#1e2d3d' : '#e8edf2' }}>
-        <div style={{ height: '100%', background: blue, width: complete ? '100%' : '60%', transition: 'width 0.4s' }} />
+      <div className={`h-[3px] ${dark ? 'bg-[#1e2d3d]' : 'bg-[#e8edf2]'}`}>
+        <div className="h-full bg-[#1978e5] transition-all duration-500" style={{ width: complete ? '100%' : '50%' }} />
       </div>
 
-      <div style={{ maxWidth: 480, margin: '0 auto', padding: '16px 16px 120px' }}>
+      <div className="max-w-lg mx-auto px-4 pb-32">
 
-        {/* User card */}
+        {/* User info banner */}
         {cachedUser && (
-          <div style={{
-            background: card, borderRadius: 16, border: `1px solid ${brd}`,
-            padding: '14px 16px', marginBottom: 16,
-            display: 'flex', alignItems: 'center', gap: 12,
-          }}>
-            <div style={{
-              width: 42, height: 42, borderRadius: 12, background: `${blue}20`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-            }}>
-              <CheckCircle2 size={20} color={blue} />
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 700, fontSize: 13, color: txt }}>
-                {cachedUser.firstName} {cachedUser.lastName}
-              </div>
-              <div style={{ fontSize: 11, color: sub, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {cachedUser.email} · Личные данные сохранены
-              </div>
+          <div className={`mt-4 flex items-center gap-3 px-4 py-3 rounded-2xl border ${dark ? 'bg-[#0a1e36] border-[#1a3560]' : 'bg-blue-50 border-blue-100'}`}>
+            <CheckCircle2 className="w-5 h-5 text-[#1978e5] flex-shrink-0" />
+            <div className="min-w-0">
+              <div className="font-bold text-[13px]">{cachedUser.firstName} {cachedUser.lastName}</div>
+              <div className={`text-[11px] truncate ${dark ? 'text-[#4a6a8a]' : 'text-[#94a3b8]'}`}>{cachedUser.email} · данные сохранены</div>
             </div>
           </div>
         )}
 
         {/* Hero */}
-        <div style={{
-          background: `linear-gradient(135deg, ${blue}15, ${blue}05)`,
-          border: `1px solid ${blue}30`, borderRadius: 20,
-          padding: '24px 20px', marginBottom: 20, textAlign: 'center',
-        }}>
-          <div style={{
-            width: 64, height: 64, borderRadius: 20, background: `${blue}20`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px',
-          }}>
-            <Truck size={32} color={blue} />
+        <div className="mt-4 flex flex-col items-center py-6 px-4 rounded-3xl border bg-gradient-to-br from-[#1978e5]/10 to-[#1978e5]/5 border-[#1978e5]/20 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-[#1978e5]/20 flex items-center justify-center mb-3">
+            <Truck className="w-8 h-8 text-[#1978e5]" />
           </div>
-          <div style={{ fontWeight: 800, fontSize: 18, color: txt, marginBottom: 6 }}>Транспортное средство</div>
-          <div style={{ fontSize: 13, color: sub, lineHeight: 1.5 }}>
-            Укажите данные вашего грузового автомобиля.<br />Это поможет клиентам найти вас.
+          <div className="font-extrabold text-[18px] mb-1">Транспортное средство</div>
+          <div className={`text-[13px] leading-relaxed ${dark ? 'text-[#4a6a8a]' : 'text-[#94a3b8]'}`}>
+            Укажите данные вашего грузового автомобиля
           </div>
         </div>
 
-        {/* Car fields card */}
-        <div style={{ background: card, borderRadius: 16, border: `1px solid ${brd}`, marginBottom: 16, overflow: 'hidden' }}>
-          <div style={{ padding: '12px 16px', borderBottom: `1px solid ${brd}` }}>
-            <div style={{ fontWeight: 700, fontSize: 13, color: txt }}>Основные данные</div>
+        {/* Car fields */}
+        <div className={`mt-4 rounded-2xl border overflow-hidden ${dark ? 'bg-[#131f2e] border-[#1e2d3d]' : 'bg-white border-[#e8edf2]'}`}>
+          <div className={`px-4 py-3 font-bold text-[13px] border-b ${dark ? 'border-[#1e2d3d]' : 'border-[#e8edf2]'}`}>
+            Основные данные
           </div>
-
-          {[
-            { key: 'carBrand', label: 'Марка', placeholder: 'Например: КАМАЗ, Volvo, MAN', type: 'text' },
-            { key: 'carModel', label: 'Модель', placeholder: 'Например: 65115, FH16, TGX', type: 'text' },
-            { key: 'carYear',  label: 'Год выпуска', placeholder: '2018', type: 'number' },
-            { key: 'plateNumber', label: 'Госномер', placeholder: '01 TJ 1234 AA', type: 'text' },
-          ].map((field, i, arr) => (
-            <div key={field.key} style={{ borderBottom: i < arr.length - 1 ? `1px solid ${brd}` : 'none' }}>
-              <label style={{ display: 'block', padding: '14px 16px 0', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: sub }}>
-                {field.label}
-              </label>
+          {([
+            { key: 'carBrand',    label: 'Марка',        placeholder: 'КАМАЗ, Volvo, MAN…', type: 'text' },
+            { key: 'carModel',    label: 'Модель',       placeholder: 'Например: 65115, FH16', type: 'text' },
+            { key: 'carYear',     label: 'Год выпуска',  placeholder: '2018', type: 'number' },
+            { key: 'plateNumber', label: 'Госномер',     placeholder: '01 TJ 1234 AA', type: 'text' },
+          ] as const).map((field, i, arr) => (
+            <label key={field.key} className={`flex flex-col px-4 pt-3 pb-3 cursor-text ${i < arr.length - 1 ? `border-b ${dark ? 'border-[#1e2d3d]' : 'border-[#e8edf2]'}` : ''}`}>
+              <span className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${dark ? 'text-[#3a5070]' : 'text-[#94a3b8]'}`}>{field.label}</span>
               <input
                 type={field.type}
-                value={form[field.key as keyof typeof form]}
-                onChange={set(field.key as keyof typeof form)}
+                value={form[field.key]}
+                onChange={set(field.key)}
                 placeholder={field.placeholder}
-                style={{
-                  display: 'block', width: '100%', background: 'transparent', border: 'none',
-                  outline: 'none', padding: '6px 16px 14px', fontSize: 15, fontWeight: 600,
-                  color: txt, boxSizing: 'border-box',
-                  textTransform: field.key === 'plateNumber' ? 'uppercase' : 'none',
-                }}
+                className={`w-full bg-transparent border-none outline-none text-[15px] font-semibold placeholder-[#2a4060] ${dark ? 'text-white' : 'text-[#0f172a]'} ${field.key === 'plateNumber' ? 'uppercase' : ''}`}
               />
-            </div>
+            </label>
           ))}
         </div>
 
-        {/* Quick brand picker */}
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 11, color: sub, marginBottom: 8, fontWeight: 600 }}>БЫСТРЫЙ ВЫБОР МАРКИ</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        {/* Brand quick-pick */}
+        <div className="mt-3">
+          <div className={`text-[10px] font-bold uppercase tracking-widest mb-2 ${dark ? 'text-[#3a5070]' : 'text-[#94a3b8]'}`}>Быстрый выбор марки</div>
+          <div className="flex flex-wrap gap-2">
             {CAR_BRANDS.map(b => (
-              <button key={b} onClick={() => setForm(f => ({ ...f, carBrand: b }))} style={{
-                padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                border: `1px solid ${form.carBrand === b ? blue : brd}`,
-                background: form.carBrand === b ? `${blue}20` : card,
-                color: form.carBrand === b ? blue : sub, transition: 'all 0.15s',
-              }}>
+              <button key={b} type="button" onClick={() => setForm(f => ({ ...f, carBrand: b }))}
+                className={`px-3 py-1.5 rounded-full text-[12px] font-semibold border transition-all cursor-pointer ${
+                  form.carBrand === b
+                    ? 'bg-[#1978e5]/20 border-[#1978e5] text-[#1978e5]'
+                    : dark ? 'bg-transparent border-[#1e2d3d] text-[#4a6a8a] hover:border-[#1978e5]/50' : 'bg-white border-[#e2e8f0] text-[#94a3b8] hover:border-[#1978e5]/50'
+                }`}
+              >
                 {b}
               </button>
             ))}
@@ -224,106 +159,88 @@ export function DriverRegistrationForm() {
         </div>
 
         {/* Document photos */}
-        <div style={{ background: card, borderRadius: 16, border: `1px solid ${brd}`, marginBottom: 16, overflow: 'hidden' }}>
-          <div style={{ padding: '12px 16px', borderBottom: `1px solid ${brd}`, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <FileText size={15} color={sub} />
-            <div style={{ fontWeight: 700, fontSize: 13, color: txt }}>Документы</div>
-            <div style={{ marginLeft: 'auto', fontSize: 11, color: sub }}>Необязательно</div>
+        <div className={`mt-4 rounded-2xl border overflow-hidden ${dark ? 'bg-[#131f2e] border-[#1e2d3d]' : 'bg-white border-[#e8edf2]'}`}>
+          <div className={`px-4 py-3 flex items-center gap-2 border-b ${dark ? 'border-[#1e2d3d]' : 'border-[#e8edf2]'}`}>
+            <FileText className="w-4 h-4 text-[#4a6a8a]" />
+            <span className="font-bold text-[13px]">Документы</span>
+            <span className={`ml-auto text-[11px] ${dark ? 'text-[#3a5070]' : 'text-[#94a3b8]'}`}>Необязательно</span>
           </div>
-          <div style={{ padding: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            {DOC_SLOTS.map((label, i) => {
-              const photo = docPhotos[i];
-              return (
-                <div key={label} onClick={() => pickDocPhoto(i)} style={{
-                  height: 110, borderRadius: 12, border: `2px dashed ${photo ? blue + '60' : brd}`,
-                  background: photo ? `${blue}08` : 'transparent',
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', overflow: 'hidden', position: 'relative', transition: 'all 0.15s',
-                }}>
-                  {photo ? (
-                    <>
-                      <img src={photo.url} alt={label} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10 }} />
-                      <button onClick={e => { e.stopPropagation(); setDocPhotos(p => { const n=[...p]; n[i]=undefined as any; return n; }); }} style={{
-                        position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: 11,
-                        background: '#ef4444', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}>
-                        <X size={12} color="#fff" />
-                      </button>
-                      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.5)', padding: '3px 6px' }}>
-                        <div style={{ fontSize: 9, color: '#fff', fontWeight: 600, textAlign: 'center' }}>{label}</div>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <ImagePlus size={20} color={sub} style={{ marginBottom: 6 }} />
-                      <div style={{ fontSize: 11, fontWeight: 600, color: sub, textAlign: 'center', lineHeight: 1.3, padding: '0 8px' }}>{label}</div>
-                      <div style={{ fontSize: 10, color: isDark ? '#3d5263' : '#b0bec5', marginTop: 3 }}>Нажмите</div>
-                    </>
-                  )}
-                </div>
-              );
-            })}
+          <div className="grid grid-cols-2 gap-3 p-4">
+            {DOC_SLOTS.map((label, i) => (
+              <button key={label} type="button" onClick={() => openDocPicker(i)}
+                className={`relative h-28 rounded-xl border-2 border-dashed flex flex-col items-center justify-center overflow-hidden transition-all cursor-pointer ${
+                  docPhotos[i]
+                    ? 'border-[#1978e5]/40 bg-[#1978e5]/05'
+                    : dark ? 'border-[#1e2d3d] hover:border-[#1978e5]/40' : 'border-[#e2e8f0] hover:border-[#1978e5]/40'
+                }`}
+              >
+                {docPhotos[i] ? (
+                  <>
+                    <img src={docPhotos[i]!} alt={label} className="absolute inset-0 w-full h-full object-cover" />
+                    <div className="absolute inset-x-0 bottom-0 bg-black/50 py-1 text-center text-[9px] text-white font-semibold">{label}</div>
+                    <button type="button" onClick={e => { e.stopPropagation(); setDocPhotos(p => { const n = [...p]; n[i] = null; return n; }); }}
+                      className="absolute top-2 right-2 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center">
+                      <X className="w-3 h-3 text-white" />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <ImagePlus className={`w-5 h-5 mb-2 ${dark ? 'text-[#2a4060]' : 'text-[#94a3b8]'}`} />
+                    <span className={`text-[11px] font-semibold text-center px-2 leading-tight ${dark ? 'text-[#3a5070]' : 'text-[#94a3b8]'}`}>{label}</span>
+                    <span className={`text-[10px] mt-1 ${dark ? 'text-[#1e3050]' : 'text-[#b0bec5]'}`}>Нажмите</span>
+                  </>
+                )}
+              </button>
+            ))}
           </div>
-          <input ref={docInputRef} type="file" accept="image/*" capture="environment" onChange={onDocFileChange} style={{ display: 'none' }} />
+          <input ref={docInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onDocChange} />
         </div>
 
         {/* Car photos */}
-        <div style={{ background: card, borderRadius: 16, border: `1px solid ${brd}`, marginBottom: 24, overflow: 'hidden' }}>
-          <div style={{ padding: '12px 16px', borderBottom: `1px solid ${brd}`, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <ImagePlus size={15} color={sub} />
-            <div style={{ fontWeight: 700, fontSize: 13, color: txt }}>Фото автомобиля</div>
-            <div style={{ marginLeft: 'auto', fontSize: 11, color: sub }}>{carPhotos.length}/5</div>
+        <div className={`mt-4 rounded-2xl border overflow-hidden ${dark ? 'bg-[#131f2e] border-[#1e2d3d]' : 'bg-white border-[#e8edf2]'}`}>
+          <div className={`px-4 py-3 flex items-center gap-2 border-b ${dark ? 'border-[#1e2d3d]' : 'border-[#e8edf2]'}`}>
+            <ImagePlus className="w-4 h-4 text-[#4a6a8a]" />
+            <span className="font-bold text-[13px]">Фото автомобиля</span>
+            <span className={`ml-auto text-[11px] ${dark ? 'text-[#3a5070]' : 'text-[#94a3b8]'}`}>{carPhotos.length}/5</span>
           </div>
-          <div style={{ padding: 16, display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 16 }}>
+          {/* touch-action: pan-y ensures vertical page scroll works while horizontal scroll is active */}
+          <div className="flex gap-3 p-4 overflow-x-auto" style={{ touchAction: 'pan-y' }}>
             {carPhotos.map((url, i) => (
-              <div key={i} style={{ flexShrink: 0, width: 90, height: 90, borderRadius: 12, overflow: 'hidden', position: 'relative' }}>
-                <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                <button onClick={() => setCarPhotos(p => p.filter((_, j) => j !== i))} style={{
-                  position: 'absolute', top: 3, right: 3, width: 20, height: 20, borderRadius: 10,
-                  background: '#ef4444', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <X size={11} color="#fff" />
+              <div key={i} className="relative flex-shrink-0 w-[88px] h-[88px] rounded-xl overflow-hidden">
+                <img src={url} alt="" className="w-full h-full object-cover" />
+                <button type="button" onClick={() => setCarPhotos(p => p.filter((_, j) => j !== i))}
+                  className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center">
+                  <X className="w-3 h-3 text-white" />
                 </button>
               </div>
             ))}
             {carPhotos.length < 5 && (
-              <button onClick={() => carInputRef.current?.click()} style={{
-                flexShrink: 0, width: 90, height: 90, borderRadius: 12,
-                border: `2px dashed ${blue}50`, background: `${blue}08`,
-                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer', color: blue,
-              }}>
-                <ImagePlus size={20} />
-                <span style={{ fontSize: 9, fontWeight: 700, marginTop: 4 }}>ДОБАВИТЬ</span>
+              <button type="button" onClick={() => { if (carInputRef.current) { carInputRef.current.value = ''; carInputRef.current.click(); } }}
+                className="flex-shrink-0 w-[88px] h-[88px] rounded-xl border-2 border-dashed border-[#1978e5]/40 bg-[#1978e5]/05 flex flex-col items-center justify-center gap-1 text-[#1978e5] cursor-pointer hover:border-[#1978e5]/70 transition-colors">
+                <ImagePlus className="w-5 h-5" />
+                <span className="text-[9px] font-bold uppercase tracking-wide">Добавить</span>
               </button>
             )}
           </div>
-          <input ref={carInputRef} type="file" accept="image/*" multiple onChange={onCarFileChange} style={{ display: 'none' }} />
+          <input ref={carInputRef} type="file" accept="image/*" multiple className="hidden" onChange={onCarChange} />
         </div>
 
         {/* Submit */}
         <button
+          type="button"
           onClick={handleSubmit}
           disabled={submitting || !complete}
-          style={{
-            width: '100%', padding: '16px', borderRadius: 16, border: 'none',
-            background: complete ? blue : isDark ? '#1e2d3d' : '#e8edf2',
-            color: complete ? '#fff' : sub,
-            fontWeight: 800, fontSize: 15, cursor: complete ? 'pointer' : 'not-allowed',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            transition: 'all 0.2s',
-          }}
+          className={`mt-6 w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-extrabold text-[15px] transition-all ${
+            complete
+              ? 'bg-[#1978e5] hover:bg-[#1565c0] text-white shadow-lg shadow-[#1978e5]/30 cursor-pointer'
+              : dark ? 'bg-[#1e2d3d] text-[#3a5070] cursor-not-allowed' : 'bg-[#f0f4f8] text-[#94a3b8] cursor-not-allowed'
+          }`}
         >
-          {submitting ? 'Сохранение...' : (
-            <>
-              Завершить регистрацию
-              <ChevronRight size={18} />
-            </>
-          )}
+          {submitting ? 'Сохранение...' : <><span>Завершить регистрацию</span><ChevronRight className="w-5 h-5" /></>}
         </button>
-        <div style={{ textAlign: 'center', fontSize: 11, color: sub, marginTop: 10 }}>
-          Данные сохраняются на сервере — вы сможете изменить их в профиле
-        </div>
+        <p className={`mt-3 text-center text-[11px] ${dark ? 'text-[#2a4060]' : 'text-[#b0bec5]'}`}>
+          Данные сохраняются на сервере — можно изменить в профиле
+        </p>
       </div>
     </div>
   );
