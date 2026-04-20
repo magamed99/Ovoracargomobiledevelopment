@@ -225,6 +225,7 @@ export function SenderTripsPage() {
       setPublishedTrips(JSON.parse(localStorage.getItem('ovora_published_trips') || '[]'));
       setOffers(JSON.parse(localStorage.getItem('ovora_cached_offers') || '[]'));
       setPublishedCargos(JSON.parse(localStorage.getItem('ovora_all_cargos') || '[]'));
+      if (!silent) toast.error('Нет соединения — показаны кэшированные данные');
     } finally {
       if (isMountedRef.current) { if (!silent) setLoading(false); else setIsRefreshing(false); }
     }

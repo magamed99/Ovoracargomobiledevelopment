@@ -82,8 +82,7 @@ export function MessagesPage() {
     onTouchStart: pullTouchStart, onTouchMove: pullTouchMove, onTouchEnd: pullTouchEnd,
   } = usePullToRefresh({ onRefresh: () => msg.syncRef.current() });
 
-  const openChatMobile = (chat: Chat) => { msg.openChat(chat); navigate(`/chat/${chat.id}`); };
-  const openChatDesktop = (chat: Chat) => { msg.openChat(chat); navigate(`/chat/${chat.id}`); };
+  const openChat = (chat: Chat) => { msg.openChat(chat); navigate(`/chat/${chat.id}`); };
 
   return (
     <div className="font-['Sora'] bg-[#0e1621] min-h-screen">
@@ -116,7 +115,7 @@ export function MessagesPage() {
             searchQuery={msg.searchQuery}
             emptyHint={emptyHint}
             mode="mobile"
-            onOpen={openChatMobile}
+            onOpen={openChat}
             onDelete={msg.handleDeleteChat}
           />
           <div style={{ height: 'calc(env(safe-area-inset-bottom, 16px) + 80px)', minHeight: 96 }} />
@@ -146,7 +145,7 @@ export function MessagesPage() {
                   searchQuery={msg.searchQuery}
                   emptyHint={emptyHint}
                   mode="desktop"
-                  onOpen={openChatDesktop}
+                  onOpen={openChat}
                   onDelete={msg.handleDeleteChat}
                 />
                 <div className="h-4" />

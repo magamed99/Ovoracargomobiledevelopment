@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useUser } from '../contexts/UserContext';
 import {
   Trash2, Truck, Star, Wallet, Info, Car, Package,
@@ -90,7 +90,7 @@ export function NotificationsPage() {
 
   const userEmail = currentUser?.email;
 
-  const loadNotifications = async () => {
+  const loadNotifications = useCallback(async () => {
     if (!userEmail) { setLoading(false); return; }
     try {
       const data = await notificationsApi.getNotifications(userEmail);
@@ -101,13 +101,13 @@ export function NotificationsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userEmail]);
 
   useEffect(() => {
     loadNotifications();
     const iv = setInterval(loadNotifications, 10000);
     return () => clearInterval(iv);
-  }, [userEmail]);
+  }, [loadNotifications]);
 
   const filtered = activeFilter === 'unread'
     ? notifications.filter(n => n.isUnread)
