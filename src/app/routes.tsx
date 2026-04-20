@@ -196,7 +196,7 @@ export const router = createBrowserRouter([
           },
           {
             path: "messages",
-            lazy: () => import("./components/MessagesPage")
+            lazy: () => import("./components/messages/MessagesPage")
               .then(m => ({ Component: m.MessagesPage })),
           },
           {
