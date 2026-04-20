@@ -257,6 +257,12 @@ export function RadioPage() {
     return () => clearInterval(t);
   }, [channel.id]);
 
+  // Mark radio as "seen" on mount/unmount
+  useEffect(() => {
+    localStorage.setItem('radio_last_seen', String(Date.now()));
+    return () => { localStorage.setItem('radio_last_seen', String(Date.now())); };
+  }, []);
+
   useEffect(() => { loadMessages(); }, [loadMessages]);
   useEffect(() => { const t = setInterval(loadMessages, 5_000); return () => clearInterval(t); }, [loadMessages]);
   useEffect(() => { if (atBottom) { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); setNewCount(0); } }, [messages.length, atBottom]);

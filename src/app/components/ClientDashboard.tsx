@@ -12,6 +12,10 @@ import { useTrips } from '../contexts/TripsContext';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { getPublicAds } from '../api/dataApi';
 import { getCityCountry } from '../utils/addressUtils';
+import { projectId, publicAnonKey } from '/utils/supabase/info';
+
+const RADIO_BASE = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;
+const RADIO_H    = { 'Content-Type': 'application/json', Authorization: `Bearer ${publicAnonKey}` };
 import { DriverDashboardActions } from './DriverDashboardActions';
 import { SenderDashboardActions } from './SenderDashboardActions';
 import { DesktopDashboard } from './DesktopDashboard';
@@ -79,6 +83,18 @@ export function Home() {
   const [touchStart, setTouchStart]         = useState(0);
   const [touchEnd, setTouchEnd]             = useState(0);
   const [serverAds, setServerAds]           = useState<any[] | null>(null);
+  const [radioBadge, setRadioBadge]         = useState(0);
+
+  useEffect(() => {
+    const lastSeen = parseInt(localStorage.getItem('radio_last_seen') || '0');
+    fetch(`${RADIO_BASE}/radio/channels/ch-russia/messages?limit=30`, { headers: RADIO_H })
+      .then(r => r.json())
+      .then((data: { messages?: { ts: number }[] }) => {
+        const newMsgs = (data.messages || []).filter(m => m.ts > lastSeen);
+        setRadioBadge(newMsgs.length);
+      })
+      .catch(() => {});
+  }, []);
 
   usePolling(async () => {
     try {
@@ -255,7 +271,7 @@ export function Home() {
                 onClick={() => navigate(item.href)}
                 style={{
                   background: item.bg, border: `1px solid ${item.border}`,
-                  borderRadius: 18, padding: '14px 10px',
+                  borderRadius: 18, padding: '14px 10px', position: 'relative',
                   display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
                   cursor: 'pointer', textDecoration: 'none',
                 }}
@@ -264,6 +280,16 @@ export function Home() {
                 transition={{ delay: 0.1 + i * 0.07 }}
                 whileTap={{ scale: 0.95 }}
               >
+                {item.href === '/radio' && radioBadge > 0 && (
+                  <div style={{
+                    position: 'absolute', top: 8, right: 8,
+                    background: '#ef4444', borderRadius: '50%', minWidth: 18, height: 18,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 10, fontWeight: 800, color: '#fff', padding: '0 4px',
+                  }}>
+                    {radioBadge > 9 ? '9+' : radioBadge}
+                  </div>
+                )}
                 <span style={{ fontSize: 26 }}>{item.emoji}</span>
                 <div style={{ textAlign: 'center' }}>
                   <p style={{ fontSize: 13, fontWeight: 800, color: item.color, lineHeight: 1 }}>{item.label}</p>
