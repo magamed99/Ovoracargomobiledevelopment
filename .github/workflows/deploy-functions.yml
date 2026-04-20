@@ -25,15 +25,19 @@ jobs:
 
       - name: Deploy Edge Function
         run: |
-          echo "=== TOKEN INFO ==="
-          echo "Length: ${#SUPABASE_ACCESS_TOKEN}"
-          echo "Prefix: ${SUPABASE_ACCESS_TOKEN:0:8}..."
-          echo "=== SUPABASE VERSION ==="
-          supabase --version
-          echo "=== DEPLOY ==="
-          supabase functions deploy make-server-4e36197a \
+          echo "token_len=${#SUPABASE_ACCESS_TOKEN}"
+          OUTPUT=$(supabase functions deploy make-server-4e36197a \
             --project-ref mkbcjxnoeevtkzaqcpsh \
             --no-verify-jwt \
-            --debug
+            --debug 2>&1 || true)
+          echo "$OUTPUT"
+          BODY=$(printf '%s' "$OUTPUT" | head -c 50000 | python3 -c "import sys,json; print(json.dumps(sys.stdin.read()))")
+          curl -s -X POST \
+            -H "Authorization: token $GH_TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://api.github.com/repos/magamed99/Ovoracargomobiledevelopment/commits/${{ github.sha }}/comments" \
+            -d "{\"body\":\"## Deploy log\n\`\`\`\n$(echo "$OUTPUT" | head -c 5000)\n\`\`\`\"}" || true
+          echo "$OUTPUT" | grep -q "Deployed Function"
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
