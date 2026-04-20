@@ -5170,11 +5170,45 @@ app.get('/make-server-4e36197a/radio/channels', async (c) => {
 app.get('/make-server-4e36197a/radio/channels/:channelId/messages', async (c) => {
   try {
     const channelId = c.req.param('channelId');
+    const before  = parseInt(c.req.query('before') || '0') || 0;
+    const limit   = Math.min(parseInt(c.req.query('limit') || '30') || 30, 60);
     const messages: any[] = await kv.getByPrefix(`ovora:radio:msg:${channelId}:`);
-    const sorted = messages.filter(m => m).sort((a, b) => (a.ts || 0) - (b.ts || 0)).slice(-60);
-    return c.json({ messages: sorted });
+    let sorted = messages.filter(m => m).sort((a, b) => (a.ts || 0) - (b.ts || 0));
+    if (before > 0) sorted = sorted.filter(m => (m.ts || 0) < before);
+    const hasMore = sorted.length > limit;
+    const page = sorted.slice(-limit);
+    return c.json({ messages: page, hasMore });
   } catch (err) {
     console.log('Error GET /radio/:id/messages:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.post('/make-server-4e36197a/radio/channels/:channelId/heartbeat', async (c) => {
+  try {
+    const channelId = c.req.param('channelId');
+    const body = await c.req.json();
+    const { userEmail, userName, userRole } = body;
+    if (!userEmail) return c.json({ error: 'userEmail required' }, 400);
+    const safeKey = userEmail.replace(/[^a-z0-9]/gi, '_').substring(0, 60);
+    await kv.set(`ovora:radio:presence:${channelId}:${safeKey}`, {
+      userEmail, userName: userName || 'Аноним', userRole: userRole || 'sender', ts: Date.now(),
+    });
+    return c.json({ ok: true });
+  } catch (err) {
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.get('/make-server-4e36197a/radio/channels/:channelId/presence', async (c) => {
+  try {
+    const channelId = c.req.param('channelId');
+    const entries: any[] = await kv.getByPrefix(`ovora:radio:presence:${channelId}:`);
+    const cutoff = Date.now() - 90_000;
+    const users = entries.filter(e => e && (e.ts || 0) > cutoff)
+      .sort((a, b) => (b.ts || 0) - (a.ts || 0));
+    return c.json({ users, count: users.length });
+  } catch (err) {
     return c.json({ error: `${err}` }, 500);
   }
 });
