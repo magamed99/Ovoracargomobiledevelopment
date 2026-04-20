@@ -57,7 +57,7 @@ function ErrorBanner({ msg }: { msg: string }) {
 
 function GlassCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`rounded-3xl border border-white/[0.07] bg-white/[0.04] p-5 ${className}`}>
+    <div className={`rounded-3xl border border-white/[0.07] bg-white/[0.04] p-4 ${className}`}>
       {children}
     </div>
   );
@@ -461,7 +461,7 @@ export function EmailAuth() {
 
         {/* Step progress dots */}
         {step !== 'forgot' && (
-          <div className="flex items-center justify-center gap-2 mb-5">
+          <div className="flex items-center justify-center gap-2 mb-3">
             {[1, 2, 3].map(n => {
               const cur = step === 'email' ? 1
                 : (step === 'create_code' || step === 'enter_code') ? 2
@@ -482,7 +482,7 @@ export function EmailAuth() {
         {/* Animated step container */}
         <motion.div
           key={step}
-          className="flex flex-col gap-4"
+          className="flex flex-col gap-3"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
@@ -548,8 +548,8 @@ export function EmailAuth() {
 
           {/* ══ STEP 2a: Create PIN ══ */}
           {step === 'create_code' && (<>
-            <div className="flex flex-col items-center text-center pt-2 pb-1">
-              <div className="relative flex items-center justify-center mb-5">
+            <div className="flex items-center gap-3 pt-1">
+              <div className="relative flex items-center justify-center shrink-0">
                 {[0, 1].map(i => (
                   <motion.div
                     key={i}
@@ -558,24 +558,23 @@ export function EmailAuth() {
                     animate={{ opacity: 0, scale: 1 + (i + 1) * 0.48 }}
                     transition={{ duration: 1.8, delay: i * 0.6, repeat: Infinity, ease: 'easeOut' }}
                   >
-                    <div style={{ width: 72, height: 72, border: '1.5px solid #10b981', borderRadius: 22 }} />
+                    <div style={{ width: 52, height: 52, border: '1.5px solid #10b981', borderRadius: 16 }} />
                   </motion.div>
                 ))}
-                <div className="relative z-10 flex items-center justify-center rounded-3xl"
-                  style={{ width: 72, height: 72, background: 'linear-gradient(135deg, #059669, #10b981)' }}>
-                  <div style={{ position: 'absolute', inset: 0, borderRadius: 22, boxShadow: '0 8px 32px #10b98140' }} />
-                  <Fingerprint className="w-9 h-9 text-white relative z-10" />
+                <div className="relative z-10 flex items-center justify-center rounded-2xl"
+                  style={{ width: 52, height: 52, background: 'linear-gradient(135deg, #059669, #10b981)', boxShadow: '0 6px 20px #10b98140' }}>
+                  <Fingerprint className="w-6 h-6 text-white relative z-10" />
                 </div>
               </div>
-              <h2 className="text-[26px] font-black text-white mb-1.5">Придумайте PIN</h2>
-              <p className="text-[13px] text-[#607080] max-w-[240px] leading-snug">
-                6 цифр — ваш персональный ключ для входа в приложение
-              </p>
+              <div>
+                <h2 className="text-[20px] font-black text-white leading-tight">Придумайте PIN</h2>
+                <p className="text-[12px] text-[#607080]">6 цифр — ваш ключ для входа</p>
+              </div>
             </div>
 
             <EmailBadge email={email} tag="НОВЫЙ" tagColor="#10b981" />
 
-            <GlassCard className="flex flex-col gap-6">
+            <GlassCard className="flex flex-col gap-4">
               <DigitRow
                 arr={code} setArr={setCode} refs={codeRefs}
                 show={showCode} onToggleShow={() => setShowCode(v => !v)}
@@ -587,7 +586,7 @@ export function EmailAuth() {
                 overflow: 'hidden',
                 transition: 'max-height 0.4s cubic-bezier(0.4,0,0.2,1), opacity 0.3s ease',
               }}>
-                <div className="h-px bg-white/[0.06] mb-6" />
+                <div className="h-px bg-white/[0.06] mb-4" />
                 <DigitRow
                   arr={confirm} setArr={setConfirm} refs={confirmRefs}
                   show={showConfirm} onToggleShow={() => setShowConfirm(v => !v)}
@@ -597,12 +596,12 @@ export function EmailAuth() {
               {codeErr && <ErrorBanner msg={codeErr} />}
             </GlassCard>
 
-            <div className="relative flex items-start gap-3 px-4 py-3.5 rounded-2xl overflow-hidden"
+            <div className="relative flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl overflow-hidden"
               style={{ background: '#f59e0b0e' }}>
               <div className="absolute left-0 top-0 bottom-0 w-[2px] rounded-r-full bg-amber-400" />
-              <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-              <p className="text-[12px] text-[#607080] leading-snug">
-                Запомните PIN — восстановить можно только через Telegram-поддержку
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <p className="text-[11px] text-[#607080] leading-snug">
+                Запомните PIN — восстановить только через поддержку
               </p>
             </div>
 
@@ -619,8 +618,8 @@ export function EmailAuth() {
 
           {/* ══ STEP 2b: Enter PIN ══ */}
           {step === 'enter_code' && (<>
-            <div className="flex flex-col items-center text-center pt-2 pb-1">
-              <div className="relative flex items-center justify-center mb-5">
+            <div className="flex items-center gap-3 pt-1">
+              <div className="relative flex items-center justify-center shrink-0">
                 {[0, 1].map(i => (
                   <motion.div
                     key={i}
@@ -629,19 +628,18 @@ export function EmailAuth() {
                     animate={{ opacity: 0, scale: 1 + (i + 1) * 0.48 }}
                     transition={{ duration: 1.8, delay: i * 0.65, repeat: Infinity, ease: 'easeOut' }}
                   >
-                    <div style={{ width: 72, height: 72, border: '1.5px solid #5ba3f5', borderRadius: 22 }} />
+                    <div style={{ width: 52, height: 52, border: '1.5px solid #5ba3f5', borderRadius: 16 }} />
                   </motion.div>
                 ))}
-                <div className="relative z-10 flex items-center justify-center rounded-3xl"
-                  style={{ width: 72, height: 72, background: 'linear-gradient(135deg, #1d4ed8, #2563eb)' }}>
-                  <div style={{ position: 'absolute', inset: 0, borderRadius: 22, boxShadow: '0 8px 32px #1d4ed840' }} />
-                  <Lock className="w-9 h-9 text-white relative z-10" />
+                <div className="relative z-10 flex items-center justify-center rounded-2xl"
+                  style={{ width: 52, height: 52, background: 'linear-gradient(135deg, #1d4ed8, #2563eb)', boxShadow: '0 6px 20px #1d4ed840' }}>
+                  <Lock className="w-6 h-6 text-white relative z-10" />
                 </div>
               </div>
-              <h2 className="text-[26px] font-black text-white mb-1.5">Введите PIN</h2>
-              <p className="text-[13px] text-[#607080] max-w-[240px] leading-snug">
-                6-значный код, который вы придумали при регистрации
-              </p>
+              <div>
+                <h2 className="text-[20px] font-black text-white leading-tight">Введите PIN</h2>
+                <p className="text-[12px] text-[#607080]">Ваш 6-значный код доступа</p>
+              </div>
             </div>
 
             <EmailBadge email={email} tag="ВЕРНУВШИЙСЯ" tagColor="#5ba3f5" />

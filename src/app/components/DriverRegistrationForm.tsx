@@ -106,13 +106,13 @@ export function DriverRegistrationForm() {
         )}
 
         {/* Hero */}
-        <div className="mt-4 flex flex-col items-center py-6 px-4 rounded-3xl border bg-gradient-to-br from-[#1978e5]/10 to-[#1978e5]/5 border-[#1978e5]/20 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-[#1978e5]/20 flex items-center justify-center mb-3">
-            <Truck className="w-8 h-8 text-[#1978e5]" />
+        <div className="mt-4 flex items-center gap-3 px-4 py-3.5 rounded-2xl border bg-gradient-to-br from-[#1978e5]/10 to-[#1978e5]/5 border-[#1978e5]/20">
+          <div className="w-10 h-10 rounded-xl bg-[#1978e5]/20 flex items-center justify-center shrink-0">
+            <Truck className="w-5 h-5 text-[#1978e5]" />
           </div>
-          <div className="font-extrabold text-[18px] mb-1">Транспортное средство</div>
-          <div className={`text-[13px] leading-relaxed ${dark ? 'text-[#4a6a8a]' : 'text-[#94a3b8]'}`}>
-            Укажите данные вашего грузового автомобиля
+          <div>
+            <div className="font-extrabold text-[15px]">Транспортное средство</div>
+            <div className={`text-[12px] ${dark ? 'text-[#4a6a8a]' : 'text-[#94a3b8]'}`}>Укажите данные вашего авто</div>
           </div>
         </div>
 
