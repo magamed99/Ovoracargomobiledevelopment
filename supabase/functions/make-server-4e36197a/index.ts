@@ -5315,14 +5315,16 @@ app.post('/make-server-4e36197a/radio/channels/:channelId/messages/:msgId/react'
     if (!ALLOWED.includes(emoji)) return c.json({ error: 'emoji not allowed' }, 400);
     const msg: any = await kv.get(`ovora:radio:msg:${channelId}:${msgId}`);
     if (!msg) return c.json({ error: 'Message not found' }, 404);
-    const reactions: Record<string, string[]> = msg.reactions || {};
-    const users: string[] = reactions[emoji] || [];
-    if (users.includes(userEmail)) {
-      reactions[emoji] = users.filter(u => u !== userEmail);
-      if (reactions[emoji].length === 0) delete reactions[emoji];
-    } else {
-      reactions[emoji] = [...users, userEmail];
+    const oldReactions: Record<string, string[]> = msg.reactions || {};
+    const users: string[] = oldReactions[emoji] || [];
+    const updatedUsers = users.includes(userEmail)
+      ? users.filter((u: string) => u !== userEmail)
+      : [...users, userEmail];
+    const reactions: Record<string, string[]> = {};
+    for (const [k, v] of Object.entries(oldReactions)) {
+      if (k !== emoji && (v as string[]).length > 0) reactions[k] = v as string[];
     }
+    if (updatedUsers.length > 0) reactions[emoji] = updatedUsers;
     await kv.set(`ovora:radio:msg:${channelId}:${msgId}`, { ...msg, reactions });
     return c.json({ success: true, reactions });
   } catch (err) {
