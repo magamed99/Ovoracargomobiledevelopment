@@ -24,6 +24,7 @@ interface Message {
   audioDuration?: number;
   ts: number;
   createdAt: string;
+  reactions?: Record<string, string[]>;
 }
 
 function timeShort(iso: string) {
@@ -100,24 +101,47 @@ function VoiceBubble({ audioUrl, duration, isMe }: { audioUrl: string; duration:
   );
 }
 
-/* ─── Voice recorder hook ─────────────────────────────────────────── */
+/* ─── Voice recorder hook with waveform ──────────────────────────── */
 function useVoiceRecorder() {
   const [recording, setRecording] = useState(false);
-  const [seconds, setSeconds]     = useState(0);
-  const [blob, setBlob]           = useState<Blob | null>(null);
-  const mrRef    = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const timerRef  = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [seconds,   setSeconds]   = useState(0);
+  const [blob,      setBlob]      = useState<Blob | null>(null);
+  const [bars,      setBars]      = useState<number[]>(Array(20).fill(0));
+  const mrRef       = useRef<MediaRecorder | null>(null);
+  const chunksRef   = useRef<Blob[]>([]);
+  const timerRef    = useRef<ReturnType<typeof setInterval> | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const rafRef      = useRef<number>(0);
+  const ctxRef      = useRef<AudioContext | null>(null);
 
   const start = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Web Audio waveform
+      const ctx      = new AudioContext();
+      ctxRef.current = ctx;
+      const source   = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 64;
+      source.connect(analyser);
+      analyserRef.current = analyser;
+      const tick = () => {
+        const data = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(data);
+        setBars(Array.from(data.slice(0, 20)).map(v => v / 255));
+        rafRef.current = requestAnimationFrame(tick);
+      };
+      rafRef.current = requestAnimationFrame(tick);
+
       const mr = new MediaRecorder(stream, { mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg' });
-      mrRef.current = mr;
+      mrRef.current   = mr;
       chunksRef.current = [];
       mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
       mr.onstop = () => {
         stream.getTracks().forEach(t => t.stop());
+        cancelAnimationFrame(rafRef.current);
+        ctxRef.current?.close();
+        setBars(Array(20).fill(0));
         const b = new Blob(chunksRef.current, { type: mr.mimeType });
         setBlob(b);
       };
@@ -138,17 +162,20 @@ function useVoiceRecorder() {
 
   const cancel = useCallback(() => {
     mrRef.current?.stop();
+    cancelAnimationFrame(rafRef.current);
+    ctxRef.current?.close();
     if (timerRef.current) clearInterval(timerRef.current);
     mrRef.current = null;
     chunksRef.current = [];
     setRecording(false);
     setSeconds(0);
     setBlob(null);
+    setBars(Array(20).fill(0));
   }, []);
 
   const clear = useCallback(() => setBlob(null), []);
 
-  return { recording, seconds, blob, start, stop, cancel, clear };
+  return { recording, seconds, blob, bars, start, stop, cancel, clear };
 }
 
 /* ─── Chat View ──────────────────────────────────────────────────── */
@@ -183,6 +210,10 @@ export function RadioPage() {
   const [online,      setOnline]      = useState<{ userEmail: string; userName: string; userRole: string }[]>([]);
   const [atBottom,    setAtBottom]    = useState(true);
   const [newCount,    setNewCount]    = useState(0);
+  const [activeMenu,  setActiveMenu]  = useState<string | null>(null);
+  const [mutedUsers,  setMutedUsers]  = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('radio_muted') || '[]'); } catch { return []; }
+  });
   const lastMsgCount  = useRef(0);
   const bottomRef  = useRef<HTMLDivElement>(null);
   const scrollRef  = useRef<HTMLDivElement>(null);
@@ -263,6 +294,29 @@ export function RadioPage() {
     return () => { localStorage.setItem('radio_last_seen', String(Date.now())); };
   }, []);
 
+  // Supabase Realtime: subscribe to kv_store inserts for this channel
+  useEffect(() => {
+    const wsUrl = `wss://${projectId}.supabase.co/realtime/v1/websocket?apikey=${publicAnonKey}&vsn=1.0.0`;
+    const ws = new WebSocket(wsUrl);
+    const channelRef = `radio:${channel.id}:${Date.now()}`;
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ topic: `realtime:public:kv_store_4e36197a`, event: 'phx_join', payload: {
+        config: { broadcast: { self: false }, presence: { key: '' }, postgres_changes: [
+          { event: 'INSERT', schema: 'public', table: 'kv_store_4e36197a', filter: `key=like.ovora:radio:msg:${channel.id}:%` },
+          { event: 'UPDATE', schema: 'public', table: 'kv_store_4e36197a', filter: `key=like.ovora:radio:msg:${channel.id}:%` },
+          { event: 'DELETE', schema: 'public', table: 'kv_store_4e36197a', filter: `key=like.ovora:radio:msg:${channel.id}:%` },
+        ]},
+      }, ref: channelRef }));
+    };
+    ws.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data);
+        if (msg.event === 'postgres_changes') loadMessages();
+      } catch {}
+    };
+    return () => { ws.close(); };
+  }, [channel.id, loadMessages]);
+
   useEffect(() => { loadMessages(); }, [loadMessages]);
   useEffect(() => { const t = setInterval(loadMessages, 5_000); return () => clearInterval(t); }, [loadMessages]);
   useEffect(() => { if (atBottom) { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); setNewCount(0); } }, [messages.length, atBottom]);
@@ -334,6 +388,47 @@ export function RadioPage() {
       await loadMessages();
     } catch (e: any) { toast.error(`Ошибка: ${e.message}`); }
     finally { setSending(false); }
+  };
+
+  const deleteMsg = async (msgId: string) => {
+    if (!userEmail) return;
+    setMessages(prev => prev.filter(m => m.id !== msgId));
+    setActiveMenu(null);
+    await fetch(`${BASE}/radio/channels/${channel.id}/messages/${msgId}`, {
+      method: 'DELETE', headers: H, body: JSON.stringify({ userEmail }),
+    }).catch(() => {});
+  };
+
+  const reactToMsg = async (msgId: string, emoji: string) => {
+    if (!userEmail) return;
+    setMessages(prev => prev.map(m => {
+      if (m.id !== msgId) return m;
+      const r = { ...(m.reactions || {}) };
+      const users = r[emoji] || [];
+      if (users.includes(userEmail)) { r[emoji] = users.filter(u => u !== userEmail); if (!r[emoji].length) delete r[emoji]; }
+      else r[emoji] = [...users, userEmail];
+      return { ...m, reactions: r };
+    }));
+    await fetch(`${BASE}/radio/channels/${channel.id}/messages/${msgId}/react`, {
+      method: 'POST', headers: H, body: JSON.stringify({ userEmail, emoji }),
+    }).catch(() => {});
+  };
+
+  const reportMsg = async (msgId: string) => {
+    setActiveMenu(null);
+    await fetch(`${BASE}/radio/channels/${channel.id}/messages/${msgId}/report`, {
+      method: 'POST', headers: H, body: JSON.stringify({ userEmail, reason: 'spam/inappropriate' }),
+    }).catch(() => {});
+    toast.success('Жалоба отправлена');
+  };
+
+  const toggleMute = (email: string) => {
+    setMutedUsers(prev => {
+      const next = prev.includes(email) ? prev.filter(e => e !== email) : [...prev, email];
+      localStorage.setItem('radio_muted', JSON.stringify(next));
+      return next;
+    });
+    setActiveMenu(null);
   };
 
   // PTT: when blob ready and PTT was active → auto-send (or discard if < 1s)
@@ -447,10 +542,13 @@ export function RadioPage() {
               <div style={{ flex: 1, height: 1, background: '#0d2035' }} />
             </div>
 
-            {group.msgs.map((msg, i) => {
+            {group.msgs.filter(m => !mutedUsers.includes(m.userEmail)).map((msg, i, arr) => {
               const isMe        = msg.userEmail === userEmail;
-              const isSameUser  = i > 0 && group.msgs[i - 1].userEmail === msg.userEmail;
+              const isSameUser  = i > 0 && arr[i - 1].userEmail === msg.userEmail;
               const msgIsDriver = msg.userRole === 'driver';
+              const menuOpen    = activeMenu === msg.id;
+              const reactionEntries = Object.entries(msg.reactions || {});
+              const EMOJIS = ['👍','⚠️','✅','🚛','❤️'];
 
               return (
                 <motion.div key={msg.id}
@@ -465,7 +563,7 @@ export function RadioPage() {
                   )}
                   {!isMe && isSameUser && <div style={{ width: 30, flexShrink: 0 }} />}
 
-                  <div style={{ maxWidth: '72%' }}>
+                  <div style={{ maxWidth: '75%' }}>
                     {!isMe && !isSameUser && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                         <span style={{ fontSize: 12, fontWeight: 700, color: msgIsDriver ? '#5ba3f5' : '#34d399' }}>{msg.userName}</span>
@@ -474,18 +572,60 @@ export function RadioPage() {
                         </span>
                       </div>
                     )}
-                    <div style={{
-                      padding: '10px 13px', borderRadius: isMe ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
-                      background: isMe ? 'linear-gradient(135deg,#1a47c8,#2566cc)' : '#0d1929',
-                      border: isMe ? 'none' : '1px solid #1a2d45',
-                      boxShadow: isMe ? '0 4px 16px #1a47c830' : 'none',
-                    }}>
+                    {/* Action menu */}
+                    <AnimatePresence>
+                      {menuOpen && (
+                        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
+                          style={{ display: 'flex', gap: 6, marginBottom: 6, flexWrap: 'wrap', justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
+                          {EMOJIS.map(e => (
+                            <button key={e} onClick={() => { reactToMsg(msg.id, e); setActiveMenu(null); }}
+                              style={{ fontSize: 16, background: 'none', border: '1px solid #1a2d45', borderRadius: 8, padding: '3px 7px', cursor: 'pointer' }}>
+                              {e}
+                            </button>
+                          ))}
+                          {isMe
+                            ? <button onClick={() => deleteMsg(msg.id)} style={{ fontSize: 11, background: '#3a0a0a', border: '1px solid #6a1a1a', borderRadius: 8, padding: '3px 10px', color: '#f87171', cursor: 'pointer' }}>🗑 Удалить</button>
+                            : <>
+                                <button onClick={() => reportMsg(msg.id)} style={{ fontSize: 11, background: '#1a0a0a', border: '1px solid #4a1a1a', borderRadius: 8, padding: '3px 10px', color: '#fca5a5', cursor: 'pointer' }}>🚩 Жалоба</button>
+                                <button onClick={() => toggleMute(msg.userEmail)} style={{ fontSize: 11, background: '#0d1929', border: '1px solid #1a2d45', borderRadius: 8, padding: '3px 10px', color: '#7ab0d4', cursor: 'pointer' }}>🔇 Мут</button>
+                              </>
+                          }
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    <div
+                      onClick={() => setActiveMenu(menuOpen ? null : msg.id)}
+                      style={{
+                        padding: '10px 13px', borderRadius: isMe ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
+                        background: isMe ? 'linear-gradient(135deg,#1a47c8,#2566cc)' : '#0d1929',
+                        border: isMe ? 'none' : '1px solid #1a2d45',
+                        boxShadow: isMe ? '0 4px 16px #1a47c830' : 'none',
+                        cursor: 'pointer',
+                      }}>
                       {msg.type === 'voice' && msg.audioUrl
                         ? <VoiceBubble audioUrl={msg.audioUrl} duration={msg.audioDuration || 0} isMe={isMe} />
                         : <p style={{ fontSize: 14, color: isMe ? '#e8f4ff' : '#c0d4e8', lineHeight: 1.5, wordBreak: 'break-word' }}>{msg.text}</p>
                       }
                       <p style={{ fontSize: 10, color: isMe ? '#93c5fd60' : '#2a4060', marginTop: 4, textAlign: isMe ? 'right' : 'left' }}>{timeShort(msg.createdAt)}</p>
                     </div>
+
+                    {/* Reactions */}
+                    {reactionEntries.length > 0 && (
+                      <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap', justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
+                        {reactionEntries.map(([emoji, users]) => (
+                          <button key={emoji} onClick={() => reactToMsg(msg.id, emoji)}
+                            style={{
+                              fontSize: 12, padding: '2px 7px', borderRadius: 100, cursor: 'pointer',
+                              background: users.includes(userEmail) ? '#1a2d5a' : '#0d1929',
+                              border: `1px solid ${users.includes(userEmail) ? '#2a4a8a' : '#1a2d45'}`,
+                              color: '#c0d4e8',
+                            }}>
+                            {emoji} {users.length > 1 ? users.length : ''}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               );
@@ -544,15 +684,26 @@ export function RadioPage() {
             )}
           </AnimatePresence>
 
-          {/* Recording indicator */}
+          {/* Recording indicator with waveform */}
           <AnimatePresence>
             {voice.recording && (
               <motion.div
                 initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
                 style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 10, background: '#1a0a0a', border: '1px solid #4a1a1a', borderRadius: 14, padding: '10px 14px' }}
               >
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', boxShadow: '0 0 8px #ef4444', animation: 'pulse 1s infinite' }} />
-                <span style={{ fontSize: 13, color: '#f87171', flex: 1 }}>Запись… {fmtDur(voice.seconds)}</span>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', boxShadow: '0 0 8px #ef4444', animation: 'pulse 1s infinite', flexShrink: 0 }} />
+                {/* Waveform bars */}
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 2, height: 28 }}>
+                  {voice.bars.map((v, i) => (
+                    <div key={i} style={{
+                      flex: 1, borderRadius: 2,
+                      height: `${Math.max(4, v * 100)}%`,
+                      background: `rgba(239,68,68,${0.4 + v * 0.6})`,
+                      transition: 'height 0.05s ease',
+                    }} />
+                  ))}
+                </div>
+                <span style={{ fontSize: 12, color: '#f87171', flexShrink: 0 }}>{fmtDur(voice.seconds)}</span>
                 <button onClick={voice.cancel} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
                   <X style={{ width: 14, height: 14, color: '#6a2a2a' }} />
                 </button>

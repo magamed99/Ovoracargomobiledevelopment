@@ -5287,6 +5287,67 @@ app.post('/make-server-4e36197a/radio/voice-upload', async (c) => {
   }
 });
 
+// DELETE own message
+app.delete('/make-server-4e36197a/radio/channels/:channelId/messages/:msgId', async (c) => {
+  try {
+    const channelId = c.req.param('channelId');
+    const msgId     = c.req.param('msgId');
+    const body = await c.req.json();
+    const { userEmail } = body;
+    if (!userEmail) return c.json({ error: 'userEmail required' }, 400);
+    const msg: any = await kv.get(`ovora:radio:msg:${channelId}:${msgId}`);
+    if (!msg) return c.json({ error: 'Message not found' }, 404);
+    if (msg.userEmail !== userEmail) return c.json({ error: 'Forbidden' }, 403);
+    await kv.del(`ovora:radio:msg:${channelId}:${msgId}`);
+    return c.json({ success: true });
+  } catch (err) {
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// Toggle reaction on message
+app.post('/make-server-4e36197a/radio/channels/:channelId/messages/:msgId/react', async (c) => {
+  try {
+    const channelId = c.req.param('channelId');
+    const msgId     = c.req.param('msgId');
+    const { userEmail, emoji } = await c.req.json();
+    if (!userEmail || !emoji) return c.json({ error: 'userEmail and emoji required' }, 400);
+    const ALLOWED = ['👍','⚠️','✅','🚛','❤️'];
+    if (!ALLOWED.includes(emoji)) return c.json({ error: 'emoji not allowed' }, 400);
+    const msg: any = await kv.get(`ovora:radio:msg:${channelId}:${msgId}`);
+    if (!msg) return c.json({ error: 'Message not found' }, 404);
+    const reactions: Record<string, string[]> = msg.reactions || {};
+    const users: string[] = reactions[emoji] || [];
+    if (users.includes(userEmail)) {
+      reactions[emoji] = users.filter(u => u !== userEmail);
+      if (reactions[emoji].length === 0) delete reactions[emoji];
+    } else {
+      reactions[emoji] = [...users, userEmail];
+    }
+    await kv.set(`ovora:radio:msg:${channelId}:${msgId}`, { ...msg, reactions });
+    return c.json({ success: true, reactions });
+  } catch (err) {
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// Report message
+app.post('/make-server-4e36197a/radio/channels/:channelId/messages/:msgId/report', async (c) => {
+  try {
+    const channelId = c.req.param('channelId');
+    const msgId     = c.req.param('msgId');
+    const { userEmail, reason } = await c.req.json();
+    if (!userEmail) return c.json({ error: 'userEmail required' }, 400);
+    const reportId = `${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
+    await kv.set(`ovora:radio:report:${reportId}`, {
+      channelId, msgId, reportedBy: userEmail, reason: reason || '', ts: Date.now(),
+    });
+    return c.json({ success: true });
+  } catch (err) {
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
 // ══════════════════════════════════════════════════════════════════════════════
 //  AVIA MODULE — подключается через Repository + Cache + RateLimit архитектуру
 //  Изолирован в: aviaRoutes.tsx / aviaRepo.tsx / cache.tsx / rateLimit.tsx
