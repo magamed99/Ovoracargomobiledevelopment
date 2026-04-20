@@ -45,15 +45,19 @@ function fmtDur(sec: number) {
 }
 
 /* ─── Voice bubble player ─────────────────────────────────────────── */
+const SPEEDS = [1, 1.5, 2];
 function VoiceBubble({ audioUrl, duration, isMe }: { audioUrl: string; duration: number; isMe: boolean }) {
-  const [playing, setPlaying] = useState(false);
+  const [playing,  setPlaying]  = useState(false);
   const [progress, setProgress] = useState(0);
-  const [elapsed, setElapsed] = useState(0);
+  const [elapsed,  setElapsed]  = useState(0);
+  const [speedIdx, setSpeedIdx] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const speed = SPEEDS[speedIdx];
 
   useEffect(() => {
     const a = new Audio(audioUrl);
     audioRef.current = a;
+    a.playbackRate = speed;
     a.onended = () => { setPlaying(false); setProgress(0); setElapsed(0); };
     a.ontimeupdate = () => {
       if (a.duration) { setProgress(a.currentTime / a.duration); setElapsed(a.currentTime); }
@@ -61,37 +65,37 @@ function VoiceBubble({ audioUrl, duration, isMe }: { audioUrl: string; duration:
     return () => { a.pause(); };
   }, [audioUrl]);
 
+  useEffect(() => { if (audioRef.current) audioRef.current.playbackRate = speed; }, [speed]);
+
   const toggle = () => {
     const a = audioRef.current; if (!a) return;
     if (playing) { a.pause(); setPlaying(false); }
     else { a.play(); setPlaying(true); }
   };
+  const cycleSpeed = () => setSpeedIdx(i => (i + 1) % SPEEDS.length);
 
-  const barW = 90;
   const accent = isMe ? '#93c5fd' : '#5ba3f5';
-
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 180 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 190 }}>
       <button onClick={toggle} style={{
         width: 36, height: 36, borderRadius: 12, flexShrink: 0,
         background: isMe ? 'rgba(255,255,255,0.18)' : '#1a2d45',
         border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
       }}>
-        {playing
-          ? <Pause style={{ width: 14, height: 14, color: '#fff' }} />
-          : <Play  style={{ width: 14, height: 14, color: accent }} />
-        }
+        {playing ? <Pause style={{ width: 14, height: 14, color: '#fff' }} /> : <Play style={{ width: 14, height: 14, color: accent }} />}
       </button>
       <div style={{ flex: 1 }}>
-        {/* waveform bar */}
-        <div style={{ position: 'relative', height: 4, background: isMe ? 'rgba(255,255,255,0.25)' : '#1a2d45', borderRadius: 2, width: barW }}>
+        <div style={{ position: 'relative', height: 4, background: isMe ? 'rgba(255,255,255,0.25)' : '#1a2d45', borderRadius: 2 }}>
           <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${progress * 100}%`, background: accent, borderRadius: 2, transition: 'width .1s linear' }} />
         </div>
         <span style={{ fontSize: 10, color: isMe ? 'rgba(255,255,255,0.55)' : '#3a5070', marginTop: 3, display: 'block' }}>
           {fmtDur(playing ? elapsed : duration)}
         </span>
       </div>
-      <Mic style={{ width: 11, height: 11, color: isMe ? 'rgba(255,255,255,0.4)' : '#2a4060', flexShrink: 0 }} />
+      <button onClick={cycleSpeed} style={{
+        fontSize: 10, fontWeight: 800, color: accent, background: isMe ? 'rgba(255,255,255,0.12)' : '#0d1929',
+        border: `1px solid ${accent}55`, borderRadius: 6, padding: '2px 5px', cursor: 'pointer', flexShrink: 0,
+      }}>{speed}×</button>
     </div>
   );
 }
@@ -177,6 +181,9 @@ export function RadioPage() {
   const [hasMore,     setHasMore]     = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [online,      setOnline]      = useState<{ userEmail: string; userName: string; userRole: string }[]>([]);
+  const [atBottom,    setAtBottom]    = useState(true);
+  const [newCount,    setNewCount]    = useState(0);
+  const lastMsgCount  = useRef(0);
   const bottomRef  = useRef<HTMLDivElement>(null);
   const scrollRef  = useRef<HTMLDivElement>(null);
   const inputRef   = useRef<HTMLInputElement>(null);
@@ -188,7 +195,15 @@ export function RadioPage() {
       const res  = await fetch(`${BASE}/radio/channels/${channel.id}/messages?limit=30`, { headers: H });
       const data = await res.json();
       if (data.messages) {
-        setMessages(data.messages);
+        setMessages(prev => {
+          const incoming = data.messages as Message[];
+          const diff = incoming.length - lastMsgCount.current;
+          if (diff > 0 && lastMsgCount.current > 0) {
+            setAtBottom(ab => { if (!ab) setNewCount(n => n + diff); return ab; });
+          }
+          lastMsgCount.current = incoming.length;
+          return incoming;
+        });
         setHasMore(!!data.hasMore);
         setConnected(true);
       } else if (data.error) { setConnected(false); }
@@ -244,7 +259,19 @@ export function RadioPage() {
 
   useEffect(() => { loadMessages(); }, [loadMessages]);
   useEffect(() => { const t = setInterval(loadMessages, 5_000); return () => clearInterval(t); }, [loadMessages]);
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages.length]);
+  useEffect(() => { if (atBottom) { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); setNewCount(0); } }, [messages.length, atBottom]);
+
+  // Track scroll position
+  useEffect(() => {
+    const el = scrollRef.current; if (!el) return;
+    const onScroll = () => {
+      const near = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
+      setAtBottom(near);
+      if (near) setNewCount(0);
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, []);
 
   /* Upload voice blob → get URL */
   const uploadVoice = async (b: Blob, duration: number): Promise<string> => {
@@ -269,6 +296,8 @@ export function RadioPage() {
     if (!trimmed || sending) return;
     if (!userEmail) { toast.error('Необходима авторизация'); return; }
     setSending(true); setText('');
+    const optimistic: Message = { id: `opt_${Date.now()}`, channelId: channel.id, userEmail, userName, userRole, type: 'text', text: trimmed, ts: Date.now(), createdAt: new Date().toISOString() };
+    setMessages(prev => [...prev, optimistic]);
     try {
       const res  = await fetch(`${BASE}/radio/channels/${channel.id}/messages`, {
         method: 'POST', headers: H,
@@ -277,7 +306,7 @@ export function RadioPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       await loadMessages();
-    } catch (e: any) { toast.error(`Ошибка: ${e.message}`); setText(trimmed); }
+    } catch (e: any) { toast.error(`Ошибка: ${e.message}`); setText(trimmed); setMessages(prev => prev.filter(m => m.id !== optimistic.id)); }
     finally { setSending(false); inputRef.current?.focus(); }
   };
 
@@ -324,7 +353,7 @@ export function RadioPage() {
   }
 
   return (
-    <div style={{ background: '#0b1420', height: '100dvh', display: 'flex', flexDirection: 'column', fontFamily: "'Sora',sans-serif", overflow: 'hidden' }}>
+    <div style={{ background: '#0b1420', height: '100dvh', display: 'flex', flexDirection: 'column', fontFamily: "'Sora',sans-serif", overflow: 'hidden', position: 'relative' }}>
 
       {/* ── Header ── */}
       <header style={{ background: '#080f1c', borderBottom: '1px solid #0d2035', padding: '0 16px', height: 60, display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
@@ -460,6 +489,30 @@ export function RadioPage() {
         <div ref={bottomRef} />
       </div>
 
+      {/* ── Scroll-to-bottom button ── */}
+      <AnimatePresence>
+        {!atBottom && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
+            onClick={() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); setNewCount(0); }}
+            style={{
+              position: 'absolute', bottom: isDriver ? 140 : 90, right: 16, zIndex: 10,
+              width: 44, height: 44, borderRadius: '50%',
+              background: 'linear-gradient(135deg,#1a47c8,#2f8fe0)', border: 'none',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+              boxShadow: '0 4px 16px #1a47c850',
+            }}
+          >
+            <span style={{ fontSize: 18, lineHeight: 1 }}>↓</span>
+            {newCount > 0 && (
+              <div style={{ position: 'absolute', top: -4, right: -4, background: '#ef4444', borderRadius: '50%', width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff' }}>
+                {newCount > 9 ? '9+' : newCount}
+              </div>
+            )}
+          </motion.button>
+        )}
+      </AnimatePresence>
+
       {/* ── Input zone ── */}
       {isDriver ? (
         <div style={{ background: '#080f1c', borderTop: '1px solid #0d2035', padding: '10px 16px', paddingBottom: 'calc(10px + env(safe-area-inset-bottom))', flexShrink: 0 }}>
@@ -515,6 +568,18 @@ export function RadioPage() {
               <span style={{ fontSize: 11, color: '#2a4060' }}>
                 <strong style={{ color: '#4a7090' }}>{userName}</strong> · Водитель
               </span>
+            </div>
+          )}
+
+          {/* Quick replies */}
+          {!voice.recording && !voice.blob && (
+            <div style={{ display: 'flex', gap: 6, marginBottom: 8, overflowX: 'auto', scrollbarWidth: 'none', paddingBottom: 2 }}>
+              {['На связи 👍', 'Еду 🚛', 'Понял ✅', 'Стою 🅿️', 'Спасибо 🙏', 'Осторожно ⚠️'].map(q => (
+                <button key={q} onClick={() => { setText(q); inputRef.current?.focus(); }}
+                  style={{ flexShrink: 0, padding: '5px 11px', borderRadius: 100, background: '#0d1929', border: '1px solid #1a3560', color: '#7ab0d4', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  {q}
+                </button>
+              ))}
             </div>
           )}
 
