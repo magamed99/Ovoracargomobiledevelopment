@@ -78,11 +78,14 @@ export function DriverTripsPage() {
   // ── Load data ────────────────────────────────────────────────────────────────
   const loadData = useCallback(async (silent = false) => {
     if (!isMountedRef.current) return;
+    // User context may still be loading from localStorage on first render.
+    // Return early (keep loading=true) rather than replacing state with empty arrays.
+    if (!currentUser?.email) return;
     if (!silent) setLoading(true); else setIsRefreshing(true);
     try {
       const [tripsData, offersData] = await Promise.all([
-        currentUser?.email ? getMyTrips(currentUser.email) : Promise.resolve([]),
-        currentUser?.email ? getOffersForDriver(currentUser.email) : Promise.resolve([]),
+        getMyTrips(currentUser.email),
+        getOffersForDriver(currentUser.email),
       ]);
       if (!isMountedRef.current) return;
       const activeOffers = offersData.filter((o: any) =>

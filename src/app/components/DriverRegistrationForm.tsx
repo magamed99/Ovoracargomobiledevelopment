@@ -36,7 +36,12 @@ export function DriverRegistrationForm() {
   function onDocChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; if (!file) return;
     const url = URL.createObjectURL(file);
-    setDocPhotos(p => { const n = [...p]; n[activeDocSlot.current] = url; return n; });
+    setDocPhotos(p => {
+      const n = [...p];
+      if (n[activeDocSlot.current]) URL.revokeObjectURL(n[activeDocSlot.current]!);
+      n[activeDocSlot.current] = url;
+      return n;
+    });
   }
 
   function onCarChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -178,7 +183,7 @@ export function DriverRegistrationForm() {
                   <>
                     <img src={docPhotos[i]!} alt={label} className="absolute inset-0 w-full h-full object-cover" />
                     <div className="absolute inset-x-0 bottom-0 bg-black/50 py-1 text-center text-[9px] text-white font-semibold">{label}</div>
-                    <button type="button" onClick={e => { e.stopPropagation(); setDocPhotos(p => { const n = [...p]; n[i] = null; return n; }); }}
+                    <button type="button" onClick={e => { e.stopPropagation(); setDocPhotos(p => { const n = [...p]; if (n[i]) URL.revokeObjectURL(n[i]!); n[i] = null; return n; }); }}
                       className="absolute top-2 right-2 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center">
                       <X className="w-3 h-3 text-white" />
                     </button>
@@ -208,7 +213,7 @@ export function DriverRegistrationForm() {
             {carPhotos.map((url, i) => (
               <div key={i} className="relative flex-shrink-0 w-[88px] h-[88px] rounded-xl overflow-hidden">
                 <img src={url} alt="" className="w-full h-full object-cover" />
-                <button type="button" onClick={() => setCarPhotos(p => p.filter((_, j) => j !== i))}
+                <button type="button" onClick={() => { URL.revokeObjectURL(carPhotos[i]); setCarPhotos(p => p.filter((_, j) => j !== i)); }}
                   className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center">
                   <X className="w-3 h-3 text-white" />
                 </button>

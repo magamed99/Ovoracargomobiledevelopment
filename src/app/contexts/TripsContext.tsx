@@ -91,21 +91,10 @@ export function TripsProvider({ children }: { children: ReactNode }) {
     await loadTrips();
   };
 
-  // ✅ FIX П-2: activeTrip берётся из правильного источника по роли
-  const activeTrip = useMemo(() => {
-    const userEmail = sessionStorage.getItem('ovora_user_email') || '';
-    const userRole = sessionStorage.getItem('userRole') || 'sender';
-
-    if (!userEmail) return null;
-
-    if (userRole === 'driver') {
-      // Для водителя — активный рейс из его СОБСТВЕННЫХ рейсов (не из фида Cargos)
-      return driverActiveTrip;
-    }
-
-    // Для отправителя — логика не изменилась (через офферты)
-    return null;
-  }, [driverActiveTrip]);
+  // driverActiveTrip is set only for drivers (null for senders via loadTrips).
+  // Avoid reading sessionStorage inside memo — it's not reactive and would
+  // silently return stale values if the user changes without driverActiveTrip changing.
+  const activeTrip = useMemo(() => driverActiveTrip, [driverActiveTrip]);
 
   useEffect(() => {
     loadTrips();

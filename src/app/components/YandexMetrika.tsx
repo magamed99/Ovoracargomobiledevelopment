@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router';
 
-// Yandex Metrika Counter ID - замените на ваш реальный ID
-const YANDEX_METRIKA_ID = 'XXXXXXXXX'; // TODO: Заменить на реальный ID
+// Set VITE_YANDEX_METRIKA_ID in your .env file to enable analytics
+const YANDEX_METRIKA_ID = (import.meta.env.VITE_YANDEX_METRIKA_ID as string) || '';
 
 /**
  * 📊 YANDEX METRIKA - Внутренний компонент
@@ -13,7 +13,7 @@ function YandexMetrikaInner() {
 
   // Отслеживание переходов между страницами
   useEffect(() => {
-    if (window.ym) {
+    if (YANDEX_METRIKA_ID && window.ym) {
       window.ym(YANDEX_METRIKA_ID, 'hit', window.location.href, {
         title: document.title,
       });
@@ -29,6 +29,7 @@ function YandexMetrikaInner() {
  */
 export function YandexMetrika() {
   useEffect(() => {
+    if (!YANDEX_METRIKA_ID) return;
     // Инициализация Yandex Metrika
     if (typeof window !== 'undefined' && !window.ym) {
       (function(m: any, e: any, t: any, r: any, i: any, k: any, a: any) {

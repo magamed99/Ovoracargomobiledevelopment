@@ -44,6 +44,13 @@ function requireAuth() {
   return redirect('/');
 }
 
+function requireDriver() {
+  const authResult = requireAuth();
+  if (authResult !== null) return authResult;
+  if (sessionStorage.getItem('userRole') !== 'driver') return redirect('/home');
+  return null;
+}
+
 function requireAviaAuth() {
   const session = getAviaSession();
   if (!session?.user?.phone) return redirect('/avia');
@@ -269,19 +276,22 @@ export const router = createBrowserRouter([
             lazy: () => import("./components/TermsOfServicePage")
               .then(m => ({ Component: m.TermsOfServicePage })),
           },
-          // ── Driver-specific ──
+          // ── Driver-specific (requires driver role) ──
           {
             path: "borders",
+            loader: requireDriver,
             lazy: () => import("./components/BordersPage")
               .then(m => ({ Component: m.BordersPage })),
           },
           {
             path: "rest-stops",
+            loader: requireDriver,
             lazy: () => import("./components/RestStopsPage")
               .then(m => ({ Component: m.RestStopsPage })),
           },
           {
             path: "radio",
+            loader: requireDriver,
             lazy: () => import("./components/RadioPage")
               .then(m => ({ Component: m.RadioPage })),
           },

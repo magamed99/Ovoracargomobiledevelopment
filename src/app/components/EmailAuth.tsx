@@ -289,6 +289,9 @@ export function EmailAuth() {
   const codeRefs    = useRef<(HTMLInputElement | null)[]>([]);
   const confirmRefs = useRef<(HTMLInputElement | null)[]>([]);
   const emailRef    = useRef<HTMLInputElement>(null);
+  // Tracks current step so async callbacks can detect if user navigated away
+  const stepRef     = useRef<Step>(step);
+  useEffect(() => { stepRef.current = step; }, [step]);
 
   const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
   const codeStr    = code.join('');
@@ -331,28 +334,38 @@ export function EmailAuth() {
     if (confirmStr.length < 6) { setCodeErr('Подтвердите код'); return; }
     if (codeStr !== confirmStr){ setCodeErr('Коды не совпадают'); resetConfirm(); confirmRefs.current[0]?.focus(); return; }
     setCodeErr(''); setVerifying(true);
+    const calledFromStep = stepRef.current;
     try {
       await setUserCode(email.trim(), codeStr);
+      if (stepRef.current !== calledFromStep) return; // user pressed back
       const found = await findUserByEmail(email.trim());
+      if (stepRef.current !== calledFromStep) return; // user pressed back
       if (!found) { setStep('register'); }
       else if (found.role === role) { setExistingUser(found); setStep('login_found'); }
       else { setExistingUser(found); setConflictRole(found.role); setStep('role_conflict'); }
-    } catch (err: any) { setCodeErr(err?.message || 'Ошибка создания кода'); }
+    } catch (err: any) {
+      if (stepRef.current === calledFromStep) setCodeErr(err?.message || 'Ошибка создания кода');
+    }
     finally { setVerifying(false); }
   };
 
   const handleVerifyCode = async () => {
     if (codeStr.length < 6) { setCodeErr('Введите 6-значный код'); return; }
     setCodeErr(''); setVerifying(true);
+    const calledFromStep = stepRef.current;
     try {
       await verifyPermCode(email.trim(), codeStr);
+      if (stepRef.current !== calledFromStep) return; // user pressed back
       const found = await findUserByEmail(email.trim());
+      if (stepRef.current !== calledFromStep) return; // user pressed back
       if (!found) { setStep('register'); }
       else if (found.role === role) { setExistingUser(found); setStep('login_found'); }
       else { setExistingUser(found); setConflictRole(found.role); setStep('role_conflict'); }
     } catch (err: any) {
-      setCodeErr(err?.message || 'Неверный код');
-      resetCode(); setTimeout(() => codeRefs.current[0]?.focus(), 100);
+      if (stepRef.current === calledFromStep) {
+        setCodeErr(err?.message || 'Неверный код');
+        resetCode(); setTimeout(() => codeRefs.current[0]?.focus(), 100);
+      }
     } finally { setVerifying(false); }
   };
 
