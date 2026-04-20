@@ -457,7 +457,7 @@ export function EmailAuth() {
       </div>
 
       {/* ── CONTENT ── */}
-      <main className="flex flex-col px-4 pb-20 pt-3 max-w-md mx-auto w-full">
+      <main className="flex flex-col px-4 pb-8 pt-3 max-w-md mx-auto w-full">
 
         {/* Step progress dots */}
         {step !== 'forgot' && (

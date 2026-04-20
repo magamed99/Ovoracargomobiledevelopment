@@ -40,7 +40,7 @@ export default function App() {
   useEffect(() => {
     const meta = document.createElement('meta');
     meta.name = 'viewport';
-    meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
+    meta.content = 'width=device-width, initial-scale=1.0, viewport-fit=cover';
     const existingMeta = document.querySelector('meta[name="viewport"]');
     if (existingMeta) existingMeta.parentNode?.removeChild(existingMeta);
     document.head.appendChild(meta);
@@ -50,7 +50,7 @@ export default function App() {
     themeColor.content = '#17212B';
     document.head.appendChild(themeColor);
 
-    document.body.style.overscrollBehavior = 'none';
+    document.body.style.overscrollBehaviorX = 'none';
 
     // Pre-warm Edge Function to reduce cold start latency on first real request
     fetch(`https://${projectId}.supabase.co/functions/v1/make-server-4e36197a/health`, {

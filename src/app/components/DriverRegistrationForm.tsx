@@ -92,7 +92,7 @@ export function DriverRegistrationForm() {
         <div className="h-full bg-[#1978e5] transition-all duration-500" style={{ width: complete ? '100%' : '50%' }} />
       </div>
 
-      <div className="max-w-lg mx-auto px-4 pb-32">
+      <div className="max-w-lg mx-auto px-4 pb-8">
 
         {/* User info banner */}
         {cachedUser && (
