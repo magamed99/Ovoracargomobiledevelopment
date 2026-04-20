@@ -9,8 +9,8 @@ const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a
 const H    = { 'Content-Type': 'application/json', Authorization: `Bearer ${publicAnonKey}` };
 
 // Preferred channel; if backend doesn't have it yet (not deployed), falls back to first available
-const PREFERRED_CHANNEL_ID = 'ch-russia';
-const FALLBACK_CHANNEL = { id: 'ch-m5', name: 'Россия (М-5)', emoji: '🇷🇺', color: '#5ba3f5', desc: 'Общий канал водителей по России' };
+const FALLBACK_CHANNEL = { id: 'ch-russia', name: 'Россия', emoji: '🇷🇺', color: '#5ba3f5', desc: 'Общий канал' };
+type Channel = { id: string; name: string; emoji: string; color: string; desc: string };
 
 interface Message {
   id: string;
@@ -155,16 +155,17 @@ export function RadioPage() {
   const isDriver   = userRole === 'driver';
   const userName   = sessionStorage.getItem('ovora_user_name') || userEmail.split('@')[0] || 'Аноним';
 
-  // Resolve channel: prefer ch-russia; fall back to first from backend if not seeded yet
-  const [channel, setChannel] = useState(FALLBACK_CHANNEL);
+  const [channels,  setChannels]  = useState<Channel[]>([FALLBACK_CHANNEL]);
+  const [channel,   setChannel]   = useState<Channel>(FALLBACK_CHANNEL);
   useEffect(() => {
     fetch(`${BASE}/radio/channels`, { headers: H })
       .then(r => r.json())
-      .then((data: { channels?: { id: string; name: string; emoji: string; color: string; desc: string }[] }) => {
+      .then((data: { channels?: Channel[] }) => {
         const list = data.channels || [];
-        const russia = list.find(c => c.id === PREFERRED_CHANNEL_ID);
-        if (russia) setChannel(russia);
-        else if (list.length > 0) setChannel({ ...list[0], emoji: '🇷🇺', name: 'Россия', color: '#5ba3f5' });
+        if (list.length > 0) {
+          setChannels(list);
+          setChannel(list[0]);
+        }
       })
       .catch(() => {});
   }, []);
@@ -356,6 +357,29 @@ export function RadioPage() {
         </div>
       </header>
 
+      {/* ── Channel switcher ── */}
+      <div style={{ background: '#080f1c', borderBottom: '1px solid #0d2035', overflowX: 'auto', flexShrink: 0, scrollbarWidth: 'none' }}>
+        <div style={{ display: 'flex', gap: 8, padding: '8px 16px', width: 'max-content' }}>
+          {channels.map(ch => {
+            const active = ch.id === channel.id;
+            return (
+              <button key={ch.id} onClick={() => { setChannel(ch); setMessages([]); setHasMore(false); }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 100, flexShrink: 0,
+                  background: active ? `${ch.color}22` : '#0a1828',
+                  border: `1px solid ${active ? ch.color + '66' : '#1a2d45'}`,
+                  color: active ? ch.color : '#4a6a8a', fontSize: 12, fontWeight: active ? 700 : 500,
+                  cursor: 'pointer', transition: 'all .15s', whiteSpace: 'nowrap',
+                }}
+              >
+                <span>{ch.emoji}</span>
+                <span>{ch.name}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* ── Messages ── */}
       <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', WebkitOverflowScrolling: 'touch' as any }}>
         {hasMore && messages.length > 0 && (
@@ -371,7 +395,7 @@ export function RadioPage() {
         )}
         {messages.length === 0 && (
           <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-            <div style={{ fontSize: 56, marginBottom: 16 }}>🇷🇺</div>
+            <div style={{ fontSize: 56, marginBottom: 16 }}>{channel.emoji}</div>
             <p style={{ fontSize: 16, fontWeight: 700, color: '#c0d4e8', marginBottom: 8 }}>Канал пока пуст</p>
             <p style={{ fontSize: 13, color: '#3a5070', lineHeight: 1.5 }}>
               {isDriver ? 'Напишите первым — водители ждут!' : 'Тут общаются водители по России.'}
