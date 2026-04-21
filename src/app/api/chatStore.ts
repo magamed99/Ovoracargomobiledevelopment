@@ -524,7 +524,7 @@ export async function updateProposalStatus(
  */
 export async function deleteChat(chatId: string): Promise<void> {
   // 1. Optimistic: Remove from local cache immediately
-  const originalChats = JSON.parse(localStorage.getItem(CHATS_KEY) || '[]');
+  const originalChats = getChats();
   const filtered = originalChats.filter((c: Chat) => c.id !== chatId);
   localStorage.setItem(CHATS_KEY, JSON.stringify(filtered));
 

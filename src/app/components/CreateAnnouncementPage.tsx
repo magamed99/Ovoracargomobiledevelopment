@@ -203,6 +203,7 @@ export function CreateAnnouncementPage() {
   );
 
   const handlePublish = async () => {
+    if (publishing) return;
     if (!fromAddress?.lat) { toast.error('Укажите точку отправления'); return; }
     if (!toAddress?.lat)   { toast.error('Укажите точку назначения');  return; }
     if (!driverDate)       { toast.error('Укажите дату');              return; }
