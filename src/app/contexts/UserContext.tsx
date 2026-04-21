@@ -33,6 +33,16 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 function clearLocalCache() {
   try {
     localStorage.removeItem('ovora_current_user');
+    localStorage.removeItem('ovora_auth_persistent');
+    localStorage.removeItem('ovora_chats_v2');
+    localStorage.removeItem('ovora_chat_contacts_v2');
+    // Clear per-chat message caches
+    const msgKeys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k?.startsWith('ovora_msgs_v2_')) msgKeys.push(k);
+    }
+    msgKeys.forEach(k => localStorage.removeItem(k));
     console.log('[UserContext] Local cache cleared');
   } catch (e) {
     console.warn('[UserContext] Failed to clear local cache:', e);

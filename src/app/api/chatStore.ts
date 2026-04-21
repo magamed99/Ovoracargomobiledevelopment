@@ -375,6 +375,12 @@ export async function fetchChats(): Promise<Chat[]> {
 
   try {
     const serverChats: any[] = await apiGetUserChats(email);
+    if (Array.isArray(serverChats) && serverChats.length === 0) {
+      // Server confirmed this user has no chats — clear any stale local data
+      saveChats([]);
+      emit();
+      return [];
+    }
     if (serverChats && serverChats.length > 0) {
       // Load saved contacts map for enrichment
       const contactsMap: Record<string, ChatContact> = JSON.parse(

@@ -41,6 +41,15 @@ function clearPreviousUserCache(newEmail: string) {
     if (oldEmail && oldEmail.toLowerCase() !== newEmail.toLowerCase()) {
       console.log('[authApi] Clearing old user cache:', oldEmail, '→', newEmail);
       localStorage.removeItem(CURRENT_USER_KEY);
+      // Clear chat data that belongs to the previous user
+      localStorage.removeItem('ovora_chats_v2');
+      localStorage.removeItem('ovora_chat_contacts_v2');
+      const msgKeys: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k?.startsWith('ovora_msgs_v2_')) msgKeys.push(k);
+      }
+      msgKeys.forEach(k => localStorage.removeItem(k));
     }
   } catch { /* ignore */ }
 }
