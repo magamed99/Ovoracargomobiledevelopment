@@ -207,14 +207,15 @@ export function SenderTripsPage() {
       setOffers(offersData);
       setPublishedCargos(cargosData);
 
-      // ✅ Batch-load cargo offers for active cargos
-      const activeCargos = cargosData.filter((c: any) => !c.deletedAt && c.status !== 'cancelled' && c.status !== 'completed');
-      if (activeCargos.length > 0) {
+      // Load cargo offers for all non-deleted cargos (including completed/cancelled)
+      // so every card shows its real accept/pending counts
+      const cargosToLoad = cargosData.filter((c: any) => !c.deletedAt);
+      if (cargosToLoad.length > 0) {
         const offersResults = await Promise.allSettled(
-          activeCargos.map((c: any) => getCargoOffersForCargo(c.id))
+          cargosToLoad.map((c: any) => getCargoOffersForCargo(c.id))
         );
         const newMap: Record<string, any[]> = {};
-        activeCargos.forEach((c: any, i: number) => {
+        cargosToLoad.forEach((c: any, i: number) => {
           const res = offersResults[i];
           if (res.status === 'fulfilled') newMap[c.id] = res.value;
         });
@@ -268,6 +269,27 @@ export function SenderTripsPage() {
       time: tripData?.time || '',
       status,
       offerStatus,
+      // Driver contact & profile (needed by TripCard sender mode)
+      driverName:   tripData?.driverName   || '',
+      driverAvatar: tripData?.driverAvatar || '',
+      driverEmail:  tripData?.driverEmail  || tripData?.email || '',
+      driverPhone:  tripData?.driverPhone  || '',
+      driverRating: tripData?.driverRating ?? null,
+      // Trip details (capacity, vehicle, notes)
+      vehicle:        tripData?.vehicle        || '',
+      notes:          tripData?.notes          || '',
+      availableSeats: tripData?.availableSeats ?? 0,
+      cargoCapacity:  tripData?.cargoCapacity  ?? 0,
+      pricePerSeat:   tripData?.pricePerSeat   ?? 0,
+      pricePerKg:     tripData?.pricePerKg     ?? 0,
+      pricePerChild:  tripData?.pricePerChild  ?? 0,
+      // Coords for tracking page
+      fromLat: tripData?.fromLat ?? null,
+      fromLng: tripData?.fromLng ?? null,
+      toLat:   tripData?.toLat   ?? null,
+      toLng:   tripData?.toLng   ?? null,
+      // What sender paid / offered
+      pricePaid: offer.price ?? offer.totalPrice ?? 0,
     };
   }).filter(Boolean);
 

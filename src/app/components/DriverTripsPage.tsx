@@ -218,11 +218,14 @@ export function DriverTripsPage() {
   // ── Actions ──────────────────────────────────────────────────────────────────
   const openReview = (e: React.MouseEvent, trip: any) => {
     e.stopPropagation();
-    // Находим принятую/завершённую оферту чтобы получить email отправителя
     const acceptedOffer = trip.incomingOffers?.find(
       (o: any) => o.status === 'accepted' || o.status === 'completed'
-    ) || trip.incomingOffers?.[0];
+    ) || trip.incomingOffers?.find((o: any) => o.senderEmail || o.userEmail);
     const senderEmail = acceptedOffer?.senderEmail || acceptedOffer?.userEmail || '';
+    if (!senderEmail) {
+      toast.error('Нет данных об отправителе для этой поездки');
+      return;
+    }
     setReviewModal({
       tripId: String(trip.id),
       route: `${trip.from} → ${trip.to}`,
@@ -241,7 +244,7 @@ export function DriverTripsPage() {
       await submitReviewApi({
         authorEmail: currentUser?.email || '',
         authorName,
-        targetEmail: (reviewModal as any)?.senderEmail || currentUser?.email || '',
+        targetEmail: (reviewModal as any)?.senderEmail || '',
         tripId: reviewModal!.tripId,
         rating: formRating,
         comment: formComment.trim(),
