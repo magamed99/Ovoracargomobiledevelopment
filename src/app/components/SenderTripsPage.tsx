@@ -290,11 +290,16 @@ export function SenderTripsPage() {
       toLng:   tripData?.toLng   ?? null,
       // What sender paid / offered
       pricePaid: offer.price ?? offer.totalPrice ?? 0,
+      // When the offer was submitted (shown as "заявка X ч назад" in TripCard)
+      offerCreatedAt: offer.createdAt || offer.timestamp || null,
     };
   }).filter(Boolean);
 
-  // ✅ FIX П-6: Грузы — отдельная вкладка, НЕ смешиваем с booking-items
-  const senderAllCargos = publishedCargos;
+  // Грузы — сортируем: active первыми, затем cancelled/completed
+  const senderAllCargos = [...publishedCargos].sort((a, b) => {
+    const order: Record<string, number> = { active: 0, cancelled: 1, completed: 2 };
+    return (order[a.status] ?? 1) - (order[b.status] ?? 1);
+  });
 
   const filteredTrips = senderTrips.filter(trip =>
     activeTab === 'active'    ? ['planned', 'accepted', 'inProgress', 'frozen'].includes(trip.status)

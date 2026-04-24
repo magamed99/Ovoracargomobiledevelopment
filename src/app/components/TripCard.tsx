@@ -18,7 +18,7 @@
  * 10. Fallback for cargo trips without weight
  */
 import { useNavigate } from 'react-router';
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Play, Navigation, Snowflake, CheckCircle2, Trash2,
@@ -84,6 +84,8 @@ export interface TripCardData {
   toLng?: number;
   // For driver review: sender email from accepted offer
   senderEmail?: string;
+  // When the booking offer was submitted (sender mode)
+  offerCreatedAt?: string | number | null;
 }
 
 interface TripCardProps {
@@ -193,11 +195,41 @@ function statusCfg(status?: string, mode?: TripCardMode, offerStatus?: string) {
 
 function offerDesc(offer: any): string {
   const parts: string[] = [];
-  if (offer.type === 'cargo') parts.push(`Груз: ${offer.weight || '—'}`);
-  else if (offer.type === 'seats') parts.push(`Места: ${offer.requestedSeats || '—'}`);
-  else parts.push(`${offer.requestedSeats || 0} мест + ${offer.requestedCargo || 0} кг`);
+  if (offer.type === 'cargo') {
+    parts.push(`Груз: ${offer.weight || '—'}`);
+  } else {
+    const seatsStr = (offer.requestedSeats || 0) > 0 ? `${offer.requestedSeats} взр.` : '';
+    const childStr = (offer.requestedChildren || 0) > 0 ? `${offer.requestedChildren} дет.` : '';
+    const cargoStr = (offer.requestedCargo || 0) > 0 ? `${offer.requestedCargo} кг` : '';
+    if (offer.type === 'seats') {
+      const combined = [seatsStr, childStr].filter(Boolean).join(' + ') || '—';
+      parts.push(`Места: ${combined}`);
+    } else {
+      const combined = [seatsStr, childStr, cargoStr].filter(Boolean).join(' + ') || '—';
+      parts.push(combined);
+    }
+  }
   if ((offer.price ?? 0) > 0) parts.push(`${offer.price} TJS`);
   return parts.join(' · ');
+}
+
+// ─── localStorage helpers for "NEW" offer badge tracking ─────────────────────
+const SEEN_OFFERS_KEY = 'ovora_seen_offer_ids';
+function markOfferSeen(id: string) {
+  try {
+    const arr = JSON.parse(localStorage.getItem(SEEN_OFFERS_KEY) || '[]') as string[];
+    if (!arr.includes(id)) {
+      arr.push(id);
+      if (arr.length > 300) arr.splice(0, arr.length - 300);
+      localStorage.setItem(SEEN_OFFERS_KEY, JSON.stringify(arr));
+    }
+  } catch {}
+}
+function isOfferNew(id: string, seenFlag: boolean): boolean {
+  if (!seenFlag) return false; // server already marked seen
+  try {
+    return !(JSON.parse(localStorage.getItem(SEEN_OFFERS_KEY) || '[]') as string[]).includes(id);
+  } catch { return false; }
 }
 
 /** #8 — Share/copy route to clipboard */
@@ -387,6 +419,12 @@ export function TripCard({
                   {sc.dot} {sc.label}
                 </span>
               )}
+              {/* Offer submission timestamp — sender booking view */}
+              {mode === 'sender' && trip.offerCreatedAt && (
+                <span className="text-[10px] text-[#3d5263] font-medium">
+                  заявка {relativeTime(trip.offerCreatedAt)}
+                </span>
+              )}
               {(mode === 'search' || mode === 'sender') && creatorName && (
                 <div className="flex items-center gap-1.5">
                   {creatorAvatar
@@ -529,14 +567,22 @@ export function TripCard({
           )}
 
           {/* DRIVER MODE: Inline offers */}
-          {mode === 'driver' && (trip.incomingOffers?.length ?? 0) > 0 && !isInactive && (() => {
-            const pending = trip.incomingOffers!.filter((o: any) => o.status === 'pending');
-            const accepted = trip.incomingOffers!.filter((o: any) => o.status === 'accepted');
-            if (pending.length === 0 && accepted.length === 0) return null;
-            const allOffers = [...accepted, ...pending];
-            const totalCount = allOffers.length;
+          {mode === 'driver' && !isInactive && (() => {
+            const allTripOffers = trip.incomingOffers ?? [];
+            const pending  = allTripOffers.filter((o: any) => o.status === 'pending');
+            const accepted = allTripOffers.filter((o: any) => o.status === 'accepted');
+            const declined = allTripOffers.filter((o: any) => o.status === 'declined');
+            if (pending.length === 0 && accepted.length === 0 && declined.length === 0) {
+              return (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.03] border border-dashed border-white/[0.06]">
+                  <Clock className="w-3.5 h-3.5 text-[#2a4060] shrink-0" />
+                  <span className="text-[11px] text-[#2a4060]">Ожидаем предложений от отправителей</span>
+                </div>
+              );
+            }
+            const allOffers = [...accepted, ...pending, ...declined];
             const COLLAPSE_THRESHOLD = 3;
-            return <InlineOffers offers={allOffers} totalCount={totalCount} collapseThreshold={COLLAPSE_THRESHOLD} offerActionId={offerActionId} onAcceptOffer={onAcceptOffer} onDeclineOffer={onDeclineOffer} />;
+            return <InlineOffers offers={allOffers} totalCount={accepted.length + pending.length} collapseThreshold={COLLAPSE_THRESHOLD} offerActionId={offerActionId} onAcceptOffer={onAcceptOffer} onDeclineOffer={onDeclineOffer} />;
           })()}
 
           {/* DRIVER/SENDER: Review for completed trips */}
@@ -756,21 +802,34 @@ interface InlineOffersProps {
 
 function InlineOffers({ offers, totalCount, collapseThreshold, offerActionId, onAcceptOffer, onDeclineOffer }: InlineOffersProps) {
   const [expanded, setExpanded] = useState(false);
-  const shouldCollapse = totalCount > collapseThreshold;
 
   const accepted = offers.filter((o: any) => o.status === 'accepted');
-  const pending = offers.filter((o: any) => o.status === 'pending');
+  const pending  = offers.filter((o: any) => o.status === 'pending');
+  const declined = offers.filter((o: any) => o.status === 'declined');
 
+  const shouldCollapse = (accepted.length + pending.length) > collapseThreshold;
+
+  const visibleAccepted = shouldCollapse && !expanded
+    ? accepted.slice(0, Math.min(accepted.length, collapseThreshold))
+    : accepted;
   const visiblePending = shouldCollapse && !expanded
-    ? pending.slice(0, Math.max(0, collapseThreshold - accepted.length))
+    ? pending.slice(0, Math.max(0, collapseThreshold - visibleAccepted.length))
     : pending;
-  const hiddenCount = pending.length - visiblePending.length;
+  const hiddenCount = (accepted.length - visibleAccepted.length) + (pending.length - visiblePending.length);
+
+  // Mark visible pending offers as seen in localStorage (clears "NEW" badge on next visit)
+  useEffect(() => {
+    visiblePending.forEach(o => {
+      const oid = String(o.offerId || o.id || '');
+      if (oid) markOfferSeen(oid);
+    });
+  });
 
   return (
     <div className="space-y-2" onClick={e => e.stopPropagation()}>
       {/* Accepted offers */}
       <AnimatePresence mode="popLayout">
-        {accepted.map((offer: any) => {
+        {visibleAccepted.map((offer: any) => {
           const oid = offer.offerId || offer.id;
           const ts = relativeTime(offer.createdAt || offer.timestamp);
           return (
@@ -813,7 +872,7 @@ function InlineOffers({ offers, totalCount, collapseThreshold, offerActionId, on
           const oid = offer.offerId || offer.id;
           const isActioning = offerActionId === oid;
           const ts = relativeTime(offer.createdAt || offer.timestamp);
-          const isNew = offer.seen === false;
+          const isNew = isOfferNew(String(oid), offer.seen === false);
           return (
             <motion.div
               key={`pending-${oid}`}
@@ -884,6 +943,30 @@ function InlineOffers({ offers, totalCount, collapseThreshold, offerActionId, on
           <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} />
           {expanded ? 'Скрыть' : `Ещё ${hiddenCount} ${hiddenCount === 1 ? 'оферта' : hiddenCount < 5 ? 'оферты' : 'оферт'}`}
         </button>
+      )}
+
+      {/* Declined offers — sender cancelled their booking */}
+      {declined.length > 0 && (
+        <div className="space-y-1.5 pt-0.5">
+          {declined.map((offer: any) => {
+            const oid = offer.offerId || offer.id;
+            return (
+              <div key={`declined-${oid}`}
+                className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-rose-500/[0.07] border border-rose-500/15 opacity-75">
+                <XCircle className="w-3.5 h-3.5 text-rose-400/60 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <span className="text-[11px] font-semibold text-rose-400/70">
+                    {offer.senderName || 'Отправитель'}
+                  </span>
+                  <span className="text-[10px] text-rose-400/40 block">Отменил бронирование</span>
+                </div>
+                <span className="text-[10px] text-rose-400/40 shrink-0">
+                  {relativeTime(offer.updatedAt || offer.createdAt)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );

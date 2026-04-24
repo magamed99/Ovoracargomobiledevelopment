@@ -88,9 +88,16 @@ export function DriverTripsPage() {
         getOffersForDriver(currentUser.email),
       ]);
       if (!isMountedRef.current) return;
-      const activeOffers = offersData.filter((o: any) =>
-        o.status !== 'cancelled' && o.status !== 'declined' && o.status !== 'deleted'
-      );
+      const MS_48H = 48 * 60 * 60 * 1000;
+      const activeOffers = offersData.filter((o: any) => {
+        if (o.status === 'cancelled' || o.status === 'deleted') return false;
+        // Keep recently declined offers (last 48h) so driver sees "Отменил бронирование"
+        if (o.status === 'declined') {
+          const ts = o.updatedAt || o.createdAt;
+          return ts ? (Date.now() - new Date(ts).getTime()) < MS_48H : false;
+        }
+        return true;
+      });
       setPublishedTrips(tripsData);
       setOffers(activeOffers);
       const pending = activeOffers.filter((o: any) => o.status === 'pending').length;
