@@ -9,7 +9,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Package, X, MessageSquare, Shield, Zap, Award,
   ArrowLeft, RefreshCw, Plus, AlertTriangle,
-  Weight, Calendar, Trash2, Truck, CheckCircle, Phone,
+  Weight, Calendar, Trash2, Truck, CheckCircle, Phone, PhoneCall, Star,
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { useTheme } from '../context/ThemeContext';
@@ -44,12 +44,11 @@ const CATEGORY_ICONS: Record<string, any> = {
 
 // ── Карточка груза отправителя (П-6: не использует TripCard с mode='sender') ─
 function SenderCargoCard({
-  cargo, onDelete, pendingCount = 0, acceptedCount = 0,
+  cargo, onDelete, offers = [],
 }: {
   cargo: any;
   onDelete: (id: string) => void;
-  pendingCount?: number;
-  acceptedCount?: number;
+  offers?: any[];
 }) {
   const navigate = useNavigate();
   const statusColors: Record<string, string> = {
@@ -63,7 +62,12 @@ function SenderCargoCard({
     completed: 'Завершено',
   };
   const st = cargo.status || 'active';
-  const totalOffers = pendingCount + acceptedCount;
+  const pendingOffers  = offers.filter((o: any) => o.status === 'pending');
+  const acceptedOffers = offers.filter((o: any) => o.status === 'accepted');
+  const acceptedOffer  = acceptedOffers[0] || null;
+  const pendingCount   = pendingOffers.length;
+  const acceptedCount  = acceptedOffers.length;
+  const totalOffers    = pendingCount + acceptedCount;
 
   return (
     <div
@@ -75,7 +79,6 @@ function SenderCargoCard({
           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold ${statusColors[st] || statusColors.active}`}>
             {statusLabels[st] || 'Активно'}
           </span>
-          {/* Offer count badges */}
           {acceptedCount > 0 && (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
               <CheckCircle className="w-2.5 h-2.5" /> Водитель выбран
@@ -125,18 +128,53 @@ function SenderCargoCard({
           </div>
         )}
       </div>
-      {/* Show offers summary when there are any */}
-      {totalOffers > 0 && st === 'active' && (
+
+      {/* Accepted driver contact info */}
+      {acceptedOffer && (
+        <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25">
+          <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-[12px] font-bold text-emerald-400 truncate">
+              {acceptedOffer.driverName || 'Водитель принял заявку'}
+            </p>
+            {acceptedOffer.driverPhone && (
+              <p className="text-[10px] text-emerald-400/60">{acceptedOffer.driverPhone}</p>
+            )}
+            {acceptedOffer.vehicle && (
+              <p className="text-[10px] text-emerald-400/60">{acceptedOffer.vehicle}</p>
+            )}
+          </div>
+          {acceptedOffer.driverPhone && (
+            <a
+              href={`tel:${acceptedOffer.driverPhone}`}
+              onClick={e => e.stopPropagation()}
+              className="h-8 w-8 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/35 flex items-center justify-center transition-all active:scale-90 shrink-0"
+            >
+              <PhoneCall className="w-3.5 h-3.5 text-emerald-400" />
+            </a>
+          )}
+          {acceptedOffer.driverRating && (
+            <div className="flex items-center gap-0.5 shrink-0">
+              <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+              <span className="text-[11px] font-semibold text-amber-400">{acceptedOffer.driverRating}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Pending offers summary */}
+      {!acceptedOffer && totalOffers > 0 && st === 'active' && (
         <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-[#1a2d45]/60 border border-white/[0.06]">
           <div className="flex items-center gap-2">
             <Truck className="w-3.5 h-3.5 text-[#5ba3f5] shrink-0" />
             <span className="text-[11px] font-semibold text-[#8a9baa]">
-              {acceptedCount > 0 ? 'Водитель принят — свяжитесь с ним' : `${pendingCount} водител${pendingCount === 1 ? 'ь' : 'я'} откликнулись`}
+              {`${pendingCount} водител${pendingCount === 1 ? 'ь' : pendingCount < 5 ? 'я' : 'ей'} откликнулись`}
             </span>
           </div>
           <span className="text-[10px] font-bold text-[#5ba3f5]">Смотреть →</span>
         </div>
       )}
+
       {st === 'active' && (
         <button
           onClick={e => { e.stopPropagation(); onDelete(cargo.id); }}
@@ -321,6 +359,10 @@ export function SenderTripsPage() {
   // ── Actions ───────────────────────────────────────────────────────────────
   const openReview = (e: React.MouseEvent, trip: any) => {
     e.stopPropagation();
+    if (!trip.driverEmail) {
+      toast.error('Нет данных о водителе для этой поездки');
+      return;
+    }
     setReviewModal({
       tripId: trip.id,
       route: `${trip.from} → ${trip.to}`,
@@ -340,7 +382,7 @@ export function SenderTripsPage() {
       await submitReviewApi({
         authorEmail: currentUser?.email || '',
         authorName,
-        targetEmail: reviewModal?.driverEmail || currentUser?.email || '',
+        targetEmail: reviewModal?.driverEmail || '',
         tripId: reviewModal!.tripId,
         rating: formRating,
         comment: formComment.trim(),
@@ -451,29 +493,19 @@ export function SenderTripsPage() {
     if (grid) {
       return (
         <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
-          {senderAllCargos.map(cargo => {
-            const offers = cargoOffersMap[cargo.id] || [];
-            const pendingCount = offers.filter((o: any) => o.status === 'pending').length;
-            const acceptedCount = offers.filter((o: any) => o.status === 'accepted').length;
-            return (
-              <SenderCargoCard key={cargo.id} cargo={cargo} onDelete={handleDeleteCargo}
-                pendingCount={pendingCount} acceptedCount={acceptedCount} />
-            );
-          })}
+          {senderAllCargos.map(cargo => (
+            <SenderCargoCard key={cargo.id} cargo={cargo} onDelete={handleDeleteCargo}
+              offers={cargoOffersMap[cargo.id] || []} />
+          ))}
         </div>
       );
     }
     return (
       <div className="px-4 pt-3 space-y-3 pb-24">
-        {senderAllCargos.map(cargo => {
-          const offers = cargoOffersMap[cargo.id] || [];
-          const pendingCount = offers.filter((o: any) => o.status === 'pending').length;
-          const acceptedCount = offers.filter((o: any) => o.status === 'accepted').length;
-          return (
-            <SenderCargoCard key={cargo.id} cargo={cargo} onDelete={handleDeleteCargo}
-              pendingCount={pendingCount} acceptedCount={acceptedCount} />
-          );
-        })}
+        {senderAllCargos.map(cargo => (
+          <SenderCargoCard key={cargo.id} cargo={cargo} onDelete={handleDeleteCargo}
+            offers={cargoOffersMap[cargo.id] || []} />
+        ))}
       </div>
     );
   };
