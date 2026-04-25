@@ -29,7 +29,7 @@ interface UserContextType {
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
-// ── Полностью очищает кеш предыдущего пользователя ────────────────────────────
+// ── Полностью очищает кеш пользователя из localStorage ───────────────────────
 function clearLocalCache() {
   try {
     localStorage.removeItem('ovora_current_user');

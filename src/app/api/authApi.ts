@@ -34,6 +34,30 @@ const USER_EMAIL_KEY = 'ovora_user_email';
 const USER_ROLE_KEY = 'userRole';
 const PERSISTENT_AUTH_KEY = 'ovora_auth_persistent'; // { email, role } — persistent across browser restarts
 
+// ── Очистить все пользовательские данные из localStorage ──────────────────────
+function clearUserDataCache() {
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key) continue;
+      if (
+        key.startsWith('ovora_chats') ||
+        key.startsWith('ovora_msgs') ||
+        key.startsWith('ovora_chat_contacts') ||
+        key.startsWith('ovora_published_trips') ||
+        key.startsWith('ovora_all_trips') ||
+        key.startsWith('ovora_cached_offers') ||
+        key.startsWith('ovora_seen_offer_ids')
+      ) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+    if (keysToRemove.length) console.log('[authApi] Cleared user data cache:', keysToRemove.length, 'keys');
+  } catch { /* ignore */ }
+}
+
 // ── Очистить данные предыдущего пользователя ──────────────────────────────────
 function clearPreviousUserCache(newEmail: string) {
   try {
@@ -99,16 +123,22 @@ export function getUserSession(): { email: string; role: 'driver' | 'sender' } |
 export function getCachedUser(): Partial<OvoraUser> | null {
   const session = getUserSession();
   if (!session) return null;
-  
+
   const cachedUserStr = localStorage.getItem(CURRENT_USER_KEY);
   if (cachedUserStr) {
     try {
       const cachedUser = JSON.parse(cachedUserStr);
-      return {
-        ...cachedUser,
-        email: session.email,
-        role: session.role,
-      };
+      // ✅ Только сливаем если email совпадает — иначе это данные другого пользователя
+      if (cachedUser?.email?.toLowerCase() === session.email.toLowerCase()) {
+        return {
+          ...cachedUser,
+          email: session.email,
+          role: session.role,
+        };
+      }
+      console.warn('[authApi] Cached user email mismatch, clearing:', cachedUser?.email, '≠', session.email);
+      localStorage.removeItem(CURRENT_USER_KEY);
+      clearUserDataCache();
     } catch (e) {
       console.warn('[authApi] Failed to parse cached user:', e);
     }
@@ -196,6 +226,7 @@ export async function updateUser(updates: Partial<OvoraUser> & { email: string }
 export function logoutUser() {
   clearUserSession();
   localStorage.removeItem(CURRENT_USER_KEY);
+  clearUserDataCache();
 }
 
 // ═════════════════════════════════════════════════════════════════════════════

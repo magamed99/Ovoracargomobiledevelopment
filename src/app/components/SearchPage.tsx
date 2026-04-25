@@ -219,13 +219,14 @@ export function SearchPage() {
 
   const doSearch = () => {
     saveToHistory(fromCity, toCity);
-    // ✅ FIX П-4: Передаём все фильтры в URL
     const params = new URLSearchParams();
     if (fromCity.trim()) params.set('from', fromCity.trim());
     if (toCity.trim())   params.set('to', toCity.trim());
     if (date)            params.set('date', date);
     if (searchType !== 'trip') params.set('type', searchType);
     if (activeFilter)    params.set('filter', activeFilter);
+    params.set('passengers', String(passengers));
+    params.set('cargoWeight', String(cargoWeight));
     navigate(`/search-results?${params.toString()}`);
   };
 

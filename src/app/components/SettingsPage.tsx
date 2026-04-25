@@ -151,7 +151,19 @@ export function SettingsPage() {
     { icon: Info,      iconColor: '#607080', iconBg: 'rgba(255,255,255,0.07)', label: 'О приложении',    sublabel: 'Ovora Cargo v1.0.0',                    onClick: () => navigate('/about') },
     { icon: RefreshCw, iconColor: '#a855f7', iconBg: '#a855f714',         label: 'Очистить кэш',   sublabel: 'Обновить данные поездок',
       onClick: () => {
-        ['ovora_published_trips','ovora_all_trips','ovora_offers','ovora_reviews'].forEach(k => localStorage.removeItem(k));
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (!key) continue;
+          if (
+            key.startsWith('ovora_chats') || key.startsWith('ovora_msgs') ||
+            key.startsWith('ovora_chat_contacts') || key.startsWith('ovora_published_trips') ||
+            key.startsWith('ovora_all_trips') || key.startsWith('ovora_cached_offers') ||
+            key.startsWith('ovora_seen_offer_ids') ||
+            key === 'ovora_offers' || key === 'ovora_reviews'
+          ) { keysToRemove.push(key); }
+        }
+        keysToRemove.forEach(k => localStorage.removeItem(k));
         window.dispatchEvent(new Event('ovora_trip_update'));
         toast.success('Кэш очищен! Данные обновлены.');
       }

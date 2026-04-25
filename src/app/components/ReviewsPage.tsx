@@ -90,11 +90,12 @@ export function ReviewsPage() {
   const [showSort, setShowSort]   = useState(false);
   const [showModal, setShowModal] = useState(false);
 
-  const [formRating,  setFormRating]  = useState(0);
-  const [formComment, setFormComment] = useState('');
-  const [formTrip,    setFormTrip]    = useState('');
-  const [formAuthor,  setFormAuthor]  = useState('');
-  const [formCats,    setFormCats]    = useState({ punctuality: 0, reliability: 0, communication: 0, packaging: 0 });
+  const [formRating,      setFormRating]      = useState(0);
+  const [formComment,     setFormComment]     = useState('');
+  const [formTrip,        setFormTrip]        = useState('');
+  const [formAuthor,      setFormAuthor]      = useState('');
+  const [formTargetEmail, setFormTargetEmail] = useState('');
+  const [formCats,        setFormCats]        = useState({ punctuality: 0, reliability: 0, communication: 0, packaging: 0 });
 
   const loadReviews = useCallback(async () => {
     if (!currentUser?.email) return;
@@ -165,15 +166,20 @@ export function ReviewsPage() {
   };
 
   const handleSubmitReview = async () => {
-    if (!formRating)           { toast.error('Укажите оценку'); return; }
-    if (!formComment.trim())   { toast.error('Напишите комментарий'); return; }
-    if (!formAuthor.trim())    { toast.error('Укажите имя'); return; }
-    if (!currentUser?.email)   { toast.error('Войдите в аккаунт'); return; }
+    if (!formRating)                { toast.error('Укажите оценку'); return; }
+    if (!formComment.trim())        { toast.error('Напишите комментарий'); return; }
+    if (!formAuthor.trim())         { toast.error('Укажите имя'); return; }
+    if (!formTargetEmail.trim())    { toast.error('Укажите email получателя отзыва'); return; }
+    if (!currentUser?.email)        { toast.error('Войдите в аккаунт'); return; }
+    if (formTargetEmail.trim().toLowerCase() === currentUser.email.toLowerCase()) {
+      toast.error('Нельзя оставить отзыв самому себе');
+      return;
+    }
     try {
       await submitReview({
         authorEmail: currentUser.email,
         authorName:  formAuthor.trim(),
-        targetEmail: currentUser.email,
+        targetEmail: formTargetEmail.trim().toLowerCase(),
         rating:      formRating,
         comment:     formComment.trim(),
         tripRoute:   formTrip.trim() || undefined,
@@ -186,7 +192,7 @@ export function ReviewsPage() {
         type: 'given',
       });
       setShowModal(false);
-      setFormRating(0); setFormComment(''); setFormTrip(''); setFormAuthor('');
+      setFormRating(0); setFormComment(''); setFormTrip(''); setFormAuthor(''); setFormTargetEmail('');
       setFormCats({ punctuality: 0, reliability: 0, communication: 0, packaging: 0 });
       setActiveTab('given');
       toast.success('Отзыв опубликован!');
@@ -380,8 +386,9 @@ export function ReviewsPage() {
                     );
                   })}
                 </div>
-                <input type="text" placeholder="Ваше имя *" value={formAuthor} onChange={e => setFormAuthor(e.target.value)} className={inpCls} />
-                <input type="text" placeholder="Маршрут (например: Душанбе → Москва)" value={formTrip} onChange={e => setFormTrip(e.target.value)} className={inpCls} />
+                <input type="text"  placeholder="Ваше имя *" value={formAuthor} onChange={e => setFormAuthor(e.target.value)} className={inpCls} />
+                <input type="email" placeholder="Email получателя отзыва *" value={formTargetEmail} onChange={e => setFormTargetEmail(e.target.value)} className={inpCls} />
+                <input type="text"  placeholder="Маршрут (например: Душанбе → Москва)" value={formTrip} onChange={e => setFormTrip(e.target.value)} className={inpCls} />
                 <textarea rows={3} placeholder="Напишите ваш отзыв... *" value={formComment} onChange={e => setFormComment(e.target.value)} className={`${inpCls} resize-none`} />
                 <button onClick={handleSubmitReview}
                   className="w-full h-12 bg-[#1978e5] hover:bg-[#1565c0] text-white font-bold transition-all active:scale-[0.98] flex items-center justify-center gap-2">

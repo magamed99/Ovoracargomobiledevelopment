@@ -259,7 +259,10 @@ function _mirrorCargos(cargo: any, action: 'add' | 'update' | 'delete') {
 // ══════════════════════════════════════════════════════════════════
 
 export async function submitOffer(offer: any) {
-  const data = await req('POST', '/offers', offer);
+  const idempotencyKey = offer.idempotencyKey
+    || (typeof crypto !== 'undefined' && crypto.randomUUID?.())
+    || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const data = await req('POST', '/offers', { ...offer, idempotencyKey });
   _mirrorOffers(data.offer, 'add');
   return data.offer;
 }

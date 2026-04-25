@@ -51,6 +51,18 @@ function requireDriver() {
   return null;
 }
 
+function requireAdmin() {
+  const isAuth = sessionStorage.getItem('isAuthenticated') === 'true' || (() => {
+    try {
+      const p = JSON.parse(localStorage.getItem('ovora_auth_persistent') || '{}');
+      return !!(p.email && p.role);
+    } catch { return false; }
+  })();
+  if (!isAuth) return redirect('/');
+  if (!sessionStorage.getItem('ovora_admin_token')) return redirect('/home');
+  return null;
+}
+
 function requireAviaAuth() {
   const session = getAviaSession();
   if (!session?.user?.phone) return redirect('/avia');
@@ -303,6 +315,7 @@ export const router = createBrowserRouter([
         path: "/admin",
         lazy: () => import("./components/admin/AdminLayout")
           .then(m => ({ Component: m.AdminLayout })),
+        loader: requireAdmin,
         HydrateFallback,
         children: [
           {
