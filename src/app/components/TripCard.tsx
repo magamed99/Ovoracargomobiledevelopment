@@ -846,7 +846,6 @@ function InlineOffers({ offers, totalCount, collapseThreshold, offerActionId, on
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
                     <span className="text-[12px] font-bold text-emerald-400">{offer.senderName || 'Отправитель'}</span>
-                    {/* #4 — Timestamp */}
                     {ts && <span className="text-[9px] text-emerald-400/40">{ts}</span>}
                   </div>
                   <div className="text-[10px] text-emerald-400/50 mt-0.5">{offerDesc(offer)}</div>
@@ -866,7 +865,7 @@ function InlineOffers({ offers, totalCount, collapseThreshold, offerActionId, on
         })}
       </AnimatePresence>
 
-      {/* Pending offers with #4 timestamp, #5 NEW badge, #9 shimmer */}
+      {/* Pending offers — #4 timestamp, #5 NEW badge, #9 shimmer */}
       <AnimatePresence mode="popLayout">
         {visiblePending.map((offer: any) => {
           const oid = offer.offerId || offer.id;
@@ -882,7 +881,6 @@ function InlineOffers({ offers, totalCount, collapseThreshold, offerActionId, on
               transition={{ duration: 0.25, ease: 'easeOut' }}
               className="overflow-hidden"
             >
-              {/* #9 — Shimmer overlay when actioning */}
               <div className={`relative flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 ${isActioning ? 'pointer-events-none' : ''}`}>
                 {isActioning && (
                   <div className="absolute inset-0 rounded-xl overflow-hidden">
@@ -895,13 +893,9 @@ function InlineOffers({ offers, totalCount, collapseThreshold, offerActionId, on
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
                     <span className="text-[12px] font-bold text-white">{offer.senderName || 'Отправитель'}</span>
-                    {/* #5 — NEW badge */}
                     {isNew && (
-                      <span className="text-[9px] font-black text-[#5ba3f5] px-1.5 py-0.5 rounded-full bg-[#5ba3f5]/15 uppercase tracking-wide">
-                        new
-                      </span>
+                      <span className="text-[9px] font-black text-[#5ba3f5] px-1.5 py-0.5 rounded-full bg-[#5ba3f5]/15 uppercase tracking-wide">new</span>
                     )}
-                    {/* #4 — Timestamp */}
                     {ts && <span className="text-[9px] text-[#475569]">{ts}</span>}
                   </div>
                   {offer.senderPhone && <span className="text-[10px] text-[#607080] block">{offer.senderPhone}</span>}
@@ -941,7 +935,7 @@ function InlineOffers({ offers, totalCount, collapseThreshold, offerActionId, on
           className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-white/[0.04] border border-white/[0.06] text-[#8a9baa] text-[11px] font-semibold hover:bg-white/[0.07] active:scale-[0.98] transition-all"
         >
           <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} />
-          {expanded ? 'Скрыть' : `Ещё ${hiddenCount} ${hiddenCount === 1 ? 'оферта' : hiddenCount < 5 ? 'оферты' : 'оферт'}`}
+          {expanded ? 'Скрыть' : `Показать ещё ${hiddenCount} ${hiddenCount === 1 ? 'оферту' : hiddenCount < 5 ? 'оферты' : 'оферт'}`}
         </button>
       )}
 

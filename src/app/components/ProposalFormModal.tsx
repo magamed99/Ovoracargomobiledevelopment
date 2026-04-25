@@ -183,6 +183,7 @@ export function ProposalFormModal({
       senderName: offerName,
       senderPhone: offerPhone,
       type: includeSeats && includeCargo ? 'both' : includeCargo ? 'cargo' : 'seats',
+      createdAt: new Date().toISOString(),
       cargoType,
       weight,
       volume: '',

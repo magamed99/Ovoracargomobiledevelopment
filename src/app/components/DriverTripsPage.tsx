@@ -14,7 +14,8 @@ import { useIsMounted } from '../hooks/useIsMounted';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { toast } from 'sonner';
 import { getMyTrips, getOffersForDriver, deleteTrip, updateTrip, submitReview as submitReviewApi, cleanupOrphanedOffers, updateOffer } from '../api/dataApi';
-import { getChats } from '../api/chatStore';
+import { getChats, initChatRoom } from '../api/chatStore';
+import { generatePairChatId } from '../api/chatUtils';
 import { saveActiveShipment } from '../api/trackingApi';
 import { getWeatherByCoords, getCurrentLocation, getApproximateLocation, type WeatherData } from '../api/weatherApi';
 import { cleanAddress } from '../utils/addressUtils';
@@ -411,6 +412,33 @@ export function DriverTripsPage() {
       .reduce((acc: number, c: any) => acc + (c.unread || 0), 0);
   };
 
+  // ── Open chat with sender (trip-specific) ────────────────────────────────
+  const openSenderChat = (e: React.MouseEvent, trip: any) => {
+    e.stopPropagation();
+    const acceptedOffer = trip.incomingOffers?.find(
+      (o: any) => o.status === 'accepted'
+    ) || trip.incomingOffers?.find(
+      (o: any) => o.senderEmail || o.userEmail
+    );
+    const senderEmail = acceptedOffer?.senderEmail || acceptedOffer?.userEmail || '';
+    const senderName  = acceptedOffer?.senderName  || 'Отправитель';
+    const senderPhone = acceptedOffer?.senderPhone  || '';
+    if (!senderEmail) {
+      navigate('/messages');
+      return;
+    }
+    const chatId = generatePairChatId(senderEmail, currentUser?.email || 'guest');
+    initChatRoom(
+      chatId,
+      { id: senderEmail, name: senderName, avatar: '', role: 'sender', sub: 'Отправитель',
+        phone: senderPhone, online: true, verified: true },
+      String(trip.tripId ?? trip.id),
+      `${trip.from} → ${trip.to}`,
+      trip,
+    );
+    navigate(`/chat/${chatId}`);
+  };
+
   // ── Inline offer accept/decline from TripCard ─────────────────────────────
   const [offerActionId, setOfferActionId] = useState<string | null>(null);
 
@@ -552,7 +580,7 @@ export function DriverTripsPage() {
                   onComplete={e => completeTrip(e, trip)}
                   onCancel={e => handleCancelTrip(e, trip)}
                   onDelete={e => handleDeleteTrip(e, trip)}
-                  onMessages={e => { e.stopPropagation(); navigate(`/trip/${trip.id}`); }}
+                  onMessages={e => openSenderChat(e, trip)}
                   onTrack={e => navigateToTracking(e, trip)}
                   onReview={e => openReview(e, trip)}
                   onAcceptOffer={handleAcceptOffer}
@@ -682,7 +710,7 @@ export function DriverTripsPage() {
                     onComplete={e => completeTrip(e, trip)}
                     onCancel={e => handleCancelTrip(e, trip)}
                     onDelete={e => handleDeleteTrip(e, trip)}
-                    onMessages={e => { e.stopPropagation(); navigate('/messages'); }}
+                    onMessages={e => openSenderChat(e, trip)}
                     onTrack={e => navigateToTracking(e, trip)}
                     onReview={e => openReview(e, trip)}
                     onAcceptOffer={handleAcceptOffer}
