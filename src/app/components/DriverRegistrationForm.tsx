@@ -76,7 +76,7 @@ export function DriverRegistrationForm() {
   const dark = isDark;
 
   return (
-    <div className={`min-h-screen font-['Sora'] ${dark ? 'bg-[#0e1621] text-white' : 'bg-[#f5f7fa] text-[#0f172a]'}`}>
+    <div className={`min-h-screen overflow-y-auto font-['Sora'] ${dark ? 'bg-[#0e1621] text-white' : 'bg-[#f5f7fa] text-[#0f172a]'}`}>
 
       {/* Header */}
       <header className={`sticky top-0 z-20 flex items-center gap-3 px-4 py-3 border-b backdrop-blur-md ${dark ? 'bg-[#0e1621]/95 border-[#1e2d3d]' : 'bg-white/95 border-[#e8edf2]'}`}>
