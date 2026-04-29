@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../contexts/UserContext';
 import { toast } from 'sonner';
-import { updateUser as updateUserApi, registerUser } from '../api/authApi';
+import { updateUser as updateUserApi } from '../api/authApi';
 
 const CAR_BRANDS = ['КАМАЗ', 'МАЗ', 'ГАЗ', 'Volvo', 'Scania', 'MAN', 'Mercedes', 'DAF', 'Iveco', 'Другое'];
 const DOC_SLOTS = ['Паспорт', 'Техпаспорт (СТС)'];
@@ -26,7 +26,10 @@ export function DriverRegistrationForm() {
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }));
 
-  const complete = !!(form.carBrand && form.carModel && form.carYear && form.plateNumber);
+  const currentYear = new Date().getFullYear();
+  const yearNum = parseInt(form.carYear, 10);
+  const yearValid = !isNaN(yearNum) && yearNum >= 1900 && yearNum <= currentYear;
+  const complete = !!(form.carBrand && form.carModel && yearValid && form.plateNumber);
 
   function openDocPicker(slot: number) {
     activeDocSlot.current = slot;
@@ -52,16 +55,16 @@ export function DriverRegistrationForm() {
 
   const handleSubmit = async () => {
     if (!complete) { toast.error('Заполните все поля'); return; }
+    if (!cachedUser?.email) {
+      toast.error('Сессия не найдена. Войдите заново.');
+      navigate('/');
+      return;
+    }
     setSubmitting(true);
     try {
       const vehicle = { brand: form.carBrand, model: form.carModel, year: form.carYear, plate: form.plateNumber.toUpperCase() };
-      if (cachedUser?.email) {
-        const updated = await updateUserApi({ email: cachedUser.email, firstName: cachedUser.firstName, lastName: cachedUser.lastName, phone: cachedUser.phone, vehicle });
-        setUserDirectly({ ...cachedUser, ...updated });
-      } else {
-        const saved = await registerUser({ email: `driver_${Date.now()}@ovora.local`, role: 'driver', firstName: '', lastName: '', phone: '', vehicle });
-        setUserDirectly(saved);
-      }
+      const updated = await updateUserApi({ email: cachedUser.email, firstName: cachedUser.firstName, lastName: cachedUser.lastName, phone: cachedUser.phone, vehicle });
+      setUserDirectly({ ...cachedUser, ...updated });
       sessionStorage.setItem('isAuthenticated', 'true');
       sessionStorage.setItem('userRole', 'driver');
       toast.success('Регистрация завершена!');
@@ -129,20 +132,25 @@ export function DriverRegistrationForm() {
           {([
             { key: 'carBrand',    label: 'Марка',        placeholder: 'КАМАЗ, Volvo, MAN…', type: 'text' },
             { key: 'carModel',    label: 'Модель',       placeholder: 'Например: 65115, FH16', type: 'text' },
-            { key: 'carYear',     label: 'Год выпуска',  placeholder: '2018', type: 'number' },
+            { key: 'carYear',     label: 'Год выпуска',  placeholder: '2018', type: 'number', min: 1900, max: new Date().getFullYear() },
             { key: 'plateNumber', label: 'Госномер',     placeholder: '01 TJ 1234 AA', type: 'text' },
-          ] as const).map((field, i, arr) => (
+          ] as const).map((field, i, arr) => {
+            const isYearInvalid = field.key === 'carYear' && form.carYear !== '' && !yearValid;
+            return (
             <label key={field.key} className={`flex flex-col px-4 pt-3 pb-3 cursor-text ${i < arr.length - 1 ? `border-b ${dark ? 'border-[#1e2d3d]' : 'border-[#e8edf2]'}` : ''}`}>
-              <span className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${dark ? 'text-[#3a5070]' : 'text-[#94a3b8]'}`}>{field.label}</span>
+              <span className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${isYearInvalid ? 'text-red-400' : dark ? 'text-[#3a5070]' : 'text-[#94a3b8]'}`}>{field.label}{isYearInvalid ? ' — недопустимый год' : ''}</span>
               <input
                 type={field.type}
                 value={form[field.key]}
                 onChange={set(field.key)}
                 placeholder={field.placeholder}
-                className={`w-full bg-transparent border-none outline-none text-[15px] font-semibold placeholder-[#2a4060] ${dark ? 'text-white' : 'text-[#0f172a]'} ${field.key === 'plateNumber' ? 'uppercase' : ''}`}
+                min={'min' in field ? field.min : undefined}
+                max={'max' in field ? field.max : undefined}
+                className={`w-full bg-transparent border-none outline-none text-[15px] font-semibold placeholder-[#2a4060] ${isYearInvalid ? 'text-red-400' : dark ? 'text-white' : 'text-[#0f172a]'} ${field.key === 'plateNumber' ? 'uppercase' : ''}`}
               />
             </label>
-          ))}
+            );
+          })}
         </div>
 
         {/* Brand quick-pick */}

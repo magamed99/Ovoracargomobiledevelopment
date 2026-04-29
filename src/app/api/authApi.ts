@@ -1,4 +1,5 @@
 import { projectId, publicAnonKey } from '../../../utils/supabase/info';
+import { cacheClear as clearApiCache } from './dataApi';
 
 // authApi v2 - with getCachedUser export
 const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;
@@ -199,8 +200,12 @@ export async function findUserByPhone(phone: string): Promise<OvoraUser | null> 
 }
 
 export function loginUser(user: OvoraUser) {
-  // ✅ Чистим данные предыдущего пользователя перед сохранением нового
+  const prevEmail = sessionStorage.getItem(USER_EMAIL_KEY);
   clearPreviousUserCache(user.email);
+  // Сбрасываем in-memory кэш dataApi при смене пользователя
+  if (prevEmail && prevEmail.toLowerCase() !== user.email.toLowerCase()) {
+    clearApiCache();
+  }
   saveUserSession(user.email, user.role);
   localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
 }
@@ -227,6 +232,7 @@ export function logoutUser() {
   clearUserSession();
   localStorage.removeItem(CURRENT_USER_KEY);
   clearUserDataCache();
+  clearApiCache(); // сбрасываем in-memory кэш dataApi — иначе следующий пользователь видит чужие данные
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
