@@ -568,3 +568,103 @@ export function newMessageTemplate(params: {
     ),
   };
 }
+
+// ── Subscription Activated ────────────────────────────────────────────────────
+export function subscriptionActivatedTemplate(params: {
+  email: string;
+  expiresAt: string;
+  appUrl?: string;
+}): { subject: string; html: string } {
+  const appUrl = params.appUrl || "https://ovora-cargo.ru";
+  const expDate = new Date(params.expiresAt).toLocaleDateString('ru-RU', {
+    day: '2-digit', month: 'long', year: 'numeric',
+  });
+
+  const content = `
+<div class="body">
+  <span class="badge" style="background:#a855f722;color:#c084fc;border:1px solid #a855f744;">
+    👑 Подписка активирована
+  </span>
+  <h1>Ваша подписка активна!</h1>
+  <p class="subtitle">
+    Спасибо за оплату. Ваш годовой доступ к платформе Ovora Cargo активирован.
+  </p>
+
+  <div class="info-card">
+    <div style="font-size:13px;color:#5a8ab0;margin-bottom:14px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">
+      Детали подписки:
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div style="display:flex;align-items:center;gap:10px;font-size:14px;color:#c0d4e8;">
+        <span style="font-size:18px;">📧</span> Аккаунт: ${params.email}
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:14px;color:#c0d4e8;">
+        <span style="font-size:18px;">📅</span> Действует до: ${expDate}
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:14px;color:#c0d4e8;">
+        <span style="font-size:18px;">✅</span> Полный доступ ко всем функциям платформы
+      </div>
+    </div>
+  </div>
+
+  <a href="${appUrl}/home" class="btn">
+    Перейти в приложение →
+  </a>
+</div>`;
+
+  return {
+    subject: '👑 Подписка Ovora Cargo активирована',
+    html: layout(content, 'Ваша подписка активна'),
+  };
+}
+
+// ── Subscription Expiring Soon ────────────────────────────────────────────────
+export function subscriptionExpiringTemplate(params: {
+  email: string;
+  daysLeft: number;
+  expiresAt: string;
+  appUrl?: string;
+}): { subject: string; html: string } {
+  const appUrl = params.appUrl || "https://ovora-cargo.ru";
+  const expDate = new Date(params.expiresAt).toLocaleDateString('ru-RU', {
+    day: '2-digit', month: 'long', year: 'numeric',
+  });
+
+  const content = `
+<div class="body">
+  <span class="badge" style="background:#f59e0b22;color:#fbbf24;border:1px solid #f59e0b44;">
+    ⏰ Подписка истекает
+  </span>
+  <h1>Осталось ${params.daysLeft} ${params.daysLeft === 1 ? 'день' : params.daysLeft < 5 ? 'дня' : 'дней'}</h1>
+  <p class="subtitle">
+    Ваша подписка на Ovora Cargo истекает <strong style="color:#fbbf24;">${expDate}</strong>.
+    Продлите её заранее, чтобы не потерять доступ.
+  </p>
+
+  <div class="info-card">
+    <div style="font-size:13px;color:#5a8ab0;margin-bottom:14px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">
+      Как продлить:
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div style="display:flex;align-items:center;gap:10px;font-size:14px;color:#c0d4e8;">
+        <span style="font-size:18px;">1️⃣</span> Откройте раздел «Подписка» в приложении
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:14px;color:#c0d4e8;">
+        <span style="font-size:18px;">2️⃣</span> Выберите валюту и переведите 9 сомони / 99 рублей / 490 тенге
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:14px;color:#c0d4e8;">
+        <span style="font-size:18px;">3️⃣</span> Введите ID перевода — активируем в течение 24 часов
+      </div>
+    </div>
+  </div>
+
+  <a href="${appUrl}/subscription" class="btn" style="background:linear-gradient(135deg,#b45309,#d97706);box-shadow:0 4px 20px rgba(180,83,9,0.35);">
+    Продлить подписку →
+  </a>
+</div>`;
+
+  return {
+    subject: `⏰ Подписка Ovora Cargo истекает через ${params.daysLeft} дн.`,
+    html: layout(content, 'Ваша подписка скоро истечёт'),
+  };
+}

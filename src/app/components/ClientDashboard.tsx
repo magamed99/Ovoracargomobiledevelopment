@@ -19,6 +19,7 @@ const RADIO_H    = { 'Content-Type': 'application/json', Authorization: `Bearer 
 import { DriverDashboardActions } from './DriverDashboardActions';
 import { SenderDashboardActions } from './SenderDashboardActions';
 import { DesktopDashboard } from './DesktopDashboard';
+import { OnboardingOverlay } from './OnboardingOverlay';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function toEmbedUrl(url?: string): string | null {
@@ -161,6 +162,7 @@ export function Home() {
   // ══════════════════════════════════════════════════════════════════════════
   return (
     <>
+      <OnboardingOverlay role={userRole as 'driver' | 'sender'} />
       {/* ── DESKTOP: уникальный анимированный дизайн (md+) ── */}
       <DesktopDashboard
         currentUser={currentUser}
