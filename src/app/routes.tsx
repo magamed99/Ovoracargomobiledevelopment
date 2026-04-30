@@ -307,6 +307,11 @@ export const router = createBrowserRouter([
             lazy: () => import("./components/RadioPage")
               .then(m => ({ Component: m.RadioPage })),
           },
+          {
+            path: "subscription",
+            lazy: () => import("./components/SubscriptionPage")
+              .then(m => ({ Component: m.SubscriptionPage })),
+          },
         ],
       },
 
@@ -372,6 +377,11 @@ export const router = createBrowserRouter([
             path: "settings",
             lazy: () => import("./components/SettingsPage")
               .then(m => ({ Component: m.SettingsPage })),
+          },
+          {
+            path: "subscriptions",
+            lazy: () => import("./components/admin/SubscriptionManagement")
+              .then(m => ({ Component: m.SubscriptionManagement })),
           },
         ],
       },
