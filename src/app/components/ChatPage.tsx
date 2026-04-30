@@ -932,6 +932,28 @@ export function ChatPage() {
           </button>
         )}
 
+        {/* ── Quick replies ── */}
+        {!inputText && (() => {
+          const quickReplies = userRole === 'driver'
+            ? ['Готов взять груз', 'Где вы?', 'Подтверждаю', 'Скоро буду', 'Позвоните мне']
+            : ['Спасибо', 'Когда едете?', 'Сколько стоит?', 'Принято', 'Позвоните мне'];
+          return (
+            <div className="flex gap-1.5 overflow-x-auto pb-1.5 scrollbar-hide">
+              {quickReplies.map(r => (
+                <button key={r}
+                  onClick={() => { setInputText(r); inputRef.current?.focus(); }}
+                  className={`shrink-0 text-[12px] font-semibold px-3 py-1.5 rounded-full border transition-all active:scale-95 whitespace-nowrap ${
+                    isDark
+                      ? 'bg-white/[0.05] border-white/[0.08] text-[#94a3b8] hover:bg-white/10'
+                      : 'bg-black/[0.04] border-black/[0.08] text-[#64748b] hover:bg-black/[0.08]'
+                  }`}>
+                  {r}
+                </button>
+              ))}
+            </div>
+          );
+        })()}
+
         <div className="flex items-end gap-2">
           {/* Attach */}
           <button

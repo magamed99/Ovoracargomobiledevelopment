@@ -443,6 +443,34 @@ export function SearchPage() {
         </div>
       </div>
 
+      {/* Popular route chips */}
+      {!fromCity && !toCity && (
+        <div>
+          <p className="text-[9px] font-black uppercase tracking-widest mb-2" style={{ color: '#2e4a62' }}>Популярные маршруты</p>
+          <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+            {[
+              { from: 'Душанбе', to: 'Москва' },
+              { from: 'Москва', to: 'Душанбе' },
+              { from: 'Душанбе', to: 'Алматы' },
+              { from: 'Алматы', to: 'Душанбе' },
+              { from: 'Худжанд', to: 'Москва' },
+              { from: 'Москва', to: 'Худжанд' },
+            ].map(r => (
+              <button
+                key={`${r.from}-${r.to}`}
+                onClick={() => { setFromCity(r.from); setToCity(r.to); }}
+                className="flex-shrink-0 flex items-center gap-1.5 px-3 h-8 rounded-full text-[11.5px] font-bold"
+                style={{ background: '#0a1826', border: '1.5px solid #0f2035', color: '#4a7090', transition: 'all .15s', whiteSpace: 'nowrap' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#1d4ed840'; (e.currentTarget as HTMLElement).style.color = '#5ba3f5'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = '#0f2035'; (e.currentTarget as HTMLElement).style.color = '#4a7090'; }}
+              >
+                {r.from} → {r.to}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Filter chips */}
       <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
         {filters.map(f => {

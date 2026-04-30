@@ -4,12 +4,27 @@ import {
   ChevronRight, Phone, Mail, MapPin,
   Heart, Calendar, Info, Edit2, Truck,
   Package, Award, Copy, Check, User,
-  Calculator, FileText, Scale,
+  Calculator, FileText, Scale, UserCheck, Share2, Crown,
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { useUser } from '../contexts/UserContext';
 import * as notificationsApi from '../api/notificationsApi';
 import { getUserStats } from '../api/dataApi';
+
+function calcCompleteness(user: any, isDriver: boolean): { pct: number; missing: string[] } {
+  const checks = [
+    { field: user?.firstName,   label: 'Имя' },
+    { field: user?.lastName,    label: 'Фамилия' },
+    { field: user?.phone,       label: 'Телефон' },
+    { field: user?.avatarUrl,   label: 'Фото профиля' },
+    { field: user?.city,        label: 'Город' },
+    { field: user?.about,       label: 'О себе' },
+    ...(isDriver ? [{ field: user?.vehicle?.brand, label: 'Информация об автомобиле' }] : []),
+  ];
+  const missing = checks.filter(c => !c.field).map(c => c.label);
+  const pct = Math.round(((checks.length - missing.length) / checks.length) * 100);
+  return { pct, missing };
+}
 
 export function ProfilePage() {
   const navigate = useNavigate();
@@ -230,6 +245,77 @@ export function ProfilePage() {
               </div>
             </section>
           )}
+          {/* ── Completeness card ── */}
+          {currentUser && (() => {
+            const { pct, missing } = calcCompleteness(currentUser, isDriver);
+            if (pct >= 100) return null;
+            return (
+              <div className="mx-1 mb-2 rounded-3xl overflow-hidden border border-white/[0.06]"
+                style={{ background: 'linear-gradient(135deg,#0d1929,#111e30)' }}>
+                <div className="px-4 pt-4 pb-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <UserCheck className="w-4 h-4" style={{ color: accent }} />
+                      <span className="text-[13px] font-bold text-white">Профиль заполнен на {pct}%</span>
+                    </div>
+                    <button onClick={() => navigate('/profile/edit')}
+                      className="text-[11px] font-bold px-2.5 py-1 rounded-full"
+                      style={{ background: `${accent}20`, color: accent }}>
+                      Заполнить
+                    </button>
+                  </div>
+                  <div className="w-full h-1.5 rounded-full bg-white/[0.06] overflow-hidden mb-2.5">
+                    <div className="h-full rounded-full transition-all duration-500"
+                      style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${accent}, ${accent}aa)` }} />
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {missing.slice(0, 3).map(m => (
+                      <span key={m} className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                        style={{ background: 'rgba(255,255,255,0.05)', color: '#607080' }}>
+                        + {m}
+                      </span>
+                    ))}
+                    {missing.length > 3 && (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                        style={{ background: 'rgba(255,255,255,0.05)', color: '#607080' }}>
+                        ещё {missing.length - 3}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* ── Referral card ── */}
+          {currentUser?.email && (() => {
+            const refLink = `https://ovora-cargo.ru/?ref=${encodeURIComponent(currentUser.email)}`;
+            return (
+              <div className="mx-1 mb-2 rounded-3xl overflow-hidden border border-white/[0.06]"
+                style={{ background: 'linear-gradient(135deg,#0d1929,#111e30)' }}>
+                <div className="px-4 py-3 flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-2xl flex items-center justify-center shrink-0"
+                    style={{ background: '#f59e0b20' }}>
+                    <Share2 className="w-4 h-4 text-amber-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[13px] font-bold text-white">Пригласи друга</div>
+                    <div className="text-[11px] text-[#607080] truncate">{refLink}</div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(refLink).catch(() => {});
+                      navigator.share?.({ url: refLink, title: 'Ovora Cargo — грузоперевозки' }).catch(() => {});
+                    }}
+                    className="text-[11px] font-bold px-2.5 py-1 rounded-full shrink-0"
+                    style={{ background: '#f59e0b20', color: '#f59e0b' }}>
+                    Поделиться
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
+
           <MenuSection title="Аккаунт" items={accountItems} />
           <MenuSection title="Приложение" items={appItems} />
           <MenuSection title="Поддержка" items={supportItems} />
