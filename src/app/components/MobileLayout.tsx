@@ -12,6 +12,7 @@ import { usePolling } from '../hooks/usePolling';
 import { PushPermissionBanner } from './PushPermissionBanner';
 import { SubscriptionBanner } from './SubscriptionBanner';
 import { useUser } from '../contexts/UserContext';
+import { SK } from '../constants/storageKeys';
 
 const navigation = [
   { name: 'Главная',   href: '/home',     icon: Home,          badge: null as 'chat' | 'trips' | null },
@@ -598,8 +599,8 @@ export function MobileLayout() {
   const location  = useLocation();
   const { theme } = useTheme();
   const { user }  = useUser();
-  const userRole  = user?.role || sessionStorage.getItem('userRole') || 'sender';
-  const userEmail = user?.email || sessionStorage.getItem('ovora_user_email') || '';
+  const userRole  = user?.role || sessionStorage.getItem(SK.USER_ROLE) || 'sender';
+  const userEmail = user?.email || sessionStorage.getItem(SK.USER_EMAIL) || '';
 
   const [chatUnread,    setChatUnread]    = useState(0);
   const [pendingOffers, setPendingOffers] = useState(0);
@@ -620,8 +621,8 @@ export function MobileLayout() {
   const refreshOffers = useCallback(() => {
     try {
       if (userRole !== 'driver') { setPendingOffers(0); return; }
-      const offers = JSON.parse(localStorage.getItem('ovora_offers') || '[]');
-      const email  = sessionStorage.getItem('ovora_user_email') || '';
+      const offers = JSON.parse(localStorage.getItem(SK.OFFERS) || '[]');
+      const email  = sessionStorage.getItem(SK.USER_EMAIL) || '';
       setPendingOffers(offers.filter((o: any) => o.status === 'pending' && String(o.driverEmail) === email).length);
     } catch {}
   }, [userRole]);

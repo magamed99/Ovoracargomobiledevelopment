@@ -29,6 +29,18 @@ export const SK = {
   OFFERS:              'ovora_offers',
   REVIEWS:             'ovora_reviews',
 
+  // Уведомления (настройки)
+  NOTIF_PUSH:          'ovora_notif_push',
+  NOTIF_OFFERS:        'ovora_notif_offers',
+  NOTIF_MESSAGES:      'ovora_notif_messages',
+  NOTIF_TRIPS:         'ovora_notif_trips',
+
+  // Отслеживание
+  ACTIVE_SHIPMENT:     'ovora_active_shipment',
+  SENDER_TRACKING:     'ovora_sender_tracking_trip',
+  REVIEWED_TRIPS:      'ovora_reviewed_trips',
+  SEARCH_HISTORY:      'ovora_search_history',
+
   // Avia
   AVIA_SESSION:        'ovora_avia_session',
 } as const;
