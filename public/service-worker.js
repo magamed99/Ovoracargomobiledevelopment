@@ -1,14 +1,11 @@
 // Service Worker для Ovora Cargo PWA
-const CACHE_VERSION = 'v1.1.0';
+const CACHE_VERSION = 'v2.0.0-2026-04-30';
 const CACHE_NAME = `ovora-cargo-${CACHE_VERSION}`;
 
-// Ресурсы для кеширования
+// Только shell — статичные файлы, которые точно существуют в production
 const urlsToCache = [
   '/',
   '/manifest.json',
-  '/src/styles/index.css',
-  '/src/styles/theme.css',
-  '/src/styles/tailwind.css',
 ];
 
 // Установка Service Worker
