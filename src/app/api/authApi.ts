@@ -1,7 +1,7 @@
 import { projectId, publicAnonKey } from '../../../utils/supabase/info';
 import { cacheClear as clearApiCache } from './dataApi';
+import { SK } from '../constants/storageKeys';
 
-// authApi v2 - with getCachedUser export
 const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;
 const HEADERS = {
   'Content-Type': 'application/json',
@@ -30,10 +30,6 @@ export interface OvoraUser {
   updatedAt?: string;
 }
 
-const CURRENT_USER_KEY = 'ovora_current_user';
-const USER_EMAIL_KEY = 'ovora_user_email';
-const USER_ROLE_KEY = 'userRole';
-const PERSISTENT_AUTH_KEY = 'ovora_auth_persistent'; // { email, role } — persistent across browser restarts
 
 // ── Очистить все пользовательские данные из localStorage ──────────────────────
 function clearUserDataCache() {
@@ -43,13 +39,13 @@ function clearUserDataCache() {
       const key = localStorage.key(i);
       if (!key) continue;
       if (
-        key.startsWith('ovora_chats') ||
-        key.startsWith('ovora_msgs') ||
-        key.startsWith('ovora_chat_contacts') ||
-        key.startsWith('ovora_published_trips') ||
-        key.startsWith('ovora_all_trips') ||
-        key.startsWith('ovora_cached_offers') ||
-        key.startsWith('ovora_seen_offer_ids')
+        key.startsWith(SK.CHATS) ||
+        key.startsWith(SK.CHAT_MSGS_PREFIX) ||
+        key.startsWith(SK.CHAT_CONTACTS) ||
+        key.startsWith(SK.PUBLISHED_TRIPS) ||
+        key.startsWith(SK.ALL_TRIPS) ||
+        key.startsWith(SK.CACHED_OFFERS) ||
+        key.startsWith(SK.SEEN_OFFER_IDS)
       ) {
         keysToRemove.push(key);
       }
@@ -62,17 +58,16 @@ function clearUserDataCache() {
 // ── Очистить данные предыдущего пользователя ──────────────────────────────────
 function clearPreviousUserCache(newEmail: string) {
   try {
-    const oldEmail = sessionStorage.getItem(USER_EMAIL_KEY);
+    const oldEmail = sessionStorage.getItem(SK.USER_EMAIL);
     if (oldEmail && oldEmail.toLowerCase() !== newEmail.toLowerCase()) {
       console.log('[authApi] Clearing old user cache:', oldEmail, '→', newEmail);
-      localStorage.removeItem(CURRENT_USER_KEY);
-      // Clear chat data that belongs to the previous user
-      localStorage.removeItem('ovora_chats_v2');
-      localStorage.removeItem('ovora_chat_contacts_v2');
+      localStorage.removeItem(SK.CURRENT_USER);
+      localStorage.removeItem(SK.CHATS);
+      localStorage.removeItem(SK.CHAT_CONTACTS);
       const msgKeys: string[] = [];
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
-        if (k?.startsWith('ovora_msgs_v2_')) msgKeys.push(k);
+        if (k?.startsWith(SK.CHAT_MSGS_PREFIX)) msgKeys.push(k);
       }
       msgKeys.forEach(k => localStorage.removeItem(k));
     }
@@ -80,38 +75,34 @@ function clearPreviousUserCache(newEmail: string) {
 }
 
 function saveUserSession(email: string, role: 'driver' | 'sender') {
-  sessionStorage.setItem(USER_EMAIL_KEY, email);
-  sessionStorage.setItem(USER_ROLE_KEY, role);
-  sessionStorage.setItem('isAuthenticated', 'true');
-  // ✅ Persist auth across browser restarts
-  localStorage.setItem(PERSISTENT_AUTH_KEY, JSON.stringify({ email, role }));
+  sessionStorage.setItem(SK.USER_EMAIL, email);
+  sessionStorage.setItem(SK.USER_ROLE, role);
+  sessionStorage.setItem(SK.IS_AUTHENTICATED, 'true');
+  localStorage.setItem(SK.PERSISTENT_AUTH, JSON.stringify({ email, role }));
   console.log('[authApi] User session saved:', { email, role });
 }
 
 function clearUserSession() {
-  sessionStorage.removeItem(USER_EMAIL_KEY);
-  sessionStorage.removeItem(USER_ROLE_KEY);
-  sessionStorage.removeItem('isAuthenticated');
-  // ✅ Clear persistent auth too
-  localStorage.removeItem(PERSISTENT_AUTH_KEY);
+  sessionStorage.removeItem(SK.USER_EMAIL);
+  sessionStorage.removeItem(SK.USER_ROLE);
+  sessionStorage.removeItem(SK.IS_AUTHENTICATED);
+  localStorage.removeItem(SK.PERSISTENT_AUTH);
   console.log('[authApi] User session cleared');
 }
 
 export function getUserSession(): { email: string; role: 'driver' | 'sender' } | null {
-  let email = sessionStorage.getItem(USER_EMAIL_KEY);
-  let role = sessionStorage.getItem(USER_ROLE_KEY) as 'driver' | 'sender' | null;
+  let email = sessionStorage.getItem(SK.USER_EMAIL);
+  let role = sessionStorage.getItem(SK.USER_ROLE) as 'driver' | 'sender' | null;
 
-  // ✅ Restore session from localStorage if sessionStorage is empty (browser restart)
   if (!email || !role) {
     try {
-      const persistent = JSON.parse(localStorage.getItem(PERSISTENT_AUTH_KEY) || '{}');
+      const persistent = JSON.parse(localStorage.getItem(SK.PERSISTENT_AUTH) || '{}');
       if (persistent.email && persistent.role) {
         email = persistent.email;
         role = persistent.role;
-        // Restore to sessionStorage
-        sessionStorage.setItem(USER_EMAIL_KEY, email!);
-        sessionStorage.setItem(USER_ROLE_KEY, role!);
-        sessionStorage.setItem('isAuthenticated', 'true');
+        sessionStorage.setItem(SK.USER_EMAIL, email!);
+        sessionStorage.setItem(SK.USER_ROLE, role!);
+        sessionStorage.setItem(SK.IS_AUTHENTICATED, 'true');
         console.log('[authApi] Session restored from localStorage:', email);
       }
     } catch { /* ignore */ }
@@ -125,11 +116,10 @@ export function getCachedUser(): Partial<OvoraUser> | null {
   const session = getUserSession();
   if (!session) return null;
 
-  const cachedUserStr = localStorage.getItem(CURRENT_USER_KEY);
+  const cachedUserStr = localStorage.getItem(SK.CURRENT_USER);
   if (cachedUserStr) {
     try {
       const cachedUser = JSON.parse(cachedUserStr);
-      // ✅ Только сливаем если email совпадает — иначе это данные другого пользователя
       if (cachedUser?.email?.toLowerCase() === session.email.toLowerCase()) {
         return {
           ...cachedUser,
@@ -138,7 +128,7 @@ export function getCachedUser(): Partial<OvoraUser> | null {
         };
       }
       console.warn('[authApi] Cached user email mismatch, clearing:', cachedUser?.email, '≠', session.email);
-      localStorage.removeItem(CURRENT_USER_KEY);
+      localStorage.removeItem(SK.CURRENT_USER);
       clearUserDataCache();
     } catch (e) {
       console.warn('[authApi] Failed to parse cached user:', e);
@@ -170,7 +160,7 @@ export async function registerUser(user: Partial<OvoraUser>): Promise<OvoraUser>
   // ✅ Чистим данные предыдущего пользователя перед сохранением нового
   clearPreviousUserCache(data.user.email);
   saveUserSession(data.user.email, data.user.role);
-  localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(data.user));
+  localStorage.setItem(SK.CURRENT_USER, JSON.stringify(data.user));
   
   return data.user;
 }
@@ -200,14 +190,14 @@ export async function findUserByPhone(phone: string): Promise<OvoraUser | null> 
 }
 
 export function loginUser(user: OvoraUser) {
-  const prevEmail = sessionStorage.getItem(USER_EMAIL_KEY);
+  const prevEmail = sessionStorage.getItem(SK.USER_EMAIL);
   clearPreviousUserCache(user.email);
   // Сбрасываем in-memory кэш dataApi при смене пользователя
   if (prevEmail && prevEmail.toLowerCase() !== user.email.toLowerCase()) {
     clearApiCache();
   }
   saveUserSession(user.email, user.role);
-  localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+  localStorage.setItem(SK.CURRENT_USER, JSON.stringify(user));
 }
 
 export async function updateUser(updates: Partial<OvoraUser> & { email: string }): Promise<OvoraUser> {
@@ -222,7 +212,7 @@ export async function updateUser(updates: Partial<OvoraUser> & { email: string }
   
   const cachedUser = getCachedUser();
   if (cachedUser) {
-    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify({ ...cachedUser, ...data.user }));
+    localStorage.setItem(SK.CURRENT_USER, JSON.stringify({ ...cachedUser, ...data.user }));
   }
   
   return data.user;
@@ -230,7 +220,7 @@ export async function updateUser(updates: Partial<OvoraUser> & { email: string }
 
 export function logoutUser() {
   clearUserSession();
-  localStorage.removeItem(CURRENT_USER_KEY);
+  localStorage.removeItem(SK.CURRENT_USER);
   clearUserDataCache();
   clearApiCache(); // сбрасываем in-memory кэш dataApi — иначе следующий пользователь видит чужие данные
 }

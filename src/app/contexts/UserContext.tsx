@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import * as userApi from '../api/userApi';
+import { SK } from '../constants/storageKeys';
 
 interface User {
   email: string;
@@ -32,15 +33,14 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 // ── Полностью очищает кеш пользователя из localStorage ───────────────────────
 function clearLocalCache() {
   try {
-    localStorage.removeItem('ovora_current_user');
-    localStorage.removeItem('ovora_auth_persistent');
-    localStorage.removeItem('ovora_chats_v2');
-    localStorage.removeItem('ovora_chat_contacts_v2');
-    // Clear per-chat message caches
+    localStorage.removeItem(SK.CURRENT_USER);
+    localStorage.removeItem(SK.PERSISTENT_AUTH);
+    localStorage.removeItem(SK.CHATS);
+    localStorage.removeItem(SK.CHAT_CONTACTS);
     const msgKeys: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (k?.startsWith('ovora_msgs_v2_')) msgKeys.push(k);
+      if (k?.startsWith(SK.CHAT_MSGS_PREFIX)) msgKeys.push(k);
     }
     msgKeys.forEach(k => localStorage.removeItem(k));
     console.log('[UserContext] Local cache cleared');
@@ -54,7 +54,7 @@ function clearLocalCache() {
 // чужого профиля новому пользователю
 function syncToLocalCache(userData: User) {
   try {
-    const existingRaw = localStorage.getItem('ovora_current_user');
+    const existingRaw = localStorage.getItem(SK.CURRENT_USER);
     let base: Partial<User> = {};
 
     if (existingRaw) {
@@ -70,7 +70,7 @@ function syncToLocalCache(userData: User) {
     }
 
     const merged = { ...base, ...userData };
-    localStorage.setItem('ovora_current_user', JSON.stringify(merged));
+    localStorage.setItem(SK.CURRENT_USER, JSON.stringify(merged));
     window.dispatchEvent(new CustomEvent('ovora_user_updated', { detail: merged }));
     console.log('[UserContext] Synced to cache:', merged.email, merged.firstName, merged.lastName);
   } catch (e) {
@@ -125,14 +125,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
     console.log('[UserProvider] setUserEmail:', normalized);
 
     // ✅ Если email сменился — чистим кеш предыдущего пользователя
-    const oldEmail = sessionStorage.getItem('ovora_user_email');
+    const oldEmail = sessionStorage.getItem(SK.USER_EMAIL);
     if (oldEmail && oldEmail !== normalized) {
       console.log('[UserProvider] User switched:', oldEmail, '→', normalized, '— clearing old cache');
       clearLocalCache();
       setUser(null);
     }
 
-    sessionStorage.setItem('ovora_user_email', normalized);
+    sessionStorage.setItem(SK.USER_EMAIL, normalized);
     setCurrentEmail(normalized);
     loadUser(normalized);
   };
@@ -145,14 +145,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
     console.log('[UserProvider] setUserDirectly:', normalized, userData.firstName);
 
     // Чистим кеш если сменился пользователь
-    const oldEmail = sessionStorage.getItem('ovora_user_email');
+    const oldEmail = sessionStorage.getItem(SK.USER_EMAIL);
     if (oldEmail && oldEmail !== normalized) {
       clearLocalCache();
     }
 
-    sessionStorage.setItem('ovora_user_email', normalized);
-    if (userData.role) sessionStorage.setItem('userRole', userData.role);
-    sessionStorage.setItem('isAuthenticated', 'true');
+    sessionStorage.setItem(SK.USER_EMAIL, normalized);
+    if (userData.role) sessionStorage.setItem(SK.USER_ROLE, userData.role);
+    sessionStorage.setItem(SK.IS_AUTHENTICATED, 'true');
     setCurrentEmail(normalized);
 
     const fullUser = userData as User;
@@ -181,7 +181,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   // ── Перезагрузить данные из БД ─────────────────────────────────────────────
   const refreshUser = async () => {
-    const email = user?.email || sessionStorage.getItem('ovora_user_email');
+    const email = user?.email || sessionStorage.getItem(SK.USER_EMAIL);
     if (!email) {
       console.error('[UserProvider] Cannot refresh: no email');
       return;
@@ -193,9 +193,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     console.log('[UserProvider] Logging out');
     // ✅ Полностью чистим все сессионные данные
-    sessionStorage.removeItem('ovora_user_email');
-    sessionStorage.removeItem('userRole');
-    sessionStorage.removeItem('isAuthenticated');
+    sessionStorage.removeItem(SK.USER_EMAIL);
+    sessionStorage.removeItem(SK.USER_ROLE);
+    sessionStorage.removeItem(SK.IS_AUTHENTICATED);
     clearLocalCache();
     setUser(null);
     setCurrentEmail(null);
@@ -206,17 +206,17 @@ export function UserProvider({ children }: { children: ReactNode }) {
     const abortController = new AbortController();
 
     // 1. Try sessionStorage (current tab)
-    let savedEmail = sessionStorage.getItem('ovora_user_email');
+    let savedEmail = sessionStorage.getItem(SK.USER_EMAIL);
 
     // 2. Fallback: restore from localStorage persistent auth (browser restart)
     if (!savedEmail) {
       try {
-        const persistent = JSON.parse(localStorage.getItem('ovora_auth_persistent') || '{}');
+        const persistent = JSON.parse(localStorage.getItem(SK.PERSISTENT_AUTH) || '{}');
         if (persistent.email && persistent.role) {
           savedEmail = persistent.email;
-          sessionStorage.setItem('ovora_user_email', persistent.email);
-          sessionStorage.setItem('userRole', persistent.role);
-          sessionStorage.setItem('isAuthenticated', 'true');
+          sessionStorage.setItem(SK.USER_EMAIL, persistent.email);
+          sessionStorage.setItem(SK.USER_ROLE, persistent.role);
+          sessionStorage.setItem(SK.IS_AUTHENTICATED, 'true');
           console.log('[UserProvider] Session restored from localStorage:', persistent.email);
         }
       } catch { /* ignore */ }

@@ -1,4 +1,5 @@
 import { projectId, publicAnonKey } from '../../../utils/supabase/info';
+import { SK } from '../constants/storageKeys';
 
 const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;
 
@@ -26,7 +27,7 @@ const USER_TTL    = 60_000; // 1 мин
 const STATS_TTL   = 120_000; // 2 мин
 
 function getAdminCode(): string {
-  return (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('ovora_admin_token')) || '';
+  return (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(SK.ADMIN_TOKEN)) || '';
 }
 
 function getHeaders(path: string, isFormData: boolean): Record<string, string> {
@@ -56,7 +57,6 @@ export function adminHeaders(): Record<string, string> {
   return headers;
 }
 
-const OFFERS_CACHE_KEY = 'ovora_cached_offers';
 
 /** Retry helper — tries up to `attempts` times with exponential backoff */
 async function reqWithRetry(method: string, path: string, body?: any, attempts = 3): Promise<any> {
@@ -114,7 +114,7 @@ export async function getTrips(): Promise<any[]> {
   const activeOnly = (data.trips || []).filter((t: any) =>
     !t.deletedAt && t.status !== 'cancelled' && t.status !== 'completed'
   );
-  localStorage.setItem('ovora_published_trips', JSON.stringify(activeOnly));
+  localStorage.setItem(SK.PUBLISHED_TRIPS, JSON.stringify(activeOnly));
   cacheSet('trips:all', activeOnly);
   return activeOnly;
 }
@@ -131,7 +131,7 @@ export async function getMyTrips(email: string): Promise<any[]> {
   const data = await req('GET', `/trips/my/${encodeURIComponent(email)}`);
   const trips = data.trips || [];
   // Сохраняем ВСЕ рейсы пользователя в отдельный кэш для оффлайна
-  localStorage.setItem('ovora_all_trips', JSON.stringify(trips));
+  localStorage.setItem(SK.ALL_TRIPS, JSON.stringify(trips));
   return trips;
 }
 
@@ -146,7 +146,7 @@ export async function getTripById(id: string): Promise<any | null> {
 }
 
 export async function updateTrip(id: string, updates: any) {
-  const callerEmail = sessionStorage.getItem('ovora_user_email') || '';
+  const callerEmail = sessionStorage.getItem(SK.USER_EMAIL) || '';
   const data = await req('PUT', `/trips/${id}`, { ...updates, callerEmail });
   cacheClear('trips:'); // сбрасываем кэш
   _cache.delete(`trip:${id}`);
@@ -155,7 +155,7 @@ export async function updateTrip(id: string, updates: any) {
 }
 
 export async function deleteTrip(id: string) {
-  const callerEmail = sessionStorage.getItem('ovora_user_email') || '';
+  const callerEmail = sessionStorage.getItem(SK.USER_EMAIL) || '';
   await req('DELETE', `/trips/${id}`, { callerEmail });
   cacheClear('trips:');
   _cache.delete(`trip:${id}`);
@@ -164,15 +164,15 @@ export async function deleteTrip(id: string) {
 
 function _mirrorTrips(trip: any, action: 'add' | 'update' | 'delete') {
   try {
-    const trips: any[] = JSON.parse(localStorage.getItem('ovora_published_trips') || '[]');
+    const trips: any[] = JSON.parse(localStorage.getItem(SK.PUBLISHED_TRIPS) || '[]');
     if (action === 'add') {
-      localStorage.setItem('ovora_published_trips', JSON.stringify([trip, ...trips]));
+      localStorage.setItem(SK.PUBLISHED_TRIPS, JSON.stringify([trip, ...trips]));
     } else if (action === 'update') {
-      localStorage.setItem('ovora_published_trips', JSON.stringify(
+      localStorage.setItem(SK.PUBLISHED_TRIPS, JSON.stringify(
         trips.map(t => t.id === trip.id ? trip : t)
       ));
     } else {
-      localStorage.setItem('ovora_published_trips', JSON.stringify(
+      localStorage.setItem(SK.PUBLISHED_TRIPS, JSON.stringify(
         trips.filter(t => t.id !== trip.id)
       ));
     }
@@ -198,7 +198,7 @@ export async function getCargos(): Promise<any[]> {
   const activeOnly = (data.cargos || []).filter((t: any) =>
     !t.deletedAt && t.status !== 'cancelled' && t.status !== 'completed'
   );
-  localStorage.setItem('ovora_published_cargos', JSON.stringify(activeOnly));
+  localStorage.setItem(SK.PUBLISHED_CARGOS, JSON.stringify(activeOnly));
   cacheSet('cargos:all', activeOnly);
   return activeOnly;
 }
@@ -206,7 +206,7 @@ export async function getCargos(): Promise<any[]> {
 export async function getMyCargos(email: string): Promise<any[]> {
   const data = await req('GET', `/cargos/my/${encodeURIComponent(email)}`);
   const cargos = data.cargos || [];
-  localStorage.setItem('ovora_all_cargos', JSON.stringify(cargos));
+  localStorage.setItem(SK.ALL_CARGOS, JSON.stringify(cargos));
   return cargos;
 }
 
@@ -221,7 +221,7 @@ export async function getCargoById(id: string): Promise<any | null> {
 }
 
 export async function updateCargo(id: string, updates: any) {
-  const callerEmail = sessionStorage.getItem('ovora_user_email') || '';
+  const callerEmail = sessionStorage.getItem(SK.USER_EMAIL) || '';
   const data = await req('PUT', `/cargos/${id}`, { ...updates, callerEmail });
   cacheClear('cargos:'); 
   _cache.delete(`cargo:${id}`);
@@ -230,7 +230,7 @@ export async function updateCargo(id: string, updates: any) {
 }
 
 export async function deleteCargo(id: string) {
-  const callerEmail = sessionStorage.getItem('ovora_user_email') || '';
+  const callerEmail = sessionStorage.getItem(SK.USER_EMAIL) || '';
   await req('DELETE', `/cargos/${id}`, { callerEmail });
   cacheClear('cargos:');
   _cache.delete(`cargo:${id}`);
@@ -239,15 +239,15 @@ export async function deleteCargo(id: string) {
 
 function _mirrorCargos(cargo: any, action: 'add' | 'update' | 'delete') {
   try {
-    const cargos: any[] = JSON.parse(localStorage.getItem('ovora_published_cargos') || '[]');
+    const cargos: any[] = JSON.parse(localStorage.getItem(SK.PUBLISHED_CARGOS) || '[]');
     if (action === 'add') {
-      localStorage.setItem('ovora_published_cargos', JSON.stringify([cargo, ...cargos]));
+      localStorage.setItem(SK.PUBLISHED_CARGOS, JSON.stringify([cargo, ...cargos]));
     } else if (action === 'update') {
-      localStorage.setItem('ovora_published_cargos', JSON.stringify(
+      localStorage.setItem(SK.PUBLISHED_CARGOS, JSON.stringify(
         cargos.map(t => t.id === cargo.id ? cargo : t)
       ));
     } else {
-      localStorage.setItem('ovora_published_cargos', JSON.stringify(
+      localStorage.setItem(SK.PUBLISHED_CARGOS, JSON.stringify(
         cargos.filter(t => t.id !== cargo.id)
       ));
     }
@@ -294,7 +294,7 @@ export async function cleanupOrphanedOffers(driverEmail: string): Promise<number
 
 export async function updateOffer(tripId: string, offerId: string, updates: any) {
   // Добавляем callerEmail для серверной проверки участника
-  const callerEmail = sessionStorage.getItem('ovora_user_email') || '';
+  const callerEmail = sessionStorage.getItem(SK.USER_EMAIL) || '';
   const data = await req('PUT', `/offers/${tripId}/${offerId}`, { ...updates, callerEmail });
   _mirrorOffers(data.offer, 'update');
   return data.offer;
@@ -302,11 +302,11 @@ export async function updateOffer(tripId: string, offerId: string, updates: any)
 
 function _mirrorOffers(offer: any, action: 'add' | 'update') {
   try {
-    const offers: any[] = JSON.parse(localStorage.getItem(OFFERS_CACHE_KEY) || '[]');
+    const offers: any[] = JSON.parse(localStorage.getItem(SK.CACHED_OFFERS) || '[]');
     if (action === 'add') {
-      localStorage.setItem(OFFERS_CACHE_KEY, JSON.stringify([offer, ...offers]));
+      localStorage.setItem(SK.CACHED_OFFERS, JSON.stringify([offer, ...offers]));
     } else {
-      localStorage.setItem(OFFERS_CACHE_KEY, JSON.stringify(
+      localStorage.setItem(SK.CACHED_OFFERS, JSON.stringify(
         offers.map(o => o.offerId === offer.offerId ? offer : o)
       ));
     }
@@ -601,7 +601,7 @@ export async function getCargoOffersForSender(email: string): Promise<any[]> {
 }
 
 export async function updateCargoOffer(cargoId: string, offerId: string, updates: any): Promise<any> {
-  const callerEmail = sessionStorage.getItem('ovora_user_email') || '';
+  const callerEmail = sessionStorage.getItem(SK.USER_EMAIL) || '';
   const data = await req('PUT', `/cargo-offers/${cargoId}/${offerId}`, { ...updates, callerEmail });
   return data.offer;
 }
