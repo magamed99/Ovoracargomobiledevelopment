@@ -10,6 +10,7 @@ import { getChats } from '../api/chatStore';
 import { OfflineBanner } from './OfflineBanner';
 import { usePolling } from '../hooks/usePolling';
 import { PushPermissionBanner } from './PushPermissionBanner';
+import { SubscriptionBanner } from './SubscriptionBanner';
 import { useUser } from '../contexts/UserContext';
 
 const navigation = [
@@ -684,6 +685,7 @@ export function MobileLayout() {
       <div className={`flex-1 flex flex-col overflow-hidden ${sidebarWidth}`}>
         <OfflineBanner />
         {userEmail && <PushPermissionBanner userEmail={userEmail} />}
+        {userEmail && <SubscriptionBanner userEmail={userEmail} />}
 
         <main
           className={`flex-1 overflow-y-auto ${hideNav ? 'pb-0' : 'pb-24 md:pb-0'}`}
