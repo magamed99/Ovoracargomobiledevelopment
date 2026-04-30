@@ -33,11 +33,13 @@ export function TripsProvider({ children }: { children: ReactNode }) {
   const [trips, setTrips] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // ✅ FIX П-2: Отдельный стейт для активного рейса водителя
   const [driverActiveTrip, setDriverActiveTrip] = useState<any | null>(null);
-  const hasCacheRef = useRef(false);
+  const hasCacheRef  = useRef(false);
+  const isLoadingRef = useRef(false); // mutex: предотвращает параллельные вызовы
 
   const loadTrips = async () => {
+    if (isLoadingRef.current) return; // уже идёт загрузка — пропускаем
+    isLoadingRef.current = true;
     try {
       const userRole = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('userRole') : 'sender';
 
@@ -84,6 +86,7 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       }
     } finally {
       setLoading(false);
+      isLoadingRef.current = false;
     }
   };
 

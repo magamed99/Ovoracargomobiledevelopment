@@ -10,6 +10,7 @@ import { getChats } from '../api/chatStore';
 import { OfflineBanner } from './OfflineBanner';
 import { usePolling } from '../hooks/usePolling';
 import { PushPermissionBanner } from './PushPermissionBanner';
+import { useUser } from '../contexts/UserContext';
 
 const navigation = [
   { name: 'Главная',   href: '/home',     icon: Home,          badge: null as 'chat' | 'trips' | null },
@@ -595,8 +596,9 @@ function FloatingMenu({
 export function MobileLayout() {
   const location  = useLocation();
   const { theme } = useTheme();
-  const userRole  = sessionStorage.getItem('userRole') || 'sender';
-  const userEmail = sessionStorage.getItem('ovora_user_email') || '';
+  const { user }  = useUser();
+  const userRole  = user?.role || sessionStorage.getItem('userRole') || 'sender';
+  const userEmail = user?.email || sessionStorage.getItem('ovora_user_email') || '';
 
   const [chatUnread,    setChatUnread]    = useState(0);
   const [pendingOffers, setPendingOffers] = useState(0);

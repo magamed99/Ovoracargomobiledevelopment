@@ -189,7 +189,7 @@ export async function initChatRoom(
 
   const currentUser = getCachedUser();
   const myEmail = currentUser?.email || 'guest';
-  const myRole  = localStorage.getItem('userRole') || 'sender';
+  const myRole  = sessionStorage.getItem('userRole') || 'sender';
   const myName  = currentUser
     ? `${currentUser.firstName} ${currentUser.lastName || ''}`.trim() || (myRole === 'driver' ? 'Водитель' : 'Отправитель')
     : (myRole === 'driver' ? 'Водитель' : 'Отправитель');
@@ -267,7 +267,7 @@ export async function pushMessage(
 ): Promise<ChatMessage[]> {
   const currentUser = getCachedUser();
   const myEmail = currentUser?.email || 'guest';
-  const myRole  = localStorage.getItem('userRole') || 'sender';
+  const myRole  = sessionStorage.getItem('userRole') || 'sender';
   const myName  = currentUser
     ? `${currentUser.firstName} ${currentUser.lastName || ''}`.trim() || (myRole === 'driver' ? 'Водитель' : 'Отправитель')
     : (myRole === 'driver' ? 'Водитель' : 'Отправитель');
@@ -329,7 +329,7 @@ export async function pushMessage(
 export async function fetchMessages(chatId: string): Promise<ChatMessage[]> {
   const myEmail = getCachedUser()?.email;
   if (!myEmail) return getMessages(chatId);
-  const myRole  = localStorage.getItem('userRole') || 'sender';
+  const myRole  = sessionStorage.getItem('userRole') || 'sender';
 
   try {
     const serverMsgs = await apiGetMessages(chatId);
@@ -371,15 +371,17 @@ export async function fetchChats(): Promise<Chat[]> {
   if (!currentUser?.email) return getChats();
 
   const email = currentUser.email;
-  const myRole = localStorage.getItem('userRole') || 'sender';
+  const myRole = sessionStorage.getItem('userRole') || 'sender';
 
   try {
     const serverChats: any[] = await apiGetUserChats(email);
     if (Array.isArray(serverChats) && serverChats.length === 0) {
-      // Server confirmed this user has no chats — clear any stale local data
-      saveChats([]);
-      emit();
-      return [];
+      // Server confirmed empty — only clear if local also has no chats,
+      // to avoid wiping data on auth errors that return an empty array.
+      const local = getChats();
+      if (local.length === 0) return [];
+      // Keep local chats — server might have returned empty due to session mismatch
+      return local;
     }
     if (serverChats && serverChats.length > 0) {
       // Load saved contacts map for enrichment
