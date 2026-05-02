@@ -5,6 +5,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../contexts/UserContext';
 import { toast } from 'sonner';
 import { updateUser as updateUserApi } from '../api/authApi';
+import { SK } from '../constants/storageKeys';
 
 const CAR_BRANDS = ['КАМАЗ', 'МАЗ', 'ГАЗ', 'Volvo', 'Scania', 'MAN', 'Mercedes', 'DAF', 'Iveco', 'Другое'];
 const DOC_SLOTS = ['Паспорт', 'Техпаспорт (СТС)'];
@@ -65,8 +66,8 @@ export function DriverRegistrationForm() {
       const vehicle = { brand: form.carBrand, model: form.carModel, year: form.carYear, plate: form.plateNumber.toUpperCase() };
       const updated = await updateUserApi({ email: cachedUser.email, firstName: cachedUser.firstName, lastName: cachedUser.lastName, phone: cachedUser.phone, vehicle });
       setUserDirectly({ ...cachedUser, ...updated });
-      sessionStorage.setItem('isAuthenticated', 'true');
-      sessionStorage.setItem('userRole', 'driver');
+      sessionStorage.setItem(SK.IS_AUTHENTICATED, 'true');
+      sessionStorage.setItem(SK.USER_ROLE, 'driver');
       toast.success('Регистрация завершена!');
       navigate('/dashboard');
     } catch (err) {

@@ -7,9 +7,10 @@ import {
   getChats, markRead, fetchChats, deleteChat, Chat,
 } from '../api/chatStore';
 import { projectId, publicAnonKey } from '../../../utils/supabase/info';
+import { SK } from '../constants/storageKeys';
 
 export function useMessages() {
-  const userRole = sessionStorage.getItem('userRole') || 'sender';
+  const userRole = sessionStorage.getItem(SK.USER_ROLE) || 'sender';
   const isDriver = userRole === 'driver';
 
   const [chats, setChats] = useState<Chat[]>([]);
@@ -37,14 +38,14 @@ export function useMessages() {
 
   // Init: cleanup old demo data, start polling
   useEffect(() => {
-    if (!localStorage.getItem('ovora_demo_wiped_v2')) {
+    if (!localStorage.getItem(SK.DEMO_WIPED)) {
       const keysToDelete: string[] = [];
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
         if (k && (k === 'ovora_chats_v2' || k === 'ovora_chat_contacts_v2')) keysToDelete.push(k);
       }
       keysToDelete.forEach(k => localStorage.removeItem(k));
-      localStorage.setItem('ovora_demo_wiped_v2', '1');
+      localStorage.setItem(SK.DEMO_WIPED, '1');
       fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a/chats/cleanup-demo`,
         { method: 'DELETE', headers: { Authorization: `Bearer ${publicAnonKey}` } }

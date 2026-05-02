@@ -5,8 +5,10 @@ export const SK = {
   // ── sessionStorage (очищается при закрытии вкладки) ──────────────────────
   USER_EMAIL:          'ovora_user_email',
   USER_ROLE:           'userRole',
+  USER_NAME:           'ovora_user_name',
   IS_AUTHENTICATED:    'isAuthenticated',
   ADMIN_TOKEN:         'ovora_admin_token',
+  ADMIN_AUTH:          'ovora_admin_auth',
 
   // ── localStorage (персистентное) ─────────────────────────────────────────
   CURRENT_USER:        'ovora_current_user',
@@ -28,6 +30,20 @@ export const SK = {
   SEEN_OFFER_IDS:      'ovora_seen_offer_ids',
   OFFERS:              'ovora_offers',
   REVIEWS:             'ovora_reviews',
+
+  // Уведомления (настройки)
+  NOTIF_PUSH:          'ovora_notif_push',
+  NOTIF_OFFERS:        'ovora_notif_offers',
+  NOTIF_MESSAGES:      'ovora_notif_messages',
+  NOTIF_TRIPS:         'ovora_notif_trips',
+
+  // Отслеживание
+  ACTIVE_SHIPMENT:     'ovora_active_shipment',
+  SENDER_TRACKING:     'ovora_sender_tracking_trip',
+  REVIEWED_TRIPS:      'ovora_reviewed_trips',
+  SEARCH_HISTORY:      'ovora_search_history',
+  DEMO_WIPED:          'ovora_demo_wiped_v2',
+  SUB_BANNER_DISMISSED: 'ovora_sub_banner_dismissed',
 
   // Avia
   AVIA_SESSION:        'ovora_avia_session',

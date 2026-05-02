@@ -5,6 +5,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../contexts/UserContext';
 import { toast } from 'sonner';
 import { registerUser } from '../api/authApi';
+import { SK } from '../constants/storageKeys';
 
 export function SenderRegistrationForm() {
   const navigate = useNavigate();
@@ -38,7 +39,7 @@ export function SenderRegistrationForm() {
 
     setSubmitting(true);
     try {
-      const email = cachedUser?.email || sessionStorage.getItem('ovora_user_email') || '';
+      const email = cachedUser?.email || sessionStorage.getItem(SK.USER_EMAIL) || '';
       if (!email) {
         toast.error('Email не найден. Пожалуйста, войдите снова.');
         navigate('/email-auth?role=sender');

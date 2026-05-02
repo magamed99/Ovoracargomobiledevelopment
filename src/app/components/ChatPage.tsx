@@ -19,6 +19,7 @@ import {
   deleteChat,
   ChatMessage, ChatProposal, ChatContact, ProposalStatus,
 } from '../api/chatStore';
+import { SK } from '../constants/storageKeys';
 
 // ── SwipeableMessage Component ─────────────────────────────────────────────────
 interface SwipeableMessageProps {
@@ -217,7 +218,7 @@ export function ChatPage() {
   const { user: currentUser } = useUser(); // ✅ Используем UserContext
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const userRole = sessionStorage.getItem('userRole') || 'sender';
+  const userRole = sessionStorage.getItem(SK.USER_ROLE) || 'sender';
   const isDriver = userRole === 'driver';
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -494,7 +495,7 @@ export function ChatPage() {
     // Save active shipment for tracking
     const proposal = updated.find(m => m.proposal?.id === proposalId)?.proposal;
     if (proposal) {
-      localStorage.setItem('ovora_active_shipment', JSON.stringify({
+      localStorage.setItem(SK.ACTIVE_SHIPMENT, JSON.stringify({
         proposalId, ...proposal,
         contactName: contact?.name,
         contactAvatar: contact?.avatar,
@@ -512,8 +513,8 @@ export function ChatPage() {
           localStorage.setItem(key, JSON.stringify(filtered));
         } catch { /* ignore */ }
       };
-      invalidate('ovora_published_trips');
-      invalidate('ovora_all_trips');
+      invalidate(SK.PUBLISHED_TRIPS);
+      invalidate(SK.ALL_TRIPS);
       window.dispatchEvent(new Event('ovora_trip_update'));
     }
 

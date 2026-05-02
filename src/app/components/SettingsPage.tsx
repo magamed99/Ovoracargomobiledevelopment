@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { SK } from '../constants/storageKeys';
 import {
   Globe, Bell, Shield, LogOut, ChevronRight, ArrowLeft, Check,
   Smartphone, Info, Trash2, RefreshCw, Truck, Package,
@@ -45,10 +46,10 @@ export function SettingsPage() {
   const { user, logout: contextLogout } = useUser();
 
   const [notifs, setNotifs] = useState({
-    push:     localStorage.getItem('ovora_notif_push')     !== 'false',
-    offers:   localStorage.getItem('ovora_notif_offers')   !== 'false',
-    messages: localStorage.getItem('ovora_notif_messages') !== 'false',
-    trips:    localStorage.getItem('ovora_notif_trips')    !== 'false',
+    push:     localStorage.getItem(SK.NOTIF_PUSH)     !== 'false',
+    offers:   localStorage.getItem(SK.NOTIF_OFFERS)   !== 'false',
+    messages: localStorage.getItem(SK.NOTIF_MESSAGES) !== 'false',
+    trips:    localStorage.getItem(SK.NOTIF_TRIPS)    !== 'false',
   });
   const [showLang,    setShowLang]    = useState(false);
   const [showLogout,  setShowLogout]  = useState(false);
@@ -79,17 +80,17 @@ export function SettingsPage() {
       if (!isPushSupported()) { toast.error('Ваш браузер не поддерживает push-уведомления'); return; }
       setPushLoading(true);
       try {
-        const email = user?.email || sessionStorage.getItem('ovora_user_email') || '';
+        const email = user?.email || sessionStorage.getItem(SK.USER_EMAIL) || '';
         if (notifs.push) {
           await unsubscribeFromPush(email);
           setNotifs(p => ({ ...p, push: false }));
-          localStorage.setItem('ovora_notif_push', 'false');
+          localStorage.setItem(SK.NOTIF_PUSH, 'false');
           toast.success('Push-уведомления отключены');
         } else {
           const result = await subscribeToPush(email);
           if (result === 'granted') {
             setNotifs(p => ({ ...p, push: true }));
-            localStorage.setItem('ovora_notif_push', 'true');
+            localStorage.setItem(SK.NOTIF_PUSH, 'true');
             toast.success('🔔 Push-уведомления включены!', { description: 'Вы получите уведомление сразу при новом сообщении', duration: 4000 });
           } else if (result === 'denied') {
             toast.error('Разрешение отклонено', { description: 'Включите уведомления в настройках браузера', duration: 5000 });
@@ -156,11 +157,11 @@ export function SettingsPage() {
           const key = localStorage.key(i);
           if (!key) continue;
           if (
-            key.startsWith('ovora_chats') || key.startsWith('ovora_msgs') ||
-            key.startsWith('ovora_chat_contacts') || key.startsWith('ovora_published_trips') ||
-            key.startsWith('ovora_all_trips') || key.startsWith('ovora_cached_offers') ||
-            key.startsWith('ovora_seen_offer_ids') ||
-            key === 'ovora_offers' || key === 'ovora_reviews'
+            key.startsWith(SK.CHATS) || key.startsWith(SK.CHAT_MSGS_PREFIX) ||
+            key.startsWith(SK.CHAT_CONTACTS) || key.startsWith(SK.PUBLISHED_TRIPS) ||
+            key.startsWith(SK.ALL_TRIPS) || key.startsWith(SK.CACHED_OFFERS) ||
+            key.startsWith(SK.SEEN_OFFER_IDS) ||
+            key === SK.OFFERS || key === SK.REVIEWS
           ) { keysToRemove.push(key); }
         }
         keysToRemove.forEach(k => localStorage.removeItem(k));

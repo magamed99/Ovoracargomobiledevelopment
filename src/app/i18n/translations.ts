@@ -112,6 +112,40 @@ export const translations = {
     profile_documents: 'Документы',
     profile_payments: 'Платежи',
 
+    // Subscription Banner
+    sub_banner_expired: 'Подписка истекла. Платформа временно недоступна.',
+    sub_banner_trial_last: 'Сегодня последний день пробного периода',
+    sub_banner_trial_days_1: 'Пробный период истекает через',
+    sub_banner_trial_days_2: 'день',
+    sub_banner_trial_days_5: 'дня',
+    sub_banner_trial_days_many: 'дней',
+    sub_banner_renew: 'Продлить',
+    sub_banner_subscribe: 'Подписка',
+
+    // Subscription Page
+    sub_page_title: 'Подписка',
+    sub_page_status_active: 'Активна',
+    sub_page_status_trial: 'Пробный период',
+    sub_page_status_expired: 'Истекла',
+    sub_page_status_lifetime: 'Пожизненная',
+    sub_page_days_left: 'осталось дней',
+    sub_page_renew_title: 'Продлить подписку',
+    sub_page_renew_desc: 'Переведите оплату и введите ID транзакции',
+    sub_page_transfer_id: 'ID перевода',
+    sub_page_send: 'Отправить',
+    sub_page_features_title: 'Что включено',
+
+    // Profile completeness
+    profile_completeness: 'Заполненность профиля',
+    profile_complete_name: 'Имя и фамилия',
+    profile_complete_photo: 'Фото профиля',
+    profile_complete_phone: 'Номер телефона',
+    profile_complete_about: 'О себе',
+    profile_complete_vehicle: 'Данные автомобиля',
+    profile_fill_btn: 'Заполнить',
+    profile_referral_title: 'Пригласить друга',
+    profile_referral_share: 'Поделиться',
+
     // Common
     loading: 'Загрузка...',
     error: 'Ошибка',
@@ -231,6 +265,40 @@ export const translations = {
     profile_documents: 'Ҳуҷҷатҳо',
     profile_payments: 'Пардохтҳо',
 
+    // Subscription Banner
+    sub_banner_expired: 'Обуна тамом шуд. Платформа муваққатан дастнорас аст.',
+    sub_banner_trial_last: 'Имрӯз рӯзи охирини давраи озмоишӣ аст',
+    sub_banner_trial_days_1: 'Давраи озмоишӣ пас аз',
+    sub_banner_trial_days_2: 'рӯз тамом мешавад',
+    sub_banner_trial_days_5: 'рӯз тамом мешавад',
+    sub_banner_trial_days_many: 'рӯз тамом мешавад',
+    sub_banner_renew: 'Дароз кардан',
+    sub_banner_subscribe: 'Обуна',
+
+    // Subscription Page
+    sub_page_title: 'Обуна',
+    sub_page_status_active: 'Фаъол',
+    sub_page_status_trial: 'Давраи озмоишӣ',
+    sub_page_status_expired: 'Тамом шуд',
+    sub_page_status_lifetime: 'Абадӣ',
+    sub_page_days_left: 'рӯз мондааст',
+    sub_page_renew_title: 'Обунаро дароз кунед',
+    sub_page_renew_desc: 'Пардохтро интиқол диҳед ва ID-и амалиётро ворид кунед',
+    sub_page_transfer_id: 'ID-и интиқол',
+    sub_page_send: 'Фиристодан',
+    sub_page_features_title: 'Чӣ дохил аст',
+
+    // Profile completeness
+    profile_completeness: 'Пуррагии профил',
+    profile_complete_name: 'Ном ва насаб',
+    profile_complete_photo: 'Акси профил',
+    profile_complete_phone: 'Рақами телефон',
+    profile_complete_about: 'Дар бораи ман',
+    profile_complete_vehicle: 'Маълумоти мошин',
+    profile_fill_btn: 'Пур кардан',
+    profile_referral_title: 'Дӯстро даъват кунед',
+    profile_referral_share: 'Мубодила кардан',
+
     // Common
     loading: 'Боргирӣ...',
     error: 'Хато',
@@ -349,6 +417,40 @@ export const translations = {
     profile_notifications: 'Notifications',
     profile_documents: 'Documents',
     profile_payments: 'Payments',
+
+    // Subscription Banner
+    sub_banner_expired: 'Subscription expired. Platform temporarily unavailable.',
+    sub_banner_trial_last: 'Today is the last day of your trial period',
+    sub_banner_trial_days_1: 'Trial period expires in',
+    sub_banner_trial_days_2: 'day',
+    sub_banner_trial_days_5: 'days',
+    sub_banner_trial_days_many: 'days',
+    sub_banner_renew: 'Renew',
+    sub_banner_subscribe: 'Subscribe',
+
+    // Subscription Page
+    sub_page_title: 'Subscription',
+    sub_page_status_active: 'Active',
+    sub_page_status_trial: 'Trial period',
+    sub_page_status_expired: 'Expired',
+    sub_page_status_lifetime: 'Lifetime',
+    sub_page_days_left: 'days left',
+    sub_page_renew_title: 'Renew subscription',
+    sub_page_renew_desc: 'Transfer payment and enter the transaction ID',
+    sub_page_transfer_id: 'Transfer ID',
+    sub_page_send: 'Submit',
+    sub_page_features_title: "What's included",
+
+    // Profile completeness
+    profile_completeness: 'Profile completeness',
+    profile_complete_name: 'Full name',
+    profile_complete_photo: 'Profile photo',
+    profile_complete_phone: 'Phone number',
+    profile_complete_about: 'About me',
+    profile_complete_vehicle: 'Vehicle details',
+    profile_fill_btn: 'Fill in',
+    profile_referral_title: 'Invite a friend',
+    profile_referral_share: 'Share',
 
     // Common
     loading: 'Loading...',

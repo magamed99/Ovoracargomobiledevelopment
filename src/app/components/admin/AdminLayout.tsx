@@ -10,8 +10,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { YandexMetrikaTracker } from '../YandexMetrika';
 import { getAdminStats } from '../../api/dataApi';
 import { AdminAuthGate } from './AdminAuthGate';
-
-const PIN_SESSION_KEY = 'ovora_admin_auth';
+import { SK } from '../../constants/storageKeys';
 
 const navGroups = [
   {
@@ -69,7 +68,7 @@ export function AdminLayout() {
   const [stats, setStats] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [authed, setAuthed] = useState(() =>
-    sessionStorage.getItem(PIN_SESSION_KEY) === 'true' && !!sessionStorage.getItem('ovora_admin_token')
+    sessionStorage.getItem(SK.ADMIN_AUTH) === 'true' && !!sessionStorage.getItem('ovora_admin_token')
   );
 
   useEffect(() => {
@@ -246,7 +245,7 @@ export function AdminLayout() {
             </div>
           </div>
           <button
-            onClick={() => { sessionStorage.removeItem(PIN_SESSION_KEY); sessionStorage.removeItem('ovora_admin_token'); window.location.reload(); }}
+            onClick={() => { sessionStorage.removeItem(SK.ADMIN_AUTH); sessionStorage.removeItem(SK.ADMIN_TOKEN); window.location.reload(); }}
             className="flex items-center gap-2 w-full px-3 py-2 text-xs font-medium rounded-xl transition-colors text-gray-400 hover:text-red-500 hover:bg-red-50"
           >
             <LogOut className="w-3.5 h-3.5" />

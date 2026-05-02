@@ -26,8 +26,7 @@ import { TripCard } from './TripCard';
 import { SwipeableCard } from './SwipeableCard';
 import { StarRow } from './ui/StarRow';
 import { cleanAddress } from '../utils/addressUtils';
-
-const REVIEWED_TRIPS_KEY = 'ovora_reviewed_trips';
+import { SK } from '../constants/storageKeys';
 
 const CATEGORY_LABELS: Record<string, string> = {
   punctuality: 'Пунктуальность',
@@ -261,9 +260,9 @@ export function SenderTripsPage() {
       }
     } catch {
       if (!isMountedRef.current) return;
-      setPublishedTrips(JSON.parse(localStorage.getItem('ovora_published_trips') || '[]'));
-      setOffers(JSON.parse(localStorage.getItem('ovora_cached_offers') || '[]'));
-      setPublishedCargos(JSON.parse(localStorage.getItem('ovora_all_cargos') || '[]'));
+      setPublishedTrips(JSON.parse(localStorage.getItem(SK.PUBLISHED_TRIPS) || '[]'));
+      setOffers(JSON.parse(localStorage.getItem(SK.CACHED_OFFERS) || '[]'));
+      setPublishedCargos(JSON.parse(localStorage.getItem(SK.ALL_CARGOS) || '[]'));
       if (!silent) toast.error('Нет соединения — показаны кэшированные данные');
     } finally {
       if (isMountedRef.current) { if (!silent) setLoading(false); else setIsRefreshing(false); }
@@ -276,7 +275,7 @@ export function SenderTripsPage() {
     const interval = setInterval(() => { if (document.visibilityState !== 'hidden') loadData(true); }, 8000);
     return () => clearInterval(interval);
   }, [loadData]);
-  useEffect(() => { setReviewedTrips(JSON.parse(localStorage.getItem(REVIEWED_TRIPS_KEY) || '[]').map(String)); }, []);
+  useEffect(() => { setReviewedTrips(JSON.parse(localStorage.getItem(SK.REVIEWED_TRIPS) || '[]').map(String)); }, []);
 
   // ── Build sender booking items (trips через offers) ───────────────────────
   const senderTrips: any[] = offers.map((offer: any) => {
@@ -397,7 +396,7 @@ export function SenderTripsPage() {
       });
       const reviewed = [...reviewedTrips, reviewModal!.tripId];
       setReviewedTrips(reviewed);
-      localStorage.setItem(REVIEWED_TRIPS_KEY, JSON.stringify(reviewed));
+      localStorage.setItem(SK.REVIEWED_TRIPS, JSON.stringify(reviewed));
       setReviewModal(null);
       toast.success('Отзыв опубликован! Спасибо 🙏');
     } catch (err: any) {
@@ -405,7 +404,7 @@ export function SenderTripsPage() {
         toast.error('Вы уже оставляли отзыв на эту поездку');
         const reviewed = [...reviewedTrips, reviewModal!.tripId];
         setReviewedTrips(reviewed);
-        localStorage.setItem(REVIEWED_TRIPS_KEY, JSON.stringify(reviewed));
+        localStorage.setItem(SK.REVIEWED_TRIPS, JSON.stringify(reviewed));
         setReviewModal(null);
       } else {
         toast.error('Не удалось отправить отзыв');
@@ -591,7 +590,7 @@ export function SenderTripsPage() {
                       onChat={e => openDriverChat(e, trip)}
                       onTrack={e => {
                         e.stopPropagation();
-                        localStorage.setItem('ovora_sender_tracking_trip', JSON.stringify({
+                        localStorage.setItem(SK.SENDER_TRACKING, JSON.stringify({
                           tripId: trip.tripId, from: trip.from, to: trip.to,
                           driverName: trip.driverName, driverAvatar: trip.driverAvatar,
                           driverPhone: trip.driverPhone, driverEmail: trip.driverEmail,
@@ -721,7 +720,7 @@ export function SenderTripsPage() {
                         onChat={e => openDriverChat(e, trip)}
                         onTrack={e => {
                           e.stopPropagation();
-                          localStorage.setItem('ovora_sender_tracking_trip', JSON.stringify({
+                          localStorage.setItem(SK.SENDER_TRACKING, JSON.stringify({
                             tripId: trip.tripId, from: trip.from, to: trip.to,
                             driverName: trip.driverName, driverAvatar: trip.driverAvatar,
                             driverPhone: trip.driverPhone, driverEmail: trip.driverEmail,

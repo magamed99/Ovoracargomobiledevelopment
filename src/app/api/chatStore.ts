@@ -17,6 +17,7 @@ import {
   deleteMessageFromDb,
 } from './dataApi';
 import { getCachedUser } from './authApi';
+import { SK } from '../constants/storageKeys';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 export interface ChatContact {
@@ -83,9 +84,7 @@ export interface Chat {
 }
 
 // ── Cache keys ─────────────────────────────────────────────────────────────────
-const CHATS_KEY  = 'ovora_chats_v2';
-const msgKey = (id: string) => `ovora_msgs_v2_${id}`;
-const CONTACTS_KEY = 'ovora_chat_contacts_v2'; // { [chatId]: ChatContact }
+const msgKey = (id: string) => `${SK.CHAT_MSGS_PREFIX}${id}`;
 
 // ── DOM event ─────────────────────────────────────────────────────────────────
 function emit() {
@@ -95,7 +94,7 @@ function emit() {
 // ── Local cache helpers ────────────────────────────────────────────────────────
 export function getChats(): Chat[] {
   try {
-    return JSON.parse(localStorage.getItem(CHATS_KEY) || '[]');
+    return JSON.parse(localStorage.getItem(SK.CHATS) || '[]');
   } catch {
     return [];
   }
@@ -108,7 +107,7 @@ export function getMessages(chatId: string): ChatMessage[] {
 
 function saveChats(chats: Chat[]) {
   const sorted = [...chats].sort((a, b) => (b.lastTs || 0) - (a.lastTs || 0));
-  localStorage.setItem(CHATS_KEY, JSON.stringify(sorted));
+  localStorage.setItem(SK.CHATS, JSON.stringify(sorted));
 }
 
 const MSG_CACHE_LIMIT = 200;
@@ -121,15 +120,15 @@ function saveMessages(chatId: string, msgs: ChatMessage[]) {
 
 function saveContact(chatId: string, contact: ChatContact) {
   try {
-    const map = JSON.parse(localStorage.getItem(CONTACTS_KEY) || '{}');
+    const map = JSON.parse(localStorage.getItem(SK.CHAT_CONTACTS) || '{}');
     map[chatId] = contact;
-    localStorage.setItem(CONTACTS_KEY, JSON.stringify(map));
+    localStorage.setItem(SK.CHAT_CONTACTS, JSON.stringify(map));
   } catch {}
 }
 
 function loadContact(chatId: string): ChatContact | null {
   try {
-    const map = JSON.parse(localStorage.getItem(CONTACTS_KEY) || '{}');
+    const map = JSON.parse(localStorage.getItem(SK.CHAT_CONTACTS) || '{}');
     return map[chatId] || null;
   } catch { return null; }
 }
@@ -189,7 +188,7 @@ export async function initChatRoom(
 
   const currentUser = getCachedUser();
   const myEmail = currentUser?.email || 'guest';
-  const myRole  = sessionStorage.getItem('userRole') || 'sender';
+  const myRole  = sessionStorage.getItem(SK.USER_ROLE) || 'sender';
   const myName  = currentUser
     ? `${currentUser.firstName} ${currentUser.lastName || ''}`.trim() || (myRole === 'driver' ? 'Водитель' : 'Отправитель')
     : (myRole === 'driver' ? 'Водитель' : 'Отправитель');
@@ -267,7 +266,7 @@ export async function pushMessage(
 ): Promise<ChatMessage[]> {
   const currentUser = getCachedUser();
   const myEmail = currentUser?.email || 'guest';
-  const myRole  = sessionStorage.getItem('userRole') || 'sender';
+  const myRole  = sessionStorage.getItem(SK.USER_ROLE) || 'sender';
   const myName  = currentUser
     ? `${currentUser.firstName} ${currentUser.lastName || ''}`.trim() || (myRole === 'driver' ? 'Водитель' : 'Отправитель')
     : (myRole === 'driver' ? 'Водитель' : 'Отправитель');
@@ -329,7 +328,7 @@ export async function pushMessage(
 export async function fetchMessages(chatId: string): Promise<ChatMessage[]> {
   const myEmail = getCachedUser()?.email;
   if (!myEmail) return getMessages(chatId);
-  const myRole  = sessionStorage.getItem('userRole') || 'sender';
+  const myRole  = sessionStorage.getItem(SK.USER_ROLE) || 'sender';
 
   try {
     const serverMsgs = await apiGetMessages(chatId);
@@ -371,7 +370,7 @@ export async function fetchChats(): Promise<Chat[]> {
   if (!currentUser?.email) return getChats();
 
   const email = currentUser.email;
-  const myRole = sessionStorage.getItem('userRole') || 'sender';
+  const myRole = sessionStorage.getItem(SK.USER_ROLE) || 'sender';
 
   try {
     const serverChats: any[] = await apiGetUserChats(email);
@@ -386,7 +385,7 @@ export async function fetchChats(): Promise<Chat[]> {
     if (serverChats && serverChats.length > 0) {
       // Load saved contacts map for enrichment
       const contactsMap: Record<string, ChatContact> = JSON.parse(
-        localStorage.getItem(CONTACTS_KEY) || '{}'
+        localStorage.getItem(SK.CHAT_CONTACTS) || '{}'
       );
 
       const mapped: Chat[] = serverChats.map((sc: any) => {
@@ -534,7 +533,7 @@ export async function deleteChat(chatId: string): Promise<void> {
   // 1. Optimistic: Remove from local cache immediately
   const originalChats = getChats();
   const filtered = originalChats.filter((c: Chat) => c.id !== chatId);
-  localStorage.setItem(CHATS_KEY, JSON.stringify(filtered));
+  localStorage.setItem(SK.CHATS, JSON.stringify(filtered));
 
   // Remove messages from cache
   localStorage.removeItem(msgKey(chatId));
@@ -548,7 +547,7 @@ export async function deleteChat(chatId: string): Promise<void> {
   } catch (err) {
     console.error(`[chatStore] Failed to delete chat from DB:`, err);
     // Rollback: restore original chats array
-    localStorage.setItem(CHATS_KEY, JSON.stringify(originalChats));
+    localStorage.setItem(SK.CHATS, JSON.stringify(originalChats));
     emit();
     throw err;
   }

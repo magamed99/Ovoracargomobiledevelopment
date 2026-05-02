@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useRef, ReactNode, useMemo } from 'react';
 import { getTrips, getCargos, getMyTrips } from '../api/dataApi';
+import { SK } from '../constants/storageKeys';
 
 interface TripsContextType {
   trips: any[]; // «feed»: Cargos для Driver, Trips для Sender
@@ -41,10 +42,10 @@ export function TripsProvider({ children }: { children: ReactNode }) {
     if (isLoadingRef.current) return; // уже идёт загрузка — пропускаем
     isLoadingRef.current = true;
     try {
-      const userRole = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('userRole') : 'sender';
+      const userRole = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(SK.USER_ROLE) : 'sender';
 
-      localStorage.removeItem('ovora_published_trips');
-      localStorage.removeItem('ovora_published_cargos');
+      localStorage.removeItem(SK.PUBLISHED_TRIPS);
+      localStorage.removeItem(SK.PUBLISHED_CARGOS);
 
       let freshItems: any[] = [];
       if (userRole === 'driver') {
@@ -52,7 +53,7 @@ export function TripsProvider({ children }: { children: ReactNode }) {
         freshItems = await fetchWithRetry(getCargos);
 
         // ✅ FIX П-2: Отдельно загружаем СВОИ рейсы для определения активного
-        const email = sessionStorage.getItem('ovora_user_email') || '';
+        const email = sessionStorage.getItem(SK.USER_EMAIL) || '';
         if (email) {
           try {
             const myTrips = await getMyTrips(email);

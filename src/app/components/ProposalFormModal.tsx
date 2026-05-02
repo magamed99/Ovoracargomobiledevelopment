@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { useUser } from '../contexts/UserContext';
 import { getTripById, submitOffer } from '../api/dataApi';
 import type { ChatContact, ChatProposal } from '../api/chatStore';
+import { SK } from '../constants/storageKeys';
 
 interface ProposalFormModalProps {
   isDark: boolean;
@@ -44,11 +45,11 @@ export function ProposalFormModal({
 
     async function loadTripData() {
       try {
-        let allTrips = JSON.parse(localStorage.getItem('ovora_published_trips') || '[]');
+        let allTrips = JSON.parse(localStorage.getItem(SK.PUBLISHED_TRIPS) || '[]');
         let found = allTrips.find((t: any) => String(t.id) === String(tripId));
 
         if (!found) {
-          allTrips = JSON.parse(localStorage.getItem('ovora_all_trips') || '[]');
+          allTrips = JSON.parse(localStorage.getItem(SK.ALL_TRIPS) || '[]');
           found = allTrips.find((t: any) => String(t.id) === String(tripId));
         }
 

@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import { projectId, publicAnonKey } from '/utils/supabase/info';
 import { ImageWithFallback } from './figma/ImageWithFallback';
+import { SK } from '../constants/storageKeys';
 
 const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;
 const H = { 'Content-Type': 'application/json', Authorization: `Bearer ${publicAnonKey}` };
@@ -60,8 +61,8 @@ function StarRow({ value }: { value: number }) {
 
 /* ─── Review Modal ─────────────────────────────────────────────────────────── */
 function ReviewModal({ stop, onClose, onSuccess }: { stop: RestStop; onClose: () => void; onSuccess: () => void }) {
-  const userEmail = sessionStorage.getItem('ovora_user_email') || '';
-  const userName  = sessionStorage.getItem('ovora_user_name') || 'Пользователь';
+  const userEmail = sessionStorage.getItem(SK.USER_EMAIL) || '';
+  const userName  = sessionStorage.getItem(SK.USER_NAME) || 'Пользователь';
   const [rating, setRating] = useState(5);
   const [hover, setHover]   = useState(0);
   const [text, setText]     = useState('');

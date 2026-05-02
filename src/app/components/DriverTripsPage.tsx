@@ -24,8 +24,7 @@ import { PullIndicator } from './PullIndicator';
 import { TripCard } from './TripCard';
 import { SwipeableCard } from './SwipeableCard';
 import { StarRow } from './ui/StarRow';
-
-const REVIEWED_TRIPS_KEY = 'ovora_reviewed_trips';
+import { SK } from '../constants/storageKeys';
 
 const CATEGORY_LABELS: Record<string, string> = {
   punctuality: 'Пунктуальность',
@@ -104,10 +103,10 @@ export function DriverTripsPage() {
       const pending = activeOffers.filter((o: any) => o.status === 'pending').length;
       window.dispatchEvent(new CustomEvent('ovora_pending_offers', { detail: pending }));
     } catch {
-      const cachedTrips = JSON.parse(localStorage.getItem('ovora_all_trips') || '[]');
+      const cachedTrips = JSON.parse(localStorage.getItem(SK.ALL_TRIPS) || '[]');
       if (!isMountedRef.current) return;
       setPublishedTrips(cachedTrips);
-      setOffers(JSON.parse(localStorage.getItem('ovora_cached_offers') || '[]'));
+      setOffers(JSON.parse(localStorage.getItem(SK.CACHED_OFFERS) || '[]'));
     } finally {
       if (isMountedRef.current) { if (!silent) setLoading(false); else setIsRefreshing(false); }
     }
@@ -187,7 +186,7 @@ export function DriverTripsPage() {
     }
   }, [publishedTrips.length, updateWeatherForTrips]);
 
-  useEffect(() => { setReviewedTrips(JSON.parse(localStorage.getItem(REVIEWED_TRIPS_KEY) || '[]').map(String)); }, []);
+  useEffect(() => { setReviewedTrips(JSON.parse(localStorage.getItem(SK.REVIEWED_TRIPS) || '[]').map(String)); }, []);
 
   // ── Build trip cards data ────────────────────────────────────────────────────
   const driverTrips = publishedTrips.map(t => {
@@ -267,7 +266,7 @@ export function DriverTripsPage() {
       });
       const reviewed = [...reviewedTrips, String(reviewModal!.tripId)];
       setReviewedTrips(reviewed);
-      localStorage.setItem(REVIEWED_TRIPS_KEY, JSON.stringify(reviewed));
+      localStorage.setItem(SK.REVIEWED_TRIPS, JSON.stringify(reviewed));
       setReviewModal(null);
       toast.success('Отзыв опубликован! Спасибо');
     } catch (err: any) {
@@ -276,7 +275,7 @@ export function DriverTripsPage() {
         // Помечаем как reviewed чтобы скрыть кнопку
         const reviewed = [...reviewedTrips, String(reviewModal!.tripId)];
         setReviewedTrips(reviewed);
-        localStorage.setItem(REVIEWED_TRIPS_KEY, JSON.stringify(reviewed));
+        localStorage.setItem(SK.REVIEWED_TRIPS, JSON.stringify(reviewed));
         setReviewModal(null);
       } else {
         toast.error('Не удалось отправить отзыв');
@@ -321,7 +320,7 @@ export function DriverTripsPage() {
             senderPhone,
             status: 'inProgress',
           };
-          localStorage.setItem('ovora_active_shipment', JSON.stringify(shipmentData));
+          localStorage.setItem(SK.ACTIVE_SHIPMENT, JSON.stringify(shipmentData));
           try { await saveActiveShipment(shipmentData); } catch {}
           await updateTrip(String(trip.id), { status: 'inProgress' });
           setPublishedTrips(prev => prev.map(t => t.id === trip.id ? { ...t, status: 'inProgress' } : t));
@@ -479,7 +478,7 @@ export function DriverTripsPage() {
       date: trip.date, time: trip.time, departureTime: trip.time,
       vehicleType: trip.vehicle || 'Грузовик', status: 'inProgress',
     };
-    localStorage.setItem('ovora_active_shipment', JSON.stringify(sd));
+    localStorage.setItem(SK.ACTIVE_SHIPMENT, JSON.stringify(sd));
     navigate('/tracking');
   };
 

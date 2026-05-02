@@ -1,6 +1,7 @@
 import React from "react";
 import { createBrowserRouter, redirect } from "react-router";
 import { getAviaSession } from "./api/aviaApi";
+import { SK } from "./constants/storageKeys";
 
 // ══════════════════════════════════════════════════════════════
 // 📦 EAGER IMPORTS — must be available synchronously
@@ -28,14 +29,14 @@ import { AviaErrorBoundary } from "./components/avia/AviaErrorBoundary";
 // ═════════════════════════════════════════════════════════════
 
 function requireAuth() {
-  if (sessionStorage.getItem('isAuthenticated') === 'true') return null;
+  if (sessionStorage.getItem(SK.IS_AUTHENTICATED) === 'true') return null;
 
   try {
-    const persistent = JSON.parse(localStorage.getItem('ovora_auth_persistent') || '{}');
+    const persistent = JSON.parse(localStorage.getItem(SK.PERSISTENT_AUTH) || '{}');
     if (persistent.email && persistent.role) {
-      sessionStorage.setItem('ovora_user_email', persistent.email);
-      sessionStorage.setItem('userRole', persistent.role);
-      sessionStorage.setItem('isAuthenticated', 'true');
+      sessionStorage.setItem(SK.USER_EMAIL, persistent.email);
+      sessionStorage.setItem(SK.USER_ROLE, persistent.role);
+      sessionStorage.setItem(SK.IS_AUTHENTICATED, 'true');
       console.log('[requireAuth] Session restored from localStorage for:', persistent.email);
       return null;
     }
@@ -47,19 +48,19 @@ function requireAuth() {
 function requireDriver() {
   const authResult = requireAuth();
   if (authResult !== null) return authResult;
-  if (sessionStorage.getItem('userRole') !== 'driver') return redirect('/home');
+  if (sessionStorage.getItem(SK.USER_ROLE) !== 'driver') return redirect('/home');
   return null;
 }
 
 function requireAdmin() {
-  const isAuth = sessionStorage.getItem('isAuthenticated') === 'true' || (() => {
+  const isAuth = sessionStorage.getItem(SK.IS_AUTHENTICATED) === 'true' || (() => {
     try {
-      const p = JSON.parse(localStorage.getItem('ovora_auth_persistent') || '{}');
+      const p = JSON.parse(localStorage.getItem(SK.PERSISTENT_AUTH) || '{}');
       return !!(p.email && p.role);
     } catch { return false; }
   })();
   if (!isAuth) return redirect('/');
-  if (!sessionStorage.getItem('ovora_admin_token')) return redirect('/home');
+  if (!sessionStorage.getItem(SK.ADMIN_TOKEN)) return redirect('/home');
   return null;
 }
 

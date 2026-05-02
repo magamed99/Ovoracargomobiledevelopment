@@ -12,8 +12,7 @@ import { searchCities, City, addCustomCity } from '../data/cities';
 import { getTrips } from '../api/dataApi';
 import { toast } from 'sonner';
 import { countryFlag, getCityCountry } from '../utils/addressUtils';
-
-const HISTORY_KEY = 'ovora_search_history';
+import { SK } from '../constants/storageKeys';
 
 // ── City Dropdown ─────────────────────────────────────────────────────────────
 function CityDropdown({ suggestions, onSelect, addLabel, onAdd }: {
@@ -156,7 +155,7 @@ export function SearchPage() {
 
   const [popularTrips, setPopularTrips] = useState<any[]>([]);
   const [searchHistory, setSearchHistory] = useState<Array<{ from: string; to: string }>>(() => {
-    try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch { return []; }
+    try { return JSON.parse(localStorage.getItem(SK.SEARCH_HISTORY) || '[]'); } catch { return []; }
   });
 
   const fromRef = useRef<HTMLDivElement>(null);
@@ -165,15 +164,15 @@ export function SearchPage() {
   const saveToHistory = (from: string, to: string) => {
     if (!from.trim() || !to.trim()) return;
     const entry = { from: from.trim(), to: to.trim() };
-    const prev: Array<{ from: string; to: string }> = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+    const prev: Array<{ from: string; to: string }> = JSON.parse(localStorage.getItem(SK.SEARCH_HISTORY) || '[]');
     const next = [entry, ...prev.filter(h => !(h.from === entry.from && h.to === entry.to))].slice(0, 5);
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+    localStorage.setItem(SK.SEARCH_HISTORY, JSON.stringify(next));
     setSearchHistory(next);
   };
 
   const removeFromHistory = (idx: number) => {
     const next = searchHistory.filter((_, i) => i !== idx);
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+    localStorage.setItem(SK.SEARCH_HISTORY, JSON.stringify(next));
     setSearchHistory(next);
   };
 
@@ -254,7 +253,7 @@ export function SearchPage() {
   }, []);
 
   useEffect(() => {
-    localStorage.removeItem('ovora_published_trips');
+    localStorage.removeItem(SK.PUBLISHED_TRIPS);
     setPopularTrips([]);
     getTrips()
       .then(trips => { if (trips?.length) setPopularTrips(buildPopularTrips(trips)); })
@@ -524,7 +523,7 @@ export function SearchPage() {
                 <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: '#2e4a62' }}>История поисков</span>
               </div>
               <button
-                onClick={() => { localStorage.removeItem(HISTORY_KEY); setSearchHistory([]); }}
+                onClick={() => { localStorage.removeItem(SK.SEARCH_HISTORY); setSearchHistory([]); }}
                 className="text-[11px] font-bold"
                 style={{ color: '#1e3a55', transition: 'color .12s' }}
                 onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
@@ -683,7 +682,7 @@ export function SearchPage() {
                         <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: '#2e4a62' }}>История</span>
                       </div>
                       <button
-                        onClick={() => { localStorage.removeItem(HISTORY_KEY); setSearchHistory([]); }}
+                        onClick={() => { localStorage.removeItem(SK.SEARCH_HISTORY); setSearchHistory([]); }}
                         className="text-[11px] font-bold"
                         style={{ color: '#1e3a55', transition: 'color .12s' }}
                         onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
