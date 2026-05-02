@@ -290,6 +290,12 @@ export const router = createBrowserRouter([
           },
           // ── Driver-specific (requires driver role) ──
           {
+            path: "driver-stats",
+            loader: requireDriver,
+            lazy: () => import("./components/DriverStatsPage")
+              .then(m => ({ Component: m.DriverStatsPage })),
+          },
+          {
             path: "borders",
             loader: requireDriver,
             lazy: () => import("./components/BordersPage")
