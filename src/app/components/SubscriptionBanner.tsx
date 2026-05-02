@@ -8,19 +8,19 @@ import {
   isSubActive,
   getDaysLeft,
 } from '../api/subscriptionApi';
-
-const BANNER_DISMISS_KEY = 'ovora_sub_banner_dismissed';
+import { useLanguage } from '../context/LanguageContext';
+import { SK } from '../constants/storageKeys';
 
 function wasDismissedToday(): boolean {
   try {
-    const ts = localStorage.getItem(BANNER_DISMISS_KEY);
+    const ts = localStorage.getItem(SK.SUB_BANNER_DISMISSED);
     if (!ts) return false;
     return Date.now() - parseInt(ts, 10) < 24 * 60 * 60 * 1000;
   } catch { return false; }
 }
 
 function dismiss() {
-  try { localStorage.setItem(BANNER_DISMISS_KEY, String(Date.now())); } catch {}
+  try { localStorage.setItem(SK.SUB_BANNER_DISMISSED, String(Date.now())); } catch {}
 }
 
 interface Props {
@@ -28,6 +28,7 @@ interface Props {
 }
 
 export function SubscriptionBanner({ userEmail }: Props) {
+  const { t, lang } = useLanguage();
   const [visible, setVisible] = useState(false);
   const [daysLeft, setDaysLeft] = useState(0);
   const [isExpired, setIsExpired] = useState(false);
@@ -80,7 +81,7 @@ export function SubscriptionBanner({ userEmail }: Props) {
       >
         <AlertTriangle size={15} color="#f87171" style={{ flexShrink: 0 }} />
         <span style={{ flex: 1, fontSize: 13, color: '#fca5a5', lineHeight: 1.3 }}>
-          Подписка истекла. Платформа временно недоступна.
+          {t('sub_banner_expired')}
         </span>
         <Link
           to="/subscription"
@@ -93,7 +94,7 @@ export function SubscriptionBanner({ userEmail }: Props) {
             whiteSpace: 'nowrap',
           }}
         >
-          Продлить
+          {t('sub_banner_renew')}
         </Link>
         <button
           onClick={handleDismiss}
@@ -117,8 +118,10 @@ export function SubscriptionBanner({ userEmail }: Props) {
       <Clock size={15} color="#fbbf24" style={{ flexShrink: 0 }} />
       <span style={{ flex: 1, fontSize: 13, color: '#fde68a', lineHeight: 1.3 }}>
         {daysLeft === 0
-          ? 'Сегодня последний день пробного периода'
-          : `Пробный период истекает через ${daysLeft} ${daysLeft === 1 ? 'день' : daysLeft < 5 ? 'дня' : 'дней'}`}
+          ? t('sub_banner_trial_last')
+          : lang === 'ru'
+            ? `${t('sub_banner_trial_days_1')} ${daysLeft} ${daysLeft === 1 ? t('sub_banner_trial_days_2') : daysLeft < 5 ? t('sub_banner_trial_days_5') : t('sub_banner_trial_days_many')}`
+            : `${t('sub_banner_trial_days_1')} ${daysLeft} ${t('sub_banner_trial_days_many')}`}
       </span>
       <Link
         to="/subscription"
@@ -133,7 +136,7 @@ export function SubscriptionBanner({ userEmail }: Props) {
         }}
       >
         <Crown size={11} />
-        Подписка
+        {t('sub_banner_subscribe')}
       </Link>
       <button
         onClick={handleDismiss}

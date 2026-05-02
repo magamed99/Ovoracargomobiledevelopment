@@ -38,8 +38,11 @@ export default defineConfig({
 
   // 🚀 ОПТИМИЗАЦИЯ: Настройки производительности
   build: {
-    // Минификация кода (esbuild встроен в Vite, terser не нужен)
     minify: 'esbuild',
+    // Убираем console.* из продакшен-бандла
+    esbuildOptions: {
+      drop: ['console', 'debugger'],
+    },
     // Разделение кода на чанки
     rollupOptions: {
       output: {

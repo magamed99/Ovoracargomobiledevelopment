@@ -43,6 +43,7 @@ export const SK = {
   REVIEWED_TRIPS:      'ovora_reviewed_trips',
   SEARCH_HISTORY:      'ovora_search_history',
   DEMO_WIPED:          'ovora_demo_wiped_v2',
+  SUB_BANNER_DISMISSED: 'ovora_sub_banner_dismissed',
 
   // Avia
   AVIA_SESSION:        'ovora_avia_session',

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../contexts/UserContext';
+import { useLanguage } from '../context/LanguageContext';
 import { toast } from 'sonner';
 import {
   ArrowLeft, Shield, CheckCircle2, Clock, Infinity,
@@ -62,6 +63,7 @@ export function SubscriptionPage() {
   const navigate = useNavigate();
   const { theme } = useTheme();
   const { user } = useUser();
+  const { t } = useLanguage();
   const dark = theme === 'dark';
 
   const [sub, setSub]                   = useState<Subscription | null>(null);
@@ -146,7 +148,7 @@ export function SubscriptionPage() {
           <ArrowLeft className="w-4 h-4" style={{ color: muted }} />
         </button>
         <div className="flex-1">
-          <div className="font-bold text-[15px]">Подписка Ovora</div>
+          <div className="font-bold text-[15px]">{t('sub_page_title')}</div>
           <div className="text-[11px]" style={{ color: muted }}>Годовой доступ к платформе</div>
         </div>
         <Shield className="w-5 h-5" style={{ color: '#1978e5' }} />
@@ -169,26 +171,26 @@ export function SubscriptionPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-bold text-[14px]">
-                  {sub ? getStatusLabel(sub.status) : 'Загрузка...'}
+                  {sub ? t(`sub_page_status_${sub.status}`) : t('loading')}
                 </div>
                 {sub?.status === 'trial' && (
                   <div className="text-[12px]" style={{ color: '#f59e0b' }}>
-                    {daysLeft > 0 ? `Осталось ${daysLeft} дней бесплатного использования` : 'Пробный период истёк'}
+                    {daysLeft > 0 ? `${daysLeft} ${t('sub_page_days_left')}` : t('sub_page_status_expired')}
                   </div>
                 )}
                 {sub?.status === 'active' && (
                   <div className="text-[12px]" style={{ color: '#22c55e' }}>
-                    {daysLeft > 0 ? `Действует ещё ${daysLeft} дней` : 'Активна'}
+                    {daysLeft > 0 ? `${daysLeft} ${t('sub_page_days_left')}` : t('sub_page_status_active')}
                   </div>
                 )}
                 {sub?.status === 'expired' && (
                   <div className="text-[12px]" style={{ color: '#ef4444' }}>
-                    Продлите подписку для продолжения работы
+                    {t('sub_banner_renew')}
                   </div>
                 )}
                 {sub?.status === 'lifetime' && (
                   <div className="text-[12px]" style={{ color: '#a78bfa' }}>
-                    Пожизненный доступ — спасибо за поддержку!
+                    {t('sub_page_status_lifetime')}
                   </div>
                 )}
               </div>
@@ -197,7 +199,7 @@ export function SubscriptionPage() {
                   className="text-[11px] font-bold px-3 py-1 rounded-full"
                   style={{ background: statusCfg.bg, color: statusCfg.color, border: `1px solid ${statusCfg.color}40` }}
                 >
-                  Активна
+                  {t('sub_page_status_active')}
                 </span>
               )}
             </div>
@@ -282,7 +284,7 @@ export function SubscriptionPage() {
         {/* ── Что включено ── */}
         <div className="rounded-2xl border overflow-hidden" style={{ background: card, borderColor: border }}>
           <div className="px-4 py-3 border-b" style={{ borderColor: border }}>
-            <span className="font-bold text-[13px]">Что включено в подписку</span>
+            <span className="font-bold text-[13px]">{t('sub_page_features_title')}</span>
           </div>
           <div className="px-4 py-3 space-y-2.5">
             {[
@@ -394,7 +396,7 @@ export function SubscriptionPage() {
             {/* Подтверждение платежа */}
             <div className="px-4 pb-4 space-y-3">
               <div className="text-[11px] font-semibold" style={{ color: muted }}>
-                После оплаты введите номер транзакции (ID чека/перевода):
+                {t('sub_page_renew_desc')}
               </div>
               <input
                 type="text"
@@ -419,7 +421,7 @@ export function SubscriptionPage() {
                 }}
               >
                 <Send className="w-4 h-4" />
-                {submitting ? 'Отправка...' : 'Подтвердить оплату'}
+                {submitting ? t('loading') : t('sub_page_send')}
               </button>
               <div className="text-[11px] text-center" style={{ color: muted }}>
                 Администратор активирует подписку в течение 24 часов
