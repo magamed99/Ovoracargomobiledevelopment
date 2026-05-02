@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Truck, ShieldCheck, Eye, EyeOff, RefreshCw, ArrowLeft } from 'lucide-react';
 import { projectId, publicAnonKey } from '../../../../utils/supabase/info';
 import { useNavigate } from 'react-router';
+import { SK } from '../../constants/storageKeys';
 
 const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;
 const HEADERS = { 'Content-Type': 'application/json', Authorization: `Bearer ${publicAnonKey}` };
@@ -61,7 +62,7 @@ export function AdminAuthGate({ onSuccess }: Props) {
 
       if (data.success) {
         sessionStorage.setItem(ADMIN_SESSION_KEY, 'true');
-        sessionStorage.setItem('ovora_admin_token', code);
+        sessionStorage.setItem(SK.ADMIN_TOKEN, code);
         onSuccess();
       } else {
         setDigits(['', '', '', '', '', '']);

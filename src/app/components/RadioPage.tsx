@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import { projectId, publicAnonKey } from '/utils/supabase/info';
+import { SK } from '../constants/storageKeys';
 
 const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;
 const H    = { 'Content-Type': 'application/json', Authorization: `Bearer ${publicAnonKey}` };
@@ -181,10 +182,10 @@ function useVoiceRecorder() {
 /* ─── Chat View ──────────────────────────────────────────────────── */
 export function RadioPage() {
   const navigate   = useNavigate();
-  const userEmail  = sessionStorage.getItem('ovora_user_email') || '';
-  const userRole   = sessionStorage.getItem('userRole') || 'sender';
+  const userEmail  = sessionStorage.getItem(SK.USER_EMAIL) || '';
+  const userRole   = sessionStorage.getItem(SK.USER_ROLE) || 'sender';
   const isDriver   = userRole === 'driver';
-  const userName   = sessionStorage.getItem('ovora_user_name') || userEmail.split('@')[0] || 'Аноним';
+  const userName   = sessionStorage.getItem(SK.USER_NAME) || userEmail.split('@')[0] || 'Аноним';
 
   const [channels,  setChannels]  = useState<Channel[]>([FALLBACK_CHANNEL]);
   const [channel,   setChannel]   = useState<Channel>(FALLBACK_CHANNEL);

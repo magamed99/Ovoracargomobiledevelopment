@@ -7,6 +7,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router';
 import { useUser } from '../contexts/UserContext';
+import { SK } from '../constants/storageKeys';
 import { toast } from 'sonner';
 import {
   updateUser as updateUserApi, uploadAvatar,
@@ -27,7 +28,7 @@ const FIELDS = [
 export function EditProfile() {
   const navigate = useNavigate();
   const { user: saved, updateUser: updateUserContext } = useUser();
-  const userRole = sessionStorage.getItem('userRole') || 'sender';
+  const userRole = sessionStorage.getItem(SK.USER_ROLE) || 'sender';
   const isDriver = userRole === 'driver';
 
   const [formData, setFormData] = useState({
@@ -91,7 +92,7 @@ export function EditProfile() {
       }
 
       try {
-        const contactsMap: Record<string, any> = JSON.parse(localStorage.getItem('ovora_chat_contacts_v2') || '{}');
+        const contactsMap: Record<string, any> = JSON.parse(localStorage.getItem(SK.CHAT_CONTACTS) || '{}');
         const newFullName = [formData.firstName, formData.lastName].filter(Boolean).join(' ').trim();
         let changed = false;
         for (const chatId of Object.keys(contactsMap)) {
@@ -105,7 +106,7 @@ export function EditProfile() {
           }
         }
         if (changed) {
-          localStorage.setItem('ovora_chat_contacts_v2', JSON.stringify(contactsMap));
+          localStorage.setItem(SK.CHAT_CONTACTS, JSON.stringify(contactsMap));
           window.dispatchEvent(new Event('ovora_chat_update'));
         }
       } catch { /* ignore */ }

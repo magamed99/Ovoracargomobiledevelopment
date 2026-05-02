@@ -20,9 +20,7 @@ import { generateTripChatId, generatePairChatId } from '../api/chatUtils';
 import { cleanAddress } from '../utils/addressUtils';
 import { calculateDistance } from '@/utils/geolocation';
 import { StarRow } from './ui/StarRow';
-
-const REVIEWS_KEY = 'ovora_reviews';
-const REVIEWED_TRIPS_KEY = 'ovora_reviewed_trips';
+import { SK } from '../constants/storageKeys';
 
 const CATEGORY_ICONS: Record<string, any> = {
   punctuality: Zap, reliability: Shield,
@@ -47,7 +45,7 @@ function formatDistance(km: number): string {
 // ─────────────────────────────────────────────────────────────────────────────
 function CompletedTripDetail({ trip, isDark }: { trip: any; isDark: boolean }) {
   const navigate = useNavigate();
-  const userRole = sessionStorage.getItem('userRole') || 'sender';
+  const userRole = sessionStorage.getItem(SK.USER_ROLE) || 'sender';
   // Фикс 4/6: полный объект driver с email для чата
   const driver = trip.driver || {
     name: trip.driverName || 'Водитель',
@@ -73,7 +71,7 @@ function CompletedTripDetail({ trip, isDark }: { trip: any; isDark: boolean }) {
   const [formCats, setFormCats] = useState({ punctuality: 0, reliability: 0, communication: 0, packaging: 0 });
 
   useEffect(() => {
-    setReviewedTrips(JSON.parse(localStorage.getItem(REVIEWED_TRIPS_KEY) || '[]').map(String));
+    setReviewedTrips(JSON.parse(localStorage.getItem(SK.REVIEWED_TRIPS) || '[]').map(String));
   }, []);
 
   const alreadyReviewed = reviewedTrips.includes(String(trip.id));
@@ -111,7 +109,7 @@ function CompletedTripDetail({ trip, isDark }: { trip: any; isDark: boolean }) {
         toast.error('Вы уже оставляли отзыв на эту поездку');
         const reviewed = [...reviewedTrips, String(trip.id)];
         setReviewedTrips(reviewed);
-        localStorage.setItem(REVIEWED_TRIPS_KEY, JSON.stringify(reviewed));
+        localStorage.setItem(SK.REVIEWED_TRIPS, JSON.stringify(reviewed));
         return;
       }
       // Если сервер недоступен — только локальное сохранение, UX не блокируем
@@ -129,11 +127,11 @@ function CompletedTripDetail({ trip, isDark }: { trip: any; isDark: boolean }) {
         packaging: formCats.packaging || formRating,
       },
     };
-    const existing = JSON.parse(localStorage.getItem(REVIEWS_KEY) || '[]');
-    localStorage.setItem(REVIEWS_KEY, JSON.stringify([newReview, ...existing]));
+    const existing = JSON.parse(localStorage.getItem(SK.REVIEWS) || '[]');
+    localStorage.setItem(SK.REVIEWS, JSON.stringify([newReview, ...existing]));
     const reviewed = [...reviewedTrips, String(trip.id)];
     setReviewedTrips(reviewed);
-    localStorage.setItem(REVIEWED_TRIPS_KEY, JSON.stringify(reviewed));
+    localStorage.setItem(SK.REVIEWED_TRIPS, JSON.stringify(reviewed));
     toast.success('Отзыв опубликован! Спасибо 🙏');
   };
 
@@ -429,7 +427,7 @@ function ActiveTripDetail({ trip, isDark, userRole }: { trip: any; isDark: boole
     try {
       const offers = await getOffersForUser(profileUser.email);
       // ✅ Also purge stale localStorage cache to prevent ghost offers
-      localStorage.removeItem('ovora_offers');
+      localStorage.removeItem(SK.OFFERS);
       
       // Фикс 10: console.log убраны из production
       const currentOffer = offers.find((o: any) => String(o.tripId) === String(id));
@@ -2510,7 +2508,7 @@ export function TripDetail() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const { user: currentUser } = useUser();
-  const userRole = sessionStorage.getItem('userRole') || 'sender';
+  const userRole = sessionStorage.getItem(SK.USER_ROLE) || 'sender';
 
   const [trip, setTrip] = useState<any>(null);
 
@@ -2520,9 +2518,9 @@ export function TripDetail() {
 
     const load = async () => {
       // 1. Instant render from both localStorage caches (trips + cargos)
-      const savedTrips = JSON.parse(localStorage.getItem('ovora_published_trips') || '[]');
-      const savedCargos = JSON.parse(localStorage.getItem('ovora_published_cargos') || '[]');
-      const savedAll = JSON.parse(localStorage.getItem('ovora_all_cargos') || '[]');
+      const savedTrips = JSON.parse(localStorage.getItem(SK.PUBLISHED_TRIPS) || '[]');
+      const savedCargos = JSON.parse(localStorage.getItem(SK.PUBLISHED_CARGOS) || '[]');
+      const savedAll = JSON.parse(localStorage.getItem(SK.ALL_CARGOS) || '[]');
       const cached =
         savedTrips.find((t: any) => String(t.id) === String(id)) ||
         savedCargos.find((t: any) => String(t.id) === String(id)) ||
@@ -2542,15 +2540,15 @@ export function TripDetail() {
           try {
             const isCargo = fresh.tripType === 'cargo' || (fresh.senderEmail && !fresh.driverEmail);
             if (isCargo) {
-              const list: any[] = JSON.parse(localStorage.getItem('ovora_published_cargos') || '[]');
+              const list: any[] = JSON.parse(localStorage.getItem(SK.PUBLISHED_CARGOS) || '[]');
               const idx = list.findIndex((t: any) => String(t.id) === String(id));
               if (idx >= 0) list[idx] = fresh; else list.unshift(fresh);
-              localStorage.setItem('ovora_published_cargos', JSON.stringify(list));
+              localStorage.setItem(SK.PUBLISHED_CARGOS, JSON.stringify(list));
             } else {
-              const list: any[] = JSON.parse(localStorage.getItem('ovora_published_trips') || '[]');
+              const list: any[] = JSON.parse(localStorage.getItem(SK.PUBLISHED_TRIPS) || '[]');
               const idx = list.findIndex((t: any) => String(t.id) === String(id));
               if (idx >= 0) list[idx] = fresh; else list.unshift(fresh);
-              localStorage.setItem('ovora_published_trips', JSON.stringify(list));
+              localStorage.setItem(SK.PUBLISHED_TRIPS, JSON.stringify(list));
             }
           } catch {}
         } else if (!cached) {

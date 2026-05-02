@@ -23,6 +23,7 @@ import { calculateDistance } from '@/utils/geolocation';
 import { useTrips } from '../contexts/TripsContext';
 import { useUser } from '../contexts/UserContext';
 import { toast } from 'sonner';
+import { SK } from '../constants/storageKeys';
 
 // ── Статусы груза — порядок и конфиг ──────────────────────────────────────────
 const STATUS_FLOW: { key: ShipmentStatus; label: string; icon: string; action: string }[] = [
@@ -85,7 +86,7 @@ export function DriverTrackingPage() {
   const effectiveTrip = useMemo(() => {
     if (activeTrip) return activeTrip;
     try {
-      const raw = localStorage.getItem('ovora_active_shipment');
+      const raw = localStorage.getItem(SK.ACTIVE_SHIPMENT);
       if (raw) return JSON.parse(raw);
     } catch {}
     return null;
@@ -105,7 +106,7 @@ export function DriverTrackingPage() {
     if (!effectiveTrip?.id || statusUpdating) return;
     setStatusUpdating(true);
     try {
-      const driverEmail = user?.email || sessionStorage.getItem('ovora_user_email') || '';
+      const driverEmail = user?.email || sessionStorage.getItem(SK.USER_EMAIL) || '';
       const updated = await updateShipmentStatus(effectiveTrip.id, nextStatus, driverEmail);
       if (updated) {
         setCurrentStatus(nextStatus);
@@ -138,7 +139,7 @@ export function DriverTrackingPage() {
       const reader = new FileReader();
       reader.onloadend = async () => {
         const base64 = reader.result as string;
-        const driverEmail = user?.email || sessionStorage.getItem('ovora_user_email') || '';
+        const driverEmail = user?.email || sessionStorage.getItem(SK.USER_EMAIL) || '';
         const photo = await uploadPODPhoto(effectiveTrip.id, base64, type, driverEmail);
         if (photo) {
           setPodPhotos(prev => [...prev, photo as any]);

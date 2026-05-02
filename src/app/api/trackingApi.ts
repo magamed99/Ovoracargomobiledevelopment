@@ -1,4 +1,5 @@
 import { projectId, publicAnonKey } from '../../../utils/supabase/info';
+import { SK } from '../constants/storageKeys';
 
 const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;
 const HEADERS = {
@@ -125,7 +126,7 @@ export async function saveActiveShipment(shipment: Partial<ActiveShipment> & { t
   }
 
   const data = await res.json();
-  localStorage.setItem('ovora_active_shipment', JSON.stringify(data.value));
+  localStorage.setItem(SK.ACTIVE_SHIPMENT, JSON.stringify(data.value));
   return data.value;
 }
 
@@ -202,7 +203,7 @@ export async function updateShipmentStatus(
     }
     const data = await res.json();
     // Обновляем локальный кэш
-    if (data.value) localStorage.setItem('ovora_active_shipment', JSON.stringify(data.value));
+    if (data.value) localStorage.setItem(SK.ACTIVE_SHIPMENT, JSON.stringify(data.value));
     return data.value || null;
   } catch (err) {
     console.error('[trackingApi] Error updating status:', err);
@@ -278,7 +279,7 @@ export async function completeShipment(tripId: string): Promise<void> {
       completedAt: new Date().toISOString(),
     });
   }
-  localStorage.removeItem('ovora_active_shipment');
+  localStorage.removeItem(SK.ACTIVE_SHIPMENT);
 }
 
 // ── Cancel shipment ───────────────────────────────────────────────────────────
@@ -291,13 +292,13 @@ export async function cancelShipment(tripId: string, reason?: string): Promise<v
     status: 'cancelled',
     notes: reason ? `${shipment.notes || ''}\nОтменено: ${reason}` : shipment.notes,
   });
-  localStorage.removeItem('ovora_active_shipment');
+  localStorage.removeItem(SK.ACTIVE_SHIPMENT);
 }
 
 // ── Get cached shipment from localStorage (offline fallback) ──────────────────
 export function getCachedShipment(): ActiveShipment | null {
   try {
-    const cached = localStorage.getItem('ovora_active_shipment');
+    const cached = localStorage.getItem(SK.ACTIVE_SHIPMENT);
     return cached ? JSON.parse(cached) : null;
   } catch {
     return null;
