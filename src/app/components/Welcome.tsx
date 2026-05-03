@@ -109,32 +109,10 @@ function Logo() {
   return (
     <div style={{
       width: 44, height: 44, borderRadius: 14,
-      background: 'linear-gradient(135deg, #0f52b6 0%, #2176e8 100%)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
       boxShadow: '0 0 0 1px rgba(91,163,245,0.3), 0 8px 24px rgba(25,100,200,0.55)',
-      position: 'relative', overflow: 'hidden',
+      overflow: 'hidden', flexShrink: 0,
     }}>
-      <span style={{
-        position: 'absolute', top: 0, bottom: 0, width: '40%',
-        background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent)',
-        animation: 'shineSweep 4s ease-in-out infinite',
-      }} />
-      <svg width="24" height="24" viewBox="0 0 100 100" fill="none">
-        {/* Body */}
-        <ellipse cx="50" cy="54" rx="18" ry="9" fill="rgba(255,255,255,0.25)"/>
-        {/* Wings spread */}
-        <path d="M50 50 C38 42 18 32 8 26 C12 36 22 44 32 48 L50 50Z" fill="#fff"/>
-        <path d="M50 50 C62 42 82 32 92 26 C88 36 78 44 68 48 L50 50Z" fill="rgba(255,255,255,0.85)"/>
-        {/* Tail feathers */}
-        <path d="M44 54 C40 62 36 70 34 76 C40 72 46 65 50 58 C54 65 60 72 66 76 C64 70 60 62 56 54 Z" fill="#fff"/>
-        {/* Head */}
-        <ellipse cx="50" cy="40" rx="8" ry="9" fill="#fff"/>
-        {/* Beak */}
-        <path d="M50 44 L44 48 L50 50 Z" fill="#fcd34d"/>
-        {/* Eye */}
-        <circle cx="47" cy="38" r="1.8" fill="#0a1432"/>
-        <circle cx="46.5" cy="37.5" r="0.6" fill="#fff"/>
-      </svg>
+      <img src="/icons/logo-bird.png" alt="Ovora" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
     </div>
   );
 }
@@ -191,102 +169,25 @@ const Ti = {
   flex:   _ti(<><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></>),
 };
 
-// ── European cab-over semi-truck ──────────────────────────────────────
+// ── Cargo truck photo ─────────────────────────────────────────────────
 function TruckBig() {
   return (
-    <svg width="90" height="68" viewBox="0 0 130 68" fill="none" style={{ filter: 'drop-shadow(0 6px 18px rgba(33,118,232,0.55))' }}>
-      <defs>
-        <linearGradient id="tbCab" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#4b99f8"/><stop offset="1" stopColor="#1849b4"/></linearGradient>
-        <linearGradient id="tbTrl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#f0f6ff"/><stop offset="1" stopColor="#c8d8f0"/></linearGradient>
-      </defs>
-      {/* Trailer body */}
-      <rect x="4" y="12" width="78" height="36" rx="3" fill="url(#tbTrl)"/>
-      <rect x="4" y="12" width="78" height="5" rx="2" fill="#2176e8" opacity="0.65"/>
-      <line x1="30" y1="17" x2="30" y2="48" stroke="#bfdbfe" strokeWidth="0.8" opacity="0.7"/>
-      <line x1="56" y1="17" x2="56" y2="48" stroke="#bfdbfe" strokeWidth="0.8" opacity="0.7"/>
-      <rect x="78" y="36" width="6" height="10" rx="1" fill="#1e40af" opacity="0.5"/>
-      {/* Cab — European boxy (cab-over): cab is right at the front */}
-      <path d="M82 48 L82 16 Q82 10 90 10 L122 10 Q128 10 128 18 L128 48 Z" fill="url(#tbCab)"/>
-      {/* Windshield (large, nearly full front) */}
-      <path d="M85 18 Q85 13 92 12 L120 12 Q126 12 126 19 L126 42 L85 42 Z" fill="#93c5fd" opacity="0.72"/>
-      {/* Windshield glare */}
-      <path d="M87 17 Q87 13 93 12 L106 12 L104 24 L87 26 Z" fill="rgba(255,255,255,0.32)"/>
-      {/* Centre divider */}
-      <line x1="107" y1="12" x2="107" y2="42" stroke="#1e3a8a" strokeWidth="1.4"/>
-      {/* Belt line */}
-      <line x1="85" y1="42" x2="126" y2="42" stroke="#1e3a8a" strokeWidth="1.2"/>
-      {/* Front face / grill */}
-      <rect x="126" y="24" width="4" height="22" rx="1" fill="#163481"/>
-      <line x1="126.5" y1="27" x2="129.5" y2="27" stroke="#4b99f8" strokeWidth="0.65"/>
-      <line x1="126.5" y1="30" x2="129.5" y2="30" stroke="#4b99f8" strokeWidth="0.65"/>
-      <line x1="126.5" y1="33" x2="129.5" y2="33" stroke="#4b99f8" strokeWidth="0.65"/>
-      <line x1="126.5" y1="36" x2="129.5" y2="36" stroke="#4b99f8" strokeWidth="0.65"/>
-      <line x1="126.5" y1="39" x2="129.5" y2="39" stroke="#4b99f8" strokeWidth="0.65"/>
-      <line x1="126.5" y1="42" x2="129.5" y2="42" stroke="#4b99f8" strokeWidth="0.65"/>
-      {/* Headlight */}
-      <rect x="126" y="12" width="4" height="10" rx="2" fill="#fef3c7"/>
-      <rect x="126" y="12" width="4" height="5" rx="1" fill="#fef9c3"/>
-      {/* Mirror */}
-      <rect x="79" y="17" width="4" height="9" rx="1.5" fill="#163481"/>
-      {/* Bumper */}
-      <rect x="124" y="44" width="6" height="5" rx="1" fill="#163481"/>
-      {/* Chassis rail */}
-      <rect x="4" y="48" width="126" height="3" rx="1" fill="#163481"/>
-      {/* Wheels — trailer */}
-      <circle cx="20" cy="57" r="9" fill="#0f172a"/><circle cx="20" cy="57" r="5.5" fill="#1e293b"/><circle cx="20" cy="57" r="2.5" fill="#475569"/>
-      <circle cx="50" cy="57" r="9" fill="#0f172a"/><circle cx="50" cy="57" r="5.5" fill="#1e293b"/><circle cx="50" cy="57" r="2.5" fill="#475569"/>
-      {/* Wheels — drive axle */}
-      <circle cx="96" cy="57" r="9" fill="#0f172a"/><circle cx="96" cy="57" r="5.5" fill="#1e293b"/><circle cx="96" cy="57" r="2.5" fill="#475569"/>
-      <circle cx="116" cy="57" r="9" fill="#0f172a"/><circle cx="116" cy="57" r="5.5" fill="#1e293b"/><circle cx="116" cy="57" r="2.5" fill="#475569"/>
-    </svg>
+    <img
+      src="/icons/cargo-truck.png"
+      alt="OVORA-CARGO"
+      style={{ width: 110, height: 74, objectFit: 'cover', borderRadius: 10, flexShrink: 0, display: 'block' }}
+    />
   );
 }
 
-// ── Commercial airliner side view ─────────────────────────────────────
+// ── Avia plane photo ──────────────────────────────────────────────────
 function PlaneBig() {
   return (
-    <svg width="90" height="68" viewBox="0 0 130 72" fill="none" style={{ filter: 'drop-shadow(0 6px 18px rgba(14,165,233,0.55))' }}>
-      <defs>
-        <linearGradient id="pbBody" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#ffffff"/><stop offset="1" stopColor="#dbeafe"/></linearGradient>
-        <linearGradient id="pbWing" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#bfdbfe"/><stop offset="1" stopColor="#2563eb"/></linearGradient>
-        <linearGradient id="pbEng"  x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#64748b"/><stop offset="1" stopColor="#334155"/></linearGradient>
-      </defs>
-      {/* Fuselage */}
-      <path d="M20 31 Q16 31 14 36 Q12 40 14 44 Q16 48 20 49 L100 49 Q110 49 114 43 Q116 40 114 37 Q112 34 106 32 Z" fill="url(#pbBody)"/>
-      {/* Nose */}
-      <path d="M14 36 Q12 39 12 40.5 Q12 42 14 44 L20 49 L20 31 Q16 31 14 36 Z" fill="#f1f5f9"/>
-      {/* Main cheatline */}
-      <path d="M15 39 L104 39 Q110 39 114 40 Q110 41 104 41 L15 41 Z" fill="#0ea5e9"/>
-      {/* Upper accent line */}
-      <path d="M18 37 L102 37 Q107 37 111 38 Q107 38 102 38 L18 38 Z" fill="#38bdf8" opacity="0.5"/>
-      {/* Cockpit windows */}
-      <path d="M18 33 Q20 31 23 31 L23 36 Q20 36 18 34 Z" fill="#0ea5e9" opacity="0.85"/>
-      <rect x="24" y="32" width="5" height="4" rx="1.5" fill="#7dd3fc" opacity="0.9"/>
-      <rect x="31" y="32" width="4" height="3.5" rx="1.5" fill="#7dd3fc" opacity="0.7"/>
-      {/* Passenger windows */}
-      <rect x="40" y="32" width="4" height="5" rx="1.5" fill="#bae6fd" opacity="0.85"/>
-      <rect x="48" y="32" width="4" height="5" rx="1.5" fill="#bae6fd" opacity="0.85"/>
-      <rect x="56" y="32" width="4" height="5" rx="1.5" fill="#bae6fd" opacity="0.85"/>
-      <rect x="64" y="32" width="4" height="5" rx="1.5" fill="#bae6fd" opacity="0.85"/>
-      <rect x="72" y="32" width="4" height="5" rx="1.5" fill="#bae6fd" opacity="0.85"/>
-      <rect x="80" y="32" width="4" height="5" rx="1.5" fill="#bae6fd" opacity="0.85"/>
-      <rect x="88" y="32" width="4" height="5" rx="1.5" fill="#bae6fd" opacity="0.85"/>
-      {/* Main wing */}
-      <path d="M60 49 L50 67 L92 60 L96 49 Z" fill="url(#pbWing)"/>
-      <path d="M60 49 L50 67 L52 67 L62 49 Z" fill="rgba(255,255,255,0.45)"/>
-      {/* Winglet */}
-      <path d="M50 67 L47 71 L51 70 L52 67 Z" fill="#0284c7"/>
-      {/* Engine */}
-      <rect x="64" y="59" width="20" height="7" rx="3.5" fill="url(#pbEng)"/>
-      <ellipse cx="64" cy="62.5" rx="3.5" ry="3.5" fill="#475569"/>
-      <ellipse cx="64" cy="62.5" rx="2"   ry="2"   fill="#94a3b8"/>
-      <ellipse cx="84" cy="62.5" rx="2.2" ry="3.5" fill="#334155"/>
-      {/* Horizontal stabilizer */}
-      <path d="M102 40 L102 49 L114 46 L114 43 Z" fill="url(#pbWing)"/>
-      {/* Vertical stabilizer (tail fin) */}
-      <path d="M104 30 L102 40 L114 40 L114 30 Q110 23 106 22 Z" fill="#0ea5e9"/>
-      <path d="M106 22 Q110 23 114 30 L114 32 Q110 25 106 24 Z" fill="rgba(255,255,255,0.28)"/>
-    </svg>
+    <img
+      src="/icons/avia-plane.png"
+      alt="AVIA-CARGO"
+      style={{ width: 110, height: 74, objectFit: 'cover', borderRadius: 10, flexShrink: 0, display: 'block' }}
+    />
   );
 }
 
@@ -426,7 +327,7 @@ export function Welcome() {
               Ovora
             </span>
           </h1>
-          <p style={{ fontSize: 13, color: C.dim, lineHeight: 1.55, margin: 0, maxWidth: 300 }}>
+          <p className="ovora-hide-mobile" style={{ fontSize: 13, color: C.dim, lineHeight: 1.55, margin: 0, maxWidth: 300 }}>
             Грузоперевозки и авиадоставка между Россией, Таджикистаном и&nbsp;СНГ.
           </p>
 
