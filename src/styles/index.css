@@ -114,7 +114,13 @@ button, a {
     padding: 14px 0 0 !important;
   }
   .ovora-cards-grid > button { width: 100%; min-width: 0; }
+
+  /* show stats strip only on tablet+ */
+  .ovora-stats-strip { display: flex !important; }
 }
+
+/* hide stats strip on mobile */
+.ovora-stats-strip { display: none; }
 
 @media (min-width: 1100px) {
   .ovora-screen {

@@ -393,8 +393,8 @@ export function Welcome() {
             Грузоперевозки и авиадоставка между Россией, Таджикистаном и&nbsp;СНГ.
           </p>
 
-          {/* Stats strip */}
-          <div style={{ margin: '18px 0 0', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, overflow: 'hidden', background: 'rgba(255,255,255,0.025)', backdropFilter: 'blur(14px)', display: 'flex' }}>
+          {/* Stats strip — hidden on mobile, shown on tablet+ via CSS */}
+          <div className="ovora-stats-strip" style={{ margin: '18px 0 0', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, overflow: 'hidden', background: 'rgba(255,255,255,0.025)', backdropFilter: 'blur(14px)' }}>
             {statsStrip.map((s, i) => (
               <div key={i} style={{ flex: 1, padding: '12px 8px', textAlign: 'center', borderLeft: i ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
                 <div style={{ fontSize: 20, fontWeight: 900, color: s.color, lineHeight: 1 }}>
