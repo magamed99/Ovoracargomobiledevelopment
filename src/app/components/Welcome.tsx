@@ -1,138 +1,42 @@
 import { useState, useEffect, useRef } from 'react';
+import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router';
-import { Truck, Plane, ChevronRight, ArrowRight } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useLanguage } from '../context/LanguageContext';
 import type { LangCode } from '../i18n/translations';
-import { MapBackground } from './MapBackground';
-import { getPublicAds, getPublicStats } from '../api/dataApi';
+import { getPublicStats } from '../api/dataApi';
 
-const LANGS: { code: LangCode; flag: string; label: string }[] = [
-  { code: 'ru', flag: '\u{1F1F7}\u{1F1FA}', label: 'RU' },
-  { code: 'tj', flag: '\u{1F1F9}\u{1F1EF}', label: 'TJ' },
-  { code: 'en', flag: '\u{1F1FA}\u{1F1F8}', label: 'EN' },
+// ── Palette ────────────────────────────────────────────────────────────
+const C = {
+  dim:       '#6b8299',
+  dim2:      '#4a6080',
+  dim3:      '#3d5268',
+  blue:      '#2176e8',
+  blueLight: '#5ba3f5',
+  cyan:      '#38bdf8',
+  green:     '#34d399',
+  orange:    '#ff7a3b',
+  purple:    '#a78bfa',
+  cardLine:  'rgba(80,140,230,0.14)',
+} as const;
+
+// ── Language list ──────────────────────────────────────────────────────
+const LANGS: { code: LangCode; display: string; flag: string }[] = [
+  { code: 'ru', display: 'RU', flag: '🇷🇺' },
+  { code: 'tj', display: 'TJ', flag: '🇹🇯' },
+  { code: 'en', display: 'EN', flag: '🇺🇸' },
 ];
 
-/* ── Ad banner carousel ────────────────────────────────────────────── */
-function AdCarousel({ ads }: { ads: any[] }) {
-  const [idx, setIdx] = useState(0);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+// ── Partner placeholders ───────────────────────────────────────────────
+const PARTNERS = [
+  { name: 'Atlas Freight', sub: 'Global Logistics', mark: 'AF', color: '#e8443d' },
+  { name: 'Northwave',     sub: 'Ocean Shipping',   mark: 'NW', color: '#1872c4' },
+  { name: 'SwiftLine',     sub: 'Express Chain',    mark: 'SL', color: '#f5b81d' },
+  { name: 'Anatolia',      sub: 'Air Freight',      mark: 'AN', color: '#cf2d2d' },
+  { name: 'Eurorail',      sub: 'Logistics',        mark: 'ER', color: '#cf2222' },
+];
 
-  useEffect(() => {
-    if (ads.length <= 1) return;
-    timerRef.current = setInterval(() => setIdx(p => (p + 1) % ads.length), 5000);
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [ads.length]);
-
-  if (!ads.length) return null;
-  const ad = ads[idx % ads.length];
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.9, duration: 0.5 }}
-      style={{ width: '100%' }}
-    >
-      <a
-        href={ad.url && ad.url !== '#' ? ad.url : undefined}
-        target="_blank"
-        rel="noopener noreferrer"
-        style={{
-          display: 'block',
-          borderRadius: 16,
-          overflow: 'hidden',
-          border: '1px solid #ffffff12',
-          background: '#ffffff08',
-          textDecoration: 'none',
-          position: 'relative',
-          cursor: ad.url && ad.url !== '#' ? 'pointer' : 'default',
-        }}
-      >
-        {/* Image background */}
-        {ad.image && (
-          <img
-            src={ad.image}
-            alt=""
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.25 }}
-            onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-          />
-        )}
-        <div style={{
-          position: 'relative', zIndex: 2,
-          padding: '14px 16px',
-          display: 'flex', alignItems: 'center', gap: 12,
-        }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-              {ad.emoji && <span style={{ fontSize: 13 }}>{ad.emoji}</span>}
-              {ad.badge && (
-                <span style={{
-                  fontSize: 9, fontWeight: 800, color: '#5ba3f5',
-                  padding: '1px 7px', borderRadius: 8,
-                  background: '#5ba3f514', border: '1px solid #5ba3f525',
-                  letterSpacing: '0.06em', textTransform: 'uppercase',
-                }}>
-                  {ad.badge}
-                </span>
-              )}
-            </div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#e0e8f0', lineHeight: 1.3 }}>
-              {ad.title}
-            </div>
-            {ad.description && (
-              <div style={{ fontSize: 11, color: '#6b8299', marginTop: 2 }}>{ad.description}</div>
-            )}
-          </div>
-          {ad.url && ad.url !== '#' && (
-            <ChevronRight style={{ width: 16, height: 16, color: '#3d5268', flexShrink: 0 }} />
-          )}
-        </div>
-        {/* Dots */}
-        {ads.length > 1 && (
-          <div style={{
-            display: 'flex', gap: 4, justifyContent: 'center',
-            paddingBottom: 8,
-            position: 'relative', zIndex: 2,
-          }}>
-            {ads.map((_, i) => (
-              <div key={i} style={{
-                width: i === idx % ads.length ? 16 : 5,
-                height: 4, borderRadius: 3,
-                background: i === idx % ads.length ? '#5ba3f5' : '#ffffff1a',
-                transition: 'width 0.3s, background 0.3s',
-              }} />
-            ))}
-          </div>
-        )}
-        {/* Ad label */}
-        <div style={{
-          position: 'absolute', top: 8, right: 8, zIndex: 3,
-          fontSize: 8, fontWeight: 700, color: '#ffffff40',
-          letterSpacing: '0.08em', textTransform: 'uppercase',
-        }}>
-          AD
-        </div>
-      </a>
-    </motion.div>
-  );
-}
-
-/* ── Live dot ──────────────────────────────────────────────────────── */
-function LiveDot() {
-  return (
-    <div style={{ position: 'relative', width: 8, height: 8, flexShrink: 0 }}>
-      <motion.div
-        style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: '#34d399', opacity: 0.4 }}
-        animate={{ scale: [1, 2, 1], opacity: [0.4, 0, 0.4] }}
-        transition={{ duration: 2, repeat: Infinity, ease: 'easeOut' }}
-      />
-      <div style={{ position: 'absolute', inset: 1.5, borderRadius: '50%', background: '#34d399' }} />
-    </div>
-  );
-}
-
-/* ── Counter ───────────────────────────────────────────────────────── */
+// ── Counter ────────────────────────────────────────────────────────────
 function Counter({ target, suffix }: { target: number; suffix: string }) {
   const [count, setCount] = useState(0);
   const started = useRef(false);
@@ -143,8 +47,7 @@ function Counter({ target, suffix }: { target: number; suffix: string }) {
     let step = 0;
     const timer = setInterval(() => {
       step++;
-      const eased = 1 - Math.pow(1 - step / steps, 3);
-      setCount(Math.round(eased * target));
+      setCount(Math.round((1 - Math.pow(1 - step / steps, 3)) * target));
       if (step >= steps) clearInterval(timer);
     }, 1000 / 60);
     return () => clearInterval(timer);
@@ -152,486 +55,489 @@ function Counter({ target, suffix }: { target: number; suffix: string }) {
   return <>{count.toLocaleString('ru-RU')}{suffix}</>;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
-   WELCOME — единый портал двух миров
-   ══════════════════════════════════════════════════════════════════════ */
+// ── Live dot ───────────────────────────────────────────────────────────
+function LiveDot({ color = C.green, size = 8 }: { color?: string; size?: number }) {
+  return (
+    <span style={{ position: 'relative', width: size, height: size, display: 'inline-block', flexShrink: 0 }}>
+      <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: color, animation: 'pulseRing 2s ease-out infinite' }} />
+      <span style={{ position: 'absolute', inset: size * 0.18, borderRadius: '50%', background: color, boxShadow: `0 0 6px ${color}` }} />
+    </span>
+  );
+}
+
+// ── Map background ─────────────────────────────────────────────────────
+function MapBackground() {
+  return (
+    <div style={{ position: 'absolute', inset: 0, zIndex: 0, overflow: 'hidden' }}>
+      <div style={{
+        position: 'absolute', inset: 0,
+        backgroundImage: 'radial-gradient(rgba(91,163,245,0.12) 1px, transparent 1px)',
+        backgroundSize: '18px 18px',
+        maskImage: 'radial-gradient(ellipse 80% 60% at 50% 30%, #000 30%, transparent 75%)',
+        WebkitMaskImage: 'radial-gradient(ellipse 80% 60% at 50% 30%, #000 30%, transparent 75%)',
+      }} />
+      <div style={{
+        position: 'absolute', top: '-10%', left: '50%', transform: 'translateX(-50%)',
+        width: 520, height: 520, borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(33,118,232,0.35) 0%, transparent 60%)',
+        filter: 'blur(20px)',
+      }} />
+      <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} viewBox="0 0 460 920" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="arcGrad" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%"   stopColor="#5ba3f5" stopOpacity="0" />
+            <stop offset="50%"  stopColor="#5ba3f5" stopOpacity="0.6" />
+            <stop offset="100%" stopColor="#5ba3f5" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <path d="M-20 220 Q 230 80 480 220" stroke="url(#arcGrad)" strokeWidth="1" fill="none"
+          strokeDasharray="6 6" style={{ animation: 'dashMove 4s linear infinite' }} />
+        <path d="M-20 320 Q 230 200 480 320" stroke="url(#arcGrad)" strokeWidth="1" fill="none"
+          strokeDasharray="3 7" opacity="0.6" style={{ animation: 'dashMove 7s linear infinite reverse' }} />
+        <circle cx="80"  cy="180" r="2.5" fill="#5ba3f5" />
+        <circle cx="380" cy="190" r="2.5" fill="#5ba3f5" />
+        <circle cx="230" cy="115" r="3"   fill="#34d399" />
+      </svg>
+      <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 80% 60% at 50% 30%, transparent 30%, #03070f 100%)' }} />
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '60%', background: 'linear-gradient(to top, #03070f 35%, transparent 100%)' }} />
+    </div>
+  );
+}
+
+// ── Logo ───────────────────────────────────────────────────────────────
+function Logo() {
+  return (
+    <div style={{
+      width: 44, height: 44, borderRadius: 14,
+      background: 'linear-gradient(135deg, #0f52b6 0%, #2176e8 100%)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      boxShadow: '0 0 0 1px rgba(91,163,245,0.3), 0 8px 24px rgba(25,100,200,0.55)',
+      position: 'relative', overflow: 'hidden',
+    }}>
+      <span style={{
+        position: 'absolute', top: 0, bottom: 0, width: '40%',
+        background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent)',
+        animation: 'shineSweep 4s ease-in-out infinite',
+      }} />
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2" />
+        <path d="M15 18H9" />
+        <path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14" />
+        <circle cx="17" cy="18" r="2" />
+        <circle cx="7"  cy="18" r="2" />
+      </svg>
+    </div>
+  );
+}
+
+// ── Eyebrow label ──────────────────────────────────────────────────────
+function Eyebrow({ label }: { label: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+      <div style={{ width: 22, height: 2, background: C.blue, borderRadius: 1 }} />
+      <span style={{ fontSize: 10, fontWeight: 700, color: C.blueLight, letterSpacing: '0.14em', textTransform: 'uppercase' }}>{label}</span>
+    </div>
+  );
+}
+
+// ── Arrow right ────────────────────────────────────────────────────────
+function ArrowRight({ color }: { color: string }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <path d="M5 12h14M13 5l7 7-7 7" />
+    </svg>
+  );
+}
+
+// ── 3D icon wrapper ────────────────────────────────────────────────────
+function Icon3D({ size = 42, hue1, hue2, glow, children, radius = 12 }: {
+  size?: number; hue1: string; hue2: string; glow: string; children: ReactNode; radius?: number;
+}) {
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: radius, flexShrink: 0,
+      background: `linear-gradient(155deg, ${hue1} 0%, ${hue2} 100%)`,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      position: 'relative', overflow: 'hidden',
+      boxShadow: `0 0 0 1px rgba(255,255,255,0.08),inset 0 1.2px 0 rgba(255,255,255,0.45),inset 0 -1.5px 1px rgba(0,0,0,0.25),0 8px 18px ${glow},0 2px 4px rgba(0,0,0,0.3)`,
+    }}>
+      <span style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '55%', background: 'linear-gradient(180deg, rgba(255,255,255,0.32), transparent)', borderRadius: `${radius}px ${radius}px 100% 100% / ${radius}px ${radius}px 30% 30%`, pointerEvents: 'none' }} />
+      <span style={{ position: 'absolute', top: '8%', left: '12%', width: '30%', height: '18%', background: 'rgba(255,255,255,0.55)', borderRadius: '50%', filter: 'blur(3px)', pointerEvents: 'none' }} />
+      <span style={{ position: 'relative', zIndex: 1, display: 'flex', filter: 'drop-shadow(0 1.5px 1.5px rgba(0,0,0,0.35))' }}>{children}</span>
+    </div>
+  );
+}
+
+// ── Tag mini-icons ─────────────────────────────────────────────────────
+const _ti = (paths: ReactNode) => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">{paths}</svg>
+);
+const Ti = {
+  border: _ti(<><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></>),
+  driver: _ti(<><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></>),
+  box:    _ti(<><path d="M16.5 9.4 7.55 4.24"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></>),
+  radio:  _ti(<><path d="M4.9 16.1C1 12.2 1 5.8 4.9 1.9"/><path d="M7.8 4.7a6.14 6.14 0 0 0-.8 7.5"/><circle cx="12" cy="9" r="2"/><path d="M16.2 4.8c2 2 2.26 5.11.8 7.47"/><path d="M19.1 1.9a9.96 9.96 0 0 1 0 14.1"/><path d="M9.5 18h5"/><path d="m8 22 4-11 4 11"/></>),
+  plane:  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M22 12c0 .55-.45 1-1 1h-6.5l-3 7H10l1.5-7H7l-2 2H3l1.5-3L3 9h2l2 2h4.5L10 4h1.5l3 7H21c.55 0 1 .45 1 1z"/></svg>,
+  mail:   _ti(<><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></>),
+  flex:   _ti(<><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></>),
+};
+
+// ── 3D Isometric Truck ─────────────────────────────────────────────────
+function TruckBig() {
+  return (
+    <svg width="78" height="78" viewBox="0 0 100 100" fill="none" style={{ filter: 'drop-shadow(0 10px 18px rgba(33,118,232,0.45))' }}>
+      <defs>
+        <linearGradient id="tPodTop"  x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#7c8cff"/><stop offset="1" stopColor="#3b4fd6"/></linearGradient>
+        <linearGradient id="tPodSide" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#3b4fd6"/><stop offset="1" stopColor="#1f2da3"/></linearGradient>
+        <linearGradient id="tBody"    x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#ffffff"/><stop offset="1" stopColor="#d4dbe8"/></linearGradient>
+        <linearGradient id="tCab"     x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#9eaaf5"/><stop offset="1" stopColor="#5664d4"/></linearGradient>
+        <linearGradient id="tWin"     x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#1f2937"/><stop offset="1" stopColor="#0a0f1f"/></linearGradient>
+      </defs>
+      {/* podium */}
+      <path d="M50 60 L88 75 L50 90 L12 75 Z" fill="url(#tPodTop)"/>
+      <path d="M12 75 L50 90 L50 96 L12 81 Z" fill="url(#tPodSide)"/>
+      <path d="M88 75 L50 90 L50 96 L88 81 Z" fill="#2a3ab3"/>
+      <path d="M22 78 L48 88" stroke="#a5f3c7" strokeWidth="2" strokeLinecap="round" strokeDasharray="2 3" opacity="0.9"/>
+      <circle cx="22" cy="78" r="2"   fill="#a5f3c7"/>
+      <circle cx="48" cy="88" r="2.4" fill="#22d39a"/>
+      {/* truck body */}
+      <g transform="translate(0,-2)">
+        <ellipse cx="50" cy="64" rx="28" ry="4" fill="#0a1432" opacity="0.35"/>
+        <path d="M28 40 L60 30 L72 36 L40 46 Z" fill="#eef2ff"/>
+        <path d="M28 40 L40 46 L40 64 L28 58 Z" fill="url(#tBody)"/>
+        <path d="M40 46 L72 36 L72 54 L40 64 Z" fill="#c7cfe0"/>
+        <path d="M60 30 L78 36 L86 40 L72 36 Z" fill="#b8c2f5"/>
+        <path d="M72 36 L86 40 L86 54 L72 54 Z" fill="url(#tCab)"/>
+        <path d="M75 40 L84 43 L84 49 L75 47 Z" fill="url(#tWin)"/>
+        <circle cx="84.5" cy="51" r="1.6" fill="#fde68a"/>
+        <ellipse cx="36" cy="66" rx="4" ry="3" fill="#0a0f1f"/>
+        <ellipse cx="36" cy="65" rx="2" ry="1.3" fill="#5664d4"/>
+        <ellipse cx="56" cy="60" rx="4" ry="3" fill="#0a0f1f"/>
+        <ellipse cx="56" cy="59" rx="2" ry="1.3" fill="#5664d4"/>
+        <ellipse cx="78" cy="56" rx="4" ry="3" fill="#0a0f1f"/>
+        <ellipse cx="78" cy="55" rx="2" ry="1.3" fill="#5664d4"/>
+      </g>
+    </svg>
+  );
+}
+
+// ── 3D Isometric Plane ─────────────────────────────────────────────────
+function PlaneBig() {
+  return (
+    <svg width="78" height="78" viewBox="0 0 100 100" fill="none" style={{ filter: 'drop-shadow(0 10px 18px rgba(14,165,233,0.45))' }}>
+      <defs>
+        <linearGradient id="pPodTop"  x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#7dd3fc"/><stop offset="1" stopColor="#0284c7"/></linearGradient>
+        <linearGradient id="pPodSide" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#0284c7"/><stop offset="1" stopColor="#075985"/></linearGradient>
+        <linearGradient id="pBody"    x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#ffffff"/><stop offset="1" stopColor="#cbd5e1"/></linearGradient>
+        <linearGradient id="pWing"    x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#dbeafe"/><stop offset="1" stopColor="#94a3b8"/></linearGradient>
+      </defs>
+      <path d="M50 65 L88 80 L50 95 L12 80 Z" fill="url(#pPodTop)"/>
+      <path d="M12 80 L50 95 L50 99 L12 84 Z" fill="url(#pPodSide)"/>
+      <path d="M88 80 L50 95 L50 99 L88 84 Z" fill="#075985"/>
+      <circle cx="72" cy="76" r="4" fill="#a5f3c7"/>
+      <path d="M72 76 L72 82" stroke="#a5f3c7" strokeWidth="1.6"/>
+      <circle cx="28" cy="84" r="2" fill="#22d39a"/>
+      <path d="M28 84 Q50 70 72 76" stroke="#a5f3c7" strokeWidth="1.4" strokeDasharray="2 3" fill="none"/>
+      <g transform="translate(50 42) rotate(-18)">
+        <ellipse cx="0" cy="22" rx="22" ry="3" fill="#0a1432" opacity="0.3"/>
+        <path d="M-8 0 L8 0 L26 16 L18 18 L4 6 L-4 6 L-18 18 L-26 16 Z" fill="url(#pWing)"/>
+        <ellipse cx="0" cy="0" rx="26" ry="6" fill="url(#pBody)"/>
+        <path d="M-22 0 L-28 -10 L-24 -10 L-18 -2 Z" fill="#cbd5e1"/>
+        <path d="M-20 0 L-30 6 L-26 8 L-18 4 Z" fill="url(#pWing)"/>
+        <ellipse cx="24" cy="0" rx="4" ry="5" fill="#e2e8f0"/>
+        <rect x="-14" y="-1.6" width="22" height="2.6" rx="1.3" fill="#0c4a6e"/>
+        <path d="M18 -2 Q22 -1 22 1 L18 1 Z" fill="#0c4a6e"/>
+        <ellipse cx="-2" cy="-3" rx="18" ry="1.2" fill="#fff" opacity="0.6"/>
+      </g>
+    </svg>
+  );
+}
+
+// ── World card ─────────────────────────────────────────────────────────
+interface WorldCardProps {
+  title: string;
+  desc: string;
+  tags: { icon: ReactNode; label: string }[];
+  accent: string;
+  accentLight: string;
+  icon: ReactNode;
+  onClick: () => void;
+}
+function WorldCard({ title, desc, tags, accent, accentLight, icon, onClick }: WorldCardProps) {
+  return (
+    <button onClick={onClick} style={{
+      border: `1px solid ${accent}30`,
+      background: `linear-gradient(145deg, ${accent}1a 0%, rgba(10,22,40,0.55) 100%)`,
+      borderRadius: 20, padding: 0, width: '100%', cursor: 'pointer',
+      textAlign: 'left', position: 'relative', overflow: 'hidden',
+      fontFamily: 'inherit', backdropFilter: 'blur(8px)',
+    }}>
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, ${accent}, transparent)`, opacity: 0.7 }} />
+      <div style={{ position: 'absolute', top: -30, right: -30, width: 140, height: 140, borderRadius: '50%', background: `radial-gradient(circle, ${accent}40, transparent 70%)`, filter: 'blur(8px)', pointerEvents: 'none' }} />
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '15px 15px 11px', position: 'relative' }}>
+        {icon}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <span style={{ fontSize: 18, fontWeight: 800, color: '#fff', letterSpacing: '-0.3px' }}>{title}</span>
+            <span style={{ fontSize: 9, fontWeight: 700, color: C.green, padding: '2px 7px', borderRadius: 9, background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.3)', letterSpacing: '0.06em', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <LiveDot size={5} /> LIVE
+            </span>
+          </div>
+          <p style={{ fontSize: 11, color: C.dim, lineHeight: 1.45, margin: 0 }}>{desc}</p>
+        </div>
+        <ArrowRight color={accentLight} />
+      </div>
+
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '0 15px 15px', position: 'relative' }}>
+        {tags.map((t, i) => (
+          <span key={i} style={{ fontSize: 10, fontWeight: 600, color: accentLight, padding: '4px 9px', borderRadius: 8, background: `${accent}10`, border: `1px solid ${accent}25`, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ display: 'inline-flex' }}>{t.icon}</span>
+            {t.label}
+          </span>
+        ))}
+      </div>
+    </button>
+  );
+}
+
+// ── Stat icon type ─────────────────────────────────────────────────────
+type StatIconType = 'box' | 'driver' | 'clock' | 'check';
+const STAT_HUES: Record<StatIconType, { h1: string; h2: string; glow: string }> = {
+  box:    { h1: '#7dd3fc', h2: '#0369a1', glow: 'rgba(56,189,248,0.4)' },
+  driver: { h1: '#6ee7b7', h2: '#047857', glow: 'rgba(52,211,153,0.4)' },
+  clock:  { h1: '#fdba74', h2: '#c2410c', glow: 'rgba(251,146,60,0.4)' },
+  check:  { h1: '#c4b5fd', h2: '#5b21b6', glow: 'rgba(167,139,250,0.4)' },
+};
+function StatIcon3D({ type }: { type: StatIconType }) {
+  const { h1, h2, glow } = STAT_HUES[type];
+  const p = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: '#fff', strokeWidth: 1.9, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
+  const svgs: Record<StatIconType, ReactNode> = {
+    box:    <svg {...p}><path d="M16.5 9.4 7.55 4.24"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>,
+    driver: <svg {...p}><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>,
+    clock:  <svg {...p}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+    check:  <svg {...p}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>,
+  };
+  return <Icon3D size={32} hue1={h1} hue2={h2} glow={glow} radius={10}>{svgs[type]}</Icon3D>;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// WELCOME
+// ══════════════════════════════════════════════════════════════════════
 export function Welcome() {
-  const navigate = useNavigate();
+  const navigate  = useNavigate();
   const { lang, setLang } = useLanguage();
   const [selectedLang, setSelectedLang] = useState<LangCode>(lang);
-  const [mounted, setMounted] = useState(false);
-  const [ads, setAds] = useState<any[]>([]);
+  const [mounted, setMounted]   = useState(false);
   const [liveStats, setLiveStats] = useState<{ drivers: number; cities: number; satisfied: number } | null>(null);
 
   useEffect(() => {
     setMounted(true);
-    getPublicAds('welcome').then(d => { if (d?.length) setAds(d); }).catch(() => {});
     getPublicStats().then(s => setLiveStats(s)).catch(() => {});
   }, []);
 
-  const handleLangSelect = (code: LangCode) => { setSelectedLang(code); setLang(code); };
+  const handleLang = (code: LangCode) => { setSelectedLang(code); setLang(code); };
 
   if (!mounted) return null;
 
-  const stats = [
-    { value: liveStats?.drivers ?? 3400, suffix: liveStats ? '' : '+', label: 'Водителей', color: '#5ba3f5' },
-    { value: liveStats?.cities ?? 12, suffix: '', label: 'Городов', color: '#a78bfa' },
-    { value: liveStats?.satisfied ?? 98, suffix: '%', label: 'Довольных', color: '#34d399' },
+  const statsStrip = [
+    { target: liveStats?.drivers  ?? 3400, suffix: liveStats ? '' : '+', label: 'Водителей', color: C.blueLight },
+    { target: liveStats?.cities   ?? 12,   suffix: '',                    label: 'Городов',   color: C.purple },
+    { target: liveStats?.satisfied ?? 98,  suffix: '%',                   label: 'Довольных', color: C.green },
+  ];
+
+  const bottomStats: { icon: StatIconType; val: number; suffix: string; label: string; color: string }[] = [
+    { icon: 'box',    val: 128, suffix: '',      label: 'Грузов онлайн',      color: C.blueLight },
+    { icon: 'driver', val: 43,  suffix: '',      label: 'Водителей онлайн',   color: C.green },
+    { icon: 'clock',  val: 12,  suffix: ' мин',  label: 'Очередь на границе', color: C.orange },
+    { icon: 'check',  val: 98,  suffix: '%',     label: 'Доставка в срок',    color: C.purple },
   ];
 
   return (
-    <div style={{
-      position: 'relative', width: '100%', minHeight: '100dvh',
-      overflow: 'hidden', background: '#060d18',
-      fontFamily: "'Sora', 'Inter', sans-serif",
-    }}>
+    <div className="ovora-app">
       <MapBackground />
 
-      {/* Vignettes */}
-      <div style={{
-        position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none',
-        background: 'radial-gradient(ellipse 80% 60% at 50% 30%, transparent 30%, #060d18 100%)',
-      }} />
-      <div style={{
-        position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 5, pointerEvents: 'none',
-        height: '60%',
-        background: 'linear-gradient(to top, #060d18 45%, transparent 100%)',
-      }} />
-
-      {/* ══════ CONTENT ══════ */}
-      <div className="wc-portal-outer" style={{ position: 'relative', zIndex: 20 }}>
+      <div className="ovora-screen" style={{ position: 'relative', zIndex: 2 }}>
 
         {/* ── HEADER ── */}
-        <motion.div
-          className="wc-portal-header"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        <motion.div className="ovora-area-header"
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 18px 0' }}
+          initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
         >
-          {/* Logo */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{
-              width: 42, height: 42, borderRadius: 13,
-              background: 'linear-gradient(135deg, #0f52b6 0%, #2176e8 100%)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 0 0 1px #5ba3f54d, 0 8px 24px #1964c899',
-            }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="1" y="3" width="15" height="13" rx="2"/>
-                <path d="M16 8h4l3 5v4h-7V8z"/>
-                <circle cx="5.5" cy="18.5" r="2.5"/>
-                <circle cx="18.5" cy="18.5" r="2.5"/>
-              </svg>
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+            <Logo />
             <div>
-              <div style={{ fontSize: 17, fontWeight: 800, color: '#fff', letterSpacing: '-0.3px', lineHeight: 1.1 }}>
-                Ovora
-              </div>
-              <div style={{ fontSize: 10, color: '#4a6080', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                Logistics & Air Cargo
-              </div>
+              <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: '-0.3px', lineHeight: 1.05 }}>Ovora</div>
+              <div style={{ fontSize: 9, color: C.dim2, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 2 }}>Logistics & Air Cargo</div>
             </div>
           </div>
-
-          {/* Online badge */}
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            padding: '6px 12px',
-            background: '#34d39914', border: '1px solid #34d39933',
-            borderRadius: 20,
-          }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '6px 11px', background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.25)', borderRadius: 20 }}>
             <LiveDot />
-            <span style={{ fontSize: 10, fontWeight: 700, color: '#34d399', letterSpacing: '0.06em' }}>
-              {'\u041E\u041D\u041B\u0410\u0419\u041D'}
-            </span>
+            <span style={{ fontSize: 10, fontWeight: 700, color: C.green, letterSpacing: '0.08em' }}>ОНЛАЙН</span>
           </div>
         </motion.div>
 
         {/* ── HERO ── */}
-        <div className="wc-portal-hero">
-          <motion.div
-            initial={{ opacity: 0, x: -12 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2, duration: 0.4 }}
-            style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}
-          >
-            <div style={{ width: 24, height: 2, background: '#1978e5', borderRadius: 1 }} />
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#5ba3f5', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-              {'\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u043D\u0430\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u0435'}
-            </span>
-          </motion.div>
-
-          <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.25, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            className="wc-portal-title"
-            style={{
-              fontWeight: 900, lineHeight: 1.05, letterSpacing: '-1.5px',
-              color: '#fff', margin: '0 0 6px',
-            }}
-          >
-            {'\u041F\u043B\u0430\u0442\u0444\u043E\u0440\u043C\u0430'}
-            <br />
-            <span style={{
-              background: 'linear-gradient(95deg, #2176e8 0%, #5ba3f5 45%, #38bdf8 100%)',
-              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-            }}>
+        <motion.div className="ovora-area-hero"
+          style={{ padding: '18px 18px 0' }}
+          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.5 }}
+        >
+          <Eyebrow label="Выберите направление" />
+          <h1 style={{ fontSize: 44, fontWeight: 900, lineHeight: 1.02, letterSpacing: '-1.8px', color: '#fff', margin: '0 0 8px' }}>
+            Платформа<br />
+            <span style={{ background: 'linear-gradient(95deg, #2176e8 0%, #5ba3f5 45%, #38bdf8 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
               Ovora
             </span>
-          </motion.h1>
+          </h1>
+          <p style={{ fontSize: 13, color: C.dim, lineHeight: 1.55, margin: 0, maxWidth: 300 }}>
+            Грузоперевозки и авиадоставка между Россией, Таджикистаном и&nbsp;СНГ.
+          </p>
 
-          <motion.p
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.35, duration: 0.5 }}
-            style={{ fontSize: 14, color: '#6b8299', lineHeight: 1.6, margin: '0 0 24px', maxWidth: 380 }}
-          >
-            {'\u0413\u0440\u0443\u0437\u043E\u043F\u0435\u0440\u0435\u0432\u043E\u0437\u043A\u0438 \u0438 \u0430\u0432\u0438\u0430\u0434\u043E\u0441\u0442\u0430\u0432\u043A\u0430 \u043C\u0435\u0436\u0434\u0443 \u0420\u043E\u0441\u0441\u0438\u0439, \u0422\u0430\u0434\u0436\u0438\u043A\u0438\u0441\u0442\u0430\u043D\u043E\u043C \u0438 \u0421\u041D\u0413. \u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0441\u0432\u043E\u0439 \u043C\u043E\u0434\u0443\u043B\u044C \u0438 \u043D\u0430\u0447\u043D\u0438\u0442\u0435 \u0440\u0430\u0431\u043E\u0442\u0430\u0442\u044C.'}
-          </motion.p>
-
-          {/* Stats — desktop only */}
-          <motion.div
-            className="wc-portal-stats"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.45, duration: 0.5 }}
-          >
-            {stats.map((s, i) => (
-              <div key={s.label} className="wc-portal-stat-item" style={{ position: 'relative' }}>
-                {i < stats.length - 1 && (
-                  <div style={{
-                    position: 'absolute', right: 0, top: '12%', height: '76%',
-                    width: 1, background: '#ffffff0a', pointerEvents: 'none',
-                  }} />
-                )}
-                <div style={{ fontSize: 22, fontWeight: 900, color: s.color, lineHeight: 1 }}>
-                  <Counter target={s.value} suffix={s.suffix} />
+          {/* Stats strip */}
+          <div style={{ margin: '18px 0 0', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, overflow: 'hidden', background: 'rgba(255,255,255,0.025)', backdropFilter: 'blur(14px)', display: 'flex' }}>
+            {statsStrip.map((s, i) => (
+              <div key={i} style={{ flex: 1, padding: '12px 8px', textAlign: 'center', borderLeft: i ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
+                <div style={{ fontSize: 20, fontWeight: 900, color: s.color, lineHeight: 1 }}>
+                  <Counter target={s.target} suffix={s.suffix} />
                 </div>
-                <div style={{ fontSize: 10, color: '#4a6080', fontWeight: 600, letterSpacing: '0.05em', marginTop: 4 }}>
-                  {s.label}
-                </div>
+                <div style={{ fontSize: 10, color: C.dim2, fontWeight: 600, letterSpacing: '0.05em', marginTop: 4 }}>{s.label}</div>
               </div>
             ))}
-          </motion.div>
-        </div>
+          </div>
+        </motion.div>
 
-        {/* ── WORLD CARDS ── */}
-        <div className="wc-portal-cards">
-          {/* CARGO card */}
-          <motion.button
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.45, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            whileTap={{ scale: 0.97 }}
-            onClick={() => navigate('/role-select')}
-            className="wc-world-card"
-            style={{
-              background: 'linear-gradient(145deg, #0d1f3c 0%, #0a1628 100%)',
-              border: '1px solid #1d4ed830',
-              borderRadius: 22,
-              padding: 0,
-              cursor: 'pointer',
-              overflow: 'hidden',
-              textAlign: 'left',
-              position: 'relative',
-              width: '100%',
-            }}
-          >
-            {/* Top glow */}
-            <div style={{
-              position: 'absolute', top: 0, left: 0, right: 0, height: 1,
-              background: 'linear-gradient(90deg, transparent, #3b82f680, transparent)',
-            }} />
-            <div style={{ padding: 'clamp(18px, 4vw, 24px)' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-                <div style={{
-                  width: 52, height: 52, borderRadius: 16,
-                  background: 'linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  flexShrink: 0,
-                  boxShadow: '0 0 20px #3b82f633',
+        {/* ── LANGUAGE ── */}
+        <motion.div className="ovora-area-lang"
+          style={{ padding: '18px 18px 0' }}
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2, duration: 0.4 }}
+        >
+          <div style={{ fontSize: 9, fontWeight: 700, color: C.dim3, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Язык интерфейса</div>
+          <div style={{ display: 'flex', gap: 7 }}>
+            {LANGS.map(l => {
+              const active = selectedLang === l.code;
+              return (
+                <button key={l.code} onClick={() => handleLang(l.code)} style={{
+                  flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  padding: '10px 4px', borderRadius: 12,
+                  border: active ? '1px solid rgba(91,163,245,0.5)' : '1px solid rgba(255,255,255,0.06)',
+                  background: active ? 'rgba(33,118,232,0.13)' : 'rgba(255,255,255,0.03)',
+                  color: active ? '#e8f0ff' : C.dim3,
+                  fontSize: 12, fontWeight: 700, letterSpacing: '0.04em',
+                  cursor: 'pointer', fontFamily: 'inherit', position: 'relative', overflow: 'hidden',
                 }}>
-                  <Truck style={{ width: 26, height: 26, color: '#fff' }} />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                    <span style={{ fontSize: 18, fontWeight: 800, color: '#fff', letterSpacing: '-0.3px' }}>
-                      CARGO
-                    </span>
-                    <span style={{
-                      fontSize: 9, fontWeight: 700, color: '#34d399',
-                      padding: '2px 8px', borderRadius: 10,
-                      background: '#34d39914', border: '1px solid #34d39930',
-                      letterSpacing: '0.06em',
-                    }}>
-                      LIVE
-                    </span>
+                  {active && <span style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at top, rgba(91,163,245,0.18), transparent 70%)' }} />}
+                  <span style={{ fontSize: 16, position: 'relative' }}>{l.flag}</span>
+                  <span style={{ position: 'relative' }}>{l.display}</span>
+                </button>
+              );
+            })}
+          </div>
+        </motion.div>
+
+        {/* ── CITY ROUTE ── */}
+        <motion.div className="ovora-area-route"
+          style={{ padding: '12px 18px 0' }}
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25, duration: 0.4 }}
+        >
+          <svg width="100%" height="22" viewBox="0 0 360 22" preserveAspectRatio="none" style={{ display: 'block' }}>
+            <path d="M20 14 Q 100 -2 180 14 T 340 14" stroke={C.blueLight} strokeWidth="1.2" fill="none" strokeDasharray="2 3" opacity="0.55" style={{ animation: 'dashMove 5s linear infinite' }} />
+            <circle cx="20"  cy="14" r="4" fill={C.blueLight} />
+            <circle cx="180" cy="14" r="4" fill={C.blueLight} />
+            <circle cx="340" cy="14" r="4" fill={C.blueLight} />
+          </svg>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: C.dim2, marginTop: 4, padding: '0 4px', fontWeight: 500 }}>
+            <span>Москва</span><span>Казань</span><span>Екатеринбург</span>
+          </div>
+        </motion.div>
+
+        {/* ── CARDS ── */}
+        <motion.div className="ovora-area-cards"
+          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.45 }}
+        >
+          <div className="ovora-cards-grid" style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '14px 18px 0' }}>
+            <WorldCard
+              title="AVIA"
+              desc="Авиагруз  Россия ↔ Таджикистан"
+              icon={<PlaneBig />}
+              accent="#0369a1" accentLight={C.cyan}
+              onClick={() => navigate('/avia')}
+              tags={[
+                { icon: Ti.plane, label: 'Курьер' },
+                { icon: Ti.mail,  label: 'Отправитель' },
+                { icon: Ti.flex,  label: 'Гибкие роли' },
+              ]}
+            />
+            <WorldCard
+              title="CARGO"
+              desc="Грузоперевозки  Россия · Таджикистан · СНГ"
+              icon={<TruckBig />}
+              accent="#1d4ed8" accentLight={C.blueLight}
+              onClick={() => navigate('/role-select')}
+              tags={[
+                { icon: Ti.border, label: 'Границы' },
+                { icon: Ti.driver, label: 'Водители' },
+                { icon: Ti.box,    label: 'Грузы' },
+                { icon: Ti.radio,  label: 'Рация' },
+              ]}
+            />
+          </div>
+        </motion.div>
+
+        {/* ── PARTNERS ── */}
+        <motion.div className="ovora-area-partners"
+          style={{ padding: '16px 18px 0' }}
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.38, duration: 0.4 }}
+        >
+          <div style={{ background: 'rgba(13,20,40,0.7)', border: `1px solid ${C.cardLine}`, borderRadius: 18, padding: '14px 14px 12px', backdropFilter: 'blur(10px)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div style={{ fontSize: 15, fontWeight: 700 }}>Наши партнёры</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: C.blueLight, fontWeight: 600 }}>
+                Смотреть все
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.blueLight} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 6 }}>
+              {PARTNERS.map((p, i) => (
+                <div key={i} style={{ width: 82, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                  <div style={{ width: 82, height: 64, borderRadius: 12, background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,0.08)', position: 'relative', overflow: 'hidden', boxShadow: '0 4px 14px rgba(0,0,0,0.35)' }}>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: p.color, letterSpacing: -0.5 }}>{p.mark}</div>
+                    <div style={{ position: 'absolute', bottom: 5, right: 7, width: 16, height: 3, borderRadius: 2, background: p.color, opacity: 0.55 }} />
                   </div>
-                  <p style={{ fontSize: 12, color: '#6b8299', lineHeight: 1.5, margin: 0 }}>
-                    {'\u0413\u0440\u0443\u0437\u043E\u043F\u0435\u0440\u0435\u0432\u043E\u0437\u043A\u0438 \u0420\u043E\u0441\u0441\u0438\u044F \u00B7 \u0422\u0430\u0434\u0436\u0438\u043A\u0438\u0441\u0442\u0430\u043D \u00B7 \u0421\u041D\u0413'}
-                  </p>
-                </div>
-                <ArrowRight style={{ width: 20, height: 20, color: '#3b82f6', flexShrink: 0, marginTop: 4 }} />
-              </div>
-              {/* Features row */}
-              <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
-                {['\u{1F6E3}\u{FE0F} \u0413\u0440\u0430\u043D\u0438\u0446\u044B', '\u{1F697} \u0412\u043E\u0434\u0438\u0442\u0435\u043B\u0438', '\u{1F4E6} \u0413\u0440\u0443\u0437\u044B', '\u{1F4E1} \u0420\u0430\u0446\u0438\u044F'].map(tag => (
-                  <span key={tag} style={{
-                    fontSize: 10, fontWeight: 600, color: '#5ba3f5',
-                    padding: '3px 10px', borderRadius: 8,
-                    background: '#3b82f60d', border: '1px solid #3b82f620',
-                  }}>
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </motion.button>
-
-          {/* AVIA card */}
-          <motion.button
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.55, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            whileTap={{ scale: 0.97 }}
-            onClick={() => navigate('/avia')}
-            className="wc-world-card"
-            style={{
-              background: 'linear-gradient(145deg, #0c1f2e 0%, #0a1420 100%)',
-              border: '1px solid #0ea5e925',
-              borderRadius: 22,
-              padding: 0,
-              cursor: 'pointer',
-              overflow: 'hidden',
-              textAlign: 'left',
-              position: 'relative',
-              width: '100%',
-            }}
-          >
-            {/* Top glow */}
-            <div style={{
-              position: 'absolute', top: 0, left: 0, right: 0, height: 1,
-              background: 'linear-gradient(90deg, transparent, #0ea5e960, transparent)',
-            }} />
-            <div style={{ padding: 'clamp(18px, 4vw, 24px)' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-                <div style={{
-                  width: 52, height: 52, borderRadius: 16,
-                  background: 'linear-gradient(135deg, #0369a1 0%, #0ea5e9 100%)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  flexShrink: 0,
-                  boxShadow: '0 0 20px #0ea5e933',
-                }}>
-                  <Plane style={{ width: 26, height: 26, color: '#fff' }} />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                    <span style={{ fontSize: 18, fontWeight: 800, color: '#fff', letterSpacing: '-0.3px' }}>
-                      AVIA
-                    </span>
-                    <span style={{
-                      fontSize: 9, fontWeight: 700, color: '#34d399',
-                      padding: '2px 8px', borderRadius: 10,
-                      background: '#34d39914', border: '1px solid #34d39930',
-                      letterSpacing: '0.06em',
-                    }}>
-                      LIVE
-                    </span>
+                  <div style={{ textAlign: 'center', lineHeight: 1.2 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700 }}>{p.name}</div>
+                    <div style={{ fontSize: 9, color: C.dim2, marginTop: 1 }}>{p.sub}</div>
                   </div>
-                  <p style={{ fontSize: 12, color: '#6b8299', lineHeight: 1.5, margin: 0 }}>
-                    {'\u0410\u0432\u0438\u0430\u0433\u0440\u0443\u0437 \u0420\u043E\u0441\u0441\u0438\u044F \u2194 \u0422\u0430\u0434\u0436\u0438\u043A\u0438\u0441\u0442\u0430\u043D'}
-                  </p>
                 </div>
-                <ArrowRight style={{ width: 20, height: 20, color: '#0ea5e9', flexShrink: 0, marginTop: 4 }} />
-              </div>
-              {/* Features row */}
-              <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
-                {['\u2708\u{FE0F} \u041A\u0443\u0440\u044C\u0435\u0440', '\u{1F4E8} \u041E\u0442\u043F\u0440\u0430\u0432\u0438\u0442\u0435\u043B\u044C', '\u{1F504} \u0413\u0438\u0431\u043A\u0438\u0435 \u0440\u043E\u043B\u0438'].map(tag => (
-                  <span key={tag} style={{
-                    fontSize: 10, fontWeight: 600, color: '#38bdf8',
-                    padding: '3px 10px', borderRadius: 8,
-                    background: '#0ea5e90d', border: '1px solid #0ea5e920',
-                  }}>
-                    {tag}
-                  </span>
-                ))}
-              </div>
+              ))}
             </div>
-          </motion.button>
-        </div>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 5, marginTop: 6 }}>
+              {[1, 0, 0, 0, 0].map((a, i) => (
+                <span key={i} style={{ width: a ? 14 : 5, height: 5, borderRadius: 99, background: a ? C.blueLight : 'rgba(255,255,255,0.18)' }} />
+              ))}
+            </div>
+          </div>
+        </motion.div>
 
-        {/* ── BOTTOM: Lang + Ads ── */}
-        <div className="wc-portal-bottom">
-          {/* Language */}
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7, duration: 0.4 }}
-            style={{ width: '100%' }}
-          >
-            <div style={{ fontSize: 9, fontWeight: 700, color: '#3d5268', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>
-              {'\u042F\u0437\u044B\u043A \u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0430'}
+        {/* ── BOTTOM STATS ── */}
+        <motion.div className="ovora-area-stats"
+          style={{ display: 'flex', gap: 8, padding: '14px 18px 0' }}
+          initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45, duration: 0.45 }}
+        >
+          {bottomStats.map((s, i) => (
+            <div key={i} style={{ flex: 1, background: 'rgba(13,20,40,0.7)', border: `1px solid ${C.cardLine}`, borderRadius: 14, padding: '10px 8px', display: 'flex', flexDirection: 'column', gap: 4, backdropFilter: 'blur(8px)' }}>
+              <StatIcon3D type={s.icon} />
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
+                <span style={{ fontSize: 22, fontWeight: 800, lineHeight: 1 }}>
+                  <Counter target={s.val} suffix="" />
+                </span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: s.color }}>{s.suffix}</span>
+              </div>
+              <div style={{ fontSize: 10, color: C.dim2, lineHeight: 1.2 }}>{s.label}</div>
             </div>
-            <div style={{ display: 'flex', gap: 6 }}>
-              {LANGS.map(l => {
-                const isActive = selectedLang === l.code;
-                return (
-                  <motion.button
-                    key={l.code}
-                    whileTap={{ scale: 0.94 }}
-                    onClick={() => handleLangSelect(l.code)}
-                    style={{
-                      flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                      padding: '9px 6px', borderRadius: 12,
-                      border: isActive ? '1px solid #5ba3f560' : '1px solid #ffffff0f',
-                      background: isActive ? '#2176e820' : '#ffffff08',
-                      cursor: 'pointer',
-                      transition: 'border-color 0.2s, background 0.2s',
-                    }}
-                  >
-                    <span style={{ fontSize: 18 }}>{l.flag}</span>
-                    <span style={{
-                      fontSize: 11, fontWeight: 700,
-                      color: isActive ? '#e8f0ff' : '#3d5268',
-                      letterSpacing: '0.04em',
-                    }}>
-                      {l.label}
-                    </span>
-                  </motion.button>
-                );
-              })}
-            </div>
-          </motion.div>
-
-          {/* Ads carousel */}
-          {ads.length > 0 && <AdCarousel ads={ads} />}
-        </div>
+          ))}
+        </motion.div>
 
       </div>
-
-      <style>{`
-        .wc-portal-outer {
-          display: flex;
-          flex-direction: column;
-          min-height: 100dvh;
-          width: 100%;
-          max-width: 100vw;
-          box-sizing: border-box;
-          padding: 0;
-        }
-        .wc-portal-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: clamp(14px,4vw,24px) clamp(16px,5vw,24px) 0;
-          flex-shrink: 0;
-        }
-        .wc-portal-hero {
-          padding: clamp(20px,5vw,32px) clamp(16px,5vw,24px) 0;
-          flex-shrink: 0;
-        }
-        .wc-portal-title {
-          font-size: clamp(30px, 8vw, 42px);
-        }
-        .wc-portal-stats {
-          display: none;
-        }
-        .wc-portal-stat-item {
-          flex: 1;
-          text-align: center;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          padding: 14px 8px;
-        }
-        .wc-portal-cards {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-          padding: clamp(16px,4vw,24px) clamp(16px,5vw,24px) 0;
-          flex: 1;
-          justify-content: center;
-        }
-        .wc-portal-bottom {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-          padding: clamp(14px,3vw,20px) clamp(16px,5vw,24px) clamp(18px,4dvh,28px);
-          flex-shrink: 0;
-        }
-
-        /* ── DESKTOP ── */
-        @media (min-width: 700px) {
-          .wc-portal-outer {
-            max-width: 1200px;
-            margin: 0 auto;
-            flex-direction: row;
-            flex-wrap: wrap;
-            align-content: center;
-            justify-content: center;
-            padding: clamp(24px, 4vw, 40px) clamp(28px, 4vw, 56px);
-            gap: 0;
-          }
-          .wc-portal-header {
-            width: 100%;
-            padding: 0 0 clamp(24px,4vh,40px);
-          }
-          .wc-portal-hero {
-            flex: 1;
-            min-width: 0;
-            padding: 0 clamp(20px,3vw,40px) 0 0;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-          }
-          .wc-portal-title {
-            font-size: clamp(38px, 4.5vw, 60px);
-          }
-          .wc-portal-stats {
-            display: flex;
-            gap: 0;
-            margin-top: 28px;
-            border: 1px solid #ffffff12;
-            border-radius: 18px;
-            overflow: hidden;
-            backdrop-filter: blur(20px);
-            background: #ffffff08;
-            max-width: 380px;
-          }
-          .wc-portal-cards {
-            width: clamp(320px, 35vw, 440px);
-            flex-shrink: 0;
-            flex: none;
-            padding: 0;
-            justify-content: center;
-          }
-          .wc-portal-bottom {
-            width: 100%;
-            flex-direction: row;
-            align-items: flex-end;
-            padding: clamp(20px,3vh,32px) 0 0;
-            gap: 20px;
-          }
-          .wc-portal-bottom > * {
-            flex: 1;
-          }
-        }
-
-        /* ── LARGE DESKTOP ── */
-        @media (min-width: 1200px) {
-          .wc-portal-outer {
-            max-width: 1360px;
-          }
-          .wc-portal-title {
-            font-size: 64px;
-          }
-          .wc-portal-cards {
-            width: 460px;
-          }
-        }
-      `}</style>
     </div>
   );
 }
