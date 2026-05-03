@@ -12,11 +12,11 @@ const LANGS: { code: LangCode; flag: string; label: string }[] = [
 ];
 
 const PARTNERS = [
-  { name: 'DP World',       logo: 'https://upload.wikimedia.org/wikipedia/commons/0/0b/DP_World_logo.svg' },
-  { name: 'Maersk',         logo: 'https://upload.wikimedia.org/wikipedia/commons/7/79/Maersk_Group_Logo.svg' },
-  { name: 'DHL',            logo: 'https://upload.wikimedia.org/wikipedia/commons/a/ac/DHL_Logo.svg' },
-  { name: 'Turkish Cargo',  logo: null },
-  { name: 'DB Schenker',    logo: null },
+  { name: 'DP World',      sub: 'Global Logistics',  logo: 'https://upload.wikimedia.org/wikipedia/commons/0/0b/DP_World_logo.svg',   emoji: '🌐' },
+  { name: 'Maersk',        sub: 'Ocean Shipping',    logo: 'https://upload.wikimedia.org/wikipedia/commons/7/79/Maersk_Group_Logo.svg', emoji: '⚓' },
+  { name: 'DHL Supply',    sub: 'Chain',             logo: 'https://upload.wikimedia.org/wikipedia/commons/a/ac/DHL_Logo.svg',          emoji: '📦' },
+  { name: 'Turkish Cargo', sub: 'Air Freight',       logo: null,                                                                         emoji: '✈️' },
+  { name: 'DB Schenker',   sub: 'Logistics',         logo: null,                                                                         emoji: '🚂' },
 ];
 
 function Counter({ target, suffix }: { target: number; suffix: string }) {
@@ -136,12 +136,62 @@ export function Welcome() {
         </div>
       </motion.div>
 
-      {/* ── CARGO CARD ── */}
+      {/* ── AVIA CARD ── */}
       <motion.button
         style={{ ...S.card, width: 'calc(100% - 32px)', textAlign: 'left', cursor: 'pointer', display: 'block' }}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1, duration: 0.45 }}
+        whileTap={{ scale: 0.98 }}
+        onClick={() => navigate('/avia')}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+            <div style={{
+              width: 72, height: 72, borderRadius: 18,
+              background: 'linear-gradient(135deg, #0369a1, #0ea5e9)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 4px 18px rgba(14,165,233,0.3)', flexShrink: 0,
+            }}>
+              <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21 4 19 4c-1.4 0-2.2.7-2.5 1.5L13 9 4.8 6.2c-.4-.1-.8.1-1 .5l-.3.6c-.2.4-.1.8.2 1.1L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.3.7.4 1.1.2l.6-.3c.4-.2.6-.6.5-1z"/>
+              </svg>
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
+                <span style={{ fontSize: 26, fontWeight: 900, letterSpacing: '-0.5px' }}>AVIA</span>
+                <span style={{
+                  color: '#00ff88', border: '1px solid #00ff88',
+                  padding: '2px 10px', borderRadius: 12, fontSize: 13, fontWeight: 700,
+                }}>LIVE</span>
+              </div>
+              <div style={{ color: '#8ea6c7', fontSize: 14, lineHeight: 1.4 }}>
+                Авиагруз Россия ↔ Таджикистан
+              </div>
+            </div>
+          </div>
+          <span style={{ fontSize: 34, color: '#1677ff', flexShrink: 0 }}>→</span>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16 }}>
+          {['✈️ Курьер', '✉️ Отправитель', '🧳 Гибкие роли'].map(tag => (
+            <div key={tag} style={{
+              flex: 1, minWidth: 90, padding: '11px 8px', borderRadius: 14,
+              border: '1px solid rgba(0,136,255,0.15)', background: '#04101f',
+              textAlign: 'center', color: '#4ea1ff', fontSize: 13, fontWeight: 600,
+            }}>
+              {tag}
+            </div>
+          ))}
+        </div>
+      </motion.button>
+
+      {/* ── CARGO CARD ── */}
+      <motion.button
+        style={{ ...S.card, width: 'calc(100% - 32px)', textAlign: 'left', cursor: 'pointer', display: 'block' }}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.18, duration: 0.45 }}
         whileTap={{ scale: 0.98 }}
         onClick={() => navigate('/role-select')}
       >
@@ -180,56 +230,6 @@ export function Welcome() {
           {['🛂 Границы', '🚛 Водители', '📦 Грузы', '📡 Рация'].map(tag => (
             <div key={tag} style={{
               flex: 1, minWidth: 80, padding: '11px 8px', borderRadius: 14,
-              border: '1px solid rgba(0,136,255,0.15)', background: '#04101f',
-              textAlign: 'center', color: '#4ea1ff', fontSize: 13, fontWeight: 600,
-            }}>
-              {tag}
-            </div>
-          ))}
-        </div>
-      </motion.button>
-
-      {/* ── AVIA CARD ── */}
-      <motion.button
-        style={{ ...S.card, width: 'calc(100% - 32px)', textAlign: 'left', cursor: 'pointer', display: 'block' }}
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.18, duration: 0.45 }}
-        whileTap={{ scale: 0.98 }}
-        onClick={() => navigate('/avia')}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-            <div style={{
-              width: 72, height: 72, borderRadius: 18,
-              background: 'linear-gradient(135deg, #0369a1, #0ea5e9)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 4px 18px rgba(14,165,233,0.3)', flexShrink: 0,
-            }}>
-              <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21 4 19 4c-1.4 0-2.2.7-2.5 1.5L13 9 4.8 6.2c-.4-.1-.8.1-1 .5l-.3.6c-.2.4-.1.8.2 1.1L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.3.7.4 1.1.2l.6-.3c.4-.2.6-.6.5-1z"/>
-              </svg>
-            </div>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
-                <span style={{ fontSize: 26, fontWeight: 900, letterSpacing: '-0.5px' }}>AVIA</span>
-                <span style={{
-                  color: '#00ff88', border: '1px solid #00ff88',
-                  padding: '2px 10px', borderRadius: 12, fontSize: 13, fontWeight: 700,
-                }}>LIVE</span>
-              </div>
-              <div style={{ color: '#8ea6c7', fontSize: 14, lineHeight: 1.4 }}>
-                Авиагруз Россия ↔ Таджикистан
-              </div>
-            </div>
-          </div>
-          <span style={{ fontSize: 34, color: '#1677ff', flexShrink: 0 }}>→</span>
-        </div>
-
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16 }}>
-          {['✈️ Курьер', '✉️ Отправитель', '🧳 Гибкие роли'].map(tag => (
-            <div key={tag} style={{
-              flex: 1, minWidth: 90, padding: '11px 8px', borderRadius: 14,
               border: '1px solid rgba(0,136,255,0.15)', background: '#04101f',
               textAlign: 'center', color: '#4ea1ff', fontSize: 13, fontWeight: 600,
             }}>
@@ -363,11 +363,11 @@ export function Welcome() {
         </div>
       </motion.div>
 
-      {/* ── STATS 2×2 ── */}
+      {/* ── STATS ROW ── */}
       <motion.div
         style={{
-          display: 'grid', gridTemplateColumns: '1fr 1fr',
-          gap: 12, padding: '16px 16px max(28px, env(safe-area-inset-bottom, 28px))',
+          display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr',
+          gap: 8, padding: '16px 16px max(28px, env(safe-area-inset-bottom, 28px))',
         }}
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -375,13 +375,13 @@ export function Welcome() {
       >
         {stats.map(s => (
           <div key={s.label} style={{
-            background: '#061225', borderRadius: 22, padding: '22px 20px',
-            border: '1px solid rgba(0,136,255,0.15)',
+            background: '#061225', borderRadius: 16, padding: '16px 8px',
+            border: '1px solid rgba(0,136,255,0.15)', textAlign: 'center',
           }}>
-            <div style={{ fontSize: 36, fontWeight: 900, color: s.color, marginBottom: 8, lineHeight: 1, letterSpacing: '-0.5px' }}>
+            <div style={{ fontSize: 22, fontWeight: 900, color: s.color, marginBottom: 4, lineHeight: 1, letterSpacing: '-0.3px' }}>
               <Counter target={s.value} suffix={s.suffix} />
             </div>
-            <p style={{ color: '#94a3b8', lineHeight: 1.4, fontSize: 14, whiteSpace: 'pre-line' }}>
+            <p style={{ color: '#94a3b8', lineHeight: 1.3, fontSize: 11, whiteSpace: 'pre-line' }}>
               {s.label}
             </p>
           </div>
