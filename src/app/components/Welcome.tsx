@@ -119,12 +119,21 @@ function Logo() {
         background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent)',
         animation: 'shineSweep 4s ease-in-out infinite',
       }} />
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2" />
-        <path d="M15 18H9" />
-        <path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14" />
-        <circle cx="17" cy="18" r="2" />
-        <circle cx="7"  cy="18" r="2" />
+      <svg width="24" height="24" viewBox="0 0 100 100" fill="none">
+        {/* Body */}
+        <ellipse cx="50" cy="54" rx="18" ry="9" fill="rgba(255,255,255,0.25)"/>
+        {/* Wings spread */}
+        <path d="M50 50 C38 42 18 32 8 26 C12 36 22 44 32 48 L50 50Z" fill="#fff"/>
+        <path d="M50 50 C62 42 82 32 92 26 C88 36 78 44 68 48 L50 50Z" fill="rgba(255,255,255,0.85)"/>
+        {/* Tail feathers */}
+        <path d="M44 54 C40 62 36 70 34 76 C40 72 46 65 50 58 C54 65 60 72 66 76 C64 70 60 62 56 54 Z" fill="#fff"/>
+        {/* Head */}
+        <ellipse cx="50" cy="40" rx="8" ry="9" fill="#fff"/>
+        {/* Beak */}
+        <path d="M50 44 L44 48 L50 50 Z" fill="#fcd34d"/>
+        {/* Eye */}
+        <circle cx="47" cy="38" r="1.8" fill="#0a1432"/>
+        <circle cx="46.5" cy="37.5" r="0.6" fill="#fff"/>
       </svg>
     </div>
   );
@@ -182,73 +191,120 @@ const Ti = {
   flex:   _ti(<><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></>),
 };
 
-// ── 3D Isometric Truck ─────────────────────────────────────────────────
+// ── Side-view Semi-Truck ───────────────────────────────────────────────
 function TruckBig() {
   return (
-    <svg width="78" height="78" viewBox="0 0 100 100" fill="none" style={{ filter: 'drop-shadow(0 10px 18px rgba(33,118,232,0.45))' }}>
+    <svg width="78" height="78" viewBox="0 0 120 80" fill="none" style={{ filter: 'drop-shadow(0 8px 16px rgba(33,118,232,0.5))' }}>
       <defs>
-        <linearGradient id="tPodTop"  x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#7c8cff"/><stop offset="1" stopColor="#3b4fd6"/></linearGradient>
-        <linearGradient id="tPodSide" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#3b4fd6"/><stop offset="1" stopColor="#1f2da3"/></linearGradient>
-        <linearGradient id="tBody"    x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#ffffff"/><stop offset="1" stopColor="#d4dbe8"/></linearGradient>
-        <linearGradient id="tCab"     x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#9eaaf5"/><stop offset="1" stopColor="#5664d4"/></linearGradient>
-        <linearGradient id="tWin"     x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#1f2937"/><stop offset="1" stopColor="#0a0f1f"/></linearGradient>
+        <linearGradient id="trCab" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#3b82f6"/><stop offset="1" stopColor="#1d4ed8"/></linearGradient>
+        <linearGradient id="trTrailer" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#eff6ff"/><stop offset="1" stopColor="#bfdbfe"/></linearGradient>
+        <linearGradient id="trWin" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#93c5fd"/><stop offset="1" stopColor="#1e40af"/></linearGradient>
       </defs>
-      {/* podium */}
-      <path d="M50 60 L88 75 L50 90 L12 75 Z" fill="url(#tPodTop)"/>
-      <path d="M12 75 L50 90 L50 96 L12 81 Z" fill="url(#tPodSide)"/>
-      <path d="M88 75 L50 90 L50 96 L88 81 Z" fill="#2a3ab3"/>
-      <path d="M22 78 L48 88" stroke="#a5f3c7" strokeWidth="2" strokeLinecap="round" strokeDasharray="2 3" opacity="0.9"/>
-      <circle cx="22" cy="78" r="2"   fill="#a5f3c7"/>
-      <circle cx="48" cy="88" r="2.4" fill="#22d39a"/>
-      {/* truck body */}
-      <g transform="translate(0,-2)">
-        <ellipse cx="50" cy="64" rx="28" ry="4" fill="#0a1432" opacity="0.35"/>
-        <path d="M28 40 L60 30 L72 36 L40 46 Z" fill="#eef2ff"/>
-        <path d="M28 40 L40 46 L40 64 L28 58 Z" fill="url(#tBody)"/>
-        <path d="M40 46 L72 36 L72 54 L40 64 Z" fill="#c7cfe0"/>
-        <path d="M60 30 L78 36 L86 40 L72 36 Z" fill="#b8c2f5"/>
-        <path d="M72 36 L86 40 L86 54 L72 54 Z" fill="url(#tCab)"/>
-        <path d="M75 40 L84 43 L84 49 L75 47 Z" fill="url(#tWin)"/>
-        <circle cx="84.5" cy="51" r="1.6" fill="#fde68a"/>
-        <ellipse cx="36" cy="66" rx="4" ry="3" fill="#0a0f1f"/>
-        <ellipse cx="36" cy="65" rx="2" ry="1.3" fill="#5664d4"/>
-        <ellipse cx="56" cy="60" rx="4" ry="3" fill="#0a0f1f"/>
-        <ellipse cx="56" cy="59" rx="2" ry="1.3" fill="#5664d4"/>
-        <ellipse cx="78" cy="56" rx="4" ry="3" fill="#0a0f1f"/>
-        <ellipse cx="78" cy="55" rx="2" ry="1.3" fill="#5664d4"/>
-      </g>
+      {/* Trailer body */}
+      <rect x="8" y="22" width="72" height="36" rx="3" fill="url(#trTrailer)"/>
+      {/* Trailer top stripe */}
+      <rect x="8" y="22" width="72" height="5" rx="2" fill="#2176e8"/>
+      {/* Trailer side detail lines */}
+      <line x1="28" y1="27" x2="28" y2="58" stroke="#93c5fd" strokeWidth="0.8" opacity="0.6"/>
+      <line x1="48" y1="27" x2="48" y2="58" stroke="#93c5fd" strokeWidth="0.8" opacity="0.6"/>
+      <line x1="68" y1="27" x2="68" y2="58" stroke="#93c5fd" strokeWidth="0.8" opacity="0.6"/>
+      {/* Trailer door outline */}
+      <rect x="70" y="27" width="8" height="31" rx="1" fill="none" stroke="#2176e8" strokeWidth="1.2"/>
+      {/* Cab */}
+      <path d="M80 58 L80 30 Q80 22 88 22 L100 22 Q108 22 112 30 L112 58 Z" fill="url(#trCab)"/>
+      {/* Cab top curve */}
+      <path d="M80 30 Q80 22 88 22 L100 22 Q108 22 112 30" fill="none" stroke="#60a5fa" strokeWidth="1.5"/>
+      {/* Windshield */}
+      <path d="M84 32 L84 50 L108 50 L108 36 Q106 30 100 29 L88 29 Q84 29 84 32 Z" fill="url(#trWin)" opacity="0.9"/>
+      {/* Windshield glare */}
+      <path d="M86 31 L86 40 L96 36 L94 29 L88 29 Q86 29 86 31 Z" fill="rgba(255,255,255,0.35)"/>
+      {/* Side mirror */}
+      <rect x="78" y="32" width="4" height="7" rx="1" fill="#1d4ed8"/>
+      {/* Exhaust pipe */}
+      <rect x="110" y="18" width="3" height="14" rx="1.5" fill="#374151"/>
+      <ellipse cx="111.5" cy="18" rx="2" ry="1" fill="#6b7280"/>
+      {/* Front bumper */}
+      <rect x="108" y="52" width="8" height="6" rx="2" fill="#1e3a8a"/>
+      {/* Headlight */}
+      <rect x="109" y="40" width="5" height="8" rx="2" fill="#fde68a" opacity="0.9"/>
+      <rect x="109" y="40" width="5" height="3" rx="1" fill="#fef9c3"/>
+      {/* Grille */}
+      <rect x="109" y="49" width="5" height="4" rx="1" fill="#1e3a8a"/>
+      <line x1="110" y1="50" x2="113" y2="50" stroke="#3b82f6" strokeWidth="0.7"/>
+      <line x1="110" y1="51.5" x2="113" y2="51.5" stroke="#3b82f6" strokeWidth="0.7"/>
+      {/* Connector between cab and trailer */}
+      <rect x="76" y="50" width="6" height="5" rx="1" fill="#1e40af"/>
+      {/* Frame / chassis */}
+      <rect x="8" y="58" width="112" height="4" rx="1" fill="#1e3a8a"/>
+      {/* Wheels — trailer */}
+      <circle cx="25" cy="67" r="8" fill="#111827"/>
+      <circle cx="25" cy="67" r="5" fill="#1f2937"/>
+      <circle cx="25" cy="67" r="2.5" fill="#374151"/>
+      <circle cx="45" cy="67" r="8" fill="#111827"/>
+      <circle cx="45" cy="67" r="5" fill="#1f2937"/>
+      <circle cx="45" cy="67" r="2.5" fill="#374151"/>
+      {/* Wheels — drive axle */}
+      <circle cx="88" cy="67" r="8" fill="#111827"/>
+      <circle cx="88" cy="67" r="5" fill="#1f2937"/>
+      <circle cx="88" cy="67" r="2.5" fill="#374151"/>
+      <circle cx="105" cy="67" r="8" fill="#111827"/>
+      <circle cx="105" cy="67" r="5" fill="#1f2937"/>
+      <circle cx="105" cy="67" r="2.5" fill="#374151"/>
     </svg>
   );
 }
 
-// ── 3D Isometric Plane ─────────────────────────────────────────────────
+// ── Side-view Commercial Airplane ─────────────────────────────────────
 function PlaneBig() {
   return (
-    <svg width="78" height="78" viewBox="0 0 100 100" fill="none" style={{ filter: 'drop-shadow(0 10px 18px rgba(14,165,233,0.45))' }}>
+    <svg width="78" height="78" viewBox="0 0 120 80" fill="none" style={{ filter: 'drop-shadow(0 8px 16px rgba(14,165,233,0.5))' }}>
       <defs>
-        <linearGradient id="pPodTop"  x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#7dd3fc"/><stop offset="1" stopColor="#0284c7"/></linearGradient>
-        <linearGradient id="pPodSide" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#0284c7"/><stop offset="1" stopColor="#075985"/></linearGradient>
-        <linearGradient id="pBody"    x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#ffffff"/><stop offset="1" stopColor="#cbd5e1"/></linearGradient>
-        <linearGradient id="pWing"    x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#dbeafe"/><stop offset="1" stopColor="#94a3b8"/></linearGradient>
+        <linearGradient id="plBody" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#ffffff"/><stop offset="1" stopColor="#dbeafe"/></linearGradient>
+        <linearGradient id="plWing" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#bfdbfe"/><stop offset="1" stopColor="#3b82f6"/></linearGradient>
+        <linearGradient id="plEng" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#64748b"/><stop offset="1" stopColor="#334155"/></linearGradient>
+        <linearGradient id="plNose" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#e2e8f0"/><stop offset="1" stopColor="#fff"/></linearGradient>
       </defs>
-      <path d="M50 65 L88 80 L50 95 L12 80 Z" fill="url(#pPodTop)"/>
-      <path d="M12 80 L50 95 L50 99 L12 84 Z" fill="url(#pPodSide)"/>
-      <path d="M88 80 L50 95 L50 99 L88 84 Z" fill="#075985"/>
-      <circle cx="72" cy="76" r="4" fill="#a5f3c7"/>
-      <path d="M72 76 L72 82" stroke="#a5f3c7" strokeWidth="1.6"/>
-      <circle cx="28" cy="84" r="2" fill="#22d39a"/>
-      <path d="M28 84 Q50 70 72 76" stroke="#a5f3c7" strokeWidth="1.4" strokeDasharray="2 3" fill="none"/>
-      <g transform="translate(50 42) rotate(-18)">
-        <ellipse cx="0" cy="22" rx="22" ry="3" fill="#0a1432" opacity="0.3"/>
-        <path d="M-8 0 L8 0 L26 16 L18 18 L4 6 L-4 6 L-18 18 L-26 16 Z" fill="url(#pWing)"/>
-        <ellipse cx="0" cy="0" rx="26" ry="6" fill="url(#pBody)"/>
-        <path d="M-22 0 L-28 -10 L-24 -10 L-18 -2 Z" fill="#cbd5e1"/>
-        <path d="M-20 0 L-30 6 L-26 8 L-18 4 Z" fill="url(#pWing)"/>
-        <ellipse cx="24" cy="0" rx="4" ry="5" fill="#e2e8f0"/>
-        <rect x="-14" y="-1.6" width="22" height="2.6" rx="1.3" fill="#0c4a6e"/>
-        <path d="M18 -2 Q22 -1 22 1 L18 1 Z" fill="#0c4a6e"/>
-        <ellipse cx="-2" cy="-3" rx="18" ry="1.2" fill="#fff" opacity="0.6"/>
-      </g>
+      {/* Fuselage */}
+      <path d="M18 35 Q14 35 12 40 Q10 45 12 48 Q14 53 18 53 L96 53 Q106 53 110 46 Q112 43 110 40 Q108 37 102 35 Z" fill="url(#plBody)"/>
+      {/* Nose cone */}
+      <path d="M12 40 Q10 43 10 44.5 Q10 46 12 48 Q14 50 18 53 L18 35 Q14 35 12 40 Z" fill="url(#plNose)"/>
+      {/* Blue cheatline */}
+      <path d="M14 43 L100 43 Q107 43 110 44 Q107 45 100 45 L14 45 Z" fill="#0ea5e9"/>
+      {/* Second cheatline */}
+      <path d="M16 41 L98 41 Q104 41 108 42 Q104 42 98 42 L16 42 Z" fill="#38bdf8" opacity="0.5"/>
+      {/* Cockpit windows */}
+      <path d="M16 37 Q18 35 21 35 L21 40 Q18 40 16 38 Z" fill="#0ea5e9" opacity="0.8"/>
+      <ellipse cx="24" cy="37.5" rx="3" ry="2.5" fill="#7dd3fc" opacity="0.9"/>
+      <ellipse cx="30" cy="37" rx="2.5" ry="2" fill="#7dd3fc" opacity="0.7"/>
+      {/* Passenger windows */}
+      <rect x="38" y="36" width="4" height="5" rx="1.5" fill="#bae6fd" opacity="0.85"/>
+      <rect x="46" y="36" width="4" height="5" rx="1.5" fill="#bae6fd" opacity="0.85"/>
+      <rect x="54" y="36" width="4" height="5" rx="1.5" fill="#bae6fd" opacity="0.85"/>
+      <rect x="62" y="36" width="4" height="5" rx="1.5" fill="#bae6fd" opacity="0.85"/>
+      <rect x="70" y="36" width="4" height="5" rx="1.5" fill="#bae6fd" opacity="0.85"/>
+      <rect x="78" y="36" width="4" height="5" rx="1.5" fill="#bae6fd" opacity="0.85"/>
+      <rect x="86" y="36" width="4" height="5" rx="1.5" fill="#bae6fd" opacity="0.85"/>
+      {/* Main wing */}
+      <path d="M55 53 L45 72 L85 65 L90 53 Z" fill="url(#plWing)"/>
+      {/* Wing leading edge highlight */}
+      <path d="M55 53 L45 72 L47 72 L57 53 Z" fill="rgba(255,255,255,0.5)"/>
+      {/* Winglet */}
+      <path d="M45 72 L42 76 L46 74 L47 72 Z" fill="#0284c7"/>
+      {/* Engine under wing */}
+      <rect x="58" y="62" width="18" height="7" rx="3.5" fill="url(#plEng)"/>
+      <ellipse cx="58" cy="65.5" rx="3.5" ry="3.5" fill="#475569"/>
+      <ellipse cx="76" cy="65.5" rx="2" ry="3.5" fill="#334155"/>
+      {/* Engine fan highlight */}
+      <ellipse cx="58" cy="65.5" rx="2" ry="2" fill="#94a3b8"/>
+      {/* Horizontal stabilizer */}
+      <path d="M96 44 L96 53 L108 50 L108 47 Z" fill="url(#plWing)"/>
+      {/* Vertical stabilizer */}
+      <path d="M98 35 L96 44 L108 44 L108 35 Q104 28 100 27 Z" fill="#0ea5e9"/>
+      <path d="M100 27 Q104 28 108 35 L108 37 Q104 30 100 29 Z" fill="rgba(255,255,255,0.3)"/>
+      {/* Logo text area on tail */}
+      <rect x="99" y="36" width="7" height="3" rx="1" fill="rgba(255,255,255,0.2)"/>
+      {/* Tail stripe */}
+      <rect x="92" y="43" width="18" height="2" rx="1" fill="#38bdf8" opacity="0.7"/>
     </svg>
   );
 }
