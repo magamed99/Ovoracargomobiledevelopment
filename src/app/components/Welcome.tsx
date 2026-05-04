@@ -173,7 +173,7 @@ const Ti = {
 function TruckBig() {
   return (
     <img src="/icons/cargo-truck.png" alt="CARGO"
-      style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 14, flexShrink: 0, display: 'block' }}
+      style={{ width: 'clamp(52px,16vw,72px)', height: 'clamp(52px,16vw,72px)', objectFit: 'cover', borderRadius: 12, flexShrink: 0, display: 'block' }}
     />
   );
 }
@@ -182,7 +182,7 @@ function TruckBig() {
 function PlaneBig() {
   return (
     <img src="/icons/avia-plane.png" alt="AVIA"
-      style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 14, flexShrink: 0, display: 'block' }}
+      style={{ width: 'clamp(52px,16vw,72px)', height: 'clamp(52px,16vw,72px)', objectFit: 'cover', borderRadius: 12, flexShrink: 0, display: 'block' }}
     />
   );
 }
@@ -205,28 +205,28 @@ function WorldCard({ title, desc, tags, accentLight, icon, onClick }: WorldCardP
       textAlign: 'left', fontFamily: 'inherit',
       boxShadow: '0 2px 16px rgba(0,0,0,0.45)',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 13px 8px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(8px,2.5vw,13px)', padding: 'clamp(10px,3vw,14px) clamp(10px,3vw,14px) clamp(7px,2vw,9px)' }}>
         {icon}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-            <span style={{ fontSize: 18, fontWeight: 800, color: '#fff', letterSpacing: '-0.2px' }}>{title}</span>
-            <span style={{ fontSize: 9, fontWeight: 700, color: C.green, padding: '2px 7px', borderRadius: 8, background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.28)', letterSpacing: '0.06em', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3 }}>
+            <span style={{ fontSize: 'clamp(15px,4.5vw,18px)', fontWeight: 800, color: '#fff', letterSpacing: '-0.2px' }}>{title}</span>
+            <span style={{ fontSize: 'clamp(8px,2.2vw,9px)', fontWeight: 700, color: C.green, padding: '2px 6px', borderRadius: 7, background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.28)', letterSpacing: '0.05em', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
               <LiveDot size={4} /> LIVE
             </span>
           </div>
-          <p style={{ fontSize: 11, color: 'rgba(155,170,210,0.85)', lineHeight: 1.4, margin: 0 }}>{desc}</p>
+          <p style={{ fontSize: 'clamp(9px,2.8vw,11px)', color: 'rgba(155,170,210,0.85)', lineHeight: 1.4, margin: 0 }}>{desc}</p>
         </div>
         <ArrowRight color={accentLight} />
       </div>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '0 13px 13px' }}>
+      <div style={{ display: 'flex', gap: 'clamp(4px,1.5vw,6px)', flexWrap: 'wrap', padding: '0 clamp(10px,3vw,13px) clamp(10px,3vw,13px)' }}>
         {tags.map((t, i) => (
           <span key={i} style={{
-            fontSize: 10, fontWeight: 600,
+            fontSize: 'clamp(9px,2.5vw,10px)', fontWeight: 600,
             color: '#fff',
-            padding: '4px 9px', borderRadius: 8,
+            padding: 'clamp(3px,1vw,4px) clamp(7px,2vw,9px)', borderRadius: 7,
             background: t.bg ?? 'rgba(255,255,255,0.07)',
             border: t.bg ? 'none' : '1px solid rgba(255,255,255,0.08)',
-            display: 'inline-flex', alignItems: 'center', gap: 5,
+            display: 'inline-flex', alignItems: 'center', gap: 4,
           }}>
             <span style={{ display: 'inline-flex' }}>{t.icon}</span>
             {t.label}
@@ -308,25 +308,25 @@ export function Welcome() {
 
         {/* ── LANGUAGE ── */}
         <motion.div className="ovora-area-lang"
-          style={{ padding: '18px 18px 0' }}
+          style={{ padding: 'clamp(10px,3vw,18px) clamp(12px,4vw,18px) 0' }}
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2, duration: 0.4 }}
         >
-          <div style={{ fontSize: 9, fontWeight: 700, color: C.dim3, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Язык интерфейса</div>
-          <div style={{ display: 'flex', gap: 7 }}>
+          <div style={{ fontSize: 'clamp(7px,2vw,9px)', fontWeight: 700, color: C.dim3, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>Язык интерфейса</div>
+          <div style={{ display: 'flex', gap: 'clamp(4px,1.5vw,7px)' }}>
             {LANGS.map(l => {
               const active = selectedLang === l.code;
               return (
                 <button key={l.code} onClick={() => handleLang(l.code)} style={{
-                  flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  padding: '10px 4px', borderRadius: 12,
+                  flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                  padding: 'clamp(6px,2vw,10px) 4px', borderRadius: 10,
                   border: active ? '1px solid rgba(91,163,245,0.5)' : '1px solid rgba(255,255,255,0.06)',
                   background: active ? 'rgba(33,118,232,0.13)' : 'rgba(255,255,255,0.03)',
                   color: active ? '#e8f0ff' : C.dim3,
-                  fontSize: 12, fontWeight: 700, letterSpacing: '0.04em',
+                  fontSize: 'clamp(10px,3vw,12px)', fontWeight: 700, letterSpacing: '0.03em',
                   cursor: 'pointer', fontFamily: 'inherit', position: 'relative', overflow: 'hidden',
                 }}>
                   {active && <span style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at top, rgba(91,163,245,0.18), transparent 70%)' }} />}
-                  <span style={{ fontSize: 16, position: 'relative' }}>{l.flag}</span>
+                  <span style={{ fontSize: 'clamp(13px,4vw,16px)', position: 'relative' }}>{l.flag}</span>
                   <span style={{ position: 'relative' }}>{l.display}</span>
                 </button>
               );
@@ -336,16 +336,16 @@ export function Welcome() {
 
         {/* ── CITY ROUTE ── */}
         <motion.div className="ovora-area-route"
-          style={{ padding: '12px 18px 0' }}
+          style={{ padding: 'clamp(8px,2.5vw,12px) clamp(12px,4vw,18px) 0' }}
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25, duration: 0.4 }}
         >
-          <svg width="100%" height="22" viewBox="0 0 360 22" preserveAspectRatio="none" style={{ display: 'block' }}>
+          <svg width="100%" height="20" viewBox="0 0 360 22" preserveAspectRatio="none" style={{ display: 'block' }}>
             <path d="M20 14 Q 100 -2 180 14 T 340 14" stroke={C.blueLight} strokeWidth="1.2" fill="none" strokeDasharray="2 3" opacity="0.55" style={{ animation: 'dashMove 5s linear infinite' }} />
             <circle cx="20"  cy="14" r="4" fill={C.blueLight} />
             <circle cx="180" cy="14" r="4" fill={C.blueLight} />
             <circle cx="340" cy="14" r="4" fill={C.blueLight} />
           </svg>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: C.dim2, marginTop: 4, padding: '0 4px', fontWeight: 500 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'clamp(9px,2.8vw,11px)', color: C.dim2, marginTop: 3, padding: '0 4px', fontWeight: 500 }}>
             <span>Москва</span><span>Казань</span><span>Екатеринбург</span>
           </div>
         </motion.div>
@@ -354,7 +354,7 @@ export function Welcome() {
         <motion.div className="ovora-area-cards"
           initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.45 }}
         >
-          <div className="ovora-cards-grid" style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '14px 18px 0' }}>
+          <div className="ovora-cards-grid" style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(8px,2.5vw,12px)', padding: 'clamp(10px,3vw,14px) clamp(12px,4vw,18px) 0' }}>
             <WorldCard
               title="CARGO"
               desc="Грузоперевозки  Россия · Таджикистан · СНГ"
@@ -385,7 +385,7 @@ export function Welcome() {
 
         {/* ── PARTNERS ── */}
         <motion.div className="ovora-area-partners"
-          style={{ padding: '16px 18px 0' }}
+          style={{ padding: 'clamp(12px,3.5vw,16px) clamp(12px,4vw,18px) 0' }}
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.38, duration: 0.4 }}
         >
           <div style={{ background: 'rgba(10,16,36,0.95)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 18, padding: '14px 14px 12px' }}>
@@ -400,22 +400,22 @@ export function Welcome() {
             <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 2, WebkitOverflowScrolling: 'touch' as any }}>
               {PARTNERS.map((p, i) => (
                 <div key={i} style={{
-                  flexShrink: 0, width: 100,
+                  flexShrink: 0, width: 'clamp(86px,24vw,105px)',
                   background: '#fff', borderRadius: 14,
                   boxShadow: '0 2px 10px rgba(0,0,0,0.14)',
                   display: 'flex', flexDirection: 'column', alignItems: 'center',
-                  padding: '12px 8px 11px', gap: 7,
+                  padding: 'clamp(9px,2.5vw,12px) clamp(6px,2vw,8px) clamp(8px,2.2vw,11px)', gap: 6,
                 }}>
                   <div style={{
-                    width: 56, height: 46, borderRadius: 10,
+                    width: 'clamp(46px,13vw,58px)', height: 'clamp(38px,11vw,48px)', borderRadius: 9,
                     background: p.bg,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>
-                    <span style={{ fontSize: p.mark.length > 2 ? 15 : 20, fontWeight: 900, color: p.textColor ?? p.color, letterSpacing: -0.5 }}>{p.mark}</span>
+                    <span style={{ fontSize: p.mark.length > 2 ? 'clamp(12px,3.5vw,15px)' : 'clamp(16px,5vw,20px)', fontWeight: 900, color: p.textColor ?? p.color, letterSpacing: -0.5 }}>{p.mark}</span>
                   </div>
                   <div style={{ textAlign: 'center', lineHeight: 1.25 }}>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: '#0f172a' }}>{p.name}</div>
-                    <div style={{ fontSize: 9, color: '#64748b', marginTop: 2 }}>{p.sub}</div>
+                    <div style={{ fontSize: 'clamp(9px,2.8vw,11px)', fontWeight: 800, color: '#0f172a' }}>{p.name}</div>
+                    <div style={{ fontSize: 'clamp(8px,2.2vw,9px)', color: '#64748b', marginTop: 2 }}>{p.sub}</div>
                   </div>
                 </div>
               ))}

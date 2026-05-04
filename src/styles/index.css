@@ -80,19 +80,8 @@ button, a {
   max-width: 480px;
   margin: 0 auto;
   position: relative;
-  padding-top: 16px;
-  padding-bottom: 36px;
-}
-
-/* Smallest phones (< 360px) */
-@media (max-width: 359px) {
-  .ovora-screen {
-    padding-top: 10px;
-  }
-  .ovora-cards-grid {
-    padding: 10px 12px 0 !important;
-    gap: 10px !important;
-  }
+  padding-top: clamp(10px, 3vw, 22px);
+  padding-bottom: clamp(24px, 6vw, 36px);
 }
 
 @media (min-width: 700px) {
