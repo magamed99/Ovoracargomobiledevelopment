@@ -396,26 +396,27 @@ export function Welcome() {
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.blueLight} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 5l7 7-7 7" /></svg>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {PARTNERS.map((p, i) => (
                 <div key={i} style={{
-                  width: 92, flexShrink: 0,
+                  width: '100%',
                   background: '#fff', borderRadius: 14,
-                  boxShadow: '0 2px 10px rgba(0,0,0,0.18)',
-                  display: 'flex', flexDirection: 'column', alignItems: 'center',
-                  padding: '12px 8px 10px', gap: 6,
+                  boxShadow: '0 2px 10px rgba(0,0,0,0.15)',
+                  display: 'flex', alignItems: 'center',
+                  padding: '10px 14px', gap: 14,
                 }}>
                   <div style={{
-                    width: 52, height: 44, borderRadius: 10,
+                    width: 52, height: 44, borderRadius: 10, flexShrink: 0,
                     background: p.bg,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>
-                    <span style={{ fontSize: p.mark.length > 2 ? 14 : 18, fontWeight: 900, color: p.textColor ?? p.color, letterSpacing: -0.5 }}>{p.mark}</span>
+                    <span style={{ fontSize: p.mark.length > 2 ? 14 : 20, fontWeight: 900, color: p.textColor ?? p.color, letterSpacing: -0.5 }}>{p.mark}</span>
                   </div>
-                  <div style={{ textAlign: 'center', lineHeight: 1.25 }}>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: '#0f172a' }}>{p.name}</div>
-                    <div style={{ fontSize: 9, color: '#64748b', marginTop: 1 }}>{p.sub}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', lineHeight: 1.2 }}>{p.name}</div>
+                    <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{p.sub}</div>
                   </div>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
                 </div>
               ))}
             </div>
