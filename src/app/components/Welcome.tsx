@@ -347,30 +347,6 @@ export function Welcome() {
           </div>
         </motion.div>
 
-        {/* ── CITY ROUTE ── */}
-        <motion.div className="ovora-area-route"
-          style={{ padding: 'clamp(8px,2.5vw,12px) clamp(12px,4vw,18px) 0' }}
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25, duration: 0.4 }}
-        >
-          <div style={{
-            background: 'rgba(10,16,36,0.95)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            borderRadius: 16,
-            padding: 'clamp(10px,3vw,14px)',
-            boxShadow: '0 2px 16px rgba(0,0,0,0.45)',
-          }}>
-            <div style={{ fontSize: 'clamp(8px,2.2vw,10px)', fontWeight: 700, color: C.dim2, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Маршруты</div>
-            <svg width="100%" height="20" viewBox="0 0 360 22" preserveAspectRatio="none" style={{ display: 'block' }}>
-              <path d="M20 14 Q 100 -2 180 14 T 340 14" stroke={C.blueLight} strokeWidth="1.2" fill="none" strokeDasharray="2 3" opacity="0.55" style={{ animation: 'dashMove 5s linear infinite' }} />
-              <circle cx="20"  cy="14" r="4" fill={C.blueLight} />
-              <circle cx="180" cy="14" r="4" fill={C.blueLight} />
-              <circle cx="340" cy="14" r="4" fill={C.blueLight} />
-            </svg>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'clamp(10px,3vw,12px)', color: '#c8d8f0', marginTop: 6, padding: '0 2px', fontWeight: 600 }}>
-              <span>Москва</span><span>Казань</span><span>Екатеринбург</span>
-            </div>
-          </div>
-        </motion.div>
 
         {/* ── CARDS ── */}
         <motion.div className="ovora-area-cards"
