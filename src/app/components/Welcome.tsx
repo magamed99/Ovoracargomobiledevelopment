@@ -394,19 +394,20 @@ export function Welcome() {
                 { icon: Ti.flex,  label: 'Гибкие роли' },
               ]}
             />
-            <WorldCard
-              title="CARGO"
-              desc="Грузоперевозки  Россия · Таджикистан · СНГ"
-              icon={<TruckBig />}
-              accent="#1d4ed8" accentLight={C.blueLight}
+            <button
               onClick={() => navigate('/role-select')}
-              tags={[
-                { icon: Ti.border, label: 'Границы' },
-                { icon: Ti.driver, label: 'Водители' },
-                { icon: Ti.box,    label: 'Грузы' },
-                { icon: Ti.radio,  label: 'Рация' },
-              ]}
-            />
+              style={{
+                display: 'block', width: '100%', padding: 0, border: 'none',
+                borderRadius: 20, overflow: 'hidden', cursor: 'pointer',
+                boxShadow: '0 0 0 1px rgba(33,118,232,0.25), 0 8px 24px rgba(10,30,80,0.4)',
+              }}
+            >
+              <img
+                src="/icons/cargo-promo.png"
+                alt="OVORA CARGO"
+                style={{ width: '100%', display: 'block', objectFit: 'cover' }}
+              />
+            </button>
           </div>
         </motion.div>
 
