@@ -395,35 +395,35 @@ export function Welcome() {
               </div>
             </div>
             {/* Horizontal carousel */}
-            <div style={{ display: 'flex', gap: 'clamp(6px,2vw,10px)', overflowX: 'auto', paddingBottom: 2, WebkitOverflowScrolling: 'touch' as any }}>
+            <div style={{ display: 'flex', gap: 'clamp(5px,1.5vw,8px)', overflowX: 'auto', paddingBottom: 2, WebkitOverflowScrolling: 'touch' as any }}>
               {PARTNERS.map((p, i) => (
                 <div key={i} style={{
-                  flexShrink: 0, width: 'clamp(72px,21vw,90px)',
+                  flexShrink: 0, width: 'clamp(58px,17vw,72px)',
                   background: 'rgba(15,25,50,0.9)',
                   border: '1px solid rgba(255,255,255,0.07)',
-                  borderRadius: 12,
+                  borderRadius: 10,
                   display: 'flex', flexDirection: 'column', alignItems: 'center',
-                  padding: 'clamp(8px,2.5vw,12px) clamp(5px,1.5vw,8px) clamp(7px,2vw,10px)',
-                  gap: 5,
+                  padding: 'clamp(6px,1.8vw,9px) clamp(4px,1.2vw,6px)',
+                  gap: 4,
                 }}>
                   <div style={{
-                    width: 'clamp(36px,10vw,46px)', height: 'clamp(36px,10vw,46px)', borderRadius: 10,
+                    width: 'clamp(28px,8vw,36px)', height: 'clamp(28px,8vw,36px)', borderRadius: 8,
                     background: `linear-gradient(145deg, ${p.color}22, ${p.color}44)`,
                     border: `1px solid ${p.color}55`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>
-                    <span style={{ fontSize: p.mark.length > 2 ? 'clamp(10px,3vw,12px)' : 'clamp(13px,4vw,16px)', fontWeight: 900, color: p.textColor ?? p.color, letterSpacing: -0.5 }}>{p.mark}</span>
+                    <span style={{ fontSize: p.mark.length > 2 ? 'clamp(8px,2.5vw,10px)' : 'clamp(11px,3.2vw,13px)', fontWeight: 900, color: p.textColor ?? p.color, letterSpacing: -0.5 }}>{p.mark}</span>
                   </div>
-                  <div style={{ textAlign: 'center', lineHeight: 1.25 }}>
-                    <div style={{ fontSize: 'clamp(8px,2.5vw,10px)', fontWeight: 800, color: '#e2eaf8' }}>{p.name}</div>
-                    <div style={{ fontSize: 'clamp(7px,2vw,9px)', color: C.dim, marginTop: 2 }}>{p.sub}</div>
+                  <div style={{ textAlign: 'center', lineHeight: 1.2 }}>
+                    <div style={{ fontSize: 'clamp(7px,2vw,9px)', fontWeight: 800, color: '#e2eaf8' }}>{p.name}</div>
+                    <div style={{ fontSize: 'clamp(6px,1.8vw,8px)', color: C.dim, marginTop: 1 }}>{p.sub}</div>
                   </div>
                 </div>
               ))}
             </div>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 5, marginTop: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 4, marginTop: 7 }}>
               {[1, 0, 0, 0, 0].map((a, i) => (
-                <span key={i} style={{ width: a ? 16 : 5, height: 4, borderRadius: 99, background: a ? C.blueLight : 'rgba(255,255,255,0.15)' }} />
+                <span key={i} style={{ width: a ? 14 : 4, height: 3, borderRadius: 99, background: a ? C.blueLight : 'rgba(255,255,255,0.15)' }} />
               ))}
             </div>
           </div>
