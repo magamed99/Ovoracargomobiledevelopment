@@ -386,41 +386,44 @@ export function Welcome() {
           style={{ padding: 'clamp(12px,3.5vw,16px) clamp(12px,4vw,18px) 0' }}
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.38, duration: 0.4 }}
         >
-          <div style={{ background: 'rgba(10,16,36,0.95)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 18, padding: '14px 14px 12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <div style={{ fontSize: 16, fontWeight: 800, color: '#fff' }}>Наши партнёры</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: C.blueLight, fontWeight: 600 }}>
+          <div style={{ background: 'rgba(10,16,36,0.95)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: 'clamp(10px,3vw,14px)', boxShadow: '0 2px 16px rgba(0,0,0,0.45)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <div style={{ fontSize: 'clamp(13px,3.8vw,16px)', fontWeight: 800, color: '#fff' }}>Наши партнёры</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 'clamp(10px,3vw,12px)', color: C.blueLight, fontWeight: 600 }}>
                 Смотреть всех
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.blueLight} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 5l7 7-7 7" /></svg>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.blueLight} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 5l7 7-7 7" /></svg>
               </div>
             </div>
             {/* Horizontal carousel */}
-            <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 2, WebkitOverflowScrolling: 'touch' as any }}>
+            <div style={{ display: 'flex', gap: 'clamp(6px,2vw,10px)', overflowX: 'auto', paddingBottom: 2, WebkitOverflowScrolling: 'touch' as any }}>
               {PARTNERS.map((p, i) => (
                 <div key={i} style={{
-                  flexShrink: 0, width: 'clamp(86px,24vw,105px)',
-                  background: '#fff', borderRadius: 14,
-                  boxShadow: '0 2px 10px rgba(0,0,0,0.14)',
+                  flexShrink: 0, width: 'clamp(72px,21vw,90px)',
+                  background: 'rgba(15,25,50,0.9)',
+                  border: '1px solid rgba(255,255,255,0.07)',
+                  borderRadius: 12,
                   display: 'flex', flexDirection: 'column', alignItems: 'center',
-                  padding: 'clamp(9px,2.5vw,12px) clamp(6px,2vw,8px) clamp(8px,2.2vw,11px)', gap: 6,
+                  padding: 'clamp(8px,2.5vw,12px) clamp(5px,1.5vw,8px) clamp(7px,2vw,10px)',
+                  gap: 5,
                 }}>
                   <div style={{
-                    width: 'clamp(46px,13vw,58px)', height: 'clamp(38px,11vw,48px)', borderRadius: 9,
-                    background: p.bg,
+                    width: 'clamp(36px,10vw,46px)', height: 'clamp(36px,10vw,46px)', borderRadius: 10,
+                    background: `linear-gradient(145deg, ${p.color}22, ${p.color}44)`,
+                    border: `1px solid ${p.color}55`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>
-                    <span style={{ fontSize: p.mark.length > 2 ? 'clamp(12px,3.5vw,15px)' : 'clamp(16px,5vw,20px)', fontWeight: 900, color: p.textColor ?? p.color, letterSpacing: -0.5 }}>{p.mark}</span>
+                    <span style={{ fontSize: p.mark.length > 2 ? 'clamp(10px,3vw,12px)' : 'clamp(13px,4vw,16px)', fontWeight: 900, color: p.textColor ?? p.color, letterSpacing: -0.5 }}>{p.mark}</span>
                   </div>
                   <div style={{ textAlign: 'center', lineHeight: 1.25 }}>
-                    <div style={{ fontSize: 'clamp(9px,2.8vw,11px)', fontWeight: 800, color: '#0f172a' }}>{p.name}</div>
-                    <div style={{ fontSize: 'clamp(8px,2.2vw,9px)', color: '#64748b', marginTop: 2 }}>{p.sub}</div>
+                    <div style={{ fontSize: 'clamp(8px,2.5vw,10px)', fontWeight: 800, color: '#e2eaf8' }}>{p.name}</div>
+                    <div style={{ fontSize: 'clamp(7px,2vw,9px)', color: C.dim, marginTop: 2 }}>{p.sub}</div>
                   </div>
                 </div>
               ))}
             </div>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 5, marginTop: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 5, marginTop: 8 }}>
               {[1, 0, 0, 0, 0].map((a, i) => (
-                <span key={i} style={{ width: a ? 16 : 5, height: 5, borderRadius: 99, background: a ? C.blueLight : 'rgba(255,255,255,0.18)' }} />
+                <span key={i} style={{ width: a ? 16 : 5, height: 4, borderRadius: 99, background: a ? C.blueLight : 'rgba(255,255,255,0.15)' }} />
               ))}
             </div>
           </div>
