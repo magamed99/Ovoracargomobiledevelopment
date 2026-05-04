@@ -77,11 +77,22 @@ button, a {
 }
 .ovora-screen {
   width: 100%;
-  max-width: 460px;
+  max-width: 480px;
   margin: 0 auto;
   position: relative;
-  padding-top: 22px;
+  padding-top: 16px;
   padding-bottom: 36px;
+}
+
+/* Smallest phones (< 360px) */
+@media (max-width: 359px) {
+  .ovora-screen {
+    padding-top: 10px;
+  }
+  .ovora-cards-grid {
+    padding: 10px 12px 0 !important;
+    gap: 10px !important;
+  }
 }
 
 @media (min-width: 700px) {
