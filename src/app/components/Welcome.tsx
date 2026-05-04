@@ -172,7 +172,7 @@ const Ti = {
 // ── Cargo truck photo ─────────────────────────────────────────────────
 function TruckBig() {
   return (
-    <div style={{ width: 'clamp(90px,26vw,115px)', height: 'clamp(80px,22vw,100px)', borderRadius: 14, flexShrink: 0, overflow: 'hidden', background: 'rgba(0,8,24,0.85)', boxShadow: '0 0 0 1px rgba(91,163,245,0.15)' }}>
+    <div style={{ width: 'clamp(74px,22vw,100px)', height: 'clamp(64px,19vw,88px)', borderRadius: 12, flexShrink: 0, overflow: 'hidden', background: 'rgba(0,8,24,0.85)', boxShadow: '0 0 0 1px rgba(91,163,245,0.15)' }}>
       <img src="/icons/cargo-truck.png" alt="CARGO"
         style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
       />
@@ -183,7 +183,7 @@ function TruckBig() {
 // ── Avia plane photo ──────────────────────────────────────────────────
 function PlaneBig() {
   return (
-    <div style={{ width: 'clamp(90px,26vw,115px)', height: 'clamp(80px,22vw,100px)', borderRadius: 14, flexShrink: 0, overflow: 'hidden', background: 'rgba(0,8,24,0.85)', boxShadow: '0 0 0 1px rgba(91,163,245,0.15)' }}>
+    <div style={{ width: 'clamp(74px,22vw,100px)', height: 'clamp(64px,19vw,88px)', borderRadius: 12, flexShrink: 0, overflow: 'hidden', background: 'rgba(0,8,24,0.85)', boxShadow: '0 0 0 1px rgba(91,163,245,0.15)' }}>
       <img src="/icons/avia-plane.png" alt="AVIA"
         style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
       />
@@ -209,28 +209,29 @@ function WorldCard({ title, desc, tags, accentLight, icon, onClick }: WorldCardP
       textAlign: 'left', fontFamily: 'inherit',
       boxShadow: '0 2px 16px rgba(0,0,0,0.45)',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(8px,2.5vw,13px)', padding: 'clamp(10px,3vw,14px) clamp(10px,3vw,14px) clamp(7px,2vw,9px)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(7px,2vw,12px)', padding: 'clamp(9px,2.8vw,13px) clamp(9px,2.8vw,13px) clamp(6px,1.8vw,8px)' }}>
         {icon}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3 }}>
-            <span style={{ fontSize: 'clamp(15px,4.5vw,18px)', fontWeight: 800, color: '#fff', letterSpacing: '-0.2px' }}>{title}</span>
-            <span style={{ fontSize: 'clamp(8px,2.2vw,9px)', fontWeight: 700, color: C.green, padding: '2px 6px', borderRadius: 7, background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.28)', letterSpacing: '0.05em', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+            <span style={{ fontSize: 'clamp(14px,4.2vw,17px)', fontWeight: 800, color: '#fff', letterSpacing: '-0.2px' }}>{title}</span>
+            <span style={{ fontSize: 'clamp(7px,2vw,9px)', fontWeight: 700, color: C.green, padding: '2px 5px', borderRadius: 6, background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.28)', letterSpacing: '0.05em', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
               <LiveDot size={4} /> LIVE
             </span>
           </div>
-          <p style={{ fontSize: 'clamp(9px,2.8vw,11px)', color: 'rgba(155,170,210,0.85)', lineHeight: 1.4, margin: 0 }}>{desc}</p>
+          <p style={{ fontSize: 'clamp(8px,2.5vw,10px)', color: 'rgba(155,170,210,0.85)', lineHeight: 1.35, margin: 0 }}>{desc}</p>
         </div>
         <ArrowRight color={accentLight} />
       </div>
-      <div style={{ display: 'flex', gap: 'clamp(4px,1.5vw,6px)', flexWrap: 'wrap', padding: '0 clamp(10px,3vw,13px) clamp(10px,3vw,13px)' }}>
+      <div style={{ display: 'flex', gap: 'clamp(3px,1.2vw,5px)', flexWrap: 'wrap', padding: '0 clamp(9px,2.8vw,12px) clamp(9px,2.8vw,12px)' }}>
         {tags.map((t, i) => (
           <span key={i} style={{
-            fontSize: 'clamp(9px,2.5vw,10px)', fontWeight: 600,
+            fontSize: 'clamp(8px,2.2vw,10px)', fontWeight: 600,
             color: '#fff',
-            padding: 'clamp(3px,1vw,4px) clamp(7px,2vw,9px)', borderRadius: 7,
+            padding: 'clamp(2px,0.8vw,3px) clamp(5px,1.6vw,8px)', borderRadius: 6,
             background: t.bg ?? 'rgba(255,255,255,0.07)',
             border: t.bg ? 'none' : '1px solid rgba(255,255,255,0.08)',
-            display: 'inline-flex', alignItems: 'center', gap: 4,
+            display: 'inline-flex', alignItems: 'center', gap: 3,
+            whiteSpace: 'nowrap',
           }}>
             <span style={{ display: 'inline-flex' }}>{t.icon}</span>
             {t.label}
@@ -301,7 +302,7 @@ export function Welcome() {
 
         {/* ── HEADER + HERO → promo photo ── */}
         <motion.div className="ovora-area-header"
-          style={{ position: 'relative', margin: '6px 12px 0', borderRadius: 18, overflow: 'hidden', boxShadow: '0 0 0 1px rgba(91,163,245,0.2), 0 10px 32px rgba(0,0,0,0.5)' }}
+          style={{ position: 'relative', margin: 'clamp(4px,1.5vw,8px) clamp(8px,3vw,14px) 0', borderRadius: 'clamp(12px,4vw,18px)', overflow: 'hidden', boxShadow: '0 0 0 1px rgba(91,163,245,0.2), 0 10px 32px rgba(0,0,0,0.5)' }}
           initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}
         >
           <img src="/icons/hero-promo.png" alt="Ovora Cargo" style={{ width: '100%', display: 'block', objectFit: 'cover' }} />
@@ -312,7 +313,7 @@ export function Welcome() {
 
         {/* ── LANGUAGE ── */}
         <motion.div className="ovora-area-lang"
-          style={{ padding: 'clamp(8px,2.5vw,14px) clamp(12px,4vw,18px) 0' }}
+          style={{ padding: 'clamp(6px,2vw,12px) clamp(8px,3vw,16px) 0' }}
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2, duration: 0.4 }}
         >
           <div style={{
@@ -352,7 +353,7 @@ export function Welcome() {
         <motion.div className="ovora-area-cards"
           initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.45 }}
         >
-          <div className="ovora-cards-grid" style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(8px,2.5vw,12px)', padding: 'clamp(10px,3vw,14px) clamp(12px,4vw,18px) 0' }}>
+          <div className="ovora-cards-grid" style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(6px,2vw,10px)', padding: 'clamp(6px,2vw,12px) clamp(8px,3vw,16px) 0' }}>
             <WorldCard
               title="CARGO"
               desc="Грузоперевозки  Россия · Таджикистан · СНГ"
@@ -383,7 +384,7 @@ export function Welcome() {
 
         {/* ── PARTNERS ── */}
         <motion.div className="ovora-area-partners"
-          style={{ padding: 'clamp(12px,3.5vw,16px) clamp(12px,4vw,18px) 0' }}
+          style={{ padding: 'clamp(6px,2vw,12px) clamp(8px,3vw,16px) 0' }}
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.38, duration: 0.4 }}
         >
           <div style={{ background: 'rgba(10,16,36,0.95)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: 'clamp(10px,3vw,14px)', boxShadow: '0 2px 16px rgba(0,0,0,0.45)' }}>
