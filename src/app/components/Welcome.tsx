@@ -172,18 +172,22 @@ const Ti = {
 // ── Cargo truck photo ─────────────────────────────────────────────────
 function TruckBig() {
   return (
-    <img src="/icons/cargo-truck.png" alt="CARGO"
-      style={{ width: 'clamp(52px,16vw,72px)', height: 'clamp(52px,16vw,72px)', objectFit: 'cover', borderRadius: 12, flexShrink: 0, display: 'block' }}
-    />
+    <div style={{ width: 'clamp(90px,26vw,115px)', height: 'clamp(80px,22vw,100px)', borderRadius: 14, flexShrink: 0, overflow: 'hidden', background: 'rgba(0,8,24,0.85)', boxShadow: '0 0 0 1px rgba(91,163,245,0.15)' }}>
+      <img src="/icons/cargo-truck.png" alt="CARGO"
+        style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+      />
+    </div>
   );
 }
 
 // ── Avia plane photo ──────────────────────────────────────────────────
 function PlaneBig() {
   return (
-    <img src="/icons/avia-plane.png" alt="AVIA"
-      style={{ width: 'clamp(52px,16vw,72px)', height: 'clamp(52px,16vw,72px)', objectFit: 'cover', borderRadius: 12, flexShrink: 0, display: 'block' }}
-    />
+    <div style={{ width: 'clamp(90px,26vw,115px)', height: 'clamp(80px,22vw,100px)', borderRadius: 14, flexShrink: 0, overflow: 'hidden', background: 'rgba(0,8,24,0.85)', boxShadow: '0 0 0 1px rgba(91,163,245,0.15)' }}>
+      <img src="/icons/avia-plane.png" alt="AVIA"
+        style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+      />
+    </div>
   );
 }
 
@@ -308,29 +312,38 @@ export function Welcome() {
 
         {/* ── LANGUAGE ── */}
         <motion.div className="ovora-area-lang"
-          style={{ padding: 'clamp(10px,3vw,18px) clamp(12px,4vw,18px) 0' }}
+          style={{ padding: 'clamp(8px,2.5vw,14px) clamp(12px,4vw,18px) 0' }}
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2, duration: 0.4 }}
         >
-          <div style={{ fontSize: 'clamp(7px,2vw,9px)', fontWeight: 700, color: C.dim3, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>Язык интерфейса</div>
-          <div style={{ display: 'flex', gap: 'clamp(4px,1.5vw,7px)' }}>
-            {LANGS.map(l => {
-              const active = selectedLang === l.code;
-              return (
-                <button key={l.code} onClick={() => handleLang(l.code)} style={{
-                  flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-                  padding: 'clamp(6px,2vw,10px) 4px', borderRadius: 10,
-                  border: active ? '1px solid rgba(91,163,245,0.5)' : '1px solid rgba(255,255,255,0.06)',
-                  background: active ? 'rgba(33,118,232,0.13)' : 'rgba(255,255,255,0.03)',
-                  color: active ? '#e8f0ff' : C.dim3,
-                  fontSize: 'clamp(10px,3vw,12px)', fontWeight: 700, letterSpacing: '0.03em',
-                  cursor: 'pointer', fontFamily: 'inherit', position: 'relative', overflow: 'hidden',
-                }}>
-                  {active && <span style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at top, rgba(91,163,245,0.18), transparent 70%)' }} />}
-                  <span style={{ fontSize: 'clamp(13px,4vw,16px)', position: 'relative' }}>{l.flag}</span>
-                  <span style={{ position: 'relative' }}>{l.display}</span>
-                </button>
-              );
-            })}
+          <div style={{
+            background: 'rgba(10,16,36,0.95)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: 16,
+            padding: 'clamp(10px,3vw,14px)',
+            boxShadow: '0 2px 16px rgba(0,0,0,0.45)',
+          }}>
+            <div style={{ fontSize: 'clamp(8px,2.2vw,10px)', fontWeight: 700, color: C.dim2, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Язык интерфейса</div>
+            <div style={{ display: 'flex', gap: 'clamp(5px,1.8vw,8px)' }}>
+              {LANGS.map(l => {
+                const active = selectedLang === l.code;
+                return (
+                  <button key={l.code} onClick={() => handleLang(l.code)} style={{
+                    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    padding: 'clamp(8px,2.5vw,12px) 4px', borderRadius: 10,
+                    border: active ? '1px solid rgba(91,163,245,0.5)' : '1px solid rgba(255,255,255,0.08)',
+                    background: active ? 'rgba(33,118,232,0.18)' : 'rgba(255,255,255,0.04)',
+                    color: active ? '#e8f0ff' : C.dim,
+                    fontSize: 'clamp(11px,3.2vw,13px)', fontWeight: 700, letterSpacing: '0.04em',
+                    cursor: 'pointer', fontFamily: 'inherit', position: 'relative', overflow: 'hidden',
+                    transition: 'all 0.18s ease',
+                  }}>
+                    {active && <span style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at top, rgba(91,163,245,0.22), transparent 70%)' }} />}
+                    <span style={{ fontSize: 'clamp(15px,4.5vw,18px)', position: 'relative' }}>{l.flag}</span>
+                    <span style={{ position: 'relative' }}>{l.display}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </motion.div>
 
@@ -339,14 +352,23 @@ export function Welcome() {
           style={{ padding: 'clamp(8px,2.5vw,12px) clamp(12px,4vw,18px) 0' }}
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25, duration: 0.4 }}
         >
-          <svg width="100%" height="20" viewBox="0 0 360 22" preserveAspectRatio="none" style={{ display: 'block' }}>
-            <path d="M20 14 Q 100 -2 180 14 T 340 14" stroke={C.blueLight} strokeWidth="1.2" fill="none" strokeDasharray="2 3" opacity="0.55" style={{ animation: 'dashMove 5s linear infinite' }} />
-            <circle cx="20"  cy="14" r="4" fill={C.blueLight} />
-            <circle cx="180" cy="14" r="4" fill={C.blueLight} />
-            <circle cx="340" cy="14" r="4" fill={C.blueLight} />
-          </svg>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'clamp(9px,2.8vw,11px)', color: C.dim2, marginTop: 3, padding: '0 4px', fontWeight: 500 }}>
-            <span>Москва</span><span>Казань</span><span>Екатеринбург</span>
+          <div style={{
+            background: 'rgba(10,16,36,0.95)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: 16,
+            padding: 'clamp(10px,3vw,14px)',
+            boxShadow: '0 2px 16px rgba(0,0,0,0.45)',
+          }}>
+            <div style={{ fontSize: 'clamp(8px,2.2vw,10px)', fontWeight: 700, color: C.dim2, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Маршруты</div>
+            <svg width="100%" height="20" viewBox="0 0 360 22" preserveAspectRatio="none" style={{ display: 'block' }}>
+              <path d="M20 14 Q 100 -2 180 14 T 340 14" stroke={C.blueLight} strokeWidth="1.2" fill="none" strokeDasharray="2 3" opacity="0.55" style={{ animation: 'dashMove 5s linear infinite' }} />
+              <circle cx="20"  cy="14" r="4" fill={C.blueLight} />
+              <circle cx="180" cy="14" r="4" fill={C.blueLight} />
+              <circle cx="340" cy="14" r="4" fill={C.blueLight} />
+            </svg>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'clamp(10px,3vw,12px)', color: '#c8d8f0', marginTop: 6, padding: '0 2px', fontWeight: 600 }}>
+              <span>Москва</span><span>Казань</span><span>Екатеринбург</span>
+            </div>
           </div>
         </motion.div>
 
