@@ -29,11 +29,11 @@ const LANGS: { code: LangCode; display: string; flag: string }[] = [
 
 // ── Partner placeholders ───────────────────────────────────────────────
 const PARTNERS = [
-  { name: 'Atlas Freight', sub: 'Global Logistics', mark: 'AF', color: '#e8443d' },
-  { name: 'Northwave',     sub: 'Ocean Shipping',   mark: 'NW', color: '#1872c4' },
-  { name: 'SwiftLine',     sub: 'Express Chain',    mark: 'SL', color: '#f5b81d' },
-  { name: 'Anatolia',      sub: 'Air Freight',      mark: 'AN', color: '#cf2d2d' },
-  { name: 'Eurorail',      sub: 'Logistics',        mark: 'ER', color: '#cf2222' },
+  { name: 'DP World',       sub: 'Global Logistics', mark: 'DP',  color: '#005eb8', bg: '#e8f0fb' },
+  { name: 'Maersk',         sub: 'Ocean Shipping',   mark: 'MAE', color: '#42b0d5', bg: '#e8f6fb' },
+  { name: 'DHL',            sub: 'Supply Chain',     mark: 'DHL', color: '#FFCC00', bg: '#fff8e1', textColor: '#D40511' },
+  { name: 'Turkish Cargo',  sub: 'Air Freight',      mark: 'TC',  color: '#e01a22', bg: '#fdecea' },
+  { name: 'Schenker',       sub: 'Logistics',        mark: 'DB',  color: '#ec0016', bg: '#fdecea' },
 ];
 
 // ── Counter ────────────────────────────────────────────────────────────
@@ -388,31 +388,40 @@ export function Welcome() {
           style={{ padding: '16px 18px 0' }}
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.38, duration: 0.4 }}
         >
-          <div style={{ background: 'rgba(13,20,40,0.7)', border: `1px solid ${C.cardLine}`, borderRadius: 18, padding: '14px 14px 12px', backdropFilter: 'blur(10px)' }}>
+          <div style={{ background: 'rgba(10,16,36,0.95)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 18, padding: '14px 14px 12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <div style={{ fontSize: 15, fontWeight: 700 }}>Наши партнёры</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: C.blueLight, fontWeight: 600 }}>
-                Смотреть все
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.blueLight} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
+              <div style={{ fontSize: 16, fontWeight: 800, color: '#fff' }}>Наши партнёры</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: C.blueLight, fontWeight: 600 }}>
+                Смотреть всех
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.blueLight} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 5l7 7-7 7" /></svg>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 6 }}>
+            <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
               {PARTNERS.map((p, i) => (
-                <div key={i} style={{ width: 82, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-                  <div style={{ width: 82, height: 64, borderRadius: 12, background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,0.08)', position: 'relative', overflow: 'hidden', boxShadow: '0 4px 14px rgba(0,0,0,0.35)' }}>
-                    <div style={{ fontSize: 20, fontWeight: 800, color: p.color, letterSpacing: -0.5 }}>{p.mark}</div>
-                    <div style={{ position: 'absolute', bottom: 5, right: 7, width: 16, height: 3, borderRadius: 2, background: p.color, opacity: 0.55 }} />
+                <div key={i} style={{
+                  width: 92, flexShrink: 0,
+                  background: '#fff', borderRadius: 14,
+                  boxShadow: '0 2px 10px rgba(0,0,0,0.18)',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center',
+                  padding: '12px 8px 10px', gap: 6,
+                }}>
+                  <div style={{
+                    width: 52, height: 44, borderRadius: 10,
+                    background: p.bg,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <span style={{ fontSize: p.mark.length > 2 ? 14 : 18, fontWeight: 900, color: p.textColor ?? p.color, letterSpacing: -0.5 }}>{p.mark}</span>
                   </div>
-                  <div style={{ textAlign: 'center', lineHeight: 1.2 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700 }}>{p.name}</div>
-                    <div style={{ fontSize: 9, color: C.dim2, marginTop: 1 }}>{p.sub}</div>
+                  <div style={{ textAlign: 'center', lineHeight: 1.25 }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: '#0f172a' }}>{p.name}</div>
+                    <div style={{ fontSize: 9, color: '#64748b', marginTop: 1 }}>{p.sub}</div>
                   </div>
                 </div>
               ))}
             </div>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 5, marginTop: 6 }}>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 5, marginTop: 10 }}>
               {[1, 0, 0, 0, 0].map((a, i) => (
-                <span key={i} style={{ width: a ? 14 : 5, height: 5, borderRadius: 99, background: a ? C.blueLight : 'rgba(255,255,255,0.18)' }} />
+                <span key={i} style={{ width: a ? 16 : 5, height: 5, borderRadius: 99, background: a ? C.blueLight : 'rgba(255,255,255,0.18)' }} />
               ))}
             </div>
           </div>
