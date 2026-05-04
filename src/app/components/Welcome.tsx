@@ -297,41 +297,21 @@ export function Welcome() {
 
       <div className="ovora-screen" style={{ position: 'relative', zIndex: 2 }}>
 
-        {/* ── HEADER ── */}
+        {/* ── HEADER + HERO → promo photo ── */}
         <motion.div className="ovora-area-header"
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 18px 0' }}
-          initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
+          style={{ position: 'relative', margin: '6px 12px 0', borderRadius: 18, overflow: 'hidden', boxShadow: '0 0 0 1px rgba(91,163,245,0.2), 0 10px 32px rgba(0,0,0,0.5)' }}
+          initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-            <Logo />
-            <div>
-              <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: '-0.3px', lineHeight: 1.05 }}>Ovora</div>
-              <div style={{ fontSize: 9, color: C.dim2, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 2 }}>Logistics & Air Cargo</div>
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '6px 11px', background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.25)', borderRadius: 20 }}>
+          <img src="/icons/hero-promo.png" alt="Ovora Cargo" style={{ width: '100%', display: 'block', objectFit: 'cover' }} />
+          {/* ОНЛАЙН badge overlay */}
+          <div style={{ position: 'absolute', top: 14, right: 14, display: 'flex', alignItems: 'center', gap: 7, padding: '6px 12px', background: 'rgba(5,25,50,0.75)', border: '1px solid rgba(52,211,153,0.35)', borderRadius: 20, backdropFilter: 'blur(8px)' }}>
             <LiveDot />
             <span style={{ fontSize: 10, fontWeight: 700, color: C.green, letterSpacing: '0.08em' }}>ОНЛАЙН</span>
           </div>
         </motion.div>
 
-        {/* ── HERO ── */}
-        <motion.div className="ovora-area-hero"
-          style={{ padding: '18px 18px 0' }}
-          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.5 }}
-        >
-          <Eyebrow label="Выберите направление" />
-          <h1 style={{ fontSize: 44, fontWeight: 900, lineHeight: 1.02, letterSpacing: '-1.8px', color: '#fff', margin: '0 0 8px' }}>
-            Платформа<br />
-            <span style={{ background: 'linear-gradient(95deg, #2176e8 0%, #5ba3f5 45%, #38bdf8 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-              Ovora
-            </span>
-          </h1>
-          <p className="ovora-hide-mobile" style={{ fontSize: 13, color: C.dim, lineHeight: 1.55, margin: 0, maxWidth: 300 }}>
-            Грузоперевозки и авиадоставка между Россией, Таджикистаном и&nbsp;СНГ.
-          </p>
-
-        </motion.div>
+        {/* ── HERO placeholder (keeps grid area) ── */}
+        <div className="ovora-area-hero" />
 
         {/* ── LANGUAGE ── */}
         <motion.div className="ovora-area-lang"
