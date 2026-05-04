@@ -172,10 +172,8 @@ const Ti = {
 // ── Cargo truck photo ─────────────────────────────────────────────────
 function TruckBig() {
   return (
-    <img
-      src="/icons/cargo-truck.png"
-      alt="OVORA-CARGO"
-      style={{ width: 110, height: 74, objectFit: 'cover', borderRadius: 10, flexShrink: 0, display: 'block' }}
+    <img src="/icons/cargo-truck.png" alt="CARGO"
+      style={{ width: 52, height: 52, objectFit: 'cover', borderRadius: 13, flexShrink: 0, display: 'block' }}
     />
   );
 }
@@ -183,53 +181,53 @@ function TruckBig() {
 // ── Avia plane photo ──────────────────────────────────────────────────
 function PlaneBig() {
   return (
-    <img
-      src="/icons/avia-plane.png"
-      alt="AVIA-CARGO"
-      style={{ width: 110, height: 74, objectFit: 'cover', borderRadius: 10, flexShrink: 0, display: 'block' }}
+    <img src="/icons/avia-plane.png" alt="AVIA"
+      style={{ width: 52, height: 52, objectFit: 'cover', borderRadius: 13, flexShrink: 0, display: 'block' }}
     />
   );
 }
 
-// ── World card ─────────────────────────────────────────────────────────
+// ── Card ──────────────────────────────────────────────────────────────
 interface WorldCardProps {
   title: string;
   desc: string;
-  tags: { icon: ReactNode; label: string }[];
-  accent: string;
+  tags: { icon: ReactNode; label: string; bg?: string }[];
   accentLight: string;
   icon: ReactNode;
   onClick: () => void;
 }
-function WorldCard({ title, desc, tags, accent, accentLight, icon, onClick }: WorldCardProps) {
+function WorldCard({ title, desc, tags, accentLight, icon, onClick }: WorldCardProps) {
   return (
     <button onClick={onClick} style={{
-      border: `1px solid ${accent}30`,
-      background: `linear-gradient(145deg, ${accent}1a 0%, rgba(10,22,40,0.55) 100%)`,
-      borderRadius: 20, padding: 0, width: '100%', cursor: 'pointer',
-      textAlign: 'left', position: 'relative', overflow: 'hidden',
-      fontFamily: 'inherit', backdropFilter: 'blur(8px)',
+      background: 'rgba(10,16,36,0.95)',
+      border: '1px solid rgba(255,255,255,0.08)',
+      borderRadius: 16, padding: 0, width: '100%', cursor: 'pointer',
+      textAlign: 'left', fontFamily: 'inherit',
+      boxShadow: '0 2px 16px rgba(0,0,0,0.45)',
     }}>
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, ${accent}, transparent)`, opacity: 0.7 }} />
-      <div style={{ position: 'absolute', top: -30, right: -30, width: 140, height: 140, borderRadius: '50%', background: `radial-gradient(circle, ${accent}40, transparent 70%)`, filter: 'blur(8px)', pointerEvents: 'none' }} />
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '15px 15px 11px', position: 'relative' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 13px 8px' }}>
         {icon}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-            <span style={{ fontSize: 18, fontWeight: 800, color: '#fff', letterSpacing: '-0.3px' }}>{title}</span>
-            <span style={{ fontSize: 9, fontWeight: 700, color: C.green, padding: '2px 7px', borderRadius: 9, background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.3)', letterSpacing: '0.06em', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-              <LiveDot size={5} /> LIVE
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+            <span style={{ fontSize: 18, fontWeight: 800, color: '#fff', letterSpacing: '-0.2px' }}>{title}</span>
+            <span style={{ fontSize: 9, fontWeight: 700, color: C.green, padding: '2px 7px', borderRadius: 8, background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.28)', letterSpacing: '0.06em', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+              <LiveDot size={4} /> LIVE
             </span>
           </div>
-          <p style={{ fontSize: 11, color: C.dim, lineHeight: 1.45, margin: 0 }}>{desc}</p>
+          <p style={{ fontSize: 11, color: 'rgba(155,170,210,0.85)', lineHeight: 1.4, margin: 0 }}>{desc}</p>
         </div>
         <ArrowRight color={accentLight} />
       </div>
-
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '0 15px 15px', position: 'relative' }}>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '0 13px 13px' }}>
         {tags.map((t, i) => (
-          <span key={i} style={{ fontSize: 10, fontWeight: 600, color: accentLight, padding: '4px 9px', borderRadius: 8, background: `${accent}10`, border: `1px solid ${accent}25`, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+          <span key={i} style={{
+            fontSize: 10, fontWeight: 600,
+            color: '#fff',
+            padding: '4px 9px', borderRadius: 8,
+            background: t.bg ?? 'rgba(255,255,255,0.07)',
+            border: t.bg ? 'none' : '1px solid rgba(255,255,255,0.08)',
+            display: 'inline-flex', alignItems: 'center', gap: 5,
+          }}>
             <span style={{ display: 'inline-flex' }}>{t.icon}</span>
             {t.label}
           </span>
@@ -358,28 +356,28 @@ export function Welcome() {
         >
           <div className="ovora-cards-grid" style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '14px 18px 0' }}>
             <WorldCard
+              title="CARGO"
+              desc="Грузоперевозки  Россия · Таджикистан · СНГ"
+              icon={<TruckBig />}
+              accentLight={C.blueLight}
+              onClick={() => navigate('/role-select')}
+              tags={[
+                { icon: Ti.border, label: 'Границы' },
+                { icon: Ti.driver, label: 'Водители', bg: 'rgba(220,38,38,0.7)' },
+                { icon: Ti.box,    label: 'Грузы',    bg: 'rgba(217,119,6,0.7)' },
+                { icon: Ti.radio,  label: 'Рация' },
+              ]}
+            />
+            <WorldCard
               title="AVIA"
               desc="Авиагруз  Россия ↔ Таджикистан"
               icon={<PlaneBig />}
-              accent="#0369a1" accentLight={C.cyan}
+              accentLight={C.cyan}
               onClick={() => navigate('/avia')}
               tags={[
                 { icon: Ti.plane, label: 'Курьер' },
                 { icon: Ti.mail,  label: 'Отправитель' },
                 { icon: Ti.flex,  label: 'Гибкие роли' },
-              ]}
-            />
-            <WorldCard
-              title="CARGO"
-              desc="Грузоперевозки  Россия · Таджикистан · СНГ"
-              icon={<TruckBig />}
-              accent="#1d4ed8" accentLight={C.blueLight}
-              onClick={() => navigate('/role-select')}
-              tags={[
-                { icon: Ti.border, label: 'Границы' },
-                { icon: Ti.driver, label: 'Водители' },
-                { icon: Ti.box,    label: 'Грузы' },
-                { icon: Ti.radio,  label: 'Рация' },
               ]}
             />
           </div>
