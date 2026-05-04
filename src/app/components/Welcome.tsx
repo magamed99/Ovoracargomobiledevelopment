@@ -303,11 +303,6 @@ export function Welcome() {
           initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}
         >
           <img src="/icons/hero-promo.png" alt="Ovora Cargo" style={{ width: '100%', display: 'block', objectFit: 'cover' }} />
-          {/* ОНЛАЙН badge overlay */}
-          <div style={{ position: 'absolute', top: 14, right: 14, display: 'flex', alignItems: 'center', gap: 7, padding: '6px 12px', background: 'rgba(5,25,50,0.75)', border: '1px solid rgba(52,211,153,0.35)', borderRadius: 20, backdropFilter: 'blur(8px)' }}>
-            <LiveDot />
-            <span style={{ fontSize: 10, fontWeight: 700, color: C.green, letterSpacing: '0.08em' }}>ОНЛАЙН</span>
-          </div>
         </motion.div>
 
         {/* ── HERO placeholder (keeps grid area) ── */}
