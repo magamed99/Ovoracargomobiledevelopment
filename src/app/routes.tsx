@@ -59,7 +59,7 @@ function requireAdmin() {
     } catch { return false; }
   })();
   if (!isAuth) return redirect('/');
-  if (!sessionStorage.getItem('ovora_admin_token')) return redirect('/home');
+  // Admin PIN auth is handled by AdminLayout/AdminAuthGate — no token check here
   return null;
 }
 
