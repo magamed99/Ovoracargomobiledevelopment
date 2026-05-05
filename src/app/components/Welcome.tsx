@@ -295,18 +295,15 @@ export function Welcome() {
     <div className="ovora-app">
       <MapBackground />
 
-      {/* ─── gap between sections on desktop ─── */}
+      {/* ─── Hero: full-bleed on desktop, natural height on mobile ─── */}
+      <motion.div className="ovora-hero-fullbleed"
+        initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}
+      >
+        <img src={siteConfig.icons.hero} alt="Ovora Cargo" />
+      </motion.div>
+
+      {/* ─── Content container ─── */}
       <div className="ovora-screen" style={{ position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', gap: 'clamp(8px,2vw,16px)' }}>
-
-        {/* 1 ── HERO BANNER ── */}
-        <motion.div className="ovora-area-header"
-          style={{ position: 'relative', margin: 'clamp(4px,1.5vw,0px) clamp(8px,3vw,0px) 0', borderRadius: 'clamp(14px,4vw,22px)', overflow: 'hidden', boxShadow: '0 0 0 1px rgba(91,163,245,0.2), 0 12px 40px rgba(0,0,0,0.6)' }}
-          initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}
-        >
-          <img src={siteConfig.icons.hero} alt="Ovora Cargo" style={{ width: '100%', display: 'block', objectFit: 'cover' }} />
-        </motion.div>
-
-        <div className="ovora-area-hero" />
 
         {/* 2 ── CARGO + AVIA CARDS ── */}
         <motion.div className="ovora-area-cards"
