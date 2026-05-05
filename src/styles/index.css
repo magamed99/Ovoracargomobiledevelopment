@@ -101,46 +101,65 @@ button, a {
   width: 100%;
   display: block;
   object-fit: cover;
-  height: clamp(180px, 30vw, 480px);
+  height: clamp(200px, 38vw, 520px);
 }
 
+/* ── Hero text overlay: hidden on mobile, shown on desktop ── */
+.ovora-hero-text {
+  display: none;
+}
 @media (min-width: 700px) {
-  /* ── hide mobile-only hero placeholder ── */
-  .ovora-area-hero { display: none !important; }
-
-  /* ── content container ── */
-  .ovora-screen {
-    max-width: 1100px;
-    padding: 28px 32px 52px;
-  }
-
-  /* ── CARGO + AVIA side by side ── */
-  .ovora-cards-grid {
-    display: grid !important;
-    grid-template-columns: 1fr 1fr !important;
-    gap: 18px !important;
-    padding: 0 !important;
-  }
-  .ovora-cards-grid > button { width: 100%; min-width: 0; }
-}
-
-@media (min-width: 1200px) {
-  .ovora-screen {
+  .ovora-hero-text {
+    display: block;
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    padding: clamp(20px, 4vw, 56px) clamp(20px, 4vw, 48px);
     max-width: 1280px;
-    padding: 32px 48px 64px;
+    margin: 0 auto;
   }
-  .ovora-cards-grid { gap: 24px !important; }
 }
 
-@media (min-width: 1600px) {
-  .ovora-screen { max-width: 1440px; }
+/* ── Service cards: 1 col mobile → 2 col 640px+ ── */
+.ovora-services-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: clamp(10px, 2vw, 18px);
+}
+@media (min-width: 640px) {
+  .ovora-services-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
-/* hide stats strip on mobile */
-.ovora-stats-strip { display: none; }
+/* ── Metrics: 2 col mobile → 4 col 600px+ ── */
+.ovora-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: clamp(8px, 1.5vw, 14px);
+}
+@media (min-width: 600px) {
+  .ovora-metrics-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
 
-/* hide description text on mobile */
-.ovora-hide-mobile { display: none; }
+/* ── Bottom row: stacked mobile → side-by-side 480px+ ── */
+.ovora-bottom-row {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(10px, 2vw, 18px);
+}
+@media (min-width: 480px) {
+  .ovora-bottom-row {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+}
+
+/* ── Legacy class stubs (kept for other routes that may reference them) ── */
+.ovora-stats-strip  { display: none; }
+.ovora-hide-mobile  { display: none; }
+.ovora-area-hero    { display: none; }
 @media (min-width: 700px) {
   .ovora-hide-mobile { display: block; }
 }

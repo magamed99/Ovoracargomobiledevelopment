@@ -7,36 +7,20 @@ import type { LangCode } from '../i18n/translations';
 import { getPublicStats } from '../api/dataApi';
 import { getSiteConfig } from '../utils/siteConfig';
 
-// ── Palette ────────────────────────────────────────────────────────────
-const C = {
-  dim:       '#6b8299',
-  dim2:      '#4a6080',
-  dim3:      '#3d5268',
-  blue:      '#2176e8',
-  blueLight: '#5ba3f5',
-  cyan:      '#38bdf8',
-  green:     '#34d399',
-  orange:    '#ff7a3b',
-  purple:    '#a78bfa',
-  cardLine:  'rgba(80,140,230,0.14)',
-} as const;
-
-// ── Language list ──────────────────────────────────────────────────────
 const LANGS: { code: LangCode; display: string; flag: string }[] = [
   { code: 'ru', display: 'RU', flag: '🇷🇺' },
   { code: 'tj', display: 'TJ', flag: '🇹🇯' },
   { code: 'en', display: 'EN', flag: '🇺🇸' },
 ];
 
-
-// ── Counter ────────────────────────────────────────────────────────────
+// ── Animated counter ───────────────────────────────────────────────────
 function Counter({ target, suffix }: { target: number; suffix: string }) {
   const [count, setCount] = useState(0);
   const started = useRef(false);
   useEffect(() => {
     if (started.current) return;
     started.current = true;
-    const steps = Math.round((1200 / 1000) * 60);
+    const steps = Math.round((1400 / 1000) * 60);
     let step = 0;
     const timer = setInterval(() => {
       step++;
@@ -48,221 +32,141 @@ function Counter({ target, suffix }: { target: number; suffix: string }) {
   return <>{count.toLocaleString('ru-RU')}{suffix}</>;
 }
 
-// ── Live dot ───────────────────────────────────────────────────────────
-function LiveDot({ color = C.green, size = 8 }: { color?: string; size?: number }) {
+// ── Live pulse dot ─────────────────────────────────────────────────────
+function LiveDot({ color = '#10d98b', size = 7 }: { color?: string; size?: number }) {
   return (
     <span style={{ position: 'relative', width: size, height: size, display: 'inline-block', flexShrink: 0 }}>
       <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: color, animation: 'pulseRing 2s ease-out infinite' }} />
-      <span style={{ position: 'absolute', inset: size * 0.18, borderRadius: '50%', background: color, boxShadow: `0 0 6px ${color}` }} />
+      <span style={{ position: 'absolute', inset: Math.floor(size * 0.2), borderRadius: '50%', background: color }} />
     </span>
   );
 }
 
-// ── Map background ─────────────────────────────────────────────────────
-function MapBackground() {
+// ── SVG icons ──────────────────────────────────────────────────────────
+function ArrowIcon({ color = '#fff' }: { color?: string }) {
   return (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 0, overflow: 'hidden' }}>
-      <div style={{
-        position: 'absolute', inset: 0,
-        backgroundImage: 'radial-gradient(rgba(91,163,245,0.12) 1px, transparent 1px)',
-        backgroundSize: '18px 18px',
-        maskImage: 'radial-gradient(ellipse 80% 60% at 50% 30%, #000 30%, transparent 75%)',
-        WebkitMaskImage: 'radial-gradient(ellipse 80% 60% at 50% 30%, #000 30%, transparent 75%)',
-      }} />
-      <div style={{
-        position: 'absolute', top: '-10%', left: '50%', transform: 'translateX(-50%)',
-        width: 520, height: 520, borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(33,118,232,0.35) 0%, transparent 60%)',
-        filter: 'blur(20px)',
-      }} />
-      <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} viewBox="0 0 460 920" preserveAspectRatio="none">
-        <defs>
-          <linearGradient id="arcGrad" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%"   stopColor="#5ba3f5" stopOpacity="0" />
-            <stop offset="50%"  stopColor="#5ba3f5" stopOpacity="0.6" />
-            <stop offset="100%" stopColor="#5ba3f5" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        <path d="M-20 220 Q 230 80 480 220" stroke="url(#arcGrad)" strokeWidth="1" fill="none"
-          strokeDasharray="6 6" style={{ animation: 'dashMove 4s linear infinite' }} />
-        <path d="M-20 320 Q 230 200 480 320" stroke="url(#arcGrad)" strokeWidth="1" fill="none"
-          strokeDasharray="3 7" opacity="0.6" style={{ animation: 'dashMove 7s linear infinite reverse' }} />
-        <circle cx="80"  cy="180" r="2.5" fill="#5ba3f5" />
-        <circle cx="380" cy="190" r="2.5" fill="#5ba3f5" />
-        <circle cx="230" cy="115" r="3"   fill="#34d399" />
-      </svg>
-      <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 80% 60% at 50% 30%, transparent 30%, #03070f 100%)' }} />
-      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '60%', background: 'linear-gradient(to top, #03070f 35%, transparent 100%)' }} />
-    </div>
-  );
-}
-
-// ── Logo ───────────────────────────────────────────────────────────────
-function Logo() {
-  return (
-    <div style={{
-      width: 44, height: 44, borderRadius: 14,
-      boxShadow: '0 0 0 1px rgba(91,163,245,0.3), 0 8px 24px rgba(25,100,200,0.55)',
-      overflow: 'hidden', flexShrink: 0,
-    }}>
-      <img src="/icons/logo-bird.png" alt="Ovora" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-    </div>
-  );
-}
-
-// ── Eyebrow label ──────────────────────────────────────────────────────
-function Eyebrow({ label }: { label: string }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-      <div style={{ width: 22, height: 2, background: C.blue, borderRadius: 1 }} />
-      <span style={{ fontSize: 10, fontWeight: 700, color: C.blueLight, letterSpacing: '0.14em', textTransform: 'uppercase' }}>{label}</span>
-    </div>
-  );
-}
-
-// ── Arrow right ────────────────────────────────────────────────────────
-function ArrowRight({ color }: { color: string }) {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
       <path d="M5 12h14M13 5l7 7-7 7" />
     </svg>
   );
 }
 
-// ── 3D icon wrapper ────────────────────────────────────────────────────
-function Icon3D({ size = 42, hue1, hue2, glow, children, radius = 12 }: {
-  size?: number; hue1: string; hue2: string; glow: string; children: ReactNode; radius?: number;
-}) {
-  return (
-    <div style={{
-      width: size, height: size, borderRadius: radius, flexShrink: 0,
-      background: `linear-gradient(155deg, ${hue1} 0%, ${hue2} 100%)`,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      position: 'relative', overflow: 'hidden',
-      boxShadow: `0 0 0 1px rgba(255,255,255,0.08),inset 0 1.2px 0 rgba(255,255,255,0.45),inset 0 -1.5px 1px rgba(0,0,0,0.25),0 8px 18px ${glow},0 2px 4px rgba(0,0,0,0.3)`,
-    }}>
-      <span style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '55%', background: 'linear-gradient(180deg, rgba(255,255,255,0.32), transparent)', borderRadius: `${radius}px ${radius}px 100% 100% / ${radius}px ${radius}px 30% 30%`, pointerEvents: 'none' }} />
-      <span style={{ position: 'absolute', top: '8%', left: '12%', width: '30%', height: '18%', background: 'rgba(255,255,255,0.55)', borderRadius: '50%', filter: 'blur(3px)', pointerEvents: 'none' }} />
-      <span style={{ position: 'relative', zIndex: 1, display: 'flex', filter: 'drop-shadow(0 1.5px 1.5px rgba(0,0,0,0.35))' }}>{children}</span>
-    </div>
-  );
-}
-
-// ── Tag mini-icons ─────────────────────────────────────────────────────
-const _ti = (paths: ReactNode) => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">{paths}</svg>
-);
-const Ti = {
-  border: _ti(<><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></>),
-  driver: _ti(<><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></>),
-  box:    _ti(<><path d="M16.5 9.4 7.55 4.24"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></>),
-  radio:  _ti(<><path d="M4.9 16.1C1 12.2 1 5.8 4.9 1.9"/><path d="M7.8 4.7a6.14 6.14 0 0 0-.8 7.5"/><circle cx="12" cy="9" r="2"/><path d="M16.2 4.8c2 2 2.26 5.11.8 7.47"/><path d="M19.1 1.9a9.96 9.96 0 0 1 0 14.1"/><path d="M9.5 18h5"/><path d="m8 22 4-11 4 11"/></>),
-  plane:  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M22 12c0 .55-.45 1-1 1h-6.5l-3 7H10l1.5-7H7l-2 2H3l1.5-3L3 9h2l2 2h4.5L10 4h1.5l3 7H21c.55 0 1 .45 1 1z"/></svg>,
-  mail:   _ti(<><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></>),
-  flex:   _ti(<><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></>),
+const TagIcons = {
+  shield: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="m9 12 2 2 4-4" /></svg>,
+  user:   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>,
+  box:    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><path d="m3.3 7 8.7 5 8.7-5" /><path d="M12 22V12" /></svg>,
+  plane:  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M22 12c0 .55-.45 1-1 1h-6.5l-3 7H10l1.5-7H7l-2 2H3l1.5-3L3 9h2l2 2h4.5L10 4h1.5l3 7H21c.55 0 1 .45 1 1z" /></svg>,
+  mail:   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></svg>,
+  radio:  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M4.9 16.1C1 12.2 1 5.8 4.9 1.9" /><path d="M7.8 4.7a6.14 6.14 0 0 0-.8 7.5" /><circle cx="12" cy="9" r="2" /><path d="M16.2 4.8c2 2 2.26 5.11.8 7.47" /><path d="M19.1 1.9a9.96 9.96 0 0 1 0 14.1" /><path d="M9.5 18h5" /><path d="m8 22 4-11 4 11" /></svg>,
+  flex:   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M3 21v-5h5" /></svg>,
 };
 
-// ── Cargo truck photo ─────────────────────────────────────────────────
-function TruckBig({ src }: { src: string }) {
-  return (
-    <div style={{ width: 'clamp(74px,22vw,100px)', height: 'clamp(64px,19vw,88px)', borderRadius: 12, flexShrink: 0, overflow: 'hidden', background: 'rgba(0,8,24,0.85)', boxShadow: '0 0 0 1px rgba(91,163,245,0.15)' }}>
-      <img src={src} alt="CARGO"
-        style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
-      />
-    </div>
-  );
-}
+const MetricIcons: Record<string, ReactNode> = {
+  truck: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v3" /><rect width="7" height="7" x="14" y="11" rx="1" /><circle cx="7.5" cy="17.5" r="2.5" /><circle cx="17.5" cy="17.5" r="2.5" /></svg>,
+  globe: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" /><path d="M2 12h20" /></svg>,
+  star:  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg>,
+  pkg:   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M16.5 9.4 7.55 4.24" /><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><path d="m3.3 7 8.7 5 8.7-5" /><path d="M12 22V12" /></svg>,
+};
 
-// ── Avia plane photo ──────────────────────────────────────────────────
-function PlaneBig({ src }: { src: string }) {
-  return (
-    <div style={{ width: 'clamp(74px,22vw,100px)', height: 'clamp(64px,19vw,88px)', borderRadius: 12, flexShrink: 0, overflow: 'hidden', background: 'rgba(0,8,24,0.85)', boxShadow: '0 0 0 1px rgba(91,163,245,0.15)' }}>
-      <img src={src} alt="AVIA"
-        style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
-      />
-    </div>
-  );
-}
-
-// ── Card ──────────────────────────────────────────────────────────────
-interface WorldCardProps {
+// ── Service card ───────────────────────────────────────────────────────
+interface ServiceCardProps {
+  accent: string;
+  glow: string;
+  gradFrom: string;
+  imgSrc: string;
   title: string;
+  subtitle: string;
   desc: string;
   tags: { icon: ReactNode; label: string; bg?: string }[];
-  accentLight: string;
-  icon: ReactNode;
   onClick: () => void;
 }
-function WorldCard({ title, desc, tags, accentLight, icon, onClick }: WorldCardProps) {
+
+function ServiceCard({ accent, glow, gradFrom, imgSrc, title, subtitle, desc, tags, onClick }: ServiceCardProps) {
+  const [hovered, setHovered] = useState(false);
   return (
-    <button onClick={onClick} style={{
-      background: 'rgba(10,16,36,0.95)',
-      border: '1px solid rgba(255,255,255,0.08)',
-      borderRadius: 16, padding: 0, width: '100%', cursor: 'pointer',
-      textAlign: 'left', fontFamily: 'inherit',
-      boxShadow: '0 2px 16px rgba(0,0,0,0.45)',
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(7px,2vw,12px)', padding: 'clamp(9px,2.8vw,13px) clamp(9px,2.8vw,13px) clamp(6px,1.8vw,8px)' }}>
-        {icon}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-            <span style={{ fontSize: 'clamp(14px,4.2vw,17px)', fontWeight: 800, color: '#fff', letterSpacing: '-0.2px' }}>{title}</span>
-            <span style={{ fontSize: 'clamp(7px,2vw,9px)', fontWeight: 700, color: C.green, padding: '2px 5px', borderRadius: 6, background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.28)', letterSpacing: '0.05em', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-              <LiveDot size={4} /> LIVE
-            </span>
-          </div>
-          <p style={{ fontSize: 'clamp(8px,2.5vw,10px)', color: 'rgba(155,170,210,0.85)', lineHeight: 1.35, margin: 0 }}>{desc}</p>
+    <motion.button
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      whileHover={{ y: -3 }}
+      transition={{ duration: 0.18 }}
+      style={{
+        background: 'rgba(6,14,38,0.95)',
+        border: `1px solid ${hovered ? accent + '40' : 'rgba(255,255,255,0.07)'}`,
+        borderRadius: 20,
+        padding: 0,
+        width: '100%',
+        cursor: 'pointer',
+        textAlign: 'left',
+        fontFamily: 'inherit',
+        overflow: 'hidden',
+        position: 'relative',
+        boxShadow: hovered
+          ? `0 0 0 1px ${accent}28, 0 20px 60px rgba(0,0,0,0.55), 0 0 50px ${glow}`
+          : '0 4px 24px rgba(0,0,0,0.4)',
+        transition: 'border-color 0.2s, box-shadow 0.2s',
+      }}
+    >
+      {/* Accent top bar */}
+      <div style={{ height: 3, background: `linear-gradient(90deg, transparent 0%, ${accent} 45%, transparent 100%)` }} />
+
+      {/* Main row */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(10px,2.5vw,18px)', padding: 'clamp(14px,3.5vw,22px) clamp(14px,3.5vw,20px) clamp(10px,2.5vw,14px)' }}>
+        {/* Image */}
+        <div style={{ width: 'clamp(70px,18vw,90px)', height: 'clamp(58px,15vw,74px)', borderRadius: 14, overflow: 'hidden', background: 'rgba(0,5,18,0.9)', border: '1px solid rgba(255,255,255,0.06)', flexShrink: 0, position: 'relative' }}>
+          <img src={imgSrc} alt={title} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
+          <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(circle at 50% 70%, ${glow}, transparent 65%)`, pointerEvents: 'none' }} />
         </div>
-        <ArrowRight color={accentLight} />
-      </div>
-      <div style={{ display: 'flex', gap: 'clamp(3px,1.2vw,5px)', flexWrap: 'wrap', padding: '0 clamp(9px,2.8vw,12px) clamp(9px,2.8vw,12px)' }}>
-        {tags.map((t, i) => (
-          <span key={i} style={{
-            fontSize: 'clamp(8px,2.2vw,10px)', fontWeight: 600,
-            color: '#fff',
-            padding: 'clamp(2px,0.8vw,3px) clamp(5px,1.6vw,8px)', borderRadius: 6,
-            background: t.bg ?? 'rgba(255,255,255,0.07)',
-            border: t.bg ? 'none' : '1px solid rgba(255,255,255,0.08)',
-            display: 'inline-flex', alignItems: 'center', gap: 3,
-            whiteSpace: 'nowrap',
+
+        {/* Text */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 'clamp(6px,1.5vw,10px)', flexWrap: 'wrap', marginBottom: 3 }}>
+            <span style={{ fontSize: 'clamp(22px,5.5vw,28px)', fontWeight: 900, color: '#fff', letterSpacing: '-0.03em', lineHeight: 1 }}>{title}</span>
+            <span style={{ fontSize: 'clamp(10px,2.2vw,13px)', fontWeight: 600, color: accent, letterSpacing: '0.04em' }}>{subtitle}</span>
+          </div>
+          <p style={{ fontSize: 'clamp(9px,2vw,12px)', color: '#7a90b4', margin: 0, lineHeight: 1.4 }}>{desc}</p>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 8, background: 'rgba(16,217,139,0.09)', border: '1px solid rgba(16,217,139,0.22)', borderRadius: 20, padding: '2px 8px' }}>
+            <LiveDot />
+            <span style={{ fontSize: 'clamp(8px,1.8vw,10px)', fontWeight: 700, color: '#10d98b', letterSpacing: '0.07em' }}>LIVE</span>
+          </div>
+        </div>
+
+        {/* CTA button */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+          <div style={{
+            width: 'clamp(40px,9vw,48px)', height: 'clamp(40px,9vw,48px)', borderRadius: 14,
+            background: `linear-gradient(145deg, ${gradFrom}, ${accent})`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: `0 6px 20px ${glow}`,
+            transform: hovered ? 'scale(1.1)' : 'scale(1)',
+            transition: 'transform 0.15s ease',
           }}>
-            <span style={{ display: 'inline-flex' }}>{t.icon}</span>
+            <ArrowIcon />
+          </div>
+        </div>
+      </div>
+
+      {/* Tags */}
+      <div style={{ display: 'flex', gap: 'clamp(4px,1.2vw,6px)', flexWrap: 'wrap', padding: '0 clamp(14px,3.5vw,20px) clamp(14px,3.5vw,18px)' }}>
+        {tags.map((t, i) => (
+          <span key={i} style={{ fontSize: 'clamp(8px,1.8vw,10px)', fontWeight: 600, color: '#c0d0f0', padding: 'clamp(3px,0.8vw,5px) clamp(7px,1.8vw,10px)', borderRadius: 8, background: t.bg ?? 'rgba(255,255,255,0.06)', border: t.bg ? 'none' : '1px solid rgba(255,255,255,0.08)', display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
+            <span style={{ display: 'inline-flex', opacity: 0.7 }}>{t.icon}</span>
             {t.label}
           </span>
         ))}
       </div>
-    </button>
+    </motion.button>
   );
-}
-
-// ── Stat icon type ─────────────────────────────────────────────────────
-type StatIconType = 'box' | 'driver' | 'clock' | 'check';
-const STAT_HUES: Record<StatIconType, { h1: string; h2: string; glow: string }> = {
-  box:    { h1: '#7dd3fc', h2: '#0369a1', glow: 'rgba(56,189,248,0.4)' },
-  driver: { h1: '#6ee7b7', h2: '#047857', glow: 'rgba(52,211,153,0.4)' },
-  clock:  { h1: '#fdba74', h2: '#c2410c', glow: 'rgba(251,146,60,0.4)' },
-  check:  { h1: '#c4b5fd', h2: '#5b21b6', glow: 'rgba(167,139,250,0.4)' },
-};
-function StatIcon3D({ type }: { type: StatIconType }) {
-  const { h1, h2, glow } = STAT_HUES[type];
-  const p = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: '#fff', strokeWidth: 1.9, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
-  const svgs: Record<StatIconType, ReactNode> = {
-    box:    <svg {...p}><path d="M16.5 9.4 7.55 4.24"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>,
-    driver: <svg {...p}><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>,
-    clock:  <svg {...p}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
-    check:  <svg {...p}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>,
-  };
-  return <Icon3D size={32} hue1={h1} hue2={h2} glow={glow} radius={10}>{svgs[type]}</Icon3D>;
 }
 
 // ══════════════════════════════════════════════════════════════════════
 // WELCOME
 // ══════════════════════════════════════════════════════════════════════
 export function Welcome() {
-  const navigate  = useNavigate();
+  const navigate = useNavigate();
   const { lang, setLang } = useLanguage();
   const [selectedLang, setSelectedLang] = useState<LangCode>(lang);
-  const [mounted, setMounted]   = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [liveStats, setLiveStats] = useState<{ drivers: number; cities: number; satisfied: number } | null>(null);
   const [siteConfig, setSiteConfig] = useState(() => getSiteConfig());
 
@@ -278,152 +182,149 @@ export function Welcome() {
 
   if (!mounted) return null;
 
-  const statsStrip = [
-    { target: liveStats?.drivers  ?? 3400, suffix: liveStats ? '' : '+', label: 'Водителей', color: C.blueLight },
-    { target: liveStats?.cities   ?? 12,   suffix: '',                    label: 'Городов',   color: C.purple },
-    { target: liveStats?.satisfied ?? 98,  suffix: '%',                   label: 'Довольных', color: C.green },
-  ];
-
-  const bottomStats: { icon: StatIconType; val: number; suffix: string; label: string; color: string }[] = [
-    { icon: 'box',    val: 128, suffix: '',      label: 'Грузов онлайн',      color: C.blueLight },
-    { icon: 'driver', val: 43,  suffix: '',      label: 'Водителей онлайн',   color: C.green },
-    { icon: 'clock',  val: 12,  suffix: ' мин',  label: 'Очередь на границе', color: C.orange },
-    { icon: 'check',  val: 98,  suffix: '%',     label: 'Доставка в срок',    color: C.purple },
+  const metrics = [
+    { val: liveStats?.drivers  ?? 3400, suffix: '+', label: 'Водителей',    color: '#4fa3ff', iconKey: 'truck' },
+    { val: liveStats?.cities   ?? 12,   suffix: '',  label: 'Городов',      color: '#a78bfa', iconKey: 'globe' },
+    { val: liveStats?.satisfied ?? 98,  suffix: '%', label: 'Довольных',    color: '#10d98b', iconKey: 'star'  },
+    { val: 128,                         suffix: '',  label: 'Рейсов онлайн', color: '#ff8c42', iconKey: 'pkg'   },
   ];
 
   return (
-    <div className="ovora-app">
-      <MapBackground />
+    <div style={{ minHeight: '100vh', background: '#020812', position: 'relative' }}>
 
-      {/* ─── Hero: full-bleed on desktop, natural height on mobile ─── */}
-      <motion.div className="ovora-hero-fullbleed"
-        initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}
+      {/* Ambient background glow */}
+      <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: '-15%', left: '50%', transform: 'translateX(-50%)', width: 900, height: 700, borderRadius: '50%', background: 'radial-gradient(circle, rgba(30,111,217,0.14) 0%, transparent 65%)', filter: 'blur(40px)' }} />
+        <div style={{ position: 'absolute', top: '50%', right: '-5%', width: 600, height: 600, borderRadius: '50%', background: 'radial-gradient(circle, rgba(0,200,255,0.07) 0%, transparent 65%)', filter: 'blur(40px)' }} />
+      </div>
+
+      {/* ── HERO: full-bleed cinematic ── */}
+      <motion.div className="ovora-hero-fullbleed" style={{ position: 'relative', zIndex: 1 }}
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.7 }}
       >
         <img src={siteConfig.icons.hero} alt="Ovora Cargo" />
+        {/* Cinematic overlay fading to background */}
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(2,8,18,0.2) 0%, rgba(2,8,18,0.5) 60%, #020812 100%)' }} />
+        {/* Text overlay — desktop only via CSS class */}
+        <div className="ovora-hero-text">
+          <motion.div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '5px 14px', background: 'rgba(30,111,217,0.2)', border: '1px solid rgba(79,163,255,0.32)', borderRadius: 20, backdropFilter: 'blur(12px)', marginBottom: 14 }}
+            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}
+          >
+            <LiveDot />
+            <span style={{ fontSize: 'clamp(9px,1.5vw,12px)', fontWeight: 700, color: '#7dc4ff', letterSpacing: '0.1em' }}>ПЛАТФОРМА №1 В СНГ</span>
+          </motion.div>
+          <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.55 }}>
+            <div style={{ fontSize: 'clamp(36px,6vw,80px)', fontWeight: 900, color: '#fff', lineHeight: 0.9, letterSpacing: '-0.04em', textShadow: '0 4px 30px rgba(0,0,0,0.7)' }}>OVORA</div>
+            <div style={{ fontSize: 'clamp(13px,2.5vw,28px)', fontWeight: 300, color: 'rgba(180,210,255,0.75)', letterSpacing: '0.2em', marginTop: 6, textTransform: 'uppercase' }}>Cargo Platform</div>
+          </motion.div>
+          <motion.p style={{ fontSize: 'clamp(11px,1.6vw,17px)', color: 'rgba(145,180,228,0.7)', margin: 'clamp(10px,2vw,20px) 0 0', lineHeight: 1.6, maxWidth: 480 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.65 }}
+          >
+            Соединяем грузоотправителей и водителей<br />по всей России и СНГ
+          </motion.p>
+        </div>
       </motion.div>
 
-      {/* ─── Content container ─── */}
-      <div className="ovora-screen" style={{ position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', gap: 'clamp(8px,2vw,16px)' }}>
+      {/* ── MAIN CONTENT ── */}
+      <div style={{ position: 'relative', zIndex: 2, maxWidth: 1280, margin: '0 auto', padding: 'clamp(14px,3vw,32px) clamp(12px,3.5vw,32px) clamp(32px,6vw,64px)' }}>
 
-        {/* 2 ── CARGO + AVIA CARDS ── */}
-        <motion.div className="ovora-area-cards"
-          initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15, duration: 0.45 }}
-          style={{ padding: '0 clamp(8px,3vw,0px)' }}
+        {/* Service cards — 1 col mobile / 2 col desktop */}
+        <motion.div className="ovora-services-grid"
+          initial={{ opacity: 0, y: 22 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.5 }}
         >
-          <div className="ovora-cards-grid" style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(6px,2vw,10px)' }}>
-            <WorldCard
-              title="CARGO"
-              desc="Грузоперевозки  Россия · Таджикистан · СНГ"
-              icon={<TruckBig src={siteConfig.icons.truck} />}
-              accentLight={C.blueLight}
-              onClick={() => navigate('/role-select')}
-              tags={[
-                { icon: Ti.border, label: 'Границы' },
-                { icon: Ti.driver, label: 'Водители', bg: 'rgba(220,38,38,0.7)' },
-                { icon: Ti.box,    label: 'Грузы',    bg: 'rgba(217,119,6,0.7)' },
-                { icon: Ti.radio,  label: 'Рация' },
-              ]}
-            />
-            <WorldCard
-              title="AVIA"
-              desc="Авиагруз  Россия ↔ Таджикистан"
-              icon={<PlaneBig src={siteConfig.icons.plane} />}
-              accentLight={C.cyan}
-              onClick={() => navigate('/avia')}
-              tags={[
-                { icon: Ti.plane, label: 'Курьер' },
-                { icon: Ti.mail,  label: 'Отправитель' },
-                { icon: Ti.flex,  label: 'Гибкие роли' },
-              ]}
-            />
-          </div>
+          <ServiceCard
+            accent="#4fa3ff"
+            glow="rgba(79,163,255,0.2)"
+            gradFrom="#103a8c"
+            imgSrc={siteConfig.icons.truck}
+            title="CARGO"
+            subtitle="Грузоперевозки"
+            desc="Россия · Таджикистан · СНГ"
+            tags={[
+              { icon: TagIcons.shield, label: 'Границы' },
+              { icon: TagIcons.user,   label: 'Водители', bg: 'rgba(220,38,38,0.6)' },
+              { icon: TagIcons.box,    label: 'Грузы',    bg: 'rgba(217,119,6,0.6)' },
+              { icon: TagIcons.radio,  label: 'Рация' },
+            ]}
+            onClick={() => navigate('/role-select')}
+          />
+          <ServiceCard
+            accent="#00c8ff"
+            glow="rgba(0,200,255,0.18)"
+            gradFrom="#004a5e"
+            imgSrc={siteConfig.icons.plane}
+            title="AVIA"
+            subtitle="Авиагруз"
+            desc="Россия ↔ Таджикистан"
+            tags={[
+              { icon: TagIcons.plane, label: 'Курьер' },
+              { icon: TagIcons.mail,  label: 'Отправитель' },
+              { icon: TagIcons.flex,  label: 'Гибкие роли' },
+            ]}
+            onClick={() => navigate('/avia')}
+          />
         </motion.div>
 
-        {/* 3 ── LANGUAGE ── */}
-        <motion.div className="ovora-area-lang"
-          style={{ padding: '0 clamp(8px,3vw,0px)' }}
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25, duration: 0.4 }}
+        {/* Metrics strip — 2 col mobile / 4 col desktop */}
+        <motion.div className="ovora-metrics-grid"
+          style={{ marginTop: 'clamp(10px,2.5vw,20px)' }}
+          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35, duration: 0.45 }}
         >
-          <div className="ovora-lang-card" style={{
-            background: 'rgba(10,16,36,0.95)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            borderRadius: 16,
-            padding: 'clamp(10px,3vw,14px)',
-            boxShadow: '0 2px 16px rgba(0,0,0,0.45)',
-            display: 'flex', alignItems: 'center', gap: 12,
-          }}>
-            <div className="lang-label" style={{ fontSize: 'clamp(8px,2.2vw,10px)', fontWeight: 700, color: C.dim2, letterSpacing: '0.12em', textTransform: 'uppercase', whiteSpace: 'nowrap', flexShrink: 0 }}>Язык интерфейса</div>
-            <div className="lang-buttons" style={{ display: 'flex', gap: 'clamp(5px,1.8vw,8px)', flex: 1 }}>
+          {metrics.map((m, i) => (
+            <div key={i} style={{ background: 'rgba(6,14,38,0.95)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: 'clamp(12px,3vw,20px) clamp(10px,2.5vw,16px)', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 12, background: `linear-gradient(135deg, ${m.color}22, ${m.color}44)`, border: `1px solid ${m.color}33`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: m.color }}>
+                {MetricIcons[m.iconKey]}
+              </div>
+              <div>
+                <div style={{ fontSize: 'clamp(20px,5vw,28px)', fontWeight: 900, color: m.color, lineHeight: 1, letterSpacing: '-0.02em' }}>
+                  <Counter target={m.val} suffix={m.suffix} />
+                </div>
+                <div style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#6a84a8', fontWeight: 600, marginTop: 2, lineHeight: 1.2 }}>{m.label}</div>
+              </div>
+            </div>
+          ))}
+        </motion.div>
+
+        {/* Bottom row: Partners + Language */}
+        <motion.div className="ovora-bottom-row"
+          style={{ marginTop: 'clamp(10px,2.5vw,20px)' }}
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.45, duration: 0.4 }}
+        >
+          {/* Partners */}
+          <div style={{ background: 'rgba(6,14,38,0.95)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: 'clamp(12px,3vw,18px)', overflow: 'hidden', flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <span style={{ fontSize: 'clamp(11px,2.5vw,14px)', fontWeight: 800, color: '#b8ccee' }}>Наши партнёры</span>
+              <span style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#4fa3ff', fontWeight: 600, cursor: 'pointer' }}>Все →</span>
+            </div>
+            <div style={{ display: 'flex', gap: 'clamp(8px,2vw,14px)', overflowX: 'auto', paddingBottom: 4, WebkitOverflowScrolling: 'touch' as any }}>
+              {siteConfig.partners.map((p, i) => (
+                <div key={p.id ?? i} style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, width: 'clamp(52px,12vw,68px)' }}>
+                  <div style={{ width: 'clamp(38px,9vw,50px)', height: 'clamp(38px,9vw,50px)', borderRadius: 12, background: `linear-gradient(145deg, ${p.color}18, ${p.color}35)`, border: `1px solid ${p.color}40`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ fontSize: p.mark.length > 2 ? 'clamp(7px,2vw,10px)' : 'clamp(10px,2.5vw,14px)', fontWeight: 900, color: p.textColor ?? p.color }}>{p.mark}</span>
+                  </div>
+                  <span style={{ fontSize: 'clamp(7px,1.6vw,9px)', color: '#8898b8', fontWeight: 700, textAlign: 'center', lineHeight: 1.2 }}>{p.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Language selector */}
+          <div style={{ background: 'rgba(6,14,38,0.95)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: 'clamp(12px,3vw,18px)', flexShrink: 0 }}>
+            <div style={{ fontSize: 'clamp(9px,2vw,11px)', fontWeight: 700, color: '#4a6080', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 10 }}>Язык</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, minWidth: 'clamp(120px,16vw,160px)' }}>
               {LANGS.map(l => {
                 const active = selectedLang === l.code;
                 return (
-                  <button key={l.code} onClick={() => handleLang(l.code)} className="lang-btn" style={{
-                    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                    padding: 'clamp(8px,2.5vw,12px) 4px', borderRadius: 10,
-                    border: active ? '1px solid rgba(91,163,245,0.5)' : '1px solid rgba(255,255,255,0.08)',
-                    background: active ? 'rgba(33,118,232,0.18)' : 'rgba(255,255,255,0.04)',
-                    color: active ? '#e8f0ff' : C.dim,
-                    fontSize: 'clamp(11px,3.2vw,13px)', fontWeight: 700, letterSpacing: '0.04em',
-                    cursor: 'pointer', fontFamily: 'inherit', position: 'relative', overflow: 'hidden',
-                    transition: 'all 0.18s ease',
-                  }}>
-                    {active && <span style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at top, rgba(91,163,245,0.22), transparent 70%)' }} />}
-                    <span style={{ fontSize: 'clamp(15px,4.5vw,18px)', position: 'relative' }}>{l.flag}</span>
-                    <span style={{ position: 'relative' }}>{l.display}</span>
+                  <button key={l.code} onClick={() => handleLang(l.code)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 'clamp(7px,2vw,10px) clamp(8px,2vw,12px)', borderRadius: 10, border: active ? '1px solid rgba(79,163,255,0.4)' : '1px solid transparent', background: active ? 'rgba(30,111,217,0.16)' : 'rgba(255,255,255,0.02)', color: active ? '#bdd9ff' : '#4a6080', fontSize: 'clamp(11px,2.5vw,13px)', fontWeight: active ? 700 : 500, cursor: 'pointer', fontFamily: 'inherit', width: '100%', textAlign: 'left', transition: 'all 0.15s ease' }}>
+                    <span style={{ fontSize: 'clamp(14px,3.5vw,17px)' }}>{l.flag}</span>
+                    <span>{l.display}</span>
+                    {active && <span style={{ marginLeft: 'auto', width: 6, height: 6, borderRadius: '50%', background: '#4fa3ff', boxShadow: '0 0 6px #4fa3ff88' }} />}
                   </button>
                 );
               })}
             </div>
           </div>
         </motion.div>
-
-        {/* 4 ── PARTNERS ── */}
-        <motion.div className="ovora-area-partners"
-          style={{ padding: '0 clamp(8px,3vw,0px) clamp(8px,3vw,0px)' }}
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35, duration: 0.4 }}
-        >
-          <div style={{ background: 'rgba(10,16,36,0.95)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: 'clamp(10px,3vw,14px)', boxShadow: '0 2px 16px rgba(0,0,0,0.45)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <div style={{ fontSize: 'clamp(13px,3.8vw,16px)', fontWeight: 800, color: '#fff' }}>Наши партнёры</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 'clamp(10px,3vw,12px)', color: C.blueLight, fontWeight: 600 }}>
-                Смотреть всех
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.blueLight} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 5l7 7-7 7" /></svg>
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: 'clamp(5px,1.5vw,12px)', overflowX: 'auto', paddingBottom: 2, WebkitOverflowScrolling: 'touch' as any }}>
-              {siteConfig.partners.map((p, i) => (
-                <div key={p.id ?? i} style={{
-                  flexShrink: 0, width: 'clamp(58px,17vw,90px)',
-                  background: 'rgba(15,25,50,0.9)',
-                  border: '1px solid rgba(255,255,255,0.07)',
-                  borderRadius: 10,
-                  display: 'flex', flexDirection: 'column', alignItems: 'center',
-                  padding: 'clamp(6px,1.8vw,12px) clamp(4px,1.2vw,8px)',
-                  gap: 4,
-                }}>
-                  <div style={{
-                    width: 'clamp(28px,8vw,44px)', height: 'clamp(28px,8vw,44px)', borderRadius: 8,
-                    background: `linear-gradient(145deg, ${p.color}22, ${p.color}44)`,
-                    border: `1px solid ${p.color}55`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    <span style={{ fontSize: p.mark.length > 2 ? 'clamp(8px,2.5vw,12px)' : 'clamp(11px,3.2vw,16px)', fontWeight: 900, color: p.textColor ?? p.color, letterSpacing: -0.5 }}>{p.mark}</span>
-                  </div>
-                  <div style={{ textAlign: 'center', lineHeight: 1.2 }}>
-                    <div style={{ fontSize: 'clamp(7px,2vw,10px)', fontWeight: 800, color: '#e2eaf8' }}>{p.name}</div>
-                    <div style={{ fontSize: 'clamp(6px,1.8vw,9px)', color: C.dim, marginTop: 1 }}>{p.sub}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 4, marginTop: 7 }}>
-              {siteConfig.partners.map((_, i) => (
-                <span key={i} style={{ width: i === 0 ? 14 : 4, height: 3, borderRadius: 99, background: i === 0 ? C.blueLight : 'rgba(255,255,255,0.15)' }} />
-              ))}
-            </div>
-          </div>
-        </motion.div>
-
 
       </div>
     </div>
