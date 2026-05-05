@@ -5,6 +5,7 @@ import { motion } from 'motion/react';
 import { useLanguage } from '../context/LanguageContext';
 import type { LangCode } from '../i18n/translations';
 import { getPublicStats } from '../api/dataApi';
+import { getSiteConfig } from '../utils/siteConfig';
 
 // ── Palette ────────────────────────────────────────────────────────────
 const C = {
@@ -27,14 +28,6 @@ const LANGS: { code: LangCode; display: string; flag: string }[] = [
   { code: 'en', display: 'EN', flag: '🇺🇸' },
 ];
 
-// ── Partner placeholders ───────────────────────────────────────────────
-const PARTNERS = [
-  { name: 'DP World',       sub: 'Global Logistics', mark: 'DP',  color: '#005eb8', bg: '#e8f0fb' },
-  { name: 'Maersk',         sub: 'Ocean Shipping',   mark: 'MAE', color: '#42b0d5', bg: '#e8f6fb' },
-  { name: 'DHL',            sub: 'Supply Chain',     mark: 'DHL', color: '#FFCC00', bg: '#fff8e1', textColor: '#D40511' },
-  { name: 'Turkish Cargo',  sub: 'Air Freight',      mark: 'TC',  color: '#e01a22', bg: '#fdecea' },
-  { name: 'Schenker',       sub: 'Logistics',        mark: 'DB',  color: '#ec0016', bg: '#fdecea' },
-];
 
 // ── Counter ────────────────────────────────────────────────────────────
 function Counter({ target, suffix }: { target: number; suffix: string }) {
@@ -170,10 +163,10 @@ const Ti = {
 };
 
 // ── Cargo truck photo ─────────────────────────────────────────────────
-function TruckBig() {
+function TruckBig({ src }: { src: string }) {
   return (
     <div style={{ width: 'clamp(74px,22vw,100px)', height: 'clamp(64px,19vw,88px)', borderRadius: 12, flexShrink: 0, overflow: 'hidden', background: 'rgba(0,8,24,0.85)', boxShadow: '0 0 0 1px rgba(91,163,245,0.15)' }}>
-      <img src="/icons/cargo-truck.png" alt="CARGO"
+      <img src={src} alt="CARGO"
         style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
       />
     </div>
@@ -181,10 +174,10 @@ function TruckBig() {
 }
 
 // ── Avia plane photo ──────────────────────────────────────────────────
-function PlaneBig() {
+function PlaneBig({ src }: { src: string }) {
   return (
     <div style={{ width: 'clamp(74px,22vw,100px)', height: 'clamp(64px,19vw,88px)', borderRadius: 12, flexShrink: 0, overflow: 'hidden', background: 'rgba(0,8,24,0.85)', boxShadow: '0 0 0 1px rgba(91,163,245,0.15)' }}>
-      <img src="/icons/avia-plane.png" alt="AVIA"
+      <img src={src} alt="AVIA"
         style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
       />
     </div>
@@ -271,10 +264,14 @@ export function Welcome() {
   const [selectedLang, setSelectedLang] = useState<LangCode>(lang);
   const [mounted, setMounted]   = useState(false);
   const [liveStats, setLiveStats] = useState<{ drivers: number; cities: number; satisfied: number } | null>(null);
+  const [siteConfig, setSiteConfig] = useState(() => getSiteConfig());
 
   useEffect(() => {
     setMounted(true);
     getPublicStats().then(s => setLiveStats(s)).catch(() => {});
+    const onCfgChange = () => setSiteConfig(getSiteConfig());
+    window.addEventListener('ovora_site_config_changed', onCfgChange);
+    return () => window.removeEventListener('ovora_site_config_changed', onCfgChange);
   }, []);
 
   const handleLang = (code: LangCode) => { setSelectedLang(code); setLang(code); };
@@ -305,7 +302,7 @@ export function Welcome() {
           style={{ position: 'relative', margin: 'clamp(4px,1.5vw,8px) clamp(8px,3vw,14px) 0', borderRadius: 'clamp(12px,4vw,18px)', overflow: 'hidden', boxShadow: '0 0 0 1px rgba(91,163,245,0.2), 0 10px 32px rgba(0,0,0,0.5)' }}
           initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}
         >
-          <img src="/icons/hero-promo.png" alt="Ovora Cargo" style={{ width: '100%', display: 'block', objectFit: 'cover' }} />
+          <img src={siteConfig.icons.hero} alt="Ovora Cargo" style={{ width: '100%', display: 'block', objectFit: 'cover' }} />
         </motion.div>
 
         {/* ── HERO placeholder (keeps grid area) ── */}
@@ -357,7 +354,7 @@ export function Welcome() {
             <WorldCard
               title="CARGO"
               desc="Грузоперевозки  Россия · Таджикистан · СНГ"
-              icon={<TruckBig />}
+              icon={<TruckBig src={siteConfig.icons.truck} />}
               accentLight={C.blueLight}
               onClick={() => navigate('/role-select')}
               tags={[
@@ -370,7 +367,7 @@ export function Welcome() {
             <WorldCard
               title="AVIA"
               desc="Авиагруз  Россия ↔ Таджикистан"
-              icon={<PlaneBig />}
+              icon={<PlaneBig src={siteConfig.icons.plane} />}
               accentLight={C.cyan}
               onClick={() => navigate('/avia')}
               tags={[
@@ -397,8 +394,8 @@ export function Welcome() {
             </div>
             {/* Horizontal carousel */}
             <div style={{ display: 'flex', gap: 'clamp(5px,1.5vw,8px)', overflowX: 'auto', paddingBottom: 2, WebkitOverflowScrolling: 'touch' as any }}>
-              {PARTNERS.map((p, i) => (
-                <div key={i} style={{
+              {siteConfig.partners.map((p, i) => (
+                <div key={p.id ?? i} style={{
                   flexShrink: 0, width: 'clamp(58px,17vw,72px)',
                   background: 'rgba(15,25,50,0.9)',
                   border: '1px solid rgba(255,255,255,0.07)',
@@ -423,8 +420,8 @@ export function Welcome() {
               ))}
             </div>
             <div style={{ display: 'flex', justifyContent: 'center', gap: 4, marginTop: 7 }}>
-              {[1, 0, 0, 0, 0].map((a, i) => (
-                <span key={i} style={{ width: a ? 14 : 4, height: 3, borderRadius: 99, background: a ? C.blueLight : 'rgba(255,255,255,0.15)' }} />
+              {siteConfig.partners.map((_, i) => (
+                <span key={i} style={{ width: i === 0 ? 14 : 4, height: 3, borderRadius: 99, background: i === 0 ? C.blueLight : 'rgba(255,255,255,0.15)' }} />
               ))}
             </div>
           </div>
