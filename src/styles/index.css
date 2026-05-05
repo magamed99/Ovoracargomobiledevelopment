@@ -84,43 +84,57 @@ button, a {
   padding-bottom: clamp(24px, 6vw, 36px);
 }
 
-/* ── Desktop layout (700px+) ─────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════
+   DESKTOP LAYOUT  (700 px +)
+   Stack:  hero → cards(2-col) → lang-strip → partners
+   ═══════════════════════════════════════════════════════════════ */
 @media (min-width: 700px) {
+
+  /* ── outer wrapper ── */
   .ovora-screen {
-    max-width: 860px;
-    padding: 28px 28px 52px;
+    max-width: 960px;
+    padding: 32px 32px 56px;
   }
 
-  /* Hero: taller, proper crop on desktop */
+  /* ── hero: remove side margin, make taller ── */
+  .ovora-area-header {
+    margin: 0 !important;
+    border-radius: 22px !important;
+  }
   .ovora-area-header img {
-    max-height: 360px;
+    height: 380px;
     object-fit: cover;
     width: 100%;
   }
 
-  /* Hide empty hero placeholder */
-  .ovora-area-hero { display: none; }
+  /* ── hide mobile-only hero placeholder ── */
+  .ovora-area-hero { display: none !important; }
 
-  /* Desktop row: transparent — children stack normally */
-  .ovora-desktop-row { display: contents; }
-
-  /* CARGO + AVIA side by side */
+  /* ── CARGO + AVIA side by side ── */
   .ovora-cards-grid {
     display: grid !important;
     grid-template-columns: 1fr 1fr !important;
-    gap: 14px !important;
+    gap: 16px !important;
     padding: 0 !important;
   }
   .ovora-cards-grid > button { width: 100%; min-width: 0; }
+
+  /* ── language: compact horizontal strip ── */
+  .ovora-lang-card {
+    padding: 10px 14px !important;
+  }
+  .ovora-lang-card .lang-label { display: inline !important; margin-right: 12px; }
+  .ovora-lang-card .lang-buttons { display: flex; gap: 8px; }
+  .ovora-lang-card .lang-btn    { padding: 7px 18px !important; }
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 1100px) {
   .ovora-screen {
-    max-width: 980px;
-    padding: 32px 40px 60px;
+    max-width: 1100px;
+    padding: 40px 48px 64px;
   }
-  .ovora-area-header img { max-height: 400px; }
-  .ovora-cards-grid { gap: 18px !important; }
+  .ovora-area-header img { height: 420px; }
+  .ovora-cards-grid { gap: 20px !important; }
 }
 
 /* hide stats strip on mobile */

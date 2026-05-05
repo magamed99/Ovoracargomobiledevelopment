@@ -295,61 +295,25 @@ export function Welcome() {
     <div className="ovora-app">
       <MapBackground />
 
-      <div className="ovora-screen" style={{ position: 'relative', zIndex: 2 }}>
+      {/* ─── gap between sections on desktop ─── */}
+      <div className="ovora-screen" style={{ position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', gap: 'clamp(8px,2vw,16px)' }}>
 
-        {/* ── HEADER + HERO → promo photo ── */}
+        {/* 1 ── HERO BANNER ── */}
         <motion.div className="ovora-area-header"
-          style={{ position: 'relative', margin: 'clamp(4px,1.5vw,8px) clamp(8px,3vw,14px) 0', borderRadius: 'clamp(12px,4vw,18px)', overflow: 'hidden', boxShadow: '0 0 0 1px rgba(91,163,245,0.2), 0 10px 32px rgba(0,0,0,0.5)' }}
+          style={{ position: 'relative', margin: 'clamp(4px,1.5vw,0px) clamp(8px,3vw,0px) 0', borderRadius: 'clamp(14px,4vw,22px)', overflow: 'hidden', boxShadow: '0 0 0 1px rgba(91,163,245,0.2), 0 12px 40px rgba(0,0,0,0.6)' }}
           initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}
         >
           <img src={siteConfig.icons.hero} alt="Ovora Cargo" style={{ width: '100%', display: 'block', objectFit: 'cover' }} />
         </motion.div>
 
-        {/* ── HERO placeholder hidden on desktop ── */}
         <div className="ovora-area-hero" />
 
-        {/* ── LANGUAGE ── */}
-        <motion.div className="ovora-area-lang"
-          style={{ padding: 'clamp(6px,2vw,12px) clamp(8px,3vw,16px) 0' }}
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2, duration: 0.4 }}
-        >
-          <div style={{
-            background: 'rgba(10,16,36,0.95)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            borderRadius: 16,
-            padding: 'clamp(10px,3vw,14px)',
-            boxShadow: '0 2px 16px rgba(0,0,0,0.45)',
-          }}>
-            <div style={{ fontSize: 'clamp(8px,2.2vw,10px)', fontWeight: 700, color: C.dim2, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Язык интерфейса</div>
-            <div style={{ display: 'flex', gap: 'clamp(5px,1.8vw,8px)' }}>
-              {LANGS.map(l => {
-                const active = selectedLang === l.code;
-                return (
-                  <button key={l.code} onClick={() => handleLang(l.code)} style={{
-                    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                    padding: 'clamp(8px,2.5vw,12px) 4px', borderRadius: 10,
-                    border: active ? '1px solid rgba(91,163,245,0.5)' : '1px solid rgba(255,255,255,0.08)',
-                    background: active ? 'rgba(33,118,232,0.18)' : 'rgba(255,255,255,0.04)',
-                    color: active ? '#e8f0ff' : C.dim,
-                    fontSize: 'clamp(11px,3.2vw,13px)', fontWeight: 700, letterSpacing: '0.04em',
-                    cursor: 'pointer', fontFamily: 'inherit', position: 'relative', overflow: 'hidden',
-                    transition: 'all 0.18s ease',
-                  }}>
-                    {active && <span style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at top, rgba(91,163,245,0.22), transparent 70%)' }} />}
-                    <span style={{ fontSize: 'clamp(15px,4.5vw,18px)', position: 'relative' }}>{l.flag}</span>
-                    <span style={{ position: 'relative' }}>{l.display}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </motion.div>
-
-        {/* ── CARDS ── */}
+        {/* 2 ── CARGO + AVIA CARDS ── */}
         <motion.div className="ovora-area-cards"
-          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.45 }}
+          initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15, duration: 0.45 }}
+          style={{ padding: '0 clamp(8px,3vw,0px)' }}
         >
-          <div className="ovora-cards-grid" style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(6px,2vw,10px)', padding: 'clamp(0px,0vw,0px) clamp(8px,3vw,16px) 0' }}>
+          <div className="ovora-cards-grid" style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(6px,2vw,10px)' }}>
             <WorldCard
               title="CARGO"
               desc="Грузоперевозки  Россия · Таджикистан · СНГ"
@@ -378,10 +342,48 @@ export function Welcome() {
           </div>
         </motion.div>
 
-        {/* ── PARTNERS ── */}
+        {/* 3 ── LANGUAGE ── */}
+        <motion.div className="ovora-area-lang"
+          style={{ padding: '0 clamp(8px,3vw,0px)' }}
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25, duration: 0.4 }}
+        >
+          <div className="ovora-lang-card" style={{
+            background: 'rgba(10,16,36,0.95)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: 16,
+            padding: 'clamp(10px,3vw,14px)',
+            boxShadow: '0 2px 16px rgba(0,0,0,0.45)',
+            display: 'flex', alignItems: 'center', gap: 12,
+          }}>
+            <div className="lang-label" style={{ fontSize: 'clamp(8px,2.2vw,10px)', fontWeight: 700, color: C.dim2, letterSpacing: '0.12em', textTransform: 'uppercase', whiteSpace: 'nowrap', flexShrink: 0 }}>Язык интерфейса</div>
+            <div className="lang-buttons" style={{ display: 'flex', gap: 'clamp(5px,1.8vw,8px)', flex: 1 }}>
+              {LANGS.map(l => {
+                const active = selectedLang === l.code;
+                return (
+                  <button key={l.code} onClick={() => handleLang(l.code)} className="lang-btn" style={{
+                    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    padding: 'clamp(8px,2.5vw,12px) 4px', borderRadius: 10,
+                    border: active ? '1px solid rgba(91,163,245,0.5)' : '1px solid rgba(255,255,255,0.08)',
+                    background: active ? 'rgba(33,118,232,0.18)' : 'rgba(255,255,255,0.04)',
+                    color: active ? '#e8f0ff' : C.dim,
+                    fontSize: 'clamp(11px,3.2vw,13px)', fontWeight: 700, letterSpacing: '0.04em',
+                    cursor: 'pointer', fontFamily: 'inherit', position: 'relative', overflow: 'hidden',
+                    transition: 'all 0.18s ease',
+                  }}>
+                    {active && <span style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at top, rgba(91,163,245,0.22), transparent 70%)' }} />}
+                    <span style={{ fontSize: 'clamp(15px,4.5vw,18px)', position: 'relative' }}>{l.flag}</span>
+                    <span style={{ position: 'relative' }}>{l.display}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </motion.div>
+
+        {/* 4 ── PARTNERS ── */}
         <motion.div className="ovora-area-partners"
-          style={{ padding: 'clamp(6px,2vw,12px) clamp(8px,3vw,16px) clamp(12px,3vw,16px)' }}
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.38, duration: 0.4 }}
+          style={{ padding: '0 clamp(8px,3vw,0px) clamp(8px,3vw,0px)' }}
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35, duration: 0.4 }}
         >
           <div style={{ background: 'rgba(10,16,36,0.95)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: 'clamp(10px,3vw,14px)', boxShadow: '0 2px 16px rgba(0,0,0,0.45)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -391,29 +393,28 @@ export function Welcome() {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.blueLight} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 5l7 7-7 7" /></svg>
               </div>
             </div>
-            {/* Horizontal carousel */}
-            <div style={{ display: 'flex', gap: 'clamp(5px,1.5vw,8px)', overflowX: 'auto', paddingBottom: 2, WebkitOverflowScrolling: 'touch' as any }}>
+            <div style={{ display: 'flex', gap: 'clamp(5px,1.5vw,12px)', overflowX: 'auto', paddingBottom: 2, WebkitOverflowScrolling: 'touch' as any }}>
               {siteConfig.partners.map((p, i) => (
                 <div key={p.id ?? i} style={{
-                  flexShrink: 0, width: 'clamp(58px,17vw,72px)',
+                  flexShrink: 0, width: 'clamp(58px,17vw,90px)',
                   background: 'rgba(15,25,50,0.9)',
                   border: '1px solid rgba(255,255,255,0.07)',
                   borderRadius: 10,
                   display: 'flex', flexDirection: 'column', alignItems: 'center',
-                  padding: 'clamp(6px,1.8vw,9px) clamp(4px,1.2vw,6px)',
+                  padding: 'clamp(6px,1.8vw,12px) clamp(4px,1.2vw,8px)',
                   gap: 4,
                 }}>
                   <div style={{
-                    width: 'clamp(28px,8vw,36px)', height: 'clamp(28px,8vw,36px)', borderRadius: 8,
+                    width: 'clamp(28px,8vw,44px)', height: 'clamp(28px,8vw,44px)', borderRadius: 8,
                     background: `linear-gradient(145deg, ${p.color}22, ${p.color}44)`,
                     border: `1px solid ${p.color}55`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>
-                    <span style={{ fontSize: p.mark.length > 2 ? 'clamp(8px,2.5vw,10px)' : 'clamp(11px,3.2vw,13px)', fontWeight: 900, color: p.textColor ?? p.color, letterSpacing: -0.5 }}>{p.mark}</span>
+                    <span style={{ fontSize: p.mark.length > 2 ? 'clamp(8px,2.5vw,12px)' : 'clamp(11px,3.2vw,16px)', fontWeight: 900, color: p.textColor ?? p.color, letterSpacing: -0.5 }}>{p.mark}</span>
                   </div>
                   <div style={{ textAlign: 'center', lineHeight: 1.2 }}>
-                    <div style={{ fontSize: 'clamp(7px,2vw,9px)', fontWeight: 800, color: '#e2eaf8' }}>{p.name}</div>
-                    <div style={{ fontSize: 'clamp(6px,1.8vw,8px)', color: C.dim, marginTop: 1 }}>{p.sub}</div>
+                    <div style={{ fontSize: 'clamp(7px,2vw,10px)', fontWeight: 800, color: '#e2eaf8' }}>{p.name}</div>
+                    <div style={{ fontSize: 'clamp(6px,1.8vw,9px)', color: C.dim, marginTop: 1 }}>{p.sub}</div>
                   </div>
                 </div>
               ))}
