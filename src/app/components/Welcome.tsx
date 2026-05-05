@@ -308,79 +308,75 @@ export function Welcome() {
         {/* ── HERO placeholder hidden on desktop ── */}
         <div className="ovora-area-hero" />
 
-        {/* ── DESKTOP ROW: Language left | Cards right ── */}
-        <div className="ovora-desktop-row" style={{ padding: 'clamp(6px,2vw,0px) clamp(8px,3vw,0px) 0' }}>
-
-          {/* Language */}
-          <motion.div className="ovora-area-lang"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2, duration: 0.4 }}
-          >
-            <div style={{
-              background: 'rgba(10,16,36,0.95)',
-              border: '1px solid rgba(255,255,255,0.08)',
-              borderRadius: 16,
-              padding: 'clamp(10px,3vw,14px)',
-              boxShadow: '0 2px 16px rgba(0,0,0,0.45)',
-            }}>
-              <div style={{ fontSize: 'clamp(8px,2.2vw,10px)', fontWeight: 700, color: C.dim2, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Язык интерфейса</div>
-              <div style={{ display: 'flex', gap: 'clamp(5px,1.8vw,8px)' }}>
-                {LANGS.map(l => {
-                  const active = selectedLang === l.code;
-                  return (
-                    <button key={l.code} onClick={() => handleLang(l.code)} style={{
-                      flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                      padding: 'clamp(8px,2.5vw,12px) 4px', borderRadius: 10,
-                      border: active ? '1px solid rgba(91,163,245,0.5)' : '1px solid rgba(255,255,255,0.08)',
-                      background: active ? 'rgba(33,118,232,0.18)' : 'rgba(255,255,255,0.04)',
-                      color: active ? '#e8f0ff' : C.dim,
-                      fontSize: 'clamp(11px,3.2vw,13px)', fontWeight: 700, letterSpacing: '0.04em',
-                      cursor: 'pointer', fontFamily: 'inherit', position: 'relative', overflow: 'hidden',
-                      transition: 'all 0.18s ease',
-                    }}>
-                      {active && <span style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at top, rgba(91,163,245,0.22), transparent 70%)' }} />}
-                      <span style={{ fontSize: 'clamp(15px,4.5vw,18px)', position: 'relative' }}>{l.flag}</span>
-                      <span style={{ position: 'relative' }}>{l.display}</span>
-                    </button>
-                  );
-                })}
-              </div>
+        {/* ── LANGUAGE ── */}
+        <motion.div className="ovora-area-lang"
+          style={{ padding: 'clamp(6px,2vw,12px) clamp(8px,3vw,16px) 0' }}
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2, duration: 0.4 }}
+        >
+          <div style={{
+            background: 'rgba(10,16,36,0.95)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: 16,
+            padding: 'clamp(10px,3vw,14px)',
+            boxShadow: '0 2px 16px rgba(0,0,0,0.45)',
+          }}>
+            <div style={{ fontSize: 'clamp(8px,2.2vw,10px)', fontWeight: 700, color: C.dim2, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Язык интерфейса</div>
+            <div style={{ display: 'flex', gap: 'clamp(5px,1.8vw,8px)' }}>
+              {LANGS.map(l => {
+                const active = selectedLang === l.code;
+                return (
+                  <button key={l.code} onClick={() => handleLang(l.code)} style={{
+                    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    padding: 'clamp(8px,2.5vw,12px) 4px', borderRadius: 10,
+                    border: active ? '1px solid rgba(91,163,245,0.5)' : '1px solid rgba(255,255,255,0.08)',
+                    background: active ? 'rgba(33,118,232,0.18)' : 'rgba(255,255,255,0.04)',
+                    color: active ? '#e8f0ff' : C.dim,
+                    fontSize: 'clamp(11px,3.2vw,13px)', fontWeight: 700, letterSpacing: '0.04em',
+                    cursor: 'pointer', fontFamily: 'inherit', position: 'relative', overflow: 'hidden',
+                    transition: 'all 0.18s ease',
+                  }}>
+                    {active && <span style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at top, rgba(91,163,245,0.22), transparent 70%)' }} />}
+                    <span style={{ fontSize: 'clamp(15px,4.5vw,18px)', position: 'relative' }}>{l.flag}</span>
+                    <span style={{ position: 'relative' }}>{l.display}</span>
+                  </button>
+                );
+              })}
             </div>
-          </motion.div>
+          </div>
+        </motion.div>
 
-          {/* Cards */}
-          <motion.div className="ovora-area-cards"
-            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.45 }}
-          >
-            <div className="ovora-cards-grid" style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(6px,2vw,10px)' }}>
-              <WorldCard
-                title="CARGO"
-                desc="Грузоперевозки  Россия · Таджикистан · СНГ"
-                icon={<TruckBig src={siteConfig.icons.truck} />}
-                accentLight={C.blueLight}
-                onClick={() => navigate('/role-select')}
-                tags={[
-                  { icon: Ti.border, label: 'Границы' },
-                  { icon: Ti.driver, label: 'Водители', bg: 'rgba(220,38,38,0.7)' },
-                  { icon: Ti.box,    label: 'Грузы',    bg: 'rgba(217,119,6,0.7)' },
-                  { icon: Ti.radio,  label: 'Рация' },
-                ]}
-              />
-              <WorldCard
-                title="AVIA"
-                desc="Авиагруз  Россия ↔ Таджикистан"
-                icon={<PlaneBig src={siteConfig.icons.plane} />}
-                accentLight={C.cyan}
-                onClick={() => navigate('/avia')}
-                tags={[
-                  { icon: Ti.plane, label: 'Курьер' },
-                  { icon: Ti.mail,  label: 'Отправитель' },
-                  { icon: Ti.flex,  label: 'Гибкие роли' },
-                ]}
-              />
-            </div>
-          </motion.div>
-
-        </div>{/* end ovora-desktop-row */}
+        {/* ── CARDS ── */}
+        <motion.div className="ovora-area-cards"
+          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.45 }}
+        >
+          <div className="ovora-cards-grid" style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(6px,2vw,10px)', padding: 'clamp(0px,0vw,0px) clamp(8px,3vw,16px) 0' }}>
+            <WorldCard
+              title="CARGO"
+              desc="Грузоперевозки  Россия · Таджикистан · СНГ"
+              icon={<TruckBig src={siteConfig.icons.truck} />}
+              accentLight={C.blueLight}
+              onClick={() => navigate('/role-select')}
+              tags={[
+                { icon: Ti.border, label: 'Границы' },
+                { icon: Ti.driver, label: 'Водители', bg: 'rgba(220,38,38,0.7)' },
+                { icon: Ti.box,    label: 'Грузы',    bg: 'rgba(217,119,6,0.7)' },
+                { icon: Ti.radio,  label: 'Рация' },
+              ]}
+            />
+            <WorldCard
+              title="AVIA"
+              desc="Авиагруз  Россия ↔ Таджикистан"
+              icon={<PlaneBig src={siteConfig.icons.plane} />}
+              accentLight={C.cyan}
+              onClick={() => navigate('/avia')}
+              tags={[
+                { icon: Ti.plane, label: 'Курьер' },
+                { icon: Ti.mail,  label: 'Отправитель' },
+                { icon: Ti.flex,  label: 'Гибкие роли' },
+              ]}
+            />
+          </div>
+        </motion.div>
 
         {/* ── PARTNERS ── */}
         <motion.div className="ovora-area-partners"

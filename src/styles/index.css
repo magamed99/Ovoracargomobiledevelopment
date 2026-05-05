@@ -87,16 +87,13 @@ button, a {
 /* ── Desktop layout (700px+) ─────────────────────────────────── */
 @media (min-width: 700px) {
   .ovora-screen {
-    max-width: 900px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    padding: 28px 32px 52px;
+    max-width: 860px;
+    padding: 28px 28px 52px;
   }
 
-  /* Hero taller on desktop */
+  /* Hero: taller, proper crop on desktop */
   .ovora-area-header img {
-    max-height: 340px;
+    max-height: 360px;
     object-fit: cover;
     width: 100%;
   }
@@ -104,43 +101,26 @@ button, a {
   /* Hide empty hero placeholder */
   .ovora-area-hero { display: none; }
 
-  /* Lang + Cards row: lang on left, cards on right */
-  .ovora-desktop-row {
-    display: grid;
-    grid-template-columns: 220px 1fr;
-    gap: 16px;
-    align-items: start;
-  }
+  /* Desktop row: transparent — children stack normally */
+  .ovora-desktop-row { display: contents; }
 
-  /* CARGO + AVIA stacked in right column on tablet,
-     side-by-side on wider screens */
+  /* CARGO + AVIA side by side */
   .ovora-cards-grid {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 12px !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 14px !important;
     padding: 0 !important;
   }
   .ovora-cards-grid > button { width: 100%; min-width: 0; }
 }
 
-@media (min-width: 960px) {
+@media (min-width: 1024px) {
   .ovora-screen {
-    max-width: 1080px;
-    padding: 36px 48px 64px;
-    gap: 20px;
+    max-width: 980px;
+    padding: 32px 40px 60px;
   }
-
-  .ovora-desktop-row {
-    grid-template-columns: 260px 1fr;
-    gap: 20px;
-  }
-
-  /* CARGO + AVIA side by side on wider desktop */
-  .ovora-cards-grid {
-    display: grid !important;
-    grid-template-columns: 1fr 1fr !important;
-    gap: 16px !important;
-  }
+  .ovora-area-header img { max-height: 400px; }
+  .ovora-cards-grid { gap: 18px !important; }
 }
 
 /* hide stats strip on mobile */
