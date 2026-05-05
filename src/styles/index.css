@@ -90,7 +90,12 @@ button, a {
    Content: centered max-width container below hero
    ═══════════════════════════════════════════════════════════════ */
 
-/* ── Full-bleed hero wrapper ── */
+/* ── Card backgrounds (mobile = opaque dark) ── */
+.ovora-service-card  { background: rgba(10,16,36,0.95); box-shadow: 0 2px 16px rgba(0,0,0,0.45); }
+.ovora-lang-card     { background: rgba(10,16,36,0.95); box-shadow: 0 2px 16px rgba(0,0,0,0.45); }
+.ovora-partners-card { background: rgba(10,16,36,0.95); box-shadow: 0 2px 16px rgba(0,0,0,0.45); }
+
+/* ── Mobile hero: natural flow, fixed height ── */
 .ovora-hero-fullbleed {
   width: 100%;
   position: relative;
@@ -105,39 +110,103 @@ button, a {
   height: clamp(180px, 30vw, 480px);
 }
 
+/* ════════════════════════════════════════════════════
+   DESKTOP (700px+): hero = full screen background,
+   all content overlaid on top with glass effect
+   ════════════════════════════════════════════════════ */
 @media (min-width: 700px) {
-  /* ── content container ── */
-  .ovora-screen {
-    max-width: 1100px;
-    padding: 28px 32px 52px;
+
+  /* App fills viewport */
+  .ovora-app { min-height: 100vh; }
+
+  /* Hero: absolute cover, fills whole viewport */
+  .ovora-hero-fullbleed {
+    position: absolute !important;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    min-height: 100vh;
+    z-index: 0;
+    overflow: hidden;
+  }
+  .ovora-hero-fullbleed img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 20%;
+  }
+  /* Dark gradient overlay on hero */
+  .ovora-hero-fullbleed::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg,
+      rgba(3,7,15,0.10) 0%,
+      rgba(3,7,15,0.40) 45%,
+      rgba(3,7,15,0.78) 100%
+    );
   }
 
-  /* ── CARGO + AVIA side by side ── */
+  /* Content: sits on top of hero, full height, content at bottom */
+  .ovora-screen {
+    position: relative;
+    z-index: 2;
+    min-height: 100vh;
+    max-width: 1200px;
+    margin: 0 auto !important;
+    padding: 0 40px 48px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-end !important;
+    gap: 14px !important;
+  }
+
+  /* CARGO + AVIA side by side */
   .ovora-cards-grid {
     display: grid !important;
     grid-template-columns: 1fr 1fr !important;
-    gap: 18px !important;
+    gap: 16px !important;
     padding: 0 !important;
   }
   .ovora-cards-grid > button { width: 100%; min-width: 0; }
+
+  /* Glass effect on all cards */
+  .ovora-service-card {
+    background: rgba(3,7,15,0.42) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.25) !important;
+    border-color: rgba(255,255,255,0.12) !important;
+  }
+  .ovora-lang-card {
+    background: rgba(3,7,15,0.42) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    box-shadow: none !important;
+  }
+  .ovora-partners-card {
+    background: rgba(3,7,15,0.42) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    box-shadow: none !important;
+  }
+
+  /* Padding wrappers: no side padding on desktop */
+  .ovora-area-cards,
+  .ovora-area-lang,
+  .ovora-area-partners { padding-left: 0 !important; padding-right: 0 !important; }
 }
 
 @media (min-width: 1200px) {
-  .ovora-screen {
-    max-width: 1280px;
-    padding: 32px 48px 64px;
-  }
-  .ovora-cards-grid { gap: 24px !important; }
+  .ovora-screen { max-width: 1400px !important; padding: 0 56px 56px !important; }
+  .ovora-cards-grid { gap: 20px !important; }
 }
 
 @media (min-width: 1600px) {
-  .ovora-screen { max-width: 1440px; }
+  .ovora-screen { max-width: 1600px !important; }
 }
 
 /* hide stats strip on mobile */
 .ovora-stats-strip { display: none; }
-
-/* hide description text on mobile */
 .ovora-hide-mobile { display: none; }
 .ovora-area-hero   { display: none; }
 @media (min-width: 700px) {

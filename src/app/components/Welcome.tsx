@@ -195,12 +195,10 @@ interface WorldCardProps {
 }
 function WorldCard({ title, desc, tags, accentLight, icon, onClick }: WorldCardProps) {
   return (
-    <button onClick={onClick} style={{
-      background: 'rgba(10,16,36,0.95)',
+    <button onClick={onClick} className="ovora-service-card" style={{
       border: '1px solid rgba(255,255,255,0.08)',
       borderRadius: 16, padding: 0, width: '100%', cursor: 'pointer',
       textAlign: 'left', fontFamily: 'inherit',
-      boxShadow: '0 2px 16px rgba(0,0,0,0.45)',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(7px,2vw,12px)', padding: 'clamp(9px,2.8vw,13px) clamp(9px,2.8vw,13px) clamp(6px,1.8vw,8px)' }}>
         {icon}
@@ -345,11 +343,9 @@ export function Welcome() {
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25, duration: 0.4 }}
         >
           <div className="ovora-lang-card" style={{
-            background: 'rgba(10,16,36,0.95)',
             border: '1px solid rgba(255,255,255,0.08)',
             borderRadius: 16,
             padding: 'clamp(10px,3vw,14px)',
-            boxShadow: '0 2px 16px rgba(0,0,0,0.45)',
             display: 'flex', alignItems: 'center', gap: 12,
           }}>
             <div className="lang-label" style={{ fontSize: 'clamp(8px,2.2vw,10px)', fontWeight: 700, color: C.dim2, letterSpacing: '0.12em', textTransform: 'uppercase', whiteSpace: 'nowrap', flexShrink: 0 }}>Язык интерфейса</div>
@@ -382,7 +378,7 @@ export function Welcome() {
           style={{ padding: '0 clamp(8px,3vw,0px) clamp(8px,3vw,0px)' }}
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35, duration: 0.4 }}
         >
-          <div style={{ background: 'rgba(10,16,36,0.95)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: 'clamp(10px,3vw,14px)', boxShadow: '0 2px 16px rgba(0,0,0,0.45)' }}>
+          <div className="ovora-partners-card" style={{ border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: 'clamp(10px,3vw,14px)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
               <div style={{ fontSize: 'clamp(13px,3.8vw,16px)', fontWeight: 800, color: '#fff' }}>Наши партнёры</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 'clamp(10px,3vw,12px)', color: C.blueLight, fontWeight: 600 }}>
