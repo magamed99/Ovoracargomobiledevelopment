@@ -101,6 +101,7 @@ button, a {
   width: 100%;
   display: block;
   object-fit: cover;
+  object-position: center 20%;
   height: clamp(180px, 30vw, 480px);
 }
 
