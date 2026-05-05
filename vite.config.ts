@@ -44,9 +44,9 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          // Разделяем vendor библиотеки
           'react-vendor': ['react', 'react-dom', 'react-router'],
           'ui-vendor': ['lucide-react', '@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu'],
+          'motion': ['motion/react'],
           'map-vendor': ['react-yandex-maps'],
           'utils': ['date-fns', 'clsx', 'tailwind-merge'],
         },

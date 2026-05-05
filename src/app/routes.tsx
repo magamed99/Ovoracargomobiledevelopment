@@ -7,9 +7,8 @@ import { getAviaSession } from "./api/aviaApi";
 // ══════════════════════════════════════════════════════════════
 
 // Auth Pages (Eager — instant first screen)
-import { Welcome }     from "./components/Welcome";
-import { RoleSelect }  from "./components/RoleSelect";
-import { EmailAuth }   from "./components/EmailAuth";
+import { Welcome } from "./components/Welcome";
+// RoleSelect and EmailAuth are lazy — only needed after Welcome interaction
 
 // Layouts (Eager — needed synchronously for route tree setup)
 import { MobileLayout } from "./components/MobileLayout";
@@ -106,11 +105,17 @@ export const router = createBrowserRouter([
     HydrateFallback,
     children: [
 
-      // ── Welcome & Auth (Eager) ────────────────────────────────────────
+      // ── Welcome & Auth ────────────────────────────────────────────────
       { path: "/",        Component: Welcome },
       { path: "/welcome", Component: Welcome },
-      { path: "/role-select", Component: RoleSelect },
-      { path: "/email-auth",  Component: EmailAuth },
+      {
+        path: "/role-select",
+        lazy: () => import("./components/RoleSelect").then(m => ({ Component: m.RoleSelect })),
+      },
+      {
+        path: "/email-auth",
+        lazy: () => import("./components/EmailAuth").then(m => ({ Component: m.EmailAuth })),
+      },
 
       // ── Registration Forms (Lazy) ─────────────────────────────────────
       {
