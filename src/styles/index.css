@@ -84,39 +84,63 @@ button, a {
   padding-bottom: clamp(24px, 6vw, 36px);
 }
 
+/* ── Desktop layout (700px+) ─────────────────────────────────── */
 @media (min-width: 700px) {
   .ovora-screen {
-    max-width: 1100px;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-areas:
-      'header   header'
-      'hero     lang'
-      'hero     route'
-      'cards    cards'
-      'partners partners'
-      'stats    stats';
-    column-gap: 28px;
-    padding: 32px 32px 48px;
+    max-width: 900px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 28px 32px 52px;
   }
-  .ovora-area-header   { grid-area: header; }
-  .ovora-area-hero     { grid-area: hero; align-self: center; }
-  .ovora-area-lang     { grid-area: lang; align-self: end; }
-  .ovora-area-route    { grid-area: route; }
-  .ovora-area-cards    { grid-area: cards; width: 100%; }
-  .ovora-area-partners { grid-area: partners; }
-  .ovora-area-stats    { grid-area: stats; }
 
+  /* Hero taller on desktop */
+  .ovora-area-header img {
+    max-height: 340px;
+    object-fit: cover;
+    width: 100%;
+  }
+
+  /* Hide empty hero placeholder */
+  .ovora-area-hero { display: none; }
+
+  /* Lang + Cards row: lang on left, cards on right */
+  .ovora-desktop-row {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 16px;
+    align-items: start;
+  }
+
+  /* CARGO + AVIA stacked in right column on tablet,
+     side-by-side on wider screens */
+  .ovora-cards-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    padding: 0 !important;
+  }
+  .ovora-cards-grid > button { width: 100%; min-width: 0; }
+}
+
+@media (min-width: 960px) {
+  .ovora-screen {
+    max-width: 1080px;
+    padding: 36px 48px 64px;
+    gap: 20px;
+  }
+
+  .ovora-desktop-row {
+    grid-template-columns: 260px 1fr;
+    gap: 20px;
+  }
+
+  /* CARGO + AVIA side by side on wider desktop */
   .ovora-cards-grid {
     display: grid !important;
     grid-template-columns: 1fr 1fr !important;
     gap: 16px !important;
-    padding: 14px 0 0 !important;
   }
-  .ovora-cards-grid > button { width: 100%; min-width: 0; }
-
-  /* show stats strip only on tablet+ */
-  .ovora-stats-strip { display: flex !important; }
 }
 
 /* hide stats strip on mobile */
@@ -124,18 +148,8 @@ button, a {
 
 /* hide description text on mobile */
 .ovora-hide-mobile { display: none; }
-
 @media (min-width: 700px) {
   .ovora-hide-mobile { display: block; }
-}
-
-@media (min-width: 1100px) {
-  .ovora-screen {
-    max-width: 1280px;
-    grid-template-columns: 1.1fr 1fr;
-    column-gap: 48px;
-    padding: 48px 48px 64px;
-  }
 }
 
 /* Handle iPhone notch */
