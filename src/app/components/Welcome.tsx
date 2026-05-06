@@ -165,10 +165,8 @@ const Ti = {
 // ── Cargo truck photo ─────────────────────────────────────────────────
 function TruckBig({ src }: { src: string }) {
   return (
-    <div style={{ width: 'clamp(74px,22vw,100px)', height: 'clamp(64px,19vw,88px)', borderRadius: 12, flexShrink: 0, overflow: 'hidden', background: 'rgba(0,8,24,0.85)', boxShadow: '0 0 0 1px rgba(91,163,245,0.15)' }}>
-      <img src={src} alt="CARGO"
-        style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
-      />
+    <div className="ovora-card-vehicle" style={{ width: 'clamp(74px,22vw,100px)', height: 'clamp(64px,19vw,88px)', borderRadius: 12, flexShrink: 0, overflow: 'hidden', background: 'rgba(0,8,24,0.85)', boxShadow: '0 0 0 1px rgba(91,163,245,0.15)' }}>
+      <img src={src} alt="CARGO" style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
     </div>
   );
 }
@@ -176,10 +174,8 @@ function TruckBig({ src }: { src: string }) {
 // ── Avia plane photo ──────────────────────────────────────────────────
 function PlaneBig({ src }: { src: string }) {
   return (
-    <div style={{ width: 'clamp(74px,22vw,100px)', height: 'clamp(64px,19vw,88px)', borderRadius: 12, flexShrink: 0, overflow: 'hidden', background: 'rgba(0,8,24,0.85)', boxShadow: '0 0 0 1px rgba(91,163,245,0.15)' }}>
-      <img src={src} alt="AVIA"
-        style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
-      />
+    <div className="ovora-card-vehicle" style={{ width: 'clamp(74px,22vw,100px)', height: 'clamp(64px,19vw,88px)', borderRadius: 12, flexShrink: 0, overflow: 'hidden', background: 'rgba(0,8,24,0.85)', boxShadow: '0 0 0 1px rgba(91,163,245,0.15)' }}>
+      <img src={src} alt="AVIA" style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
     </div>
   );
 }
@@ -200,7 +196,7 @@ function WorldCard({ title, desc, tags, accentLight, icon, onClick }: WorldCardP
       borderRadius: 16, padding: 0, width: '100%', cursor: 'pointer',
       textAlign: 'left', fontFamily: 'inherit',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(7px,2vw,12px)', padding: 'clamp(9px,2.8vw,13px) clamp(9px,2.8vw,13px) clamp(6px,1.8vw,8px)' }}>
+      <div className="ovora-card-header" style={{ display: 'flex', alignItems: 'center', gap: 'clamp(7px,2vw,12px)', padding: 'clamp(9px,2.8vw,13px) clamp(9px,2.8vw,13px) clamp(6px,1.8vw,8px)' }}>
         {icon}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
@@ -213,7 +209,7 @@ function WorldCard({ title, desc, tags, accentLight, icon, onClick }: WorldCardP
         </div>
         <ArrowRight color={accentLight} />
       </div>
-      <div style={{ display: 'flex', gap: 'clamp(3px,1.2vw,5px)', flexWrap: 'wrap', padding: '0 clamp(9px,2.8vw,12px) clamp(9px,2.8vw,12px)' }}>
+      <div className="ovora-card-tags" style={{ display: 'flex', gap: 'clamp(3px,1.2vw,5px)', flexWrap: 'wrap', padding: '0 clamp(9px,2.8vw,12px) clamp(9px,2.8vw,12px)' }}>
         {tags.map((t, i) => (
           <span key={i} style={{
             fontSize: 'clamp(8px,2.2vw,10px)', fontWeight: 600,
@@ -388,7 +384,7 @@ export function Welcome() {
             </div>
             <div style={{ display: 'flex', gap: 'clamp(5px,1.5vw,12px)', overflowX: 'auto', paddingBottom: 2, WebkitOverflowScrolling: 'touch' as any }}>
               {siteConfig.partners.map((p, i) => (
-                <div key={p.id ?? i} style={{
+                <div key={p.id ?? i} className="ovora-partner-tile" style={{
                   flexShrink: 0, width: 'clamp(58px,17vw,90px)',
                   background: 'rgba(15,25,50,0.9)',
                   border: '1px solid rgba(255,255,255,0.07)',
@@ -397,7 +393,7 @@ export function Welcome() {
                   padding: 'clamp(6px,1.8vw,12px) clamp(4px,1.2vw,8px)',
                   gap: 4,
                 }}>
-                  <div style={{
+                  <div className="ovora-partner-icon" style={{
                     width: 'clamp(28px,8vw,44px)', height: 'clamp(28px,8vw,44px)', borderRadius: 8,
                     background: `linear-gradient(145deg, ${p.color}22, ${p.color}44)`,
                     border: `1px solid ${p.color}55`,
@@ -405,7 +401,7 @@ export function Welcome() {
                   }}>
                     <span style={{ fontSize: p.mark.length > 2 ? 'clamp(8px,2.5vw,12px)' : 'clamp(11px,3.2vw,16px)', fontWeight: 900, color: p.textColor ?? p.color, letterSpacing: -0.5 }}>{p.mark}</span>
                   </div>
-                  <div style={{ textAlign: 'center', lineHeight: 1.2 }}>
+                  <div className="ovora-partner-name" style={{ textAlign: 'center', lineHeight: 1.2 }}>
                     <div style={{ fontSize: 'clamp(7px,2vw,10px)', fontWeight: 800, color: '#e2eaf8' }}>{p.name}</div>
                     <div style={{ fontSize: 'clamp(6px,1.8vw,9px)', color: C.dim, marginTop: 1 }}>{p.sub}</div>
                   </div>
