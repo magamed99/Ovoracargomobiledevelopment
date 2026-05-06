@@ -124,14 +124,15 @@ button, a {
   .ovora-hero-fullbleed {
     position: absolute !important;
     top: 0; left: 0;
-    width: 100%; height: 100%;
+    width: 100vw !important;   /* vw guarantees full viewport regardless of container max-width */
+    height: 100vh !important;
     z-index: 0;
     overflow: hidden;
   }
   .ovora-hero-fullbleed img {
     width: 100%; height: 100%;
     object-fit: cover;
-    object-position: center 20%;
+    object-position: center 20%; /* default: screens ≤ 1.80:1 fill height, left/right crop */
   }
   .ovora-hero-fullbleed::after {
     content: '';
@@ -247,6 +248,36 @@ button, a {
     padding: clamp(28px,4vh,48px) clamp(48px,5vw,80px) clamp(20px,3vh,36px) !important;
   }
   .ovora-card-vehicle { width: 72px !important; height: 64px !important; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   HERO BANNER — aspect-ratio adaptive object-position
+   Image is ~1.80:1 (1683×934).
+   • Screens narrower than 1.80:1 (standard 16:9, MacBook 16:10, portrait):
+     cover fills HEIGHT → left/right crop → vertical position barely matters.
+   • Screens wider than 1.80:1 (>9:5):
+     cover fills WIDTH → top/bottom crop → shift anchor up so
+     sky / airplane / logo area stays visible.
+───────────────────────────────────────────────────────────────────────────── */
+
+/* Just past image ratio — slight top/bottom crop (e.g. 1920×1000) */
+@media (min-width: 700px) and (min-aspect-ratio: 9/5) {
+  .ovora-hero-fullbleed img { object-position: center 14%; }
+}
+
+/* ~2:1 monitors and wide laptop modes */
+@media (min-width: 700px) and (min-aspect-ratio: 2/1) {
+  .ovora-hero-fullbleed img { object-position: center 8%; }
+}
+
+/* 21:9 ultrawide — 2560×1080, 3440×1440 (~2.33:1–2.39:1) */
+@media (min-width: 700px) and (min-aspect-ratio: 7/3) {
+  .ovora-hero-fullbleed img { object-position: center 4%; }
+}
+
+/* 32:9 super-ultrawide — 3840×1080, 5120×1440 (~3.56:1) */
+@media (min-width: 700px) and (min-aspect-ratio: 3/1) {
+  .ovora-hero-fullbleed img { object-position: center top; }
 }
 
 /* hide stats strip on mobile */
