@@ -103,6 +103,7 @@ export function Home() {
     } catch { /* silent */ }
   }, 5 * 60_000);
 
+  const isFallback     = !serverAds?.length;
   const advertisements = serverAds?.length ? serverAds : FALLBACK_ADS;
   const currentAd      = advertisements[currentAdIndex] ?? advertisements[0];
   const hasAds         = advertisements.length > 0 && currentAd != null;
@@ -169,6 +170,7 @@ export function Home() {
         isDriver={isDriver}
         greeting={getGreeting()}
         advertisements={advertisements}
+        isFallback={isFallback}
         currentAdIndex={currentAdIndex}
         setCurrentAdIndex={setCurrentAdIndex}
         allPopularTrips={allPopularTrips}
@@ -308,7 +310,7 @@ export function Home() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.25, duration: 0.38 }}
           >
-            <a href={currentAd.url} target="_blank" rel="noopener noreferrer"
+            <a href={isFallback ? '#' : currentAd.url} target={isFallback ? '_self' : '_blank'} rel="noopener noreferrer"
               className="block rounded-3xl overflow-hidden active:scale-[0.99] transition-transform w-full">
               <div className="relative overflow-hidden" style={{ height: 'clamp(160px, 50vw, 200px)' }}
                 onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
@@ -334,7 +336,9 @@ export function Home() {
                   <div className="absolute inset-0 z-10 flex flex-col justify-between p-4">
                     <div className="flex items-start justify-between">
                       <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full bg-white/20 text-white backdrop-blur-sm">{currentAd.badge}</span>
-                      <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-black/40 text-white/80 backdrop-blur-sm">Реклама</span>
+                      <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-black/40 text-white/80 backdrop-blur-sm">
+                        {isFallback ? 'Демо' : 'Реклама'}
+                      </span>
                     </div>
                     <div>
                       <p className="text-[20px] font-black text-white leading-tight drop-shadow-lg">
