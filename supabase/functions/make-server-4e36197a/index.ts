@@ -14,6 +14,7 @@ import {
   welcomeTemplate, newOfferTemplate,
   offerAcceptedTemplate, offerRejectedTemplate,
   tripCompletedTemplate, newMessageTemplate,
+  subscriptionActivatedTemplate, subscriptionExpiringTemplate,
 } from "./email.tsx";
 
 const app = new Hono();
@@ -7312,6 +7313,256 @@ app.get("/make-server-4e36197a/avia/profile/:phone", async (c) => {
     return c.json({ error: `${err}` }, 500);
   }
 }); } // end if(false) — legacy AVIA routes placeholder
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SUBSCRIPTION ROUTES
+// KV key schema: ovora:sub:{email} → Subscription object
+// ══════════════════════════════════════════════════════════════════════════════
+
+const TRIAL_DAYS = 30;
+
+function subKey(email: string) {
+  return `ovora:sub:${email.trim().toLowerCase()}`;
+}
+
+function addDays(date: Date, days: number): string {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d.toISOString();
+}
+
+// GET /subscription/:email — статус подписки пользователя
+app.get('/make-server-4e36197a/subscription/:email', async (c) => {
+  try {
+    const email = decodeURIComponent(c.req.param('email')).trim().toLowerCase();
+    let sub: any = await kv.get(subKey(email));
+
+    // Авто-создание пробного периода при первом запросе
+    if (!sub) {
+      sub = {
+        email,
+        status: 'trial',
+        trialEndsAt: addDays(new Date(), TRIAL_DAYS),
+        paidAt: null,
+        expiresAt: null,
+        createdAt: new Date().toISOString(),
+      };
+      await kv.set(subKey(email), sub);
+    }
+
+    // Авто-истечение trial
+    if (sub.status === 'trial' && sub.trialEndsAt && new Date(sub.trialEndsAt) < new Date()) {
+      sub.status = 'expired';
+      await kv.set(subKey(email), sub);
+    }
+
+    // Авто-истечение active
+    if (sub.status === 'active' && sub.expiresAt && new Date(sub.expiresAt) < new Date()) {
+      sub.status = 'expired';
+      await kv.set(subKey(email), sub);
+    }
+
+    return c.json({ subscription: sub });
+  } catch (err) {
+    console.error('[sub] GET error:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// POST /subscription/request — заявка на оплату (пользователь вводит ID перевода)
+app.post('/make-server-4e36197a/subscription/request', async (c) => {
+  try {
+    const { email, txId, currency, amount } = await c.req.json();
+    if (!email || !txId) return c.json({ error: 'email и txId обязательны' }, 400);
+
+    const key = subKey(email);
+    let sub: any = await kv.get(key);
+    if (!sub) {
+      sub = {
+        email: email.trim().toLowerCase(),
+        status: 'trial',
+        trialEndsAt: addDays(new Date(), TRIAL_DAYS),
+        paidAt: null,
+        expiresAt: null,
+        createdAt: new Date().toISOString(),
+      };
+    }
+
+    sub.txId = txId.trim();
+    sub.currency = currency || 'TJS';
+    sub.amount = amount;
+    sub.requestedAt = new Date().toISOString();
+    await kv.set(key, sub);
+
+    // Уведомление в KV для admin
+    await kv.set(`ovora:sub-request:${Date.now()}:${email}`, {
+      email, txId, currency, amount,
+      requestedAt: sub.requestedAt,
+    });
+
+    return c.json({ success: true, message: 'Заявка принята. Активация в течение 24 часов.' });
+  } catch (err) {
+    console.error('[sub] request error:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// GET /admin/subscriptions — список всех подписок
+app.get('/make-server-4e36197a/admin/subscriptions', async (c) => {
+  try {
+    const subs = await kv.getByPrefix('ovora:sub:');
+    return c.json({ subscriptions: subs });
+  } catch (err) {
+    console.error('[sub] admin list error:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// GET /admin/subscription/stats — статистика подписок
+app.get('/make-server-4e36197a/admin/subscription/stats', async (c) => {
+  try {
+    const subs: any[] = await kv.getByPrefix('ovora:sub:');
+    const now = new Date();
+
+    let activeSubscriptions = 0;
+    let trialUsers = 0;
+    let expiredUsers = 0;
+
+    for (const s of subs) {
+      if (s.status === 'lifetime') { activeSubscriptions++; continue; }
+      if (s.status === 'active') {
+        if (!s.expiresAt || new Date(s.expiresAt) > now) activeSubscriptions++;
+        else expiredUsers++;
+        continue;
+      }
+      if (s.status === 'trial') {
+        if (!s.trialEndsAt || new Date(s.trialEndsAt) > now) trialUsers++;
+        else expiredUsers++;
+        continue;
+      }
+      if (s.status === 'expired') expiredUsers++;
+    }
+
+    const annualRevenue = activeSubscriptions * 9; // сомони (TJS)
+
+    return c.json({
+      stats: {
+        totalUsers: subs.length,
+        activeSubscriptions,
+        trialUsers,
+        expiredUsers,
+        annualRevenue,
+        costCoverage: 0, // клиент считает сам
+      },
+    });
+  } catch (err) {
+    console.error('[sub] stats error:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// POST /admin/subscription/activate — активировать подписку на 1 год
+app.post('/make-server-4e36197a/admin/subscription/activate', async (c) => {
+  try {
+    const { email, adminEmail } = await c.req.json();
+    if (!email) return c.json({ error: 'email обязателен' }, 400);
+
+    const key = subKey(email);
+    let sub: any = await kv.get(key) || { email, createdAt: new Date().toISOString() };
+
+    sub.status = 'active';
+    sub.paidAt = new Date().toISOString();
+    sub.expiresAt = addDays(new Date(), 365);
+    sub.activatedBy = adminEmail || 'admin';
+    await kv.set(key, sub);
+
+    // Email уведомление пользователю
+    const throttled = await throttleEmail(email, `sub-activated-${sub.paidAt?.split('T')[0]}`, 86_400_000);
+    if (!throttled) {
+      const tpl = subscriptionActivatedTemplate({ email, expiresAt: sub.expiresAt });
+      sendEmail({ to: email, subject: tpl.subject, html: tpl.html }).catch(() => {});
+    }
+
+    return c.json({ success: true });
+  } catch (err) {
+    console.error('[sub] activate error:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// POST /admin/subscription/send-expiry-reminders — cron: отправить напоминания
+// Вызывается раз в день через Supabase cron или внешний scheduler
+app.post('/make-server-4e36197a/admin/subscription/send-expiry-reminders', async (c) => {
+  try {
+    const subs: any[] = await kv.getByPrefix('ovora:sub:');
+    const now = new Date();
+    let sent = 0;
+
+    for (const sub of subs) {
+      if (sub.status !== 'active' && sub.status !== 'trial') continue;
+      const endDate = sub.status === 'trial' ? sub.trialEndsAt : sub.expiresAt;
+      if (!endDate) continue;
+      const diff = new Date(endDate).getTime() - now.getTime();
+      const daysLeft = Math.ceil(diff / (1000 * 60 * 60 * 24));
+      if (daysLeft !== 7 && daysLeft !== 3 && daysLeft !== 1) continue;
+
+      const throttled = await throttleEmail(sub.email, `sub-expiry-${daysLeft}d-${endDate.split('T')[0]}`, 23 * 60 * 60 * 1000);
+      if (!throttled) {
+        const tpl = subscriptionExpiringTemplate({ email: sub.email, daysLeft, expiresAt: endDate });
+        sendEmail({ to: sub.email, subject: tpl.subject, html: tpl.html }).catch(() => {});
+        sent++;
+      }
+    }
+
+    return c.json({ success: true, sent });
+  } catch (err) {
+    console.error('[sub] expiry reminders error:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// POST /admin/subscription/lifetime — пожизненная подписка
+app.post('/make-server-4e36197a/admin/subscription/lifetime', async (c) => {
+  try {
+    const { email, adminEmail } = await c.req.json();
+    if (!email) return c.json({ error: 'email обязателен' }, 400);
+
+    const key = subKey(email);
+    let sub: any = await kv.get(key) || { email, createdAt: new Date().toISOString() };
+
+    sub.status = 'lifetime';
+    sub.paidAt = sub.paidAt || new Date().toISOString();
+    sub.expiresAt = null;
+    sub.activatedBy = adminEmail || 'admin';
+    await kv.set(key, sub);
+
+    return c.json({ success: true });
+  } catch (err) {
+    console.error('[sub] lifetime error:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// POST /admin/subscription/revoke — отозвать подписку
+app.post('/make-server-4e36197a/admin/subscription/revoke', async (c) => {
+  try {
+    const { email, adminEmail } = await c.req.json();
+    if (!email) return c.json({ error: 'email обязателен' }, 400);
+
+    const key = subKey(email);
+    let sub: any = await kv.get(key) || { email, createdAt: new Date().toISOString() };
+
+    sub.status = 'expired';
+    sub.expiresAt = new Date().toISOString();
+    sub.revokedBy = adminEmail || 'admin';
+    await kv.set(key, sub);
+
+    return c.json({ success: true });
+  } catch (err) {
+    console.error('[sub] revoke error:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
 
 Deno.serve(app.fetch);
 
