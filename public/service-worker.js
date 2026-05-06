@@ -1,5 +1,5 @@
 // Service Worker для Ovora Cargo PWA
-const CACHE_VERSION = 'v3.0.0';
+const CACHE_VERSION = 'v3.1.0';
 const STATIC_CACHE  = `ovora-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `ovora-dynamic-${CACHE_VERSION}`;
 

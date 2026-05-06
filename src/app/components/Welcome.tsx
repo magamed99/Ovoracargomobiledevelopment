@@ -297,7 +297,7 @@ export function Welcome() {
       </motion.div>
 
       {/* ─── Content container ─── */}
-      <div className="ovora-screen" style={{ position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', gap: 'clamp(8px,2vw,16px)' }}>
+      <div className="ovora-screen">
 
         {/* 2 ── CARGO + AVIA CARDS ── */}
         <motion.div className="ovora-area-cards"
