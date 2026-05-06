@@ -118,6 +118,7 @@ interface Props {
   isDriver: boolean;
   greeting: string;
   advertisements: any[];
+  isFallback?: boolean;
   currentAdIndex: number;
   setCurrentAdIndex: (i: number) => void;
   allPopularTrips: any[];
@@ -129,7 +130,7 @@ interface Props {
 // ═════════════════════════════════════════════════════════════════════════════
 export function DesktopDashboard({
   currentUser, displayName, initials, isDriver, greeting,
-  advertisements, currentAdIndex, setCurrentAdIndex,
+  advertisements, isFallback = false, currentAdIndex, setCurrentAdIndex,
   allPopularTrips, tripsLoading,
   DriverActions, SenderActions,
 }: Props) {
@@ -471,7 +472,7 @@ export function DesktopDashboard({
                   </div>
                 </div>
                 <AnimatePresence mode="wait">
-                  <motion.a key={currentAdIndex} href={currentAd.url} target="_blank" rel="noopener noreferrer"
+                  <motion.a key={currentAdIndex} href={isFallback ? '#' : currentAd.url} target={isFallback ? '_self' : '_blank'} rel="noopener noreferrer"
                     className="block rounded-3xl overflow-hidden relative cursor-pointer group"
                     style={{ height: 'clamp(200px, 24vw, 320px)' }}
                     initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }}
@@ -497,7 +498,9 @@ export function DesktopDashboard({
                             {currentAd.badge}
                           </span>
                           <span className="text-[11px] font-bold px-3 py-1.5 rounded-full text-white/70"
-                            style={{ background: '#00000050', backdropFilter: 'blur(8px)' }}>Реклама</span>
+                            style={{ background: '#00000050', backdropFilter: 'blur(8px)' }}>
+                            {isFallback ? 'Демо' : 'Реклама'}
+                          </span>
                         </div>
                         <div>
                           <p className="text-[32px] xl:text-[42px] font-black text-white leading-none drop-shadow-2xl mb-2">

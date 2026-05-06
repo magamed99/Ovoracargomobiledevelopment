@@ -1,157 +1,118 @@
 // Service Worker для Ovora Cargo PWA
-const CACHE_VERSION = 'v2.0.0-2026-04-30';
-const CACHE_NAME = `ovora-cargo-${CACHE_VERSION}`;
+const CACHE_VERSION = 'v3.0.0';
+const STATIC_CACHE  = `ovora-static-${CACHE_VERSION}`;
+const DYNAMIC_CACHE = `ovora-dynamic-${CACHE_VERSION}`;
 
-// Только shell — статичные файлы, которые точно существуют в production
-const urlsToCache = [
-  '/',
-  '/manifest.json',
-];
-
-// Установка Service Worker
-self.addEventListener('install', (event) => {
-  console.log('[SW] Installing service worker...');
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW] Caching app shell');
-      return cache.addAll(urlsToCache);
-    })
+// Статика — файлы с хешем в имени, никогда не меняются
+function isImmutableAsset(url) {
+  return (
+    url.pathname.startsWith('/assets/') ||
+    /\.(woff2?|ttf|otf|eot)$/.test(url.pathname)
   );
-  // Активировать новый SW сразу
+}
+
+// Изображения
+function isImage(url) {
+  return /\.(png|jpg|jpeg|webp|svg|ico|gif|avif)$/.test(url.pathname);
+}
+
+// Установка
+self.addEventListener('install', event => {
   self.skipWaiting();
+  event.waitUntil(
+    caches.open(STATIC_CACHE).then(cache =>
+      cache.addAll(['/', '/manifest.json'])
+    )
+  );
 });
 
-// Активация Service Worker
-self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating service worker...');
+// Активация — удаляем старые кеши
+self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('[SW] Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
+    caches.keys().then(names =>
+      Promise.all(
+        names
+          .filter(n => n !== STATIC_CACHE && n !== DYNAMIC_CACHE)
+          .map(n => caches.delete(n))
+      )
+    )
   );
-  // Захватить контроль над всеми клиентами
   return self.clients.claim();
 });
 
-// Стратегия кеширования: Network First (сеть приоритетнее)
-self.addEventListener('fetch', (event) => {
+// Fetch — разные стратегии для разных ресурсов
+self.addEventListener('fetch', event => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Пропускаем запросы к API Supabase
-  if (url.origin.includes('supabase.co')) {
-    return;
-  }
+  // Только GET-запросы к нашему домену
+  if (request.method !== 'GET' || url.origin !== location.origin) return;
+  // Не кешируем Supabase
+  if (url.origin.includes('supabase.co')) return;
 
-  // Пропускаем запросы к внешним API
-  if (url.origin !== location.origin) {
-    return;
-  }
-
-  event.respondWith(
-    fetch(request)
-      .then((response) => {
-        // Если получен ответ, клонируем его и кешируем
-        if (response && response.status === 200) {
-          const responseToCache = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, responseToCache);
-          });
-        }
-        return response;
-      })
-      .catch(() => {
-        // Если сеть недоступна, пытаемся вернуть из кеша
-        return caches.match(request).then((cachedResponse) => {
-          if (cachedResponse) {
-            return cachedResponse;
+  if (isImmutableAsset(url) || isImage(url)) {
+    // Cache First: статика с хешем — служим из кеша мгновенно
+    event.respondWith(
+      caches.match(request).then(cached => {
+        if (cached) return cached;
+        return fetch(request).then(response => {
+          if (response.status === 200) {
+            const clone = response.clone();
+            caches.open(STATIC_CACHE).then(c => c.put(request, clone));
           }
-          // Если нет в кеше, возвращаем офлайн страницу
-          return caches.match('/');
+          return response;
         });
       })
-  );
+    );
+  } else {
+    // Network First: HTML и манифест — проверяем обновления
+    event.respondWith(
+      fetch(request)
+        .then(response => {
+          if (response.status === 200) {
+            const clone = response.clone();
+            caches.open(DYNAMIC_CACHE).then(c => c.put(request, clone));
+          }
+          return response;
+        })
+        .catch(() =>
+          caches.match(request).then(cached => cached || caches.match('/'))
+        )
+    );
+  }
 });
 
 // Push уведомления
-self.addEventListener('push', (event) => {
-  console.log('[SW] 📩 Push received');
-
+self.addEventListener('push', event => {
   let data = {
     title: 'Ovora Cargo',
     body: 'У вас новое уведомление',
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
+    icon: '/icons/logo-bird.png',
     tag: 'notification',
     url: '/notifications',
   };
-
   if (event.data) {
-    try {
-      const parsed = event.data.json();
-      data = { ...data, ...parsed };
-    } catch {
-      data.body = event.data.text();
-    }
+    try { data = { ...data, ...event.data.json() }; }
+    catch { data.body = event.data.text(); }
   }
-
-  const options = {
-    body: data.body,
-    icon: data.icon,
-    badge: data.badge,
-    vibrate: [200, 80, 200],
-    tag: data.tag,
-    requireInteraction: false,
-    silent: false,
-    data: { url: data.url || '/notifications' },
-  };
-
   event.waitUntil(
-    self.registration.showNotification(data.title, options)
-  );
-});
-
-// Обработка кликов по уведомлениям — открыть приложение на нужной странице
-self.addEventListener('notificationclick', (event) => {
-  console.log('[SW] 🔔 Notification clicked, url:', event.notification.data?.url);
-  event.notification.close();
-
-  const targetUrl = event.notification.data?.url || '/notifications';
-
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // Если приложение уже открыто — фокусируем и навигируем
-      for (const client of clientList) {
-        if ('focus' in client) {
-          client.focus();
-          if ('navigate' in client) {
-            client.navigate(targetUrl);
-          } else {
-            client.postMessage({ type: 'NAVIGATE', url: targetUrl });
-          }
-          return;
-        }
-      }
-      // Иначе открываем новую вкладку
-      if (clients.openWindow) {
-        return clients.openWindow(targetUrl);
-      }
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: data.icon,
+      tag: data.tag,
+      data: { url: data.url },
     })
   );
 });
 
-// Сообщения от клиента
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const url = event.notification.data?.url || '/';
+  event.waitUntil(
+    clients.matchAll({ type: 'window' }).then(list => {
+      const existing = list.find(c => c.url.includes(url));
+      if (existing) return existing.focus();
+      return clients.openWindow(url);
+    })
+  );
 });
-
-console.log('[SW] Service Worker loaded successfully');

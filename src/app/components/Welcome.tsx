@@ -1,33 +1,35 @@
 import { useState, useEffect, useRef } from 'react';
+import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router';
-import { Truck, Plane, ArrowRight } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useLanguage } from '../context/LanguageContext';
 import type { LangCode } from '../i18n/translations';
-import { MapBackground } from './MapBackground';
 import { getPublicStats } from '../api/dataApi';
+import { getSiteConfig } from '../utils/siteConfig';
 
-const LANGS: { code: LangCode; flag: string; label: string }[] = [
-  { code: 'ru', flag: '🇷🇺', label: 'RU' },
-  { code: 'tj', flag: '🇹🇯', label: 'TJ' },
-  { code: 'en', flag: '🇺🇸', label: 'EN' },
+// ── Palette ────────────────────────────────────────────────────────────
+const C = {
+  dim:       '#6b8299',
+  dim2:      '#4a6080',
+  dim3:      '#3d5268',
+  blue:      '#2176e8',
+  blueLight: '#5ba3f5',
+  cyan:      '#38bdf8',
+  green:     '#34d399',
+  orange:    '#ff7a3b',
+  purple:    '#a78bfa',
+  cardLine:  'rgba(80,140,230,0.14)',
+} as const;
+
+// ── Language list ──────────────────────────────────────────────────────
+const LANGS: { code: LangCode; display: string; flag: string }[] = [
+  { code: 'ru', display: 'RU', flag: '🇷🇺' },
+  { code: 'tj', display: 'TJ', flag: '🇹🇯' },
+  { code: 'en', display: 'EN', flag: '🇺🇸' },
 ];
 
-/* ── Live dot ──────────────────────────────────────────────────────── */
-function LiveDot() {
-  return (
-    <div style={{ position: 'relative', width: 8, height: 8, flexShrink: 0 }}>
-      <motion.div
-        style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: '#34d399', opacity: 0.4 }}
-        animate={{ scale: [1, 2, 1], opacity: [0.4, 0, 0.4] }}
-        transition={{ duration: 2, repeat: Infinity, ease: 'easeOut' }}
-      />
-      <div style={{ position: 'absolute', inset: 1.5, borderRadius: '50%', background: '#34d399' }} />
-    </div>
-  );
-}
 
-/* ── Counter ───────────────────────────────────────────────────────── */
+// ── Counter ────────────────────────────────────────────────────────────
 function Counter({ target, suffix }: { target: number; suffix: string }) {
   const [count, setCount] = useState(0);
   const started = useRef(false);
@@ -38,8 +40,7 @@ function Counter({ target, suffix }: { target: number; suffix: string }) {
     let step = 0;
     const timer = setInterval(() => {
       step++;
-      const eased = 1 - Math.pow(1 - step / steps, 3);
-      setCount(Math.round(eased * target));
+      setCount(Math.round((1 - Math.pow(1 - step / steps, 3)) * target));
       if (step >= steps) clearInterval(timer);
     }, 1000 / 60);
     return () => clearInterval(timer);
@@ -47,533 +48,376 @@ function Counter({ target, suffix }: { target: number; suffix: string }) {
   return <>{count.toLocaleString('ru-RU')}{suffix}</>;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
-   WELCOME
-   ══════════════════════════════════════════════════════════════════════ */
+// ── Live dot ───────────────────────────────────────────────────────────
+function LiveDot({ color = C.green, size = 8 }: { color?: string; size?: number }) {
+  return (
+    <span style={{ position: 'relative', width: size, height: size, display: 'inline-block', flexShrink: 0 }}>
+      <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: color, animation: 'pulseRing 2s ease-out infinite' }} />
+      <span style={{ position: 'absolute', inset: size * 0.18, borderRadius: '50%', background: color, boxShadow: `0 0 6px ${color}` }} />
+    </span>
+  );
+}
+
+// ── Map background ─────────────────────────────────────────────────────
+function MapBackground() {
+  return (
+    <div style={{ position: 'absolute', inset: 0, zIndex: 0, overflow: 'hidden' }}>
+      <div style={{
+        position: 'absolute', inset: 0,
+        backgroundImage: 'radial-gradient(rgba(91,163,245,0.12) 1px, transparent 1px)',
+        backgroundSize: '18px 18px',
+        maskImage: 'radial-gradient(ellipse 80% 60% at 50% 30%, #000 30%, transparent 75%)',
+        WebkitMaskImage: 'radial-gradient(ellipse 80% 60% at 50% 30%, #000 30%, transparent 75%)',
+      }} />
+      <div style={{
+        position: 'absolute', top: '-10%', left: '50%', transform: 'translateX(-50%)',
+        width: 520, height: 520, borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(33,118,232,0.35) 0%, transparent 60%)',
+        filter: 'blur(20px)',
+      }} />
+      <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} viewBox="0 0 460 920" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="arcGrad" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%"   stopColor="#5ba3f5" stopOpacity="0" />
+            <stop offset="50%"  stopColor="#5ba3f5" stopOpacity="0.6" />
+            <stop offset="100%" stopColor="#5ba3f5" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <path d="M-20 220 Q 230 80 480 220" stroke="url(#arcGrad)" strokeWidth="1" fill="none"
+          strokeDasharray="6 6" style={{ animation: 'dashMove 4s linear infinite' }} />
+        <path d="M-20 320 Q 230 200 480 320" stroke="url(#arcGrad)" strokeWidth="1" fill="none"
+          strokeDasharray="3 7" opacity="0.6" style={{ animation: 'dashMove 7s linear infinite reverse' }} />
+        <circle cx="80"  cy="180" r="2.5" fill="#5ba3f5" />
+        <circle cx="380" cy="190" r="2.5" fill="#5ba3f5" />
+        <circle cx="230" cy="115" r="3"   fill="#34d399" />
+      </svg>
+      <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 80% 60% at 50% 30%, transparent 30%, #03070f 100%)' }} />
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '60%', background: 'linear-gradient(to top, #03070f 35%, transparent 100%)' }} />
+    </div>
+  );
+}
+
+// ── Logo ───────────────────────────────────────────────────────────────
+function Logo() {
+  return (
+    <div style={{
+      width: 44, height: 44, borderRadius: 14,
+      boxShadow: '0 0 0 1px rgba(91,163,245,0.3), 0 8px 24px rgba(25,100,200,0.55)',
+      overflow: 'hidden', flexShrink: 0,
+    }}>
+      <img src="/icons/logo-bird.png" alt="Ovora" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+    </div>
+  );
+}
+
+// ── Eyebrow label ──────────────────────────────────────────────────────
+function Eyebrow({ label }: { label: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+      <div style={{ width: 22, height: 2, background: C.blue, borderRadius: 1 }} />
+      <span style={{ fontSize: 10, fontWeight: 700, color: C.blueLight, letterSpacing: '0.14em', textTransform: 'uppercase' }}>{label}</span>
+    </div>
+  );
+}
+
+// ── Arrow right ────────────────────────────────────────────────────────
+function ArrowRight({ color }: { color: string }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <path d="M5 12h14M13 5l7 7-7 7" />
+    </svg>
+  );
+}
+
+// ── 3D icon wrapper ────────────────────────────────────────────────────
+function Icon3D({ size = 42, hue1, hue2, glow, children, radius = 12 }: {
+  size?: number; hue1: string; hue2: string; glow: string; children: ReactNode; radius?: number;
+}) {
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: radius, flexShrink: 0,
+      background: `linear-gradient(155deg, ${hue1} 0%, ${hue2} 100%)`,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      position: 'relative', overflow: 'hidden',
+      boxShadow: `0 0 0 1px rgba(255,255,255,0.08),inset 0 1.2px 0 rgba(255,255,255,0.45),inset 0 -1.5px 1px rgba(0,0,0,0.25),0 8px 18px ${glow},0 2px 4px rgba(0,0,0,0.3)`,
+    }}>
+      <span style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '55%', background: 'linear-gradient(180deg, rgba(255,255,255,0.32), transparent)', borderRadius: `${radius}px ${radius}px 100% 100% / ${radius}px ${radius}px 30% 30%`, pointerEvents: 'none' }} />
+      <span style={{ position: 'absolute', top: '8%', left: '12%', width: '30%', height: '18%', background: 'rgba(255,255,255,0.55)', borderRadius: '50%', filter: 'blur(3px)', pointerEvents: 'none' }} />
+      <span style={{ position: 'relative', zIndex: 1, display: 'flex', filter: 'drop-shadow(0 1.5px 1.5px rgba(0,0,0,0.35))' }}>{children}</span>
+    </div>
+  );
+}
+
+// ── Tag mini-icons ─────────────────────────────────────────────────────
+const _ti = (paths: ReactNode) => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">{paths}</svg>
+);
+const Ti = {
+  border: _ti(<><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></>),
+  driver: _ti(<><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></>),
+  box:    _ti(<><path d="M16.5 9.4 7.55 4.24"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></>),
+  radio:  _ti(<><path d="M4.9 16.1C1 12.2 1 5.8 4.9 1.9"/><path d="M7.8 4.7a6.14 6.14 0 0 0-.8 7.5"/><circle cx="12" cy="9" r="2"/><path d="M16.2 4.8c2 2 2.26 5.11.8 7.47"/><path d="M19.1 1.9a9.96 9.96 0 0 1 0 14.1"/><path d="M9.5 18h5"/><path d="m8 22 4-11 4 11"/></>),
+  plane:  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M22 12c0 .55-.45 1-1 1h-6.5l-3 7H10l1.5-7H7l-2 2H3l1.5-3L3 9h2l2 2h4.5L10 4h1.5l3 7H21c.55 0 1 .45 1 1z"/></svg>,
+  mail:   _ti(<><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></>),
+  flex:   _ti(<><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></>),
+};
+
+// ── Cargo truck photo ─────────────────────────────────────────────────
+function TruckBig({ src }: { src: string }) {
+  return (
+    <div className="ovora-card-vehicle" style={{ width: 'clamp(74px,22vw,100px)', height: 'clamp(64px,19vw,88px)', borderRadius: 12, flexShrink: 0, overflow: 'hidden', background: 'rgba(0,8,24,0.85)', boxShadow: '0 0 0 1px rgba(91,163,245,0.15)' }}>
+      <img src={src} alt="CARGO" style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
+    </div>
+  );
+}
+
+// ── Avia plane photo ──────────────────────────────────────────────────
+function PlaneBig({ src }: { src: string }) {
+  return (
+    <div className="ovora-card-vehicle" style={{ width: 'clamp(74px,22vw,100px)', height: 'clamp(64px,19vw,88px)', borderRadius: 12, flexShrink: 0, overflow: 'hidden', background: 'rgba(0,8,24,0.85)', boxShadow: '0 0 0 1px rgba(91,163,245,0.15)' }}>
+      <img src={src} alt="AVIA" style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
+    </div>
+  );
+}
+
+// ── Card ──────────────────────────────────────────────────────────────
+interface WorldCardProps {
+  title: string;
+  desc: string;
+  tags: { icon: ReactNode; label: string; bg?: string }[];
+  accentLight: string;
+  icon: ReactNode;
+  onClick: () => void;
+}
+function WorldCard({ title, desc, tags, accentLight, icon, onClick }: WorldCardProps) {
+  return (
+    <button onClick={onClick} className="ovora-service-card" style={{
+      border: '1px solid rgba(255,255,255,0.08)',
+      borderRadius: 16, padding: 0, width: '100%', cursor: 'pointer',
+      textAlign: 'left', fontFamily: 'inherit',
+    }}>
+      <div className="ovora-card-header" style={{ display: 'flex', alignItems: 'center', gap: 'clamp(7px,2vw,12px)', padding: 'clamp(9px,2.8vw,13px) clamp(9px,2.8vw,13px) clamp(6px,1.8vw,8px)' }}>
+        {icon}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+            <span style={{ fontSize: 'clamp(14px,4.2vw,17px)', fontWeight: 800, color: '#fff', letterSpacing: '-0.2px' }}>{title}</span>
+            <span style={{ fontSize: 'clamp(7px,2vw,9px)', fontWeight: 700, color: C.green, padding: '2px 5px', borderRadius: 6, background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.28)', letterSpacing: '0.05em', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+              <LiveDot size={4} /> LIVE
+            </span>
+          </div>
+          <p style={{ fontSize: 'clamp(8px,2.5vw,10px)', color: 'rgba(155,170,210,0.85)', lineHeight: 1.35, margin: 0 }}>{desc}</p>
+        </div>
+        <ArrowRight color={accentLight} />
+      </div>
+      <div className="ovora-card-tags" style={{ display: 'flex', gap: 'clamp(3px,1.2vw,5px)', flexWrap: 'wrap', padding: '0 clamp(9px,2.8vw,12px) clamp(9px,2.8vw,12px)' }}>
+        {tags.map((t, i) => (
+          <span key={i} style={{
+            fontSize: 'clamp(8px,2.2vw,10px)', fontWeight: 600,
+            color: '#fff',
+            padding: 'clamp(2px,0.8vw,3px) clamp(5px,1.6vw,8px)', borderRadius: 6,
+            background: t.bg ?? 'rgba(255,255,255,0.07)',
+            border: t.bg ? 'none' : '1px solid rgba(255,255,255,0.08)',
+            display: 'inline-flex', alignItems: 'center', gap: 3,
+            whiteSpace: 'nowrap',
+          }}>
+            <span style={{ display: 'inline-flex' }}>{t.icon}</span>
+            {t.label}
+          </span>
+        ))}
+      </div>
+    </button>
+  );
+}
+
+// ── Stat icon type ─────────────────────────────────────────────────────
+type StatIconType = 'box' | 'driver' | 'clock' | 'check';
+const STAT_HUES: Record<StatIconType, { h1: string; h2: string; glow: string }> = {
+  box:    { h1: '#7dd3fc', h2: '#0369a1', glow: 'rgba(56,189,248,0.4)' },
+  driver: { h1: '#6ee7b7', h2: '#047857', glow: 'rgba(52,211,153,0.4)' },
+  clock:  { h1: '#fdba74', h2: '#c2410c', glow: 'rgba(251,146,60,0.4)' },
+  check:  { h1: '#c4b5fd', h2: '#5b21b6', glow: 'rgba(167,139,250,0.4)' },
+};
+function StatIcon3D({ type }: { type: StatIconType }) {
+  const { h1, h2, glow } = STAT_HUES[type];
+  const p = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: '#fff', strokeWidth: 1.9, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
+  const svgs: Record<StatIconType, ReactNode> = {
+    box:    <svg {...p}><path d="M16.5 9.4 7.55 4.24"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>,
+    driver: <svg {...p}><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>,
+    clock:  <svg {...p}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+    check:  <svg {...p}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>,
+  };
+  return <Icon3D size={32} hue1={h1} hue2={h2} glow={glow} radius={10}>{svgs[type]}</Icon3D>;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// WELCOME
+// ══════════════════════════════════════════════════════════════════════
 export function Welcome() {
-  const navigate = useNavigate();
+  const navigate  = useNavigate();
   const { lang, setLang } = useLanguage();
   const [selectedLang, setSelectedLang] = useState<LangCode>(lang);
-  const [mounted, setMounted] = useState(false);
+  const [mounted, setMounted]   = useState(false);
   const [liveStats, setLiveStats] = useState<{ drivers: number; cities: number; satisfied: number } | null>(null);
+  const [siteConfig, setSiteConfig] = useState(() => getSiteConfig());
 
   useEffect(() => {
     setMounted(true);
     getPublicStats().then(s => setLiveStats(s)).catch(() => {});
+    const onCfgChange = () => setSiteConfig(getSiteConfig());
+    window.addEventListener('ovora_site_config_changed', onCfgChange);
+    return () => window.removeEventListener('ovora_site_config_changed', onCfgChange);
   }, []);
 
-  const handleLangSelect = (code: LangCode) => { setSelectedLang(code); setLang(code); };
+  const handleLang = (code: LangCode) => { setSelectedLang(code); setLang(code); };
 
   if (!mounted) return null;
 
-  const stats = [
-    { value: liveStats?.drivers ?? 3400, suffix: liveStats ? '' : '+', label: 'Водителей', color: '#5ba3f5' },
-    { value: liveStats?.cities ?? 12,    suffix: '',                    label: 'Городов',   color: '#a78bfa' },
-    { value: liveStats?.satisfied ?? 98, suffix: '%',                   label: 'Довольных', color: '#34d399' },
+  const statsStrip = [
+    { target: liveStats?.drivers  ?? 3400, suffix: liveStats ? '' : '+', label: 'Водителей', color: C.blueLight },
+    { target: liveStats?.cities   ?? 12,   suffix: '',                    label: 'Городов',   color: C.purple },
+    { target: liveStats?.satisfied ?? 98,  suffix: '%',                   label: 'Довольных', color: C.green },
+  ];
+
+  const bottomStats: { icon: StatIconType; val: number; suffix: string; label: string; color: string }[] = [
+    { icon: 'box',    val: 128, suffix: '',      label: 'Грузов онлайн',      color: C.blueLight },
+    { icon: 'driver', val: 43,  suffix: '',      label: 'Водителей онлайн',   color: C.green },
+    { icon: 'clock',  val: 12,  suffix: ' мин',  label: 'Очередь на границе', color: C.orange },
+    { icon: 'check',  val: 98,  suffix: '%',     label: 'Доставка в срок',    color: C.purple },
   ];
 
   return (
-    <div style={{
-      position: 'relative', width: '100%', minHeight: '100dvh',
-      overflow: 'hidden', background: '#060d18',
-      fontFamily: "'Sora', 'Inter', sans-serif",
-    }}>
+    <div className="ovora-app">
       <MapBackground />
 
-      {/* Vignettes */}
-      <div style={{
-        position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none',
-        background: 'radial-gradient(ellipse 80% 60% at 50% 30%, transparent 30%, #060d18 100%)',
-      }} />
-      <div style={{
-        position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 5, pointerEvents: 'none',
-        height: '60%',
-        background: 'linear-gradient(to top, #060d18 45%, transparent 100%)',
-      }} />
+      {/* ─── Hero: full-bleed on desktop, natural height on mobile ─── */}
+      <motion.div className="ovora-hero-fullbleed"
+        initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}
+      >
+        <img src={siteConfig.icons.hero} alt="Ovora Cargo" />
+      </motion.div>
 
-      {/* ══════ CONTENT ══════ */}
-      <div className="wc-outer" style={{ position: 'relative', zIndex: 20 }}>
+      {/* ─── Content container ─── */}
+      <div className="ovora-screen" style={{ position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', gap: 'clamp(8px,2vw,16px)' }}>
 
-        {/* ── HEADER ── */}
-        <motion.div
-          className="wc-header"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        {/* 2 ── CARGO + AVIA CARDS ── */}
+        <motion.div className="ovora-area-cards"
+          initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15, duration: 0.45 }}
+          style={{ padding: '0 clamp(8px,3vw,0px)' }}
         >
-          {/* Logo */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{
-              width: 40, height: 40, borderRadius: 13,
-              background: 'linear-gradient(135deg, #0f52b6 0%, #2176e8 100%)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 0 0 1px #5ba3f54d, 0 8px 24px #1964c899',
-              flexShrink: 0,
-            }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="1" y="3" width="15" height="13" rx="2"/>
-                <path d="M16 8h4l3 5v4h-7V8z"/>
-                <circle cx="5.5" cy="18.5" r="2.5"/>
-                <circle cx="18.5" cy="18.5" r="2.5"/>
-              </svg>
-            </div>
-            <div>
-              <div style={{ fontSize: 16, fontWeight: 800, color: '#fff', letterSpacing: '-0.3px', lineHeight: 1.1 }}>
-                Ovora
-              </div>
-              <div style={{ fontSize: 9, color: '#4a6080', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                Logistics & Air Cargo
-              </div>
-            </div>
+          <div className="ovora-cards-grid" style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(6px,2vw,10px)' }}>
+            <WorldCard
+              title="CARGO"
+              desc="Грузоперевозки  Россия · Таджикистан · СНГ"
+              icon={<TruckBig src={siteConfig.icons.truck} />}
+              accentLight={C.blueLight}
+              onClick={() => navigate('/role-select')}
+              tags={[
+                { icon: Ti.border, label: 'Границы' },
+                { icon: Ti.driver, label: 'Водители', bg: 'rgba(220,38,38,0.7)' },
+                { icon: Ti.box,    label: 'Грузы',    bg: 'rgba(217,119,6,0.7)' },
+                { icon: Ti.radio,  label: 'Рация' },
+              ]}
+            />
+            <WorldCard
+              title="AVIA"
+              desc="Авиагруз  Россия ↔ Таджикистан"
+              icon={<PlaneBig src={siteConfig.icons.plane} />}
+              accentLight={C.cyan}
+              onClick={() => navigate('/avia')}
+              tags={[
+                { icon: Ti.plane, label: 'Курьер' },
+                { icon: Ti.mail,  label: 'Отправитель' },
+                { icon: Ti.flex,  label: 'Гибкие роли' },
+              ]}
+            />
           </div>
+        </motion.div>
 
-          {/* Online badge */}
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            padding: '5px 11px',
-            background: '#34d39914', border: '1px solid #34d39933',
-            borderRadius: 20,
+        {/* 3 ── LANGUAGE ── */}
+        <motion.div className="ovora-area-lang"
+          style={{ padding: '0 clamp(8px,3vw,0px)' }}
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25, duration: 0.4 }}
+        >
+          <div className="ovora-lang-card" style={{
+            border: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: 16,
+            padding: 'clamp(10px,3vw,14px)',
+            display: 'flex', alignItems: 'center', gap: 12,
           }}>
-            <LiveDot />
-            <span style={{ fontSize: 10, fontWeight: 700, color: '#34d399', letterSpacing: '0.06em' }}>
-              ОНЛАЙН
-            </span>
-          </div>
-
-          {/* Lang selector — desktop header only */}
-          <div className="wc-lang-header">
-            {LANGS.map(l => {
-              const isActive = selectedLang === l.code;
-              return (
-                <motion.button
-                  key={l.code}
-                  whileTap={{ scale: 0.94 }}
-                  onClick={() => handleLangSelect(l.code)}
-                  style={{
-                    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-                    padding: '8px 16px', borderRadius: 11,
-                    border: isActive ? '1px solid #5ba3f560' : '1px solid #ffffff0f',
-                    background: isActive ? '#2176e820' : '#ffffff08',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <span style={{ fontSize: 16 }}>{l.flag}</span>
-                  <span style={{
-                    fontSize: 11, fontWeight: 700, letterSpacing: '0.04em',
-                    color: isActive ? '#e8f0ff' : '#3d5268',
+            <div className="lang-label" style={{ fontSize: 'clamp(8px,2.2vw,10px)', fontWeight: 700, color: C.dim2, letterSpacing: '0.12em', textTransform: 'uppercase', whiteSpace: 'nowrap', flexShrink: 0 }}>Язык интерфейса</div>
+            <div className="lang-buttons" style={{ display: 'flex', gap: 'clamp(5px,1.8vw,8px)', flex: 1 }}>
+              {LANGS.map(l => {
+                const active = selectedLang === l.code;
+                return (
+                  <button key={l.code} onClick={() => handleLang(l.code)} className="lang-btn" style={{
+                    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    padding: 'clamp(8px,2.5vw,12px) 4px', borderRadius: 10,
+                    border: active ? '1px solid rgba(91,163,245,0.5)' : '1px solid rgba(255,255,255,0.08)',
+                    background: active ? 'rgba(33,118,232,0.18)' : 'rgba(255,255,255,0.04)',
+                    color: active ? '#e8f0ff' : C.dim,
+                    fontSize: 'clamp(11px,3.2vw,13px)', fontWeight: 700, letterSpacing: '0.04em',
+                    cursor: 'pointer', fontFamily: 'inherit', position: 'relative', overflow: 'hidden',
+                    transition: 'all 0.18s ease',
                   }}>
-                    {l.label}
-                  </span>
-                </motion.button>
-              );
-            })}
+                    {active && <span style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at top, rgba(91,163,245,0.22), transparent 70%)' }} />}
+                    <span style={{ fontSize: 'clamp(15px,4.5vw,18px)', position: 'relative' }}>{l.flag}</span>
+                    <span style={{ position: 'relative' }}>{l.display}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </motion.div>
 
-        {/* ── HERO ── */}
-        <div className="wc-hero">
-          <motion.div
-            initial={{ opacity: 0, x: -12 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2, duration: 0.4 }}
-            style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}
-          >
-            <div style={{ width: 22, height: 2, background: '#1978e5', borderRadius: 1 }} />
-            <span style={{ fontSize: 10, fontWeight: 700, color: '#5ba3f5', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-              Выберите направление
-            </span>
-          </motion.div>
-
-          <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.25, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            className="wc-title"
-            style={{ fontWeight: 900, lineHeight: 1.05, letterSpacing: '-1.5px', color: '#fff', margin: '0 0 6px' }}
-          >
-            Платформа
-            <br />
-            <span style={{
-              background: 'linear-gradient(95deg, #2176e8 0%, #5ba3f5 45%, #38bdf8 100%)',
-              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-            }}>
-              Ovora
-            </span>
-          </motion.h1>
-
-          <motion.p
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.35, duration: 0.5 }}
-            className="wc-desc"
-            style={{ color: '#6b8299', lineHeight: 1.55, margin: '0 0 0', maxWidth: 380 }}
-          >
-            Грузоперевозки и авиадоставка между Россией, Таджикистаном и СНГ.
-          </motion.p>
-
-          {/* Stats — desktop only */}
-          <motion.div
-            className="wc-stats"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.45, duration: 0.5 }}
-          >
-            {stats.map((s, i) => (
-              <div key={s.label} className="wc-stat-item" style={{ position: 'relative' }}>
-                {i < stats.length - 1 && (
-                  <div style={{
-                    position: 'absolute', right: 0, top: '12%', height: '76%',
-                    width: 1, background: '#ffffff0a', pointerEvents: 'none',
-                  }} />
-                )}
-                <div style={{ fontSize: 20, fontWeight: 900, color: s.color, lineHeight: 1 }}>
-                  <Counter target={s.value} suffix={s.suffix} />
-                </div>
-                <div style={{ fontSize: 10, color: '#4a6080', fontWeight: 600, letterSpacing: '0.05em', marginTop: 3 }}>
-                  {s.label}
-                </div>
-              </div>
-            ))}
-          </motion.div>
-        </div>
-
-        {/* ── LANGUAGE SELECTOR (above cards on mobile) ── */}
-        <motion.div
-          className="wc-lang"
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4, duration: 0.4 }}
+        {/* 4 ── PARTNERS ── */}
+        <motion.div className="ovora-area-partners"
+          style={{ padding: '0 clamp(8px,3vw,0px) clamp(8px,3vw,0px)' }}
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35, duration: 0.4 }}
         >
-          <div style={{ fontSize: 9, fontWeight: 700, color: '#3d5268', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 7 }}>
-            Язык интерфейса
-          </div>
-          <div style={{ display: 'flex', gap: 6 }}>
-            {LANGS.map(l => {
-              const isActive = selectedLang === l.code;
-              return (
-                <motion.button
-                  key={l.code}
-                  whileTap={{ scale: 0.94 }}
-                  onClick={() => handleLangSelect(l.code)}
-                  style={{
-                    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-                    padding: '8px 4px', borderRadius: 11,
-                    border: isActive ? '1px solid #5ba3f560' : '1px solid #ffffff0f',
-                    background: isActive ? '#2176e820' : '#ffffff08',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <span style={{ fontSize: 16 }}>{l.flag}</span>
-                  <span style={{
-                    fontSize: 11, fontWeight: 700,
-                    color: isActive ? '#e8f0ff' : '#3d5268',
-                    letterSpacing: '0.04em',
+          <div className="ovora-partners-card" style={{ border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: 'clamp(10px,3vw,14px)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <div style={{ fontSize: 'clamp(13px,3.8vw,16px)', fontWeight: 800, color: '#fff' }}>Наши партнёры</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 'clamp(10px,3vw,12px)', color: C.blueLight, fontWeight: 600 }}>
+                Смотреть всех
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.blueLight} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 5l7 7-7 7" /></svg>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 'clamp(5px,1.5vw,12px)', overflowX: 'auto', paddingBottom: 2, WebkitOverflowScrolling: 'touch' as any }}>
+              {siteConfig.partners.map((p, i) => (
+                <div key={p.id ?? i} className="ovora-partner-tile" style={{
+                  flexShrink: 0, width: 'clamp(58px,17vw,90px)',
+                  background: 'rgba(15,25,50,0.9)',
+                  border: '1px solid rgba(255,255,255,0.07)',
+                  borderRadius: 10,
+                  display: 'flex', flexDirection: 'column', alignItems: 'center',
+                  padding: 'clamp(6px,1.8vw,12px) clamp(4px,1.2vw,8px)',
+                  gap: 4,
+                }}>
+                  <div className="ovora-partner-icon" style={{
+                    width: 'clamp(28px,8vw,44px)', height: 'clamp(28px,8vw,44px)', borderRadius: 8,
+                    background: `linear-gradient(145deg, ${p.color}22, ${p.color}44)`,
+                    border: `1px solid ${p.color}55`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>
-                    {l.label}
-                  </span>
-                </motion.button>
-              );
-            })}
+                    <span style={{ fontSize: p.mark.length > 2 ? 'clamp(8px,2.5vw,12px)' : 'clamp(11px,3.2vw,16px)', fontWeight: 900, color: p.textColor ?? p.color, letterSpacing: -0.5 }}>{p.mark}</span>
+                  </div>
+                  <div className="ovora-partner-name" style={{ textAlign: 'center', lineHeight: 1.2 }}>
+                    <div style={{ fontSize: 'clamp(7px,2vw,10px)', fontWeight: 800, color: '#e2eaf8' }}>{p.name}</div>
+                    <div style={{ fontSize: 'clamp(6px,1.8vw,9px)', color: C.dim, marginTop: 1 }}>{p.sub}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 4, marginTop: 7 }}>
+              {siteConfig.partners.map((_, i) => (
+                <span key={i} style={{ width: i === 0 ? 14 : 4, height: 3, borderRadius: 99, background: i === 0 ? C.blueLight : 'rgba(255,255,255,0.15)' }} />
+              ))}
+            </div>
           </div>
         </motion.div>
 
-        {/* ── WORLD CARDS ── */}
-        <div className="wc-cards">
-          {/* CARGO */}
-          <motion.button
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            whileTap={{ scale: 0.97 }}
-            onClick={() => navigate('/role-select')}
-            className="wc-card"
-            style={{
-              background: 'linear-gradient(145deg, #0d1f3c 0%, #0a1628 100%)',
-              border: '1px solid #1d4ed830',
-            }}
-          >
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: 'linear-gradient(90deg, transparent, #3b82f680, transparent)' }} />
-            <div className="wc-card-inner">
-              <div style={{
-                width: 48, height: 48, borderRadius: 15,
-                background: 'linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                boxShadow: '0 0 18px #3b82f633',
-              }}>
-                <Truck style={{ width: 24, height: 24, color: '#fff' }} />
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3 }}>
-                  <span style={{ fontSize: 17, fontWeight: 800, color: '#fff', letterSpacing: '-0.3px' }}>CARGO</span>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: '#34d399', padding: '2px 7px', borderRadius: 9, background: '#34d39914', border: '1px solid #34d39930', letterSpacing: '0.06em' }}>LIVE</span>
-                </div>
-                <p style={{ fontSize: 11, color: '#6b8299', lineHeight: 1.45, margin: 0 }}>
-                  Грузоперевозки Россия · Таджикистан · СНГ
-                </p>
-              </div>
-              <ArrowRight style={{ width: 18, height: 18, color: '#3b82f6', flexShrink: 0 }} />
-            </div>
-            <div className="wc-card-tags">
-              {['🛣️ Границы', '🚗 Водители', '📦 Грузы', '📡 Рация'].map(tag => (
-                <span key={tag} style={{ fontSize: 10, fontWeight: 600, color: '#5ba3f5', padding: '3px 9px', borderRadius: 8, background: '#3b82f60d', border: '1px solid #3b82f620' }}>
-                  {tag}
-                </span>
-              ))}
-            </div>
-          </motion.button>
-
-          {/* AVIA */}
-          <motion.button
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            whileTap={{ scale: 0.97 }}
-            onClick={() => navigate('/avia')}
-            className="wc-card"
-            style={{
-              background: 'linear-gradient(145deg, #0c1f2e 0%, #0a1420 100%)',
-              border: '1px solid #0ea5e925',
-            }}
-          >
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: 'linear-gradient(90deg, transparent, #0ea5e960, transparent)' }} />
-            <div className="wc-card-inner">
-              <div style={{
-                width: 48, height: 48, borderRadius: 15,
-                background: 'linear-gradient(135deg, #0369a1 0%, #0ea5e9 100%)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                boxShadow: '0 0 18px #0ea5e933',
-              }}>
-                <Plane style={{ width: 24, height: 24, color: '#fff' }} />
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3 }}>
-                  <span style={{ fontSize: 17, fontWeight: 800, color: '#fff', letterSpacing: '-0.3px' }}>AVIA</span>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: '#34d399', padding: '2px 7px', borderRadius: 9, background: '#34d39914', border: '1px solid #34d39930', letterSpacing: '0.06em' }}>LIVE</span>
-                </div>
-                <p style={{ fontSize: 11, color: '#6b8299', lineHeight: 1.45, margin: 0 }}>
-                  Авиагруз Россия ↔ Таджикистан
-                </p>
-              </div>
-              <ArrowRight style={{ width: 18, height: 18, color: '#0ea5e9', flexShrink: 0 }} />
-            </div>
-            <div className="wc-card-tags">
-              {['✈️ Курьер', '📨 Отправитель', '🔄 Гибкие роли'].map(tag => (
-                <span key={tag} style={{ fontSize: 10, fontWeight: 600, color: '#38bdf8', padding: '3px 9px', borderRadius: 8, background: '#0ea5e90d', border: '1px solid #0ea5e920' }}>
-                  {tag}
-                </span>
-              ))}
-            </div>
-          </motion.button>
-        </div>
-
-        {/* ── FOOTER spacer ── */}
-        <div className="wc-footer-space" />
 
       </div>
-
-      <style>{`
-        /* ═══════ BASE (mobile-first) ═══════ */
-        .wc-outer {
-          display: flex;
-          flex-direction: column;
-          min-height: 100dvh;
-          width: 100%;
-          box-sizing: border-box;
-        }
-
-        .wc-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: max(14px, env(safe-area-inset-top, 14px)) 18px 0;
-          flex-shrink: 0;
-        }
-
-        .wc-hero {
-          padding: 18px 18px 0;
-          flex-shrink: 0;
-        }
-
-        .wc-title {
-          font-size: clamp(28px, 9vw, 40px);
-        }
-
-        .wc-desc {
-          font-size: clamp(12px, 3.5vw, 14px);
-        }
-
-        .wc-stats {
-          display: none;
-        }
-
-        .wc-stat-item {
-          flex: 1;
-          text-align: center;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          padding: 12px 8px;
-        }
-
-        /* Language selector — shown above cards on mobile */
-        .wc-lang {
-          padding: 14px 18px 0;
-          flex-shrink: 0;
-        }
-
-        .wc-cards {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-          padding: 12px 18px 0;
-          flex: 1;
-        }
-
-        .wc-card {
-          border-radius: 20px;
-          padding: 0;
-          cursor: pointer;
-          overflow: hidden;
-          text-align: left;
-          position: relative;
-          width: 100%;
-        }
-
-        .wc-card-inner {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 14px 14px 10px;
-        }
-
-        .wc-card-tags {
-          display: flex;
-          gap: 6px;
-          flex-wrap: wrap;
-          padding: 0 14px 14px;
-        }
-
-        .wc-footer-space {
-          height: max(16px, env(safe-area-inset-bottom, 16px));
-          flex-shrink: 0;
-        }
-
-        /* ── SMALL PHONES (≤ 360px) ── */
-        @media (max-width: 360px) {
-          .wc-title  { font-size: 26px; }
-          .wc-desc   { font-size: 11px; }
-          .wc-header { padding-top: max(12px, env(safe-area-inset-top, 12px)); }
-          .wc-hero   { padding-top: 12px; }
-          .wc-lang   { padding-top: 10px; }
-          .wc-cards  { padding-top: 8px; gap: 8px; }
-          .wc-card-inner { padding: 12px 12px 8px; gap: 10px; }
-          .wc-card-tags  { padding: 0 12px 12px; gap: 5px; }
-        }
-
-        /* ── COMPACT HEIGHT (landscape phones) ── */
-        @media (max-height: 600px) {
-          .wc-hero  { padding-top: 10px; }
-          .wc-lang  { padding-top: 8px; }
-          .wc-cards { padding-top: 8px; gap: 7px; }
-          .wc-title { font-size: 24px; letter-spacing: -1px; }
-          .wc-desc  { display: none; }
-          .wc-card-inner { padding: 11px 12px 8px; }
-          .wc-card-tags  { padding: 0 12px 11px; }
-        }
-
-        /* Lang in header — hidden on mobile */
-        .wc-lang-header {
-          display: none;
-        }
-
-        /* ── TABLET / DESKTOP (≥ 700px) ── */
-        @media (min-width: 700px) {
-          .wc-outer {
-            max-width: 1200px;
-            margin: 0 auto;
-            flex-direction: row;
-            flex-wrap: wrap;
-            align-content: center;
-            justify-content: center;
-            padding: clamp(24px, 4vw, 40px) clamp(28px, 4vw, 56px);
-            min-height: 100dvh;
-          }
-
-          .wc-header {
-            width: 100%;
-            padding: 0 0 clamp(20px, 4vh, 36px);
-          }
-
-          .wc-hero {
-            flex: 1;
-            min-width: 0;
-            padding: 0 clamp(20px, 3vw, 40px) 0 0;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-          }
-
-          .wc-title {
-            font-size: clamp(36px, 4.5vw, 58px);
-          }
-
-          .wc-desc {
-            font-size: 14px;
-            display: block !important;
-          }
-
-          .wc-stats {
-            display: flex;
-            gap: 0;
-            margin-top: 24px;
-            border: 1px solid #ffffff12;
-            border-radius: 16px;
-            overflow: hidden;
-            backdrop-filter: blur(20px);
-            background: #ffffff08;
-            max-width: 360px;
-          }
-
-          /* Lang selector hidden on desktop (shown in header instead) */
-          .wc-lang {
-            display: none;
-          }
-
-          /* Lang in header — shown on desktop, same style as mobile buttons */
-          .wc-lang-header {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            width: 200px;
-            flex-shrink: 0;
-          }
-
-          .wc-cards {
-            width: clamp(300px, 34vw, 420px);
-            flex-shrink: 0;
-            flex: none;
-            padding: 0;
-            justify-content: center;
-          }
-
-          .wc-card-inner { padding: 18px 18px 12px; gap: 14px; }
-          .wc-card-tags  { padding: 0 18px 18px; }
-
-          .wc-footer-space {
-            width: 100%;
-            order: 4;
-            height: clamp(16px, 3vh, 28px);
-          }
-        }
-
-        /* ── LARGE DESKTOP (≥ 1200px) ── */
-        @media (min-width: 1200px) {
-          .wc-outer  { max-width: 1360px; }
-          .wc-title  { font-size: 62px; }
-          .wc-cards  { width: 450px; }
-        }
-      `}</style>
     </div>
   );
 }

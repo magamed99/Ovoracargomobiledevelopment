@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
   Plus, Pencil, Trash2, Eye, EyeOff, GripVertical, ExternalLink,
   Image, AlertCircle, CheckCircle2, X, Save, Video, Link2,
-  Play, Film, Upload, Loader2, CloudUpload
+  Play, Film, Upload, Loader2, CloudUpload, Sparkles
 } from 'lucide-react';
 import { getAdminAds, createAdminAd, updateAdminAd, deleteAdminAd, uploadAdMedia } from '../../api/dataApi';
 
@@ -290,6 +290,13 @@ function MediaUploader({
   );
 }
 
+// ── Demo seed data (mirrors ClientDashboard FALLBACK_ADS) ──────────────────────
+const DEMO_ADS = [
+  { emoji: '🚚', badge: 'Спецпредложение', title: 'Грузоперевозки\nот 500₽/км', description: 'Надежно • Быстро • Выгодно', image: 'https://images.unsplash.com/photo-1760035434884-f77dc4ce45af?w=600&h=200&fit=crop', videoUrl: '', url: '#', isActive: true, order: 0, placement: 'cargo' },
+  { emoji: '✈️', badge: 'Новое направление', title: 'Авиабилеты\nсо скидкой 25%', description: 'Лучшие цены • Без комиссий', image: 'https://images.unsplash.com/photo-1628695333027-df075f487dff?w=600&h=200&fit=crop', videoUrl: '', url: '#', isActive: true, order: 1, placement: 'cargo' },
+  { emoji: '🛡️', badge: 'Безопасность', title: 'Страхование грузов\nот 99₽', description: 'Полная защита • 24/7', image: 'https://images.unsplash.com/photo-1637052885415-ccda7cbaf7d9?w=600&h=200&fit=crop', videoUrl: '', url: '#', isActive: true, order: 2, placement: 'cargo' },
+];
+
 // ═══════════════════════════════════════════════════════════════════
 export function AdsManagement() {
   const [ads, setAds] = useState<Ad[]>([]);
@@ -301,6 +308,7 @@ export function AdsManagement() {
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
+  const [seeding, setSeeding] = useState(false);
 
   const showToast = (type: 'success' | 'error', msg: string) => {
     setToast({ type, msg });
@@ -346,6 +354,19 @@ export function AdsManagement() {
   };
 
   const closeForm = () => { setShowForm(false); setEditAd(null); };
+
+  const seedDemoAds = async () => {
+    setSeeding(true);
+    try {
+      const created = await Promise.all(DEMO_ADS.map(ad => createAdminAd(ad)));
+      setAds(prev => [...prev, ...created]);
+      showToast('success', `Создано ${created.length} демо-баннера. Отредактируйте под свой бренд!`);
+    } catch (e: any) {
+      showToast('error', e.message || 'Ошибка создания демо-баннеров');
+    } finally {
+      setSeeding(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -427,10 +448,18 @@ export function AdsManagement() {
 
       {/* Error */}
       {error && (
-        <div className="flex items-center gap-3 px-4 py-3 bg-red-50 border border-red-200 rounded-xl">
-          <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
-          <p className="text-sm text-red-700 flex-1">{error}</p>
-          <button onClick={load} className="text-xs text-red-600 underline">Повторить</button>
+        <div className="flex items-start gap-3 px-4 py-3 bg-red-50 border border-red-200 rounded-xl">
+          <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-red-700 font-semibold">Не удалось загрузить баннеры</p>
+            <p className="text-xs text-red-500 mt-0.5 break-all">{error}</p>
+            {error.includes('401') && (
+              <p className="text-xs text-red-600 mt-1 font-medium">
+                Ошибка авторизации — попробуйте выйти из админ-панели и войти снова.
+              </p>
+            )}
+          </div>
+          <button onClick={load} className="text-xs text-red-600 underline flex-shrink-0">Повторить</button>
         </div>
       )}
 
@@ -440,10 +469,27 @@ export function AdsManagement() {
           <div className="animate-spin rounded-full h-8 w-8 border-4 border-blue-200 border-t-blue-600" />
         </div>
       ) : ads.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-48 bg-white rounded-2xl border border-dashed border-gray-300">
-          <Image className="w-10 h-10 text-gray-300 mb-3" />
-          <p className="text-gray-500 font-medium">Нет баннеров</p>
-          <p className="text-gray-400 text-sm mt-1">Нажмите «Добавить баннер» чтобы создать первый</p>
+        <div className="flex flex-col items-center justify-center bg-white rounded-2xl border border-dashed border-gray-300 p-8 gap-4">
+          <Image className="w-10 h-10 text-gray-300" />
+          <div className="text-center">
+            <p className="text-gray-700 font-semibold text-base">Баннеров пока нет</p>
+            <p className="text-gray-400 text-sm mt-1 max-w-sm">
+              В страницах водителя и отправителя сейчас показываются <strong>демо-баннеры</strong> (встроенные заглушки).
+              Создайте реальные баннеры — они автоматически заменят демо.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs">
+            <button onClick={seedDemoAds} disabled={seeding}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-white rounded-xl font-medium text-sm transition-colors">
+              {seeding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+              {seeding ? 'Создаём…' : 'Создать примеры'}
+            </button>
+            <button onClick={openCreate}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium text-sm transition-colors">
+              <Plus className="w-4 h-4" /> С нуля
+            </button>
+          </div>
+          <p className="text-xs text-gray-400 text-center">«Создать примеры» — 3 готовых баннера, которые можно сразу редактировать</p>
         </div>
       ) : (
         <div className="grid gap-4">

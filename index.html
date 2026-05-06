@@ -5,9 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ovora Cargo Mobile</title>
     <style>html,body,#root{margin:0;padding:0;background:#0e1621;min-height:100%;}</style>
-    <!-- Preconnect to backend to reduce cold start latency -->
+    <!-- Preconnect to reduce cold start latency -->
     <link rel="preconnect" href="https://mkbcjxnoeevtkzaqcpsh.supabase.co" crossorigin>
     <link rel="dns-prefetch" href="https://mkbcjxnoeevtkzaqcpsh.supabase.co">
+    <!-- Hero banner preload so it shows immediately on first paint -->
+    <link rel="preload" as="image" href="/icons/hero-promo.png" fetchpriority="high">
   </head>
   <body>
     <script>

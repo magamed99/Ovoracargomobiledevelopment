@@ -4,7 +4,7 @@ import {
   ChevronRight, Phone, Mail, MapPin,
   Heart, Calendar, Info, Edit2, Truck,
   Package, Award, Copy, Check, User,
-  Calculator, FileText, Scale, UserCheck, Share2, Crown,
+  Calculator, FileText, Scale, UserCheck, Share2, Crown, BarChart2,
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { useUser } from '../contexts/UserContext';
@@ -89,9 +89,12 @@ export function ProfilePage() {
   ];
 
   const accountItems = [
-    { icon: Edit2,  label: 'Редактировать профиль', sub: 'Имя, фото, контакты', action: () => navigate('/profile/edit'), color: '#5ba3f5' },
-    { icon: Star,   label: 'Мои отзывы',            sub: displayRating ? `★ ${displayRating} · ${ratingData.count} отзывов` : 'Все отзывы', action: () => navigate('/reviews'), color: '#f59e0b' },
-    ...(isDriver ? [{ icon: Shield, label: 'Верификация', sub: 'Документы водителя', action: () => navigate('/documents'), color: '#10b981' }] : []),
+    { icon: Edit2,     label: 'Редактировать профиль', sub: 'Имя, фото, контакты', action: () => navigate('/profile/edit'), color: '#5ba3f5' },
+    { icon: Star,      label: 'Мои отзывы',            sub: displayRating ? `★ ${displayRating} · ${ratingData.count} отзывов` : 'Все отзывы', action: () => navigate('/reviews'), color: '#f59e0b' },
+    ...(isDriver ? [
+      { icon: BarChart2, label: 'Статистика',  sub: 'Поездки, рейтинг, доход', action: () => navigate('/driver-stats'), color: '#5ba3f5' },
+      { icon: Shield,    label: 'Верификация', sub: 'Документы водителя',       action: () => navigate('/documents'),    color: '#10b981' },
+    ] : []),
   ];
 
   const appItems = [

@@ -7,9 +7,8 @@ import { getAviaSession } from "./api/aviaApi";
 // ══════════════════════════════════════════════════════════════
 
 // Auth Pages (Eager — instant first screen)
-import { Welcome }     from "./components/Welcome";
-import { RoleSelect }  from "./components/RoleSelect";
-import { EmailAuth }   from "./components/EmailAuth";
+import { Welcome } from "./components/Welcome";
+// RoleSelect and EmailAuth are lazy — only needed after Welcome interaction
 
 // Layouts (Eager — needed synchronously for route tree setup)
 import { MobileLayout } from "./components/MobileLayout";
@@ -59,7 +58,7 @@ function requireAdmin() {
     } catch { return false; }
   })();
   if (!isAuth) return redirect('/');
-  if (!sessionStorage.getItem('ovora_admin_token')) return redirect('/home');
+  // Admin PIN auth is handled by AdminLayout/AdminAuthGate — no token check here
   return null;
 }
 
@@ -106,11 +105,17 @@ export const router = createBrowserRouter([
     HydrateFallback,
     children: [
 
-      // ── Welcome & Auth (Eager) ────────────────────────────────────────
+      // ── Welcome & Auth ────────────────────────────────────────────────
       { path: "/",        Component: Welcome },
       { path: "/welcome", Component: Welcome },
-      { path: "/role-select", Component: RoleSelect },
-      { path: "/email-auth",  Component: EmailAuth },
+      {
+        path: "/role-select",
+        lazy: () => import("./components/RoleSelect").then(m => ({ Component: m.RoleSelect })),
+      },
+      {
+        path: "/email-auth",
+        lazy: () => import("./components/EmailAuth").then(m => ({ Component: m.EmailAuth })),
+      },
 
       // ── Registration Forms (Lazy) ─────────────────────────────────────
       {
@@ -290,6 +295,12 @@ export const router = createBrowserRouter([
           },
           // ── Driver-specific (requires driver role) ──
           {
+            path: "driver-stats",
+            loader: requireDriver,
+            lazy: () => import("./components/DriverStatsPage")
+              .then(m => ({ Component: m.DriverStatsPage })),
+          },
+          {
             path: "borders",
             loader: requireDriver,
             lazy: () => import("./components/BordersPage")
@@ -382,6 +393,11 @@ export const router = createBrowserRouter([
             path: "subscriptions",
             lazy: () => import("./components/admin/SubscriptionManagement")
               .then(m => ({ Component: m.SubscriptionManagement })),
+          },
+          {
+            path: "site",
+            lazy: () => import("./components/admin/SiteSettingsPage")
+              .then(m => ({ Component: m.SiteSettingsPage })),
           },
         ],
       },

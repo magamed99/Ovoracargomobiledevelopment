@@ -56,6 +56,238 @@ button, a {
   }
 }
 
+/* ─── Ovora Welcome — keyframes & responsive grid ──────────────────── */
+@keyframes pulseRing {
+  0%   { transform: scale(1); opacity: 0.5; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+@keyframes dashMove {
+  to { stroke-dashoffset: -40; }
+}
+@keyframes shineSweep {
+  0%   { transform: translateX(-120%); }
+  100% { transform: translateX(220%); }
+}
+
+.ovora-app {
+  width: 100%;
+  min-height: 100vh;
+  background: #03070f;
+  position: relative;
+}
+.ovora-screen {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  position: relative;
+  padding-top: clamp(10px, 3vw, 22px);
+  padding-bottom: clamp(24px, 6vw, 36px);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DESKTOP LAYOUT (700px+)
+   Hero: full viewport width
+   Content: centered max-width container below hero
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Card backgrounds (mobile = opaque dark) ── */
+.ovora-service-card  { background: rgba(10,16,36,0.95); box-shadow: 0 2px 16px rgba(0,0,0,0.45); }
+.ovora-lang-card     { background: rgba(10,16,36,0.95); box-shadow: 0 2px 16px rgba(0,0,0,0.45); }
+.ovora-partners-card { background: rgba(10,16,36,0.95); box-shadow: 0 2px 16px rgba(0,0,0,0.45); }
+
+/* ── Mobile hero: natural flow, fixed height ── */
+.ovora-hero-fullbleed {
+  width: 100%;
+  position: relative;
+  z-index: 2;
+  overflow: hidden;
+}
+.ovora-hero-fullbleed img {
+  width: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: center 20%;
+  height: clamp(180px, 30vw, 480px);
+}
+
+/* ════════════════════════════════════════════════════
+   DESKTOP (700px+): hero = full screen background,
+   2-column grid: lang (top-left) | cards (top-right)
+   partners at bottom, everything compact
+   ════════════════════════════════════════════════════ */
+@media (min-width: 700px) {
+
+  /* App: exactly one screen tall, no scroll */
+  .ovora-app { height: 100vh; overflow: hidden; }
+
+  /* Hero: absolute full-screen background */
+  .ovora-hero-fullbleed {
+    position: absolute !important;
+    top: 0; left: 0;
+    width: 100vw !important;   /* vw guarantees full viewport regardless of container max-width */
+    height: 100vh !important;
+    z-index: 0;
+    overflow: hidden;
+  }
+  .ovora-hero-fullbleed img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    object-position: center 20%; /* default: screens ≤ 1.80:1 fill height, left/right crop */
+  }
+  .ovora-hero-fullbleed::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(160deg,
+      rgba(3,7,15,0.08) 0%,
+      rgba(3,7,15,0.32) 50%,
+      rgba(3,7,15,0.72) 100%
+    );
+  }
+
+  /* ── Content grid ──────────────────────────────────────
+     Row 1 (auto): lang (left) + cards (right) — TOP
+     Row 2 (1fr):  empty — shows banner behind
+     Row 3 (auto): partners — BOTTOM
+  ──────────────────────────────────────────────────── */
+  .ovora-screen {
+    position: relative !important;
+    z-index: 2 !important;
+    height: 100vh !important;
+    width: 100% !important;
+    max-width: 1440px !important;
+    margin: 0 auto !important;
+    padding: clamp(20px,3vh,36px) clamp(32px,4vw,60px) clamp(16px,2.5vh,28px) !important;
+    /* 2-col grid */
+    display: grid !important;
+    grid-template-columns: minmax(220px, 340px) 1fr !important;
+    grid-template-rows: auto 1fr auto !important;
+    column-gap: clamp(20px,3vw,40px) !important;
+    row-gap: 0 !important;
+    /* remove flex overrides */
+    flex-direction: unset !important;
+    justify-content: unset !important;
+    align-items: start !important;
+  }
+
+  /* Grid area assignments */
+  .ovora-area-lang     { grid-column: 1; grid-row: 1; padding: 0 !important; }
+  .ovora-area-cards    { grid-column: 2; grid-row: 1; padding: 0 !important; }
+  .ovora-area-partners { grid-column: 1 / -1; grid-row: 3; padding: 0 !important; align-self: end; }
+
+  /* ── Glass backgrounds ── */
+  .ovora-service-card {
+    background: rgba(3,7,15,0.45) !important;
+    backdrop-filter: blur(18px) !important; -webkit-backdrop-filter: blur(18px) !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3) !important;
+    border-color: rgba(255,255,255,0.11) !important;
+  }
+  .ovora-lang-card {
+    background: rgba(3,7,15,0.45) !important;
+    backdrop-filter: blur(18px) !important; -webkit-backdrop-filter: blur(18px) !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.25) !important;
+  }
+  .ovora-partners-card {
+    background: rgba(3,7,15,0.40) !important;
+    backdrop-filter: blur(18px) !important; -webkit-backdrop-filter: blur(18px) !important;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.2) !important;
+  }
+
+  /* ── CARGO + AVIA cards: stacked column, compact ── */
+  .ovora-cards-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: clamp(7px,1vh,11px) !important;
+    padding: 0 !important;
+  }
+  .ovora-cards-grid > button { width: 100%; min-width: 0; }
+
+  /* Compact card header & tags padding */
+  .ovora-card-header { padding: 8px 10px 5px !important; }
+  .ovora-card-tags   { padding: 0 10px 8px !important; gap: 4px !important; flex-wrap: nowrap !important; overflow: hidden !important; }
+
+  /* Smaller vehicle image */
+  .ovora-card-vehicle {
+    width: 58px !important; height: 52px !important;
+  }
+
+  /* ── Language card: compact ── */
+  .ovora-lang-card {
+    padding: 10px 12px !important;
+  }
+  .lang-label { display: none !important; }
+  .lang-buttons { gap: 6px !important; }
+  .lang-btn { padding: 8px 10px !important; font-size: 13px !important; }
+
+  /* ── Partners card: compact single row ── */
+  .ovora-partners-card { padding: 10px 14px !important; }
+
+  /* Hide "Смотреть всех" and dots on desktop — compact look */
+  .ovora-partners-card > div:last-child { display: none !important; }   /* dots */
+  .ovora-partner-tile {
+    width: 68px !important;
+    padding: 7px 5px !important;
+    gap: 3px !important;
+  }
+  .ovora-partner-icon {
+    width: 28px !important; height: 28px !important;
+  }
+  .ovora-partner-name > div:last-child { display: none !important; } /* hide sub-label */
+  .ovora-partner-name > div:first-child { font-size: 9px !important; }
+}
+
+@media (min-width: 1100px) {
+  .ovora-screen {
+    grid-template-columns: minmax(260px, 380px) 1fr !important;
+  }
+  .ovora-card-vehicle { width: 64px !important; height: 57px !important; }
+}
+
+@media (min-width: 1400px) {
+  .ovora-screen {
+    grid-template-columns: minmax(280px, 420px) 1fr !important;
+    padding: clamp(28px,4vh,48px) clamp(48px,5vw,80px) clamp(20px,3vh,36px) !important;
+  }
+  .ovora-card-vehicle { width: 72px !important; height: 64px !important; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   HERO BANNER — aspect-ratio adaptive object-position
+   Image is ~1.80:1 (1683×934).
+   • Screens narrower than 1.80:1 (standard 16:9, MacBook 16:10, portrait):
+     cover fills HEIGHT → left/right crop → vertical position barely matters.
+   • Screens wider than 1.80:1 (>9:5):
+     cover fills WIDTH → top/bottom crop → shift anchor up so
+     sky / airplane / logo area stays visible.
+───────────────────────────────────────────────────────────────────────────── */
+
+/* Just past image ratio — slight top/bottom crop (e.g. 1920×1000) */
+@media (min-width: 700px) and (min-aspect-ratio: 9/5) {
+  .ovora-hero-fullbleed img { object-position: center 14%; }
+}
+
+/* ~2:1 monitors and wide laptop modes */
+@media (min-width: 700px) and (min-aspect-ratio: 2/1) {
+  .ovora-hero-fullbleed img { object-position: center 8%; }
+}
+
+/* 21:9 ultrawide — 2560×1080, 3440×1440 (~2.33:1–2.39:1) */
+@media (min-width: 700px) and (min-aspect-ratio: 7/3) {
+  .ovora-hero-fullbleed img { object-position: center 4%; }
+}
+
+/* 32:9 super-ultrawide — 3840×1080, 5120×1440 (~3.56:1) */
+@media (min-width: 700px) and (min-aspect-ratio: 3/1) {
+  .ovora-hero-fullbleed img { object-position: center top; }
+}
+
+/* hide stats strip on mobile */
+.ovora-stats-strip { display: none; }
+.ovora-hide-mobile { display: none; }
+.ovora-area-hero   { display: none; }
+@media (min-width: 700px) {
+  .ovora-hide-mobile { display: block; }
+}
+
 /* Handle iPhone notch */
 @supports (padding: max(0px)) {
   .safe-area-top {

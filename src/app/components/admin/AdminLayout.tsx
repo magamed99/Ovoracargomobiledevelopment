@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Car, Package, FileCheck, BarChart3,
   MessageSquare, Bell, Search,
   Menu, X, ChevronRight, Truck, ClipboardList, Megaphone,
-  LogOut, Clock, TrendingUp, Database, Crown,
+  LogOut, Clock, TrendingUp, Database, Crown, Globe,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { YandexMetrikaTracker } from '../YandexMetrika';
@@ -42,6 +42,12 @@ const navGroups = [
     label: 'Монетизация',
     items: [
       { name: 'Подписки', href: '/admin/subscriptions', icon: Crown },
+    ],
+  },
+  {
+    label: 'Сайт',
+    items: [
+      { name: 'Настройки сайта', href: '/admin/site', icon: Globe },
     ],
   },
 ];
