@@ -369,3 +369,63 @@ body {
   background: rgba(14, 165, 233, 0.05) !important;
   color: #5ba3f5 !important;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   АДАПТИВНЫЙ БАННЕР — десктоп/планшет (мобилку ≤699px не трогаем)
+   Убираем position:absolute + 100vw/100vh: баннер идёт в поток с
+   правильной пропорцией, не «торчит» за края и не давит на карточки.
+═══════════════════════════════════════════════════════════════════════════ */
+@media (min-width: 700px) {
+
+  /* Контейнер: убираем жёсткий 100vh и overflow:hidden */
+  .ovora-app {
+    height: auto !important;
+    min-height: 100vh !important;
+    overflow: visible !important;
+  }
+
+  /* Баннер — в поток, пропорция 16:9, не выше экрана */
+  .ovora-hero-fullbleed {
+    position: relative !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: 100vh !important;
+    aspect-ratio: 16 / 9 !important;
+    overflow: hidden !important;
+    z-index: 1 !important;
+  }
+
+  .ovora-hero-fullbleed img {
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 100vh !important;
+    object-fit: cover !important;
+    object-position: center 30% !important;
+  }
+
+  /* Контентная сетка под баннером — убираем фиксированный 100vh */
+  .ovora-screen {
+    height: auto !important;
+    min-height: unset !important;
+    max-width: 1440px !important;
+    padding: clamp(24px,3vh,40px) clamp(32px,4vw,60px) clamp(24px,3vh,40px) !important;
+  }
+}
+
+/* Ультраширокие мониторы 21:9 / 32:9 — ограничиваем ширину баннера */
+@media (min-width: 1600px) {
+  .ovora-hero-fullbleed {
+    max-width: 1600px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    aspect-ratio: 21 / 9 !important;
+  }
+}
+
+/* Вертикальные мониторы / экраны с большим соотношением высоты */
+@media (min-width: 700px) and (min-aspect-ratio: 1/1) {
+  .ovora-hero-fullbleed { max-height: 80vh !important; }
+}
+@media (min-width: 700px) and (max-aspect-ratio: 4/5) {
+  .ovora-hero-fullbleed { max-height: 60vh !important; aspect-ratio: auto !important; }
+}
