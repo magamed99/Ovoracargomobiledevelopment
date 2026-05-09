@@ -88,18 +88,19 @@ button, a {
   gap: clamp(8px, 2vw, 16px);
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   DESKTOP LAYOUT (700px+)
-   Hero: full viewport width
-   Content: centered max-width container below hero
-   ═══════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════════════════
+   DESKTOP (≥700px): баннер = фон 100vh, 2-колоночная grid-раскладка поверх
+   Левая колонка: языки (row1) → бренд/текст (row2)
+   Правая колонка: AVIA + CARGO карточки (span row 1-3)
+   Нижняя полоса (row4): НАДЁЖНОСТЬ/СКОРОСТЬ/ГЕОГРАФИЯ/ПОДДЕРЖКА + партнёры
+══════════════════════════════════════════════════════════════════════════ */
 
-/* ── Card backgrounds (mobile = opaque dark) ── */
+/* ── Мобильные фоны карточек (непрозрачные) ── */
 .ovora-service-card  { background: rgba(10,16,36,0.95); box-shadow: 0 2px 16px rgba(0,0,0,0.45); }
 .ovora-lang-card     { background: rgba(10,16,36,0.95); box-shadow: 0 2px 16px rgba(0,0,0,0.45); }
 .ovora-partners-card { background: rgba(10,16,36,0.95); box-shadow: 0 2px 16px rgba(0,0,0,0.45); }
 
-/* ── Mobile hero: natural flow, fixed height ── */
+/* ── Мобильный герой: в потоке, фиксированная высота ── */
 .ovora-hero-fullbleed {
   width: 100%;
   position: relative;
@@ -114,21 +115,22 @@ button, a {
   height: clamp(180px, 30vw, 480px);
 }
 
-/* ════════════════════════════════════════════════════
-   DESKTOP (700px+): hero = full screen background,
-   2-column grid: lang (top-left) | cards (top-right)
-   partners at bottom, everything compact
-   ════════════════════════════════════════════════════ */
+/* ── Мобильный порядок блоков ── */
+.ovora-area-brand  { display: none; }
+.ovora-area-cards  { order: 1; }
+.ovora-area-lang   { order: 2; }
+.ovora-area-bottom { order: 3; }
+
 @media (min-width: 700px) {
 
-  /* App: exactly one screen tall, no scroll */
+  /* Один экран, без скролла */
   .ovora-app { height: 100vh; overflow: hidden; }
 
-  /* Hero: absolute full-screen background */
+  /* Герой: абсолютный фон на весь viewport */
   .ovora-hero-fullbleed {
     position: absolute !important;
     top: 0; left: 0;
-    width: 100vw !important;   /* vw guarantees full viewport regardless of container max-width */
+    width: 100vw !important;
     height: 100vh !important;
     z-index: 0;
     overflow: hidden;
@@ -136,150 +138,136 @@ button, a {
   .ovora-hero-fullbleed img {
     width: 100%; height: 100%;
     object-fit: cover;
-    object-position: center 20%; /* default: screens ≤ 1.80:1 fill height, left/right crop */
+    object-position: center 20%;
   }
   .ovora-hero-fullbleed::after {
     content: '';
     position: absolute; inset: 0;
     background: linear-gradient(160deg,
-      rgba(3,7,15,0.08) 0%,
-      rgba(3,7,15,0.32) 50%,
-      rgba(3,7,15,0.72) 100%
+      rgba(3,7,15,0.05) 0%,
+      rgba(3,7,15,0.28) 50%,
+      rgba(3,7,15,0.68) 100%
     );
   }
 
-  /* ── Content grid ──────────────────────────────────────
-     Row 1 (auto): lang (left) + cards (right) — TOP
-     Row 2 (1fr):  empty — shows banner behind
-     Row 3 (auto): partners — BOTTOM
-  ──────────────────────────────────────────────────── */
+  /* Grid:
+     col1: языки (row1) | бренд (row2) | пусто=баннер (row3)
+     col2: карточки (row 1-3 span)
+     row4: нижняя полоса на всю ширину */
   .ovora-screen {
     position: relative !important;
     z-index: 2 !important;
+    display: grid !important;
+    grid-template-columns: minmax(260px, 370px) 1fr !important;
+    grid-template-rows: auto auto 1fr auto !important;
     height: 100vh !important;
     width: 100% !important;
     max-width: 1440px !important;
     margin: 0 auto !important;
-    padding: clamp(20px,3vh,36px) clamp(32px,4vw,60px) clamp(16px,2.5vh,28px) !important;
-    /* 2-col grid */
-    display: grid !important;
-    grid-template-columns: minmax(220px, 340px) 1fr !important;
-    grid-template-rows: auto 1fr auto !important;
-    column-gap: clamp(20px,3vw,40px) !important;
+    padding: clamp(20px,3vh,32px) clamp(32px,4vw,60px) clamp(14px,2vh,22px) !important;
+    column-gap: clamp(24px,3vw,48px) !important;
     row-gap: 0 !important;
-    /* remove flex overrides */
     flex-direction: unset !important;
-    justify-content: unset !important;
     align-items: start !important;
   }
 
-  /* Grid area assignments */
-  .ovora-area-lang     { grid-column: 1; grid-row: 1; padding: 0 !important; }
-  .ovora-area-cards    { grid-column: 2; grid-row: 1; padding: 0 !important; }
-  .ovora-area-partners { grid-column: 1 / -1; grid-row: 3; padding: 0 !important; align-self: end; }
+  /* Расположение в сетке */
+  .ovora-area-lang   { grid-column: 1; grid-row: 1; padding: 0 !important; order: unset; }
+  .ovora-area-brand  { grid-column: 1; grid-row: 2; display: flex !important; flex-direction: column !important; gap: clamp(12px,2vh,20px) !important; padding: 0 !important; order: unset; }
+  .ovora-area-cards  { grid-column: 2; grid-row: 1 / 4; padding: 0 !important; order: unset; align-self: start; }
+  .ovora-area-bottom { grid-column: 1 / -1; grid-row: 4; padding: 0 !important; order: unset; align-self: end; display: flex !important; align-items: flex-end !important; gap: clamp(16px,2vw,28px) !important; }
 
-  /* ── Glass backgrounds ── */
+  /* Стеклянные фоны */
   .ovora-service-card {
-    background: rgba(3,7,15,0.45) !important;
+    background: rgba(3,7,15,0.42) !important;
     backdrop-filter: blur(18px) !important; -webkit-backdrop-filter: blur(18px) !important;
     box-shadow: 0 4px 20px rgba(0,0,0,0.3) !important;
     border-color: rgba(255,255,255,0.11) !important;
   }
   .ovora-lang-card {
-    background: rgba(3,7,15,0.45) !important;
+    background: rgba(3,7,15,0.42) !important;
     backdrop-filter: blur(18px) !important; -webkit-backdrop-filter: blur(18px) !important;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.25) !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.22) !important;
   }
   .ovora-partners-card {
-    background: rgba(3,7,15,0.40) !important;
+    background: rgba(3,7,15,0.38) !important;
     backdrop-filter: blur(18px) !important; -webkit-backdrop-filter: blur(18px) !important;
-    box-shadow: 0 2px 16px rgba(0,0,0,0.2) !important;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.18) !important;
   }
 
-  /* ── CARGO + AVIA cards: stacked column, compact ── */
+  /* Компактные карточки */
   .ovora-cards-grid {
     display: flex !important;
     flex-direction: column !important;
-    gap: clamp(7px,1vh,11px) !important;
+    gap: clamp(8px,1.2vh,14px) !important;
     padding: 0 !important;
   }
   .ovora-cards-grid > button { width: 100%; min-width: 0; }
-
-  /* Compact card header & tags padding */
   .ovora-card-header { padding: 8px 10px 5px !important; }
   .ovora-card-tags   { padding: 0 10px 8px !important; gap: 4px !important; flex-wrap: nowrap !important; overflow: hidden !important; }
+  .ovora-card-vehicle { width: 58px !important; height: 52px !important; }
 
-  /* Smaller vehicle image */
-  .ovora-card-vehicle {
-    width: 58px !important; height: 52px !important;
+  /* Компактный языковой блок */
+  .ovora-lang-card { padding: 8px 12px !important; }
+  .lang-label { font-size: 9px !important; }
+  .lang-buttons { gap: 5px !important; }
+  .lang-btn { padding: 6px 10px !important; font-size: 12px !important; }
+
+  /* Нижняя полоса — полоса фич слева, партнёры справа */
+  .ovora-features-bar {
+    display: flex !important;
+    gap: clamp(10px,1.8vw,22px) !important;
+    flex: 1 !important;
+    align-items: flex-end !important;
   }
-
-  /* ── Language card: compact ── */
-  .ovora-lang-card {
+  .ovora-feature-item {
+    display: flex !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
     padding: 10px 12px !important;
+    background: rgba(3,7,15,0.40) !important;
+    backdrop-filter: blur(16px) !important; -webkit-backdrop-filter: blur(16px) !important;
+    border: 1px solid rgba(255,255,255,0.07) !important;
+    border-radius: 12px !important;
+    flex: 1 !important;
   }
-  .lang-label { display: none !important; }
-  .lang-buttons { gap: 6px !important; }
-  .lang-btn { padding: 8px 10px !important; font-size: 13px !important; }
 
-  /* ── Partners card: compact single row ── */
-  .ovora-partners-card { padding: 10px 14px !important; }
+  /* Партнёры в нижней полосе */
+  .ovora-partners-card { padding: 8px 12px !important; flex-shrink: 0 !important; }
+  .ovora-partners-dots { display: none !important; }
+  .ovora-partners-see-all { display: none !important; }
+  .ovora-partner-tile { width: 60px !important; padding: 6px 4px !important; gap: 3px !important; }
+  .ovora-partner-icon { width: 24px !important; height: 24px !important; }
+  .ovora-partner-name > div:last-child { display: none !important; }
+  .ovora-partner-name > div:first-child { font-size: 8px !important; }
 
-  /* Hide "Смотреть всех" and dots on desktop — compact look */
-  .ovora-partners-card > div:last-child { display: none !important; }   /* dots */
-  .ovora-partner-tile {
-    width: 68px !important;
-    padding: 7px 5px !important;
-    gap: 3px !important;
-  }
-  .ovora-partner-icon {
-    width: 28px !important; height: 28px !important;
-  }
-  .ovora-partner-name > div:last-child { display: none !important; } /* hide sub-label */
-  .ovora-partner-name > div:first-child { font-size: 9px !important; }
+  /* Показать десктопные элементы */
+  .ovora-hide-mobile { display: block !important; }
 }
 
 @media (min-width: 1100px) {
-  .ovora-screen {
-    grid-template-columns: minmax(260px, 380px) 1fr !important;
-  }
+  .ovora-screen { grid-template-columns: minmax(300px, 420px) 1fr !important; }
   .ovora-card-vehicle { width: 64px !important; height: 57px !important; }
 }
 
 @media (min-width: 1400px) {
   .ovora-screen {
-    grid-template-columns: minmax(280px, 420px) 1fr !important;
-    padding: clamp(28px,4vh,48px) clamp(48px,5vw,80px) clamp(20px,3vh,36px) !important;
+    grid-template-columns: minmax(320px, 460px) 1fr !important;
+    padding: clamp(28px,4vh,44px) clamp(48px,5vw,80px) clamp(18px,2.5vh,28px) !important;
   }
   .ovora-card-vehicle { width: 72px !important; height: 64px !important; }
 }
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   HERO BANNER — aspect-ratio adaptive object-position
-   Image is ~1.80:1 (1683×934).
-   • Screens narrower than 1.80:1 (standard 16:9, MacBook 16:10, portrait):
-     cover fills HEIGHT → left/right crop → vertical position barely matters.
-   • Screens wider than 1.80:1 (>9:5):
-     cover fills WIDTH → top/bottom crop → shift anchor up so
-     sky / airplane / logo area stays visible.
-───────────────────────────────────────────────────────────────────────────── */
-
-/* Just past image ratio — slight top/bottom crop (e.g. 1920×1000) */
+/* Aspect-ratio: сдвигаем object-position для сверхширококих экранов */
 @media (min-width: 700px) and (min-aspect-ratio: 9/5) {
   .ovora-hero-fullbleed img { object-position: center 14%; }
 }
-
-/* ~2:1 monitors and wide laptop modes */
 @media (min-width: 700px) and (min-aspect-ratio: 2/1) {
   .ovora-hero-fullbleed img { object-position: center 8%; }
 }
-
-/* 21:9 ultrawide — 2560×1080, 3440×1440 (~2.33:1–2.39:1) */
 @media (min-width: 700px) and (min-aspect-ratio: 7/3) {
   .ovora-hero-fullbleed img { object-position: center 4%; }
 }
-
-/* 32:9 super-ultrawide — 3840×1080, 5120×1440 (~3.56:1) */
 @media (min-width: 700px) and (min-aspect-ratio: 3/1) {
   .ovora-hero-fullbleed img { object-position: center top; }
 }
@@ -370,62 +358,3 @@ body {
   color: #5ba3f5 !important;
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   АДАПТИВНЫЙ БАННЕР — десктоп/планшет (мобилку ≤699px не трогаем)
-   Убираем position:absolute + 100vw/100vh: баннер идёт в поток с
-   правильной пропорцией, не «торчит» за края и не давит на карточки.
-═══════════════════════════════════════════════════════════════════════════ */
-@media (min-width: 700px) {
-
-  /* Контейнер: убираем жёсткий 100vh и overflow:hidden */
-  .ovora-app {
-    height: auto !important;
-    min-height: 100vh !important;
-    overflow: visible !important;
-  }
-
-  /* Баннер — в поток, пропорция 16:9, не выше экрана */
-  .ovora-hero-fullbleed {
-    position: relative !important;
-    width: 100% !important;
-    height: auto !important;
-    max-height: 100vh !important;
-    aspect-ratio: 16 / 9 !important;
-    overflow: hidden !important;
-    z-index: 1 !important;
-  }
-
-  .ovora-hero-fullbleed img {
-    width: 100% !important;
-    height: 100% !important;
-    max-height: 100vh !important;
-    object-fit: cover !important;
-    object-position: center 30% !important;
-  }
-
-  /* Контентная сетка под баннером — убираем фиксированный 100vh */
-  .ovora-screen {
-    height: auto !important;
-    min-height: unset !important;
-    max-width: 1440px !important;
-    padding: clamp(24px,3vh,40px) clamp(32px,4vw,60px) clamp(24px,3vh,40px) !important;
-  }
-}
-
-/* Ультраширокие мониторы 21:9 / 32:9 — ограничиваем ширину баннера */
-@media (min-width: 1600px) {
-  .ovora-hero-fullbleed {
-    max-width: 1600px !important;
-    margin-left: auto !important;
-    margin-right: auto !important;
-    aspect-ratio: 21 / 9 !important;
-  }
-}
-
-/* Вертикальные мониторы / экраны с большим соотношением высоты */
-@media (min-width: 700px) and (min-aspect-ratio: 1/1) {
-  .ovora-hero-fullbleed { max-height: 80vh !important; }
-}
-@media (min-width: 700px) and (max-aspect-ratio: 4/5) {
-  .ovora-hero-fullbleed { max-height: 60vh !important; aspect-ratio: auto !important; }
-}
