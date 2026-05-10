@@ -357,10 +357,6 @@ export function Welcome() {
 
           {/* Platform text */}
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-              <div style={{ width: 20, height: 2, background: C.blue, borderRadius: 1 }} />
-              <span style={{ fontSize: 10, fontWeight: 700, color: C.blueLight, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Платформа</span>
-            </div>
             <div style={{ fontSize: 'clamp(26px,3vw,44px)', fontWeight: 900, color: '#fff', lineHeight: 1.05, letterSpacing: '-0.5px' }}>
               Платформа<br /><span style={{ color: C.blueLight }}>Ovora</span>
             </div>
