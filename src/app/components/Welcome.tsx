@@ -404,7 +404,7 @@ export function Welcome() {
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4, duration: 0.4 }}
         >
           {/* Feature badges — desktop only */}
-          <div className="ovora-features-bar ovora-hide-mobile">
+          <div className="ovora-features-bar">
             {([
               { svg: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5ba3f5" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>, title: 'НАДЁЖНОСТЬ', desc: 'Сохраним груз в целости' },
               { svg: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>, title: 'СКОРОСТЬ', desc: 'Быстрая доставка в срок' },

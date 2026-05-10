@@ -116,10 +116,11 @@ button, a {
 }
 
 /* ── Мобильный порядок блоков ── */
-.ovora-area-brand  { display: none; }
-.ovora-area-cards  { order: 1; }
-.ovora-area-lang   { order: 2; }
-.ovora-area-bottom { order: 3; }
+.ovora-area-brand    { display: none; }
+.ovora-area-cards    { order: 1; }
+.ovora-area-lang     { order: 2; }
+.ovora-area-bottom   { order: 3; }
+.ovora-features-bar  { display: none; }  /* скрыт на мобиле, flex на десктопе ниже */
 
 @media (min-width: 700px) {
 
