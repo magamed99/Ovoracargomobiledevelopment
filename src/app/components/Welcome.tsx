@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { motion } from 'motion/react';
@@ -159,7 +159,8 @@ const Ti = {
   radio:  _ti(<><path d="M4.9 16.1C1 12.2 1 5.8 4.9 1.9"/><path d="M7.8 4.7a6.14 6.14 0 0 0-.8 7.5"/><circle cx="12" cy="9" r="2"/><path d="M16.2 4.8c2 2 2.26 5.11.8 7.47"/><path d="M19.1 1.9a9.96 9.96 0 0 1 0 14.1"/><path d="M9.5 18h5"/><path d="m8 22 4-11 4 11"/></>),
   plane:  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M22 12c0 .55-.45 1-1 1h-6.5l-3 7H10l1.5-7H7l-2 2H3l1.5-3L3 9h2l2 2h4.5L10 4h1.5l3 7H21c.55 0 1 .45 1 1z"/></svg>,
   mail:   _ti(<><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></>),
-  flex:   _ti(<><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></>),
+  flex:      _ti(<><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></>),
+  warehouse: _ti(<><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></>),
 };
 
 // ── Cargo truck photo ─────────────────────────────────────────────────
@@ -285,46 +286,92 @@ export function Welcome() {
     { icon: 'check',  val: 98,  suffix: '%',     label: 'Доставка в срок',    color: C.purple },
   ];
 
+  // Feature items for bottom bar
+  const FEATURES = [
+    {
+      title: 'НАДЁЖНОСТЬ',
+      desc: 'Сохраним груз в целости',
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5ba3f5" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <path d="m9 12 2 2 4-4"/>
+        </svg>
+      ),
+    },
+    {
+      title: 'СКОРОСТЬ',
+      desc: 'Быстрая доставка в срок',
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+      ),
+    },
+    {
+      title: 'ГЕОГРАФИЯ',
+      desc: 'Широкая сеть маршрутов',
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="2" y1="12" x2="22" y2="12"/>
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+        </svg>
+      ),
+    },
+    {
+      title: 'ПОДДЕРЖКА',
+      desc: '24/7 на связи с вами',
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff7a3b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.38 2 2 0 0 1 3.59 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.56a16 16 0 0 0 6.29 6.29l1.09-.87a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+        </svg>
+      ),
+    },
+  ];
+
   return (
     <div className="ovora-app">
       <MapBackground />
 
-      {/* ─── Hero: full-bleed on desktop, natural height on mobile ─── */}
+      {/* ── Hero: полный экран на десктопе, в потоке на мобиле ── */}
       <motion.div className="ovora-hero-fullbleed"
-        initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}
       >
         <img src={siteConfig.icons.hero} alt="Ovora Cargo" />
       </motion.div>
 
-      {/* ─── Content container ─── */}
-      <div className="ovora-screen">
+      {/* ── Контентная сетка ── */}
+      <div className="ovora-screen" style={{ position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', gap: 'clamp(8px,2vw,14px)' }}>
 
-        {/* 1 ── LANGUAGE (top-left desktop / after cards mobile) ── */}
+        {/* ════ AREA: LANG (верх-лево на десктопе, после карточек на мобиле) ════ */}
         <motion.div className="ovora-area-lang"
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2, duration: 0.4 }}
+          style={{ padding: '0 clamp(8px,3vw,0px)' }}
+          initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.4 }}
         >
           <div className="ovora-lang-card" style={{
-            border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14,
-            padding: 'clamp(10px,3vw,14px)',
-            display: 'flex', alignItems: 'center', gap: 10,
+            border: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: 14,
+            padding: 'clamp(10px,3vw,12px)',
+            display: 'flex', alignItems: 'center', gap: 8,
           }}>
-            <div className="lang-label" style={{ fontSize: 'clamp(8px,2.2vw,9px)', fontWeight: 700, color: C.dim2, letterSpacing: '0.12em', textTransform: 'uppercase', whiteSpace: 'nowrap', flexShrink: 0 }}>Язык интерфейса</div>
+            <div className="lang-label" style={{ fontSize: 'clamp(8px,2vw,10px)', fontWeight: 700, color: C.dim2, letterSpacing: '0.12em', textTransform: 'uppercase', whiteSpace: 'nowrap', flexShrink: 0 }}>Язык интерфейса</div>
             <div className="lang-buttons" style={{ display: 'flex', gap: 'clamp(5px,1.8vw,8px)', flex: 1 }}>
               {LANGS.map(l => {
                 const active = selectedLang === l.code;
                 return (
                   <button key={l.code} onClick={() => handleLang(l.code)} className="lang-btn" style={{
                     flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-                    padding: 'clamp(8px,2.5vw,12px) 4px', borderRadius: 10,
+                    padding: 'clamp(7px,2vw,10px) 4px', borderRadius: 9,
                     border: active ? '1px solid rgba(91,163,245,0.5)' : '1px solid rgba(255,255,255,0.08)',
                     background: active ? 'rgba(33,118,232,0.18)' : 'rgba(255,255,255,0.04)',
                     color: active ? '#e8f0ff' : C.dim,
-                    fontSize: 'clamp(11px,3.2vw,13px)', fontWeight: 700, letterSpacing: '0.04em',
+                    fontSize: 'clamp(11px,3vw,13px)', fontWeight: 700,
                     cursor: 'pointer', fontFamily: 'inherit', position: 'relative', overflow: 'hidden',
                     transition: 'all 0.18s ease',
                   }}>
                     {active && <span style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at top, rgba(91,163,245,0.22), transparent 70%)' }} />}
-                    <span style={{ fontSize: 'clamp(15px,4.5vw,18px)', position: 'relative' }}>{l.flag}</span>
+                    <span style={{ fontSize: 'clamp(14px,4vw,17px)', position: 'relative' }}>{l.flag}</span>
                     <span style={{ position: 'relative' }}>{l.display}</span>
                   </button>
                 );
@@ -333,44 +380,42 @@ export function Welcome() {
           </div>
         </motion.div>
 
-        {/* 2 ── BRAND BLOCK (desktop only: logo + "Платформа Ovora") ── */}
+        {/* ════ AREA: BRAND (только десктоп — лого + заголовок + текст) ════ */}
         <motion.div className="ovora-area-brand"
-          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.45 }}
+          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.45 }}
         >
-          {/* Logo row */}
+          {/* Лого-строка */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{
-              width: 48, height: 48, borderRadius: 14, overflow: 'hidden', flexShrink: 0,
-              boxShadow: '0 0 0 1px rgba(91,163,245,0.35), 0 8px 24px rgba(25,100,200,0.5)',
-            }}>
-              <img src="/icons/logo-bird.png" alt="Ovora" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-            </div>
+            <Logo />
             <div>
-              <div style={{ fontSize: 'clamp(18px,2vw,26px)', fontWeight: 900, color: '#fff', lineHeight: 1, letterSpacing: '-0.3px' }}>
+              <div style={{ fontSize: 'clamp(18px,2vw,24px)', fontWeight: 900, color: '#fff', letterSpacing: '-0.3px', lineHeight: 1.1 }}>
                 Ovora <span style={{ color: C.blueLight }}>Cargo</span>
               </div>
-              <div style={{ fontSize: 'clamp(9px,0.9vw,11px)', fontWeight: 700, color: C.dim2, letterSpacing: '0.14em', textTransform: 'uppercase', marginTop: 3 }}>
+              <div style={{ fontSize: 'clamp(8px,0.9vw,10px)', fontWeight: 700, color: C.dim2, letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 2 }}>
                 Logistics & Air Cargo
               </div>
             </div>
           </div>
 
-          {/* Platform text */}
+          {/* Заголовок + разделитель + описание */}
           <div>
-            <div style={{ fontSize: 'clamp(26px,3vw,44px)', fontWeight: 900, color: '#fff', lineHeight: 1.05, letterSpacing: '-0.5px' }}>
-              Платформа<br /><span style={{ color: C.blueLight }}>Ovora</span>
-            </div>
-            <p style={{ fontSize: 'clamp(12px,1.15vw,15px)', color: 'rgba(160,185,220,0.85)', lineHeight: 1.65, margin: 'clamp(10px,1.5vh,16px) 0 0', maxWidth: 280 }}>
+            <div style={{ fontSize: 'clamp(28px,3.2vw,48px)', fontWeight: 900, color: '#fff', lineHeight: 1.06, letterSpacing: '-1.5px' }}>Платформа</div>
+            <div style={{ fontSize: 'clamp(28px,3.2vw,48px)', fontWeight: 900, color: C.blueLight, lineHeight: 1.06, letterSpacing: '-1.5px' }}>Ovora</div>
+            <div style={{ width: 38, height: 2.5, background: C.blue, borderRadius: 2, margin: 'clamp(7px,1.2vh,12px) 0' }} />
+            <p style={{ fontSize: 'clamp(11px,1.2vw,14px)', color: C.dim, lineHeight: 1.6, margin: 0 }}>
               Грузоперевозки и авиадоставка<br />между Россией, Таджикистаном<br />и СНГ.
             </p>
           </div>
         </motion.div>
 
-        {/* 3 ── AVIA + CARGO CARDS (right column, AVIA first) ── */}
+        {/* ════ AREA: CARDS — AVIA сверху, CARGO снизу ════ */}
         <motion.div className="ovora-area-cards"
           initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15, duration: 0.45 }}
+          style={{ padding: '0 clamp(8px,3vw,0px)' }}
         >
           <div className="ovora-cards-grid" style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(6px,2vw,10px)' }}>
+
+            {/* AVIA — первая карточка */}
             <WorldCard
               title="AVIA"
               desc="Авиагруз  Россия ↔ Таджикистан"
@@ -383,6 +428,8 @@ export function Welcome() {
                 { icon: Ti.flex,  label: 'Гибкие роли' },
               ]}
             />
+
+            {/* CARGO — вторая карточка */}
             <WorldCard
               title="CARGO"
               desc="Грузоперевозки  Россия · Таджикистан · СНГ"
@@ -393,44 +440,41 @@ export function Welcome() {
                 { icon: Ti.border, label: 'Границы' },
                 { icon: Ti.driver, label: 'Водители', bg: 'rgba(220,38,38,0.7)' },
                 { icon: Ti.box,    label: 'Грузы',    bg: 'rgba(217,119,6,0.7)' },
-                { icon: Ti.radio,  label: 'Рация' },
+                { icon: Ti.warehouse, label: 'Склад' },
               ]}
             />
+
           </div>
         </motion.div>
 
-        {/* 4 ── BOTTOM BAR: features (desktop) + partners ── */}
+        {/* ════ AREA: BOTTOM — полоса фич (десктоп) + партнёры ════ */}
         <motion.div className="ovora-area-bottom"
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4, duration: 0.4 }}
+          style={{ padding: '0 clamp(8px,3vw,0px) clamp(8px,3vw,0px)' }}
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3, duration: 0.4 }}
         >
-          {/* Feature badges — desktop only */}
+          {/* Полоса фич — только на десктопе (скрыта на мобиле через CSS) */}
           <div className="ovora-features-bar">
-            {([
-              { svg: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5ba3f5" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>, title: 'НАДЁЖНОСТЬ', desc: 'Сохраним груз в целости' },
-              { svg: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>, title: 'СКОРОСТЬ', desc: 'Быстрая доставка в срок' },
-              { svg: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>, title: 'ГЕОГРАФИЯ', desc: 'Широкая сеть маршрутов' },
-              { svg: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fb923c" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>, title: 'ПОДДЕРЖКА', desc: '24/7 на связи с вами' },
-            ] as { svg: React.ReactNode; title: string; desc: string }[]).map((f, i) => (
+            {FEATURES.map((f, i) => (
               <div key={i} className="ovora-feature-item">
-                <div style={{ flexShrink: 0, marginTop: 2 }}>{f.svg}</div>
+                <div style={{ flexShrink: 0, marginTop: 1 }}>{f.icon}</div>
                 <div>
-                  <div style={{ fontSize: 'clamp(9px,0.85vw,11px)', fontWeight: 800, color: '#fff', letterSpacing: '0.08em' }}>{f.title}</div>
-                  <div style={{ fontSize: 'clamp(8px,0.75vw,10px)', color: C.dim, marginTop: 2, lineHeight: 1.3 }}>{f.desc}</div>
+                  <div style={{ fontSize: 'clamp(9px,0.85vw,11px)', fontWeight: 800, color: '#fff', letterSpacing: '0.07em', textTransform: 'uppercase' }}>{f.title}</div>
+                  <div style={{ fontSize: 'clamp(8px,0.78vw,10px)', color: C.dim, marginTop: 2, lineHeight: 1.35 }}>{f.desc}</div>
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Partners */}
-          <div className="ovora-partners-card" style={{ border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: 'clamp(10px,3vw,14px)', flex: 1 }}>
+          {/* Партнёры */}
+          <div className="ovora-partners-card" style={{ border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: 'clamp(10px,3vw,14px)', flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
               <div style={{ fontSize: 'clamp(12px,1.1vw,14px)', fontWeight: 800, color: '#fff' }}>Наши партнёры</div>
-              <div className="ovora-partners-see-all" style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 'clamp(10px,0.9vw,11px)', color: C.blueLight, fontWeight: 600 }}>
+              <div className="ovora-partners-see-all" style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color: C.blueLight, fontWeight: 600 }}>
                 Смотреть всех
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.blueLight} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 5l7 7-7 7" /></svg>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.blueLight} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 5l7 7-7 7" /></svg>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 'clamp(5px,1.2vw,10px)', overflowX: 'auto', paddingBottom: 2, WebkitOverflowScrolling: 'touch' as any }}>
+            <div style={{ display: 'flex', gap: 'clamp(5px,1.2vw,10px)', overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any }}>
               {siteConfig.partners.map((p, i) => (
                 <div key={p.id ?? i} className="ovora-partner-tile" style={{
                   flexShrink: 0, width: 'clamp(58px,17vw,82px)',
@@ -438,25 +482,25 @@ export function Welcome() {
                   border: '1px solid rgba(255,255,255,0.07)',
                   borderRadius: 10,
                   display: 'flex', flexDirection: 'column', alignItems: 'center',
-                  padding: 'clamp(6px,1.8vw,10px) clamp(4px,1.2vw,6px)',
+                  padding: 'clamp(6px,1.5vw,10px) clamp(4px,1vw,7px)',
                   gap: 4,
                 }}>
                   <div className="ovora-partner-icon" style={{
-                    width: 'clamp(28px,8vw,38px)', height: 'clamp(28px,8vw,38px)', borderRadius: 8,
+                    width: 'clamp(26px,7vw,40px)', height: 'clamp(26px,7vw,40px)', borderRadius: 8,
                     background: `linear-gradient(145deg, ${p.color}22, ${p.color}44)`,
                     border: `1px solid ${p.color}55`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>
-                    <span style={{ fontSize: p.mark.length > 2 ? 'clamp(8px,2.5vw,11px)' : 'clamp(11px,3.2vw,15px)', fontWeight: 900, color: p.textColor ?? p.color, letterSpacing: -0.5 }}>{p.mark}</span>
+                    <span style={{ fontSize: p.mark.length > 2 ? 'clamp(7px,2vw,11px)' : 'clamp(10px,3vw,15px)', fontWeight: 900, color: p.textColor ?? p.color, letterSpacing: -0.5 }}>{p.mark}</span>
                   </div>
                   <div className="ovora-partner-name" style={{ textAlign: 'center', lineHeight: 1.2 }}>
-                    <div style={{ fontSize: 'clamp(7px,2vw,9px)', fontWeight: 800, color: '#e2eaf8' }}>{p.name}</div>
-                    <div style={{ fontSize: 'clamp(6px,1.8vw,8px)', color: C.dim, marginTop: 1 }}>{p.sub}</div>
+                    <div style={{ fontSize: 'clamp(7px,1.8vw,9px)', fontWeight: 800, color: '#e2eaf8' }}>{p.name}</div>
+                    <div style={{ fontSize: 'clamp(6px,1.5vw,8px)', color: C.dim, marginTop: 1 }}>{p.sub}</div>
                   </div>
                 </div>
               ))}
             </div>
-            <div className="ovora-partners-dots" style={{ display: 'flex', justifyContent: 'center', gap: 4, marginTop: 6 }}>
+            <div className="ovora-partners-dots" style={{ display: 'flex', justifyContent: 'center', gap: 4, marginTop: 7 }}>
               {siteConfig.partners.map((_, i) => (
                 <span key={i} style={{ width: i === 0 ? 14 : 4, height: 3, borderRadius: 99, background: i === 0 ? C.blueLight : 'rgba(255,255,255,0.15)' }} />
               ))}
