@@ -137,11 +137,13 @@ button, a {
   .ovora-hero-fullbleed::after {
     content: '';
     position: absolute; inset: 0;
-    background: linear-gradient(160deg,
-      rgba(3,7,15,0.08) 0%,
-      rgba(3,7,15,0.32) 50%,
-      rgba(3,7,15,0.72) 100%
-    );
+    background:
+      /* Left: dark cover so truck text doesn't bleed through brand area */
+      linear-gradient(to right, rgba(3,7,15,0.92) 0%, rgba(3,7,15,0.88) 20%, rgba(3,7,15,0) 44%),
+      /* Right: dark behind cards */
+      linear-gradient(to left,  rgba(3,7,15,0.72) 0%, rgba(3,7,15,0.50) 18%, rgba(3,7,15,0) 38%),
+      /* Bottom: ground fade */
+      linear-gradient(to top,   rgba(3,7,15,0.95) 0%, rgba(3,7,15,0.55) 22%, rgba(3,7,15,0) 52%);
   }
 
   /* ── Content grid ──────────────────────────────────────
@@ -157,10 +159,10 @@ button, a {
     max-width: 1440px !important;
     margin: 0 auto !important;
     padding: clamp(20px,3vh,36px) clamp(32px,4vw,60px) clamp(16px,2.5vh,28px) !important;
-    /* 3-col grid: [left content] [hero spacer] [cards] */
+    /* 3-col × 3-row grid: [left][spacer][cards] / [lang][brand][bottom] */
     display: grid !important;
-    grid-template-columns: minmax(260px, 380px) 1fr minmax(280px, 420px) !important;
-    grid-template-rows: auto auto 1fr auto !important;
+    grid-template-columns: minmax(260px, 360px) 1fr minmax(300px, 420px) !important;
+    grid-template-rows: auto 1fr auto !important;
     column-gap: clamp(16px,2.5vw,36px) !important;
     row-gap: 0 !important;
     /* remove flex overrides */
@@ -170,10 +172,10 @@ button, a {
   }
 
   /* Grid area assignments */
-  .ovora-area-lang   { grid-column: 1; grid-row: 1; padding: 0 !important; order: unset; }
-  .ovora-area-brand  { grid-column: 1; grid-row: 2 / 4; display: flex !important; flex-direction: column !important; gap: clamp(14px,2.2vh,28px) !important; padding: 0 !important; order: unset; align-self: center !important; }
-  .ovora-area-cards  { grid-column: 3; grid-row: 1 / 4; padding: 0 !important; align-self: start; order: unset; }
-  .ovora-area-bottom { grid-column: 1 / -1; grid-row: 4; padding: 0 !important; align-self: end; order: unset; display: flex !important; align-items: flex-end !important; gap: clamp(12px,2vw,22px) !important; }
+  .ovora-area-lang   { grid-column: 1; grid-row: 1;     padding: 0 !important; order: unset; align-self: start; }
+  .ovora-area-brand  { grid-column: 1; grid-row: 2;     display: flex !important; flex-direction: column !important; gap: clamp(14px,2.2vh,26px) !important; padding: 0 !important; order: unset; align-self: center !important; }
+  .ovora-area-cards  { grid-column: 3; grid-row: 1 / 3; padding: 0 !important; align-self: start; order: unset; }
+  .ovora-area-bottom { grid-column: 1 / -1; grid-row: 3; padding: 0 !important; align-self: end; order: unset; display: flex !important; align-items: flex-end !important; gap: clamp(12px,2vw,22px) !important; }
 
   /* ── Glass backgrounds ── */
   .ovora-service-card {
@@ -261,14 +263,14 @@ button, a {
 
 @media (min-width: 1100px) {
   .ovora-screen {
-    grid-template-columns: minmax(280px, 400px) 1fr minmax(300px, 440px) !important;
+    grid-template-columns: minmax(280px, 380px) 1fr minmax(320px, 440px) !important;
   }
   .ovora-card-vehicle { width: 64px !important; height: 57px !important; }
 }
 
 @media (min-width: 1400px) {
   .ovora-screen {
-    grid-template-columns: minmax(300px, 440px) 1fr minmax(320px, 460px) !important;
+    grid-template-columns: minmax(300px, 400px) 1fr minmax(340px, 460px) !important;
     padding: clamp(28px,4vh,48px) clamp(48px,5vw,80px) clamp(20px,3vh,36px) !important;
   }
   .ovora-card-vehicle { width: 72px !important; height: 64px !important; }
