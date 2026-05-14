@@ -280,7 +280,7 @@ app.post("/make-server-4e36197a/admin/auth", async (c) => {
 });
 
 // ── Config: Yandex API Key ────────────────────────────────────────────────────
-app.get("/make-server-4e36197a/config/yandex-key", (c) => {
+app.get("/make-server-4e36197a/config/yandex-key", requireAdmin, (c) => {
   try {
     const apiKey = Deno.env.get('YANDEX_GEOCODER_API_KEY') || '';
     if (!apiKey) {
@@ -401,7 +401,16 @@ app.get("/make-server-4e36197a/config/test-ocr-direct", requireAdmin, async (c) 
 app.post("/make-server-4e36197a/ocr/scan-document", async (c) => {
   try {
     const body = await c.req.json();
-    const { imageBase64, documentType } = body;
+    const { imageBase64, documentType, callerEmail } = body;
+
+    // Require authenticated user — prevents cost hijacking by anonymous callers
+    if (!callerEmail) {
+      return c.json({ error: 'callerEmail is required' }, 400);
+    }
+    const callerUser = await kv.get(`ovora:user:email:${String(callerEmail).toLowerCase().trim()}`);
+    if (!callerUser) {
+      return c.json({ error: 'Unauthorized: user not found' }, 401);
+    }
 
     if (!imageBase64) {
       return c.json({ error: 'imageBase64 is required' }, 400);
@@ -505,7 +514,10 @@ app.post("/make-server-4e36197a/auth/login-email", async (c) => {
       console.log(`[auth/login-email] Blocked user: ${email}`);
       return c.json({ found: false, blocked: true, error: "Ваш аккаунт заблокирован. Обратитесь в поддержку." }, 403);
     }
-    return c.json({ found: true, user });
+    const { codeHash: _ch, passportNumber: _pn, passportData: _pd } = user as any;
+    const safeUser = { ...(user as any) };
+    delete safeUser.codeHash; delete safeUser.passportNumber; delete safeUser.passportData;
+    return c.json({ found: true, user: safeUser });
   } catch (err) {
     console.log("Error /auth/login-email:", err);
     return c.json({ error: `${err}` }, 500);
@@ -526,26 +538,44 @@ app.post("/make-server-4e36197a/auth/login-phone", async (c) => {
       console.log(`[auth/login-phone] Blocked user: ${emailRef}`);
       return c.json({ found: false, blocked: true, error: "Ваш аккаунт заблокирован. Обратитесь в поддержку." }, 403);
     }
-    return c.json({ found: true, user });
+    const safeUser = { ...(user as any) };
+    delete safeUser.codeHash; delete safeUser.passportNumber; delete safeUser.passportData;
+    return c.json({ found: true, user: safeUser });
   } catch (err) {
     console.log("Error /auth/login-phone:", err);
     return c.json({ error: `${err}` }, 500);
   }
 });
 
+// Fields users must never be allowed to change via self-service update
+const USER_PROTECTED_FIELDS = new Set([
+  'role', 'status', 'codeHash', 'blocked', 'isVerified',
+  'passportNumber', 'passportData', 'email', 'createdAt',
+]);
+
 app.put("/make-server-4e36197a/auth/user", async (c) => {
   try {
     const body = await c.req.json();
-    const { email, ...updates } = body;
+    const { email, ...rawUpdates } = body;
     if (!email) return c.json({ error: "email required" }, 400);
     const key = `ovora:user:email:${email.toLowerCase().trim()}`;
     const existing: any = await kv.get(key);
     if (!existing) return c.json({ error: "User not found" }, 404);
+
+    // Strip protected fields — prevents privilege escalation
+    const updates: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(rawUpdates)) {
+      if (!USER_PROTECTED_FIELDS.has(k)) updates[k] = v;
+    }
+
     const updated = { ...existing, ...updates, email: existing.email, updatedAt: new Date().toISOString() };
     await kv.set(key, updated);
     const newPhone = updated.phone?.replace(/\D/g, "");
     if (newPhone?.length >= 7) await kv.set(`ovora:user:phone:${newPhone}`, existing.email);
-    return c.json({ success: true, user: updated });
+
+    // Return safe user (never expose codeHash or passportNumber)
+    const { codeHash: _ch, passportNumber: _pn, passportData: _pd, ...safeUser } = updated;
+    return c.json({ success: true, user: safeUser });
   } catch (err) {
     console.log("Error PUT /auth/user:", err);
     return c.json({ error: `${err}` }, 500);
@@ -999,10 +1029,20 @@ app.put("/make-server-4e36197a/cargos/:id", async (c) => {
     const existing: any = await kv.get(`ovora:cargo:${id}`);
     if (!existing) return c.json({ error: "Cargo not found" }, 404);
 
+    // Ownership check — only the cargo sender may update it
+    const callerEmail: string | undefined = (body as any).callerEmail;
+    if (!callerEmail) {
+      return c.json({ error: "callerEmail is required" }, 400);
+    }
+    if (existing.senderEmail && existing.senderEmail !== callerEmail) {
+      console.warn(`[PUT /cargos] IDOR attempt: ${callerEmail} tried to update cargo ${id} owned by ${existing.senderEmail}`);
+      return c.json({ error: "Forbidden: you are not the owner of this cargo" }, 403);
+    }
+
     const { callerEmail: _ignored, ...cleanedBody } = body as any;
     if (body.from) cleanedBody.from = cleanAddress(body.from);
     if (body.to) cleanedBody.to = cleanAddress(body.to);
-    
+
     const updated = { ...existing, ...cleanedBody, id, updatedAt: new Date().toISOString() };
     await kv.set(`ovora:cargo:${id}`, updated);
     return c.json({ success: true, cargo: updated });
@@ -1300,13 +1340,14 @@ app.put("/make-server-4e36197a/offers/:tripId/:offerId", async (c) => {
 
     // Проверка участника: только senderEmail или driverEmail вправе менять оферту
     const callerEmail: string | undefined = body.callerEmail;
-    if (callerEmail) {
-      const isSender = existing.senderEmail && existing.senderEmail === callerEmail;
-      const isDriver = existing.driverEmail && existing.driverEmail === callerEmail;
-      if (!isSender && !isDriver) {
-        console.warn(`[PUT /offers] Unauthorized update attempt by ${callerEmail} for offer ${offerId}`);
-        return c.json({ error: "Forbidden: you are not a participant of this offer" }, 403);
-      }
+    if (!callerEmail) {
+      return c.json({ error: "callerEmail is required" }, 400);
+    }
+    const isSender = existing.senderEmail && existing.senderEmail === callerEmail;
+    const isDriver = existing.driverEmail && existing.driverEmail === callerEmail;
+    if (!isSender && !isDriver) {
+      console.warn(`[PUT /offers] Unauthorized update attempt by ${callerEmail} for offer ${offerId}`);
+      return c.json({ error: "Forbidden: you are not a participant of this offer" }, 403);
     }
 
     const { callerEmail: _drop, ...safeBody } = body;
@@ -1674,9 +1715,12 @@ app.delete("/make-server-4e36197a/reviews/:reviewId", async (c) => {
     const existing: any = await kv.get(`ovora:review:${reviewId}`);
     if (!existing) return c.json({ error: "Review not found" }, 404);
 
-    // Только автор может удалять свой отзыв
+    // Только автор может удалять свой отзыв — callerEmail обязателен
     const { callerEmail } = await c.req.json().catch(() => ({})) as any;
-    if (callerEmail && existing.authorEmail && existing.authorEmail !== callerEmail) {
+    if (!callerEmail) {
+      return c.json({ error: "callerEmail is required" }, 400);
+    }
+    if (existing.authorEmail && existing.authorEmail !== callerEmail) {
       console.warn(`[DELETE /reviews] Unauthorized: ${callerEmail} tried to delete review by ${existing.authorEmail}`);
       return c.json({ error: "Forbidden: you are not the author of this review" }, 403);
     }
@@ -2151,7 +2195,7 @@ app.get("/make-server-4e36197a/chats/user/:email", async (c) => {
 });
 
 // Одноразовая очистка демо-чатов из KV
-app.delete("/make-server-4e36197a/chats/cleanup-demo", async (c) => {
+app.delete("/make-server-4e36197a/chats/cleanup-demo", requireAdmin, async (c) => {
   try {
     const allMeta: any[] = await kv.getByPrefix(`ovora:chatmeta:`);
     const demoMetas = allMeta.filter(m => m?.chatId?.startsWith('demo_'));
@@ -3844,7 +3888,7 @@ app.post("/make-server-4e36197a/documents/analyze/:documentId", async (c) => {
 /**
  * 🧪 Test OCR endpoint - для тестирования распозна��ания документов
  */
-app.post("/make-server-4e36197a/test-ocr", async (c) => {
+app.post("/make-server-4e36197a/test-ocr", requireAdmin, async (c) => {
   try {
     const { imageBase64, documentType } = await c.req.json();
 
