@@ -784,7 +784,7 @@ export function AviaChatDrawer({
   const loadMessages = useCallback(async () => {
     if (!chatId) return;
     try {
-      const { messages: msgs, meta } = await getAviaChatMessages(chatId);
+      const { messages: msgs, meta } = await getAviaChatMessages(chatId, myPhone);
       setMessages(msgs);
       setChatMeta(meta);
       if (meta?.adRef) setAdRef(meta.adRef);

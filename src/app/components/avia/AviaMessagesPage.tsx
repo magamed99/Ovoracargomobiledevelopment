@@ -453,7 +453,7 @@ function ChatPanel({ myPhone, chatId, otherPhone, adRef, onBack, onDeleted, onCh
   const loadMessages = useCallback(async () => {
     if (!chatId) return;
     try {
-      const { messages: msgs, meta } = await getAviaChatMessages(chatId);
+      const { messages: msgs, meta } = await getAviaChatMessages(chatId, myPhone);
       setMessages(msgs);
       setChatMeta(meta as any);
       if (meta?.adRef) setResolvedAdRef(meta.adRef);

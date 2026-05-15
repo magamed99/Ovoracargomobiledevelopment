@@ -107,9 +107,11 @@ export async function initAviaChat(
 /** Получить историю сообщений чата */
 export async function getAviaChatMessages(
   chatId: string,
+  callerPhone: string,
 ): Promise<{ messages: AviaChatMessage[]; meta: AviaChatMeta }> {
   try {
-    const res  = await fetch(`${BASE}/avia/chat/${encodeURIComponent(chatId)}/messages`, {
+    const url = `${BASE}/avia/chat/${encodeURIComponent(chatId)}/messages?callerPhone=${encodeURIComponent(callerPhone)}`;
+    const res  = await fetch(url, {
       headers: HEADERS,
       signal:  withTimeout(),
     });

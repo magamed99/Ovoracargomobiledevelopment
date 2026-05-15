@@ -6544,15 +6544,22 @@ app.post("/make-server-4e36197a/avia/chat/init", async (c) => {
 // ── GET /avia/chat/:chatId/messages — история сообщений ──────────────────────
 app.get("/make-server-4e36197a/avia/chat/:chatId/messages", async (c) => {
   try {
-    const chatId = c.req.param("chatId");
-    if (!chatId) return c.json({ error: 'chatId required' }, 400);
+    const chatId     = c.req.param("chatId");
+    const callerPhone = aviaCleanPhone(c.req.query("callerPhone") || "");
+    if (!chatId)     return c.json({ error: 'chatId required' }, 400);
+    if (!callerPhone) return c.json({ error: 'callerPhone required' }, 400);
+
+    const meta: any = await kv.get(`ovora:avia-chatmeta:${chatId}`) || {};
+    const participants: string[] = meta.participants || [];
+    if (!participants.includes(callerPhone)) {
+      return c.json({ error: 'Forbidden: not a participant' }, 403);
+    }
 
     const messages: any[] = await kv.getByPrefix(`ovora:avia-chat:${chatId}:`);
     const sorted = messages
       .filter(m => m && m.id && !m.deleted)
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
-    const meta: any = await kv.get(`ovora:avia-chatmeta:${chatId}`) || {};
     return c.json({ messages: sorted, meta });
   } catch (err) {
     console.log('Error GET /avia/chat/:chatId/messages:', err);
@@ -6573,6 +6580,14 @@ app.post("/make-server-4e36197a/avia/chat/:chatId/messages", async (c) => {
 
     if (!chatId || !clean || (!text && type === 'text')) {
       return c.json({ error: 'chatId, senderPhone and text required' }, 400);
+    }
+
+    // ✅ IDOR fix: senderPhone must be a participant of this chat
+    const chatMetaCheck: any = await kv.get(`ovora:avia-chatmeta:${chatId}`);
+    if (!chatMetaCheck) return c.json({ error: 'Chat not found' }, 404);
+    const participantsCheck: string[] = chatMetaCheck.participants || [];
+    if (!participantsCheck.includes(clean)) {
+      return c.json({ error: 'Forbidden: not a participant' }, 403);
     }
 
     const id  = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -6647,6 +6662,12 @@ app.post("/make-server-4e36197a/avia/chat/:chatId/seen", async (c) => {
     const metaKey = `ovora:avia-chatmeta:${chatId}`;
     const meta: any = await kv.get(metaKey);
     if (!meta) return c.json({ error: 'Chat not found' }, 404);
+
+    // ✅ IDOR fix: only participants can mark as seen
+    const seenParticipants: string[] = meta.participants || [];
+    if (!seenParticipants.includes(clean)) {
+      return c.json({ error: 'Forbidden: not a participant' }, 403);
+    }
 
     await kv.set(metaKey, {
       ...meta,

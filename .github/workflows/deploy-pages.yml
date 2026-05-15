@@ -31,6 +31,9 @@ jobs:
       - name: Type check
         run: npm run typecheck || true
 
+      - name: Lint
+        run: npm run lint || true
+
       - name: Build
         run: npm run build
 
