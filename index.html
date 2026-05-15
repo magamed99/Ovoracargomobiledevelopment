@@ -19,10 +19,20 @@
       form-action 'self';
       upgrade-insecure-requests;
     ">
-    <style>html,body,#root{margin:0;padding:0;background:#0e1621;min-height:100%;}</style>
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#03070f">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Ovora">
+    <link rel="apple-touch-icon" href="/icon-192.png">
+    <style>html,body,#root{margin:0;padding:0;background:#03070f;min-height:100%;}</style>
     <!-- Preconnect to reduce cold start latency -->
     <link rel="preconnect" href="https://mkbcjxnoeevtkzaqcpsh.supabase.co" crossorigin>
     <link rel="dns-prefetch" href="https://mkbcjxnoeevtkzaqcpsh.supabase.co">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <!-- Hero banner preload so it shows immediately on first paint -->
     <link rel="preload" as="image" href="/icons/hero-promo.png" fetchpriority="high">
   </head>
