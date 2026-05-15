@@ -5,6 +5,7 @@ import { cors } from "npm:hono/cors";
 import { logger } from "npm:hono/logger";
 import { createClient } from "npm:@supabase/supabase-js";
 import webpush from "npm:web-push";
+import { SignJWT, jwtVerify } from "npm:jose";
 import * as kv from "./kv_store.tsx";
 import { handleSendOtp, handleVerifyOtp } from "./otp.tsx";
 import { handleGenerateBackup, handleVerifyBackup, handleBackupExists } from "./backup.tsx";
@@ -28,20 +29,38 @@ app.use("/*", cors({
 
 // ── Admin Middleware — защита всех /admin/* и /kv/* маршрутов ─────────────────
 async function requireAdmin(c: any, next: any) {
+  // ── Primary: signed JWT (Authorization: Bearer <token>) ──────────────────
+  const authHeader = (c.req.header('Authorization') || '').trim();
+  if (authHeader.startsWith('Bearer ')) {
+    const token = authHeader.slice(7);
+    const jwtSecret = (Deno.env.get('ADMIN_JWT_SECRET') || '').trim();
+    if (!jwtSecret) {
+      console.error('[requireAdmin] ADMIN_JWT_SECRET not configured — JWT auth disabled');
+      return c.json({ error: 'Server configuration error: ADMIN_JWT_SECRET not set' }, 500);
+    }
+    try {
+      const secret = new TextEncoder().encode(jwtSecret);
+      await jwtVerify(token, secret);
+      console.log('[requireAdmin] JWT admin access granted for:', c.req.path);
+      return await next();
+    } catch (err) {
+      console.warn('[requireAdmin] Invalid/expired JWT for:', c.req.path, err);
+      return c.json({ error: 'Unauthorized: invalid or expired admin token' }, 401);
+    }
+  }
+
+  // ── Legacy fallback: X-Admin-Code plaintext (deprecated — migrate to JWT) ─
   const adminCode = (c.req.header('X-Admin-Code') || '').trim();
   const envCode = (Deno.env.get('ADMIN_ACCESS_CODE') || '').trim();
-  
   if (!envCode) {
     console.error('[requireAdmin] ADMIN_ACCESS_CODE not configured in environment');
     return c.json({ error: 'Server configuration error: Admin access code not set' }, 500);
   }
-  
   if (!adminCode || adminCode !== envCode) {
     console.warn('[requireAdmin] Unauthorized access attempt:', c.req.path, '| code provided:', adminCode ? 'yes' : 'no');
     return c.json({ error: 'Unauthorized: Admin access required' }, 401);
   }
-  
-  console.log('[requireAdmin] Admin access granted for:', c.req.path);
+  console.log('[requireAdmin] Legacy X-Admin-Code access granted for:', c.req.path);
   return await next();
 }
 
@@ -255,24 +274,39 @@ app.get("/make-server-4e36197a/health", (c) => c.json({ status: "ok" }));
 app.post("/make-server-4e36197a/admin/auth", async (c) => {
   try {
     const { code } = await c.req.json();
-    const envCode = Deno.env.get('ADMIN_ACCESS_CODE') || '';
+    const envCode = (Deno.env.get('ADMIN_ACCESS_CODE') || '').trim();
+    const jwtSecret = (Deno.env.get('ADMIN_JWT_SECRET') || '').trim();
 
     if (!envCode) {
       console.log('[AdminAuth] ADMIN_ACCESS_CODE not set in env');
-      return c.json({ success: false, error: 'Код доступа не настроен на серве��е' }, 500);
+      return c.json({ success: false, error: 'Код доступа не настроен на сервере' }, 500);
     }
 
     if (!code || typeof code !== 'string') {
       return c.json({ success: false, error: 'Код обязателен' }, 400);
     }
 
-    if (code.trim() === envCode.trim()) {
-      console.log('[AdminAuth] Admin access granted');
-      return c.json({ success: true });
+    if (code.trim() !== envCode) {
+      console.log('[AdminAuth] Wrong admin code attempt');
+      return c.json({ success: false, error: 'Неверный код доступа' });
     }
 
-    console.log('[AdminAuth] Wrong admin code attempt');
-    return c.json({ success: false, error: 'Неверный код доступа' });
+    console.log('[AdminAuth] Admin access granted, issuing JWT');
+
+    // Issue a signed JWT (8 h expiry) so the plaintext code never travels in headers again
+    let token: string | undefined;
+    if (jwtSecret) {
+      const secret = new TextEncoder().encode(jwtSecret);
+      token = await new SignJWT({ role: 'admin' })
+        .setProtectedHeader({ alg: 'HS256' })
+        .setIssuedAt()
+        .setExpirationTime('8h')
+        .sign(secret);
+    } else {
+      console.warn('[AdminAuth] ADMIN_JWT_SECRET not set — token not issued, legacy X-Admin-Code still works');
+    }
+
+    return c.json({ success: true, token });
   } catch (err) {
     console.log('Error POST /admin/auth:', err);
     return c.json({ success: false, error: `${err}` }, 500);
