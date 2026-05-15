@@ -1019,9 +1019,13 @@ app.delete("/make-server-4e36197a/trips/:id", async (c) => {
 app.post("/make-server-4e36197a/cargos", async (c) => {
   try {
     const body = await c.req.json();
+
+    const lenErr = assertMaxLen(body, { from: 200, to: 200, notes: 1000, senderEmail: 254, senderName: 100, description: 500 });
+    if (lenErr) return c.json({ error: lenErr }, 400);
+
     const id = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const now = new Date().toISOString();
-    
+
     // Очищаем адреса
     const cleanedFrom = cleanAddress(body.from || '');
     const cleanedTo = cleanAddress(body.to || '');
@@ -1161,6 +1165,9 @@ app.post("/make-server-4e36197a/offers", async (c) => {
   try {
     const body = await c.req.json();
     const { tripId, senderEmail, senderName } = body;
+
+    const lenErr = assertMaxLen(body, { senderEmail: 254, senderName: 100, notes: 1000, driverEmail: 254, driverName: 100 });
+    if (lenErr) return c.json({ error: lenErr }, 400);
 
     // ✅ FIX #7: Валидация обязательных полей
     if (!tripId) return c.json({ error: "tripId required" }, 400);
@@ -5769,6 +5776,9 @@ app.put("/make-server-4e36197a/avia/profile", async (c) => {
       return c.json({ error: 'role must be courier/sender/both' }, 400);
     }
 
+    const lenErr = assertMaxLen(updates, { firstName: 60, lastName: 60, middleName: 60, bio: 500, city: 100 });
+    if (lenErr) return c.json({ error: lenErr }, 400);
+
     // 🔒 Паспортные данные нельзя менять через PUT — только через upload-passport
     delete updates.passportPhoto;
     delete updates.passportPhotoPath;
@@ -6605,6 +6615,8 @@ app.post("/make-server-4e36197a/avia/chat/:chatId/messages", async (c) => {
       return c.json({ error: 'chatId, senderPhone and text required' }, 400);
     }
 
+    if (text.length > 2000) return c.json({ error: "Message text exceeds 2000 characters" }, 400);
+
     // ✅ IDOR fix: senderPhone must be a participant of this chat
     const chatMetaCheck: any = await kv.get(`ovora:avia-chatmeta:${chatId}`);
     if (!chatMetaCheck) return c.json({ error: 'Chat not found' }, 404);
@@ -6871,6 +6883,9 @@ app.post("/make-server-4e36197a/avia/deals", async (c) => {
     if (!initiatorPhone || !recipientPhone || !adType || !adId || !courierId || !senderId) {
       return c.json({ error: 'Missing required fields' }, 400);
     }
+
+    const lenErr = assertMaxLen(body, { message: 1000, adFrom: 200, adTo: 200, initiatorName: 100, recipientName: 100, courierName: 100, senderName: 100, currency: 10 });
+    if (lenErr) return c.json({ error: lenErr }, 400);
 
     // ✅ IDOR fix: verify caller is the initiator
     const callerClean = aviaCleanPhone(callerPhone || '');
