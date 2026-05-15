@@ -35,7 +35,7 @@ export function AddressPicker({ value, onChange, placeholder = 'Введите �
   const [showMap, setShowMap] = useState(false);
   const [mapCenter, setMapCenter] = useState<[number, number]>([38.5598, 68.7738]); // Dushanbe
   const [mapZoom, setMapZoom] = useState(12);
-  const searchTimeout = useRef<NodeJS.Timeout>();
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const ymapsRef = useRef<any>(null);
 
   // ══════════════════════════════════════════════════════════════════════
@@ -478,7 +478,7 @@ export function AddressPicker({ value, onChange, placeholder = 'Введите �
               width="100%"
               height="300px"
               onClick={handleMapClick}
-              instanceRef={ymapsRef}
+              instanceRef={ymapsRef as any}
               modules={['geocode']}
             >
               {value && value.lat && value.lng && (

@@ -58,7 +58,7 @@ export function ProposalFormModal({
           return;
         }
 
-        const serverTrip = await getTripById(tripId);
+        const serverTrip = await getTripById(tripId || '');
         if (serverTrip) {
           setTrip(serverTrip);
         } else {

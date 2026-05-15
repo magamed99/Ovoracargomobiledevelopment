@@ -127,7 +127,7 @@ interface HeroProps {
   user: AviaUser;
   likes: number;
   dislikes: number;
-  completeness: { pct: number; filled: number; total: number };
+  completeness: { pct: number; filled: number; total: number; items: { label: string; done: boolean }[] };
   onAvatarUpload: (file: File) => Promise<void>;
   avatarUploading: boolean;
 }

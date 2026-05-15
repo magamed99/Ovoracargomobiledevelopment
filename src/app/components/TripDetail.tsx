@@ -619,7 +619,7 @@ function ActiveTripDetail({ trip, isDark, userRole }: { trip: any; isDark: boole
         weight,
         volume: volume || '—',
         price: String(totalPriceVal),
-        currency,
+        currency: currency as 'TJS' | 'RUB' | 'USD',
         from: trip.from,
         to: trip.to,
         date: trip.date,

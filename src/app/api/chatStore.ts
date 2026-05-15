@@ -29,6 +29,7 @@ export interface ChatContact {
   online: boolean;
   verified: boolean;
   email?: string;
+  phone?: string;
 }
 
 export type ProposalStatus = 'pending' | 'accepted' | 'rejected' | 'declined' | 'countered';
@@ -517,7 +518,7 @@ export async function updateProposalStatus(
   emit();
 
   // 3. API call
-  apiUpdateProposal(chatId, proposalId, status, myEmail).catch(err =>
+  apiUpdateProposal(chatId, proposalId, status as 'accepted' | 'rejected', myEmail).catch(err =>
     console.warn('[chatStore] updateChatProposal API error:', err)
   );
 

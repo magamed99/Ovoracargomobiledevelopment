@@ -85,7 +85,7 @@ function DealCard({
 
   const otherPhone = isInitiator ? deal.recipientPhone : deal.initiatorPhone;
 
-  const act = async (action: string, fn: () => Promise<any>) => {
+  const act = async (action: string, fn: () => void | Promise<any>) => {
     setActing(action);
     try {
       await fn();

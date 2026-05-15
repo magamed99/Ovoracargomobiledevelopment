@@ -212,6 +212,7 @@ export function SubscriptionManagement() {
       <AdminPageHeader
         title="Подписки"
         subtitle="Управление годовыми подписками пользователей"
+        icon={Crown}
       />
 
       {/* ── Stats ── */}

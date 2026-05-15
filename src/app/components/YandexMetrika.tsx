@@ -14,7 +14,7 @@ function YandexMetrikaInner() {
   // Отслеживание переходов между страницами
   useEffect(() => {
     if (YANDEX_METRIKA_ID && window.ym) {
-      window.ym(YANDEX_METRIKA_ID, 'hit', window.location.href, {
+      window.ym(Number(YANDEX_METRIKA_ID), 'hit', window.location.href, {
         title: document.title,
       });
     }
@@ -40,19 +40,20 @@ export function YandexMetrika() {
         k.async = 1;
         k.src = r;
         a.parentNode.insertBefore(k, a);
-      })(window, document, 'script', 'https://mc.yandex.ru/metrika/tag.js', 'ym');
-
-      window.ym(YANDEX_METRIKA_ID, 'init', {
-        clickmap: true,
-        trackLinks: true,
-        accurateTrackBounce: true,
-        webvisor: true,
-        trackHash: true,
-        ecommerce: 'dataLayer',
-      });
+      })(window, document, 'script', 'https://mc.yandex.ru/metrika/tag.js', 'ym', undefined, undefined);
 
       console.log('[Analytics] Yandex Metrika initialized');
     }
+
+    // Initialize counter — called after the loader IIFE so window.ym is defined
+    (window as any).ym?.(Number(YANDEX_METRIKA_ID), 'init', {
+      clickmap: true,
+      trackLinks: true,
+      accurateTrackBounce: true,
+      webvisor: true,
+      trackHash: true,
+      ecommerce: 'dataLayer',
+    });
   }, []);
 
   return (

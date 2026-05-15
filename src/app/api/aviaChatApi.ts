@@ -25,6 +25,7 @@ export type AviaChatMessageType = 'text' | 'deal_offer' | 'deal_update';
 
 export interface DealMessageMeta {
   dealId:         string;
+  dealType?:      string;
   weightKg?:      number;
   price?:         number | null;
   currency?:      string;
@@ -54,6 +55,7 @@ export interface AviaChatAdRef {
   id:   string;
   from: string;
   to:   string;
+  date?: string;
 }
 
 export interface AviaChatMeta {

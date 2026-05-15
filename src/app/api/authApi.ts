@@ -9,6 +9,7 @@ const HEADERS = {
 };
 
 export interface OvoraUser {
+  id?: string;
   email: string;
   role: 'driver' | 'sender';
   firstName: string;
@@ -26,6 +27,7 @@ export interface OvoraUser {
   birthDate?: string;
   about?: string;
   avatarUrl?: string;
+  avatar?: string;
   createdAt?: string;
   updatedAt?: string;
 }

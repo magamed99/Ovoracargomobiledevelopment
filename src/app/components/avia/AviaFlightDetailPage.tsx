@@ -12,6 +12,7 @@ import { getAviaFlight, getAviaRequest } from '../../api/aviaApi';
 import type { AviaFlight, AviaRequest } from '../../api/aviaApi';
 import { useAvia } from './AviaContext';
 import { AviaDealOfferModal } from './AviaDealOfferModal';
+import { AviaChatDrawer } from './AviaChatDrawer';
 import { makeAviaChatId } from '../../api/aviaChatApi';
 import { deleteAviaFlight, deleteAviaRequest, closeAviaFlight, closeAviaRequest } from '../../api/aviaApi';
 
@@ -148,7 +149,7 @@ export function AviaFlightDetailPage() {
     if (!id) return;
     setLoading(true);
     getAviaFlight(id)
-      .then(f => {
+      .then((f: AviaFlight | null) => {
         if (!f) setError('Рейс не найден');
         else setFlight(f);
       })
@@ -521,13 +522,14 @@ export function AviaRequestDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState('');
   const [showOffer, setShowOffer] = useState(false);
+  const [showChat, setShowChat]   = useState(false);
   const [deleting, setDeleting]   = useState(false);
 
   const load = useCallback(() => {
     if (!id) return;
     setLoading(true);
     getAviaRequest(id)
-      .then(r => {
+      .then((r: AviaRequest | null) => {
         if (!r) setError('Заявка не найдена');
         else setRequest(r);
       })

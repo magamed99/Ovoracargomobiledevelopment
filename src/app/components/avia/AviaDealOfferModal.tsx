@@ -129,8 +129,8 @@ export function AviaDealOfferModal({ me, flight, request, onClose, onSuccess, on
       await sendTypedChatMessage(chatId, me.phone, '', 'deal_offer', {
         dealId:         deal.id,
         dealType,
-        weightKg:       dealType === 'cargo' ? Number(weightKg) : null,
-        price:          price ? Number(price) : null,
+        weightKg:       dealType === 'cargo' ? Number(weightKg) : undefined,
+        price:          price ? Number(price) : undefined,
         currency,
         adFrom,
         adTo,

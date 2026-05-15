@@ -455,7 +455,7 @@ function ChatPanel({ myPhone, chatId, otherPhone, adRef, onBack, onDeleted, onCh
     try {
       const { messages: msgs, meta } = await getAviaChatMessages(chatId);
       setMessages(msgs);
-      setChatMeta(meta);
+      setChatMeta(meta as any);
       if (meta?.adRef) setResolvedAdRef(meta.adRef);
       const other = (meta?.participants || []).find((p: string) => p !== myPhone) || '';
       if (other) setResolvedOtherPhone(other);

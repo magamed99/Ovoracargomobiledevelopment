@@ -164,7 +164,7 @@ export function Analytics() {
           { label: 'Поездок', value: trips.length },
           { label: 'Пользователей', value: users.length },
           { label: 'Конверсия', value: `${conversionRate}%` },
-          { label: 'Ср. рейтинг', value: avgRating > 0 ? `★ ${avgRating}` : '—' },
+          { label: 'Ср. рейтинг', value: Number(avgRating) > 0 ? `★ ${avgRating}` : '—' },
         ]}
         actions={
           <HeaderBtn icon={RefreshCw} onClick={load}>Обновить</HeaderBtn>

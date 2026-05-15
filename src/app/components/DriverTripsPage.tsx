@@ -319,7 +319,7 @@ export function DriverTripsPage() {
             senderEmail,
             senderName,
             senderPhone,
-            status: 'inProgress',
+            status: 'inProgress' as const,
           };
           localStorage.setItem('ovora_active_shipment', JSON.stringify(shipmentData));
           try { await saveActiveShipment(shipmentData); } catch {}

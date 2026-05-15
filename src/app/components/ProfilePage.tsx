@@ -448,7 +448,7 @@ export function ProfilePage() {
                         <div>
                           <p className="text-[9px] font-black uppercase tracking-[.18em] mb-2.5" style={{ color: '#3a5570' }}>Контакты</p>
                           <div className="rounded-2xl overflow-hidden divide-y"
-                            style={{ background: '#0a1622', border: '1px solid #1a2d40', divideColor: '#1a2d40' }}>
+                            style={{ background: '#0a1622', border: '1px solid #1a2d40', divideColor: '#1a2d40' } as any}>
                             {displayPhone && <DesktopContactRow icon={Phone} color="#5ba3f5" label="Телефон" value={displayPhone} />}
                             {displayEmail && (
                               <div className="flex items-center gap-3 px-4 py-3" style={{ borderTop: '1px solid #1a2d40' }}>
