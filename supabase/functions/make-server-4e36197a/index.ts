@@ -6,6 +6,7 @@ import { logger } from "npm:hono/logger";
 import { createClient } from "npm:@supabase/supabase-js";
 import webpush from "npm:web-push";
 import { SignJWT, jwtVerify } from "npm:jose";
+import { rateLimitMiddleware, RL } from "./rateLimit.tsx";
 import * as kv from "./kv_store.tsx";
 import { handleSendOtp, handleVerifyOtp } from "./otp.tsx";
 import { handleGenerateBackup, handleVerifyBackup, handleBackupExists } from "./backup.tsx";
@@ -19,11 +20,28 @@ import {
 
 const app = new Hono();
 app.use('*', logger(console.log));
+const ALLOWED_ORIGINS = [
+  "https://ovora-cargo.ru",
+  "https://www.ovora-cargo.ru",
+  "https://magamed99.github.io",
+  // local dev
+  "http://localhost:5173",
+  "http://localhost:4173",
+  "http://127.0.0.1:5173",
+];
 app.use("/*", cors({
-  origin: "*",
+  origin: (origin) => {
+    // Allow requests with no origin (mobile apps, curl, Postman)
+    if (!origin) return origin;
+    if (ALLOWED_ORIGINS.includes(origin)) return origin;
+    // Allow any subdomain of ovora-cargo.ru
+    if (/^https:\/\/([a-z0-9-]+\.)?ovora-cargo\.ru$/.test(origin)) return origin;
+    return null; // deny
+  },
   allowHeaders: ["Content-Type", "Authorization", "X-Admin-Code"],
   allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   exposeHeaders: ["Content-Length"],
+  credentials: true,
   maxAge: 600,
 }));
 
@@ -271,7 +289,9 @@ app.post("/make-server-4e36197a/push/unsubscribe", async (c) => {
 app.get("/make-server-4e36197a/health", (c) => c.json({ status: "ok" }));
 
 // ── Admin Auth — проверка кода из env ─────────────────────────────────────────
-app.post("/make-server-4e36197a/admin/auth", async (c) => {
+app.post("/make-server-4e36197a/admin/auth",
+  rateLimitMiddleware(RL.LOGIN, (c) => c.req.header('x-forwarded-for') || 'unknown'),
+  async (c) => {
   try {
     const { code } = await c.req.json();
     const envCode = (Deno.env.get('ADMIN_ACCESS_CODE') || '').trim();
@@ -491,7 +511,9 @@ app.post("/make-server-4e36197a/ocr/scan-document", async (c) => {
 //  KV: ovora:user:email:{email} / ovora:user:phone:{phone} → email
 // ���═════════════════════════════════════════════════════════════════════════════
 
-app.post("/make-server-4e36197a/auth/register", async (c) => {
+app.post("/make-server-4e36197a/auth/register",
+  rateLimitMiddleware(RL.REGISTER, (c) => c.req.header('x-forwarded-for') || 'unknown'),
+  async (c) => {
   try {
     const body = await c.req.json();
     const { email, firstName, lastName, phone, role, vehicle } = body;
@@ -537,7 +559,9 @@ app.post("/make-server-4e36197a/auth/register", async (c) => {
   }
 });
 
-app.post("/make-server-4e36197a/auth/login-email", async (c) => {
+app.post("/make-server-4e36197a/auth/login-email",
+  rateLimitMiddleware(RL.LOGIN, (c) => `login:${c.req.header('x-forwarded-for') || 'unknown'}`),
+  async (c) => {
   try {
     const { email } = await c.req.json();
     if (!email) return c.json({ error: "email required" }, 400);
@@ -558,7 +582,9 @@ app.post("/make-server-4e36197a/auth/login-email", async (c) => {
   }
 });
 
-app.post("/make-server-4e36197a/auth/login-phone", async (c) => {
+app.post("/make-server-4e36197a/auth/login-phone",
+  rateLimitMiddleware(RL.LOGIN, (c) => `login:${c.req.header('x-forwarded-for') || 'unknown'}`),
+  async (c) => {
   try {
     const { phone } = await c.req.json();
     if (!phone) return c.json({ error: "phone required" }, 400);
@@ -1928,9 +1954,19 @@ app.post("/make-server-4e36197a/chat/message", async (c) => {
 app.get("/make-server-4e36197a/chat/:chatId/messages", async (c) => {
   try {
     const chatId = c.req.param("chatId");
+    const callerEmail = c.req.query("callerEmail");
+    if (!callerEmail) return c.json({ error: "callerEmail query param required" }, 400);
+
+    // IDOR fix: verify caller is a participant before exposing messages
+    const meta: any = await kv.get(`ovora:chatmeta:${chatId}`);
+    if (meta?.participants?.length > 0 && !meta.participants.includes(callerEmail)) {
+      console.warn(`[GET /chat/messages] IDOR attempt: ${callerEmail} tried to read chat ${chatId}`);
+      return c.json({ error: "Forbidden: you are not a participant of this chat" }, 403);
+    }
+
     const messages: any[] = await kv.getByPrefix(`ovora:chat:${chatId}:`);
     const sorted = messages
-      .filter(m => m && m.msgId) // exclude metadata
+      .filter(m => m && m.msgId)
       .sort((a, b) => (a.ts || 0) - (b.ts || 0));
     return c.json({ messages: sorted });
   } catch (err) {
@@ -1945,9 +1981,14 @@ app.put("/make-server-4e36197a/chat/:chatId/read", async (c) => {
     const chatId = c.req.param("chatId");
     const { userEmail } = await c.req.json();
     if (!userEmail) return c.json({ error: "userEmail required" }, 400);
-    // Update metadata unread count
+
     const metaKey = `ovora:chatmeta:${chatId}`;
     const meta: any = await kv.get(metaKey) || {};
+
+    if (meta?.participants?.length > 0 && !meta.participants.includes(userEmail)) {
+      return c.json({ error: "Forbidden: you are not a participant of this chat" }, 403);
+    }
+
     const unreadByEmail = { ...(meta.unreadByEmail || {}), [userEmail]: 0 };
     await kv.set(metaKey, { ...meta, unreadByEmail });
     return c.json({ success: true });
@@ -2390,17 +2431,27 @@ app.delete("/make-server-4e36197a/chat/:chatId", async (c) => {
     const chatId = c.req.param("chatId");
     if (!chatId) return c.json({ error: "chatId required" }, 400);
 
+    const callerEmail = c.req.query("callerEmail");
+    if (!callerEmail) return c.json({ error: "callerEmail query param required" }, 400);
+
     console.log(`[delete-chat] Deleting chat: ${chatId}`);
 
     // 0. Read chatmeta BEFORE deleting — need tripIds + participants to reset offers
     const metaKey = `ovora:chatmeta:${chatId}`;
     const meta: any = await kv.get(metaKey) || {};
+
+    // IDOR fix: only participants may delete the chat
+    const participants: string[] = meta.participants || [];
+    if (participants.length > 0 && !participants.includes(callerEmail)) {
+      console.warn(`[delete-chat] Unauthorized: ${callerEmail} tried to delete chat ${chatId}`);
+      return c.json({ error: "Forbidden: you are not a participant of this chat" }, 403);
+    }
+
     const tripId: string | undefined = meta.tripId;
     const tripIds: Set<string> = new Set([
       ...(meta.tripIds || []),
       ...(meta.tripId ? [String(meta.tripId)] : []),
     ]);
-    const participants: string[] = meta.participants || [];
 
     // 0a. Cancel ALL pending offers between this pair of participants (chat_deleted = cancellation)
     // ✅ FIX: pair-based chat stores only the LAST tripId in chatmeta.
@@ -2475,6 +2526,16 @@ app.delete("/make-server-4e36197a/chat/:chatId/message/:msgId", async (c) => {
     const chatId = c.req.param("chatId");
     const msgId = c.req.param("msgId");
     if (!chatId || !msgId) return c.json({ error: "chatId and msgId required" }, 400);
+
+    const callerEmail = c.req.query("callerEmail");
+    if (!callerEmail) return c.json({ error: "callerEmail query param required" }, 400);
+
+    // Only the message author may delete it
+    const existing: any = await kv.get(`ovora:chat:${chatId}:${msgId}`);
+    if (existing && existing.senderId && existing.senderId !== callerEmail) {
+      console.warn(`[delete-message] Unauthorized: ${callerEmail} tried to delete message by ${existing.senderId}`);
+      return c.json({ error: "Forbidden: you are not the author of this message" }, 403);
+    }
 
     console.log(`[delete-message] Deleting message ${msgId} from chat ${chatId}`);
 
