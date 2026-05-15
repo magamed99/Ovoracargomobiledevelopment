@@ -20,6 +20,21 @@ import {
 
 const app = new Hono();
 app.use('*', logger(console.log));
+
+// ── Input sanitization helper ──────────────────────────────────────────────
+function clampStr(s: unknown, max: number): string {
+  if (typeof s !== 'string') return '';
+  return s.trim().slice(0, max);
+}
+function assertMaxLen(fields: Record<string, unknown>, limits: Record<string, number>): string | null {
+  for (const [key, max] of Object.entries(limits)) {
+    const val = fields[key];
+    if (typeof val === 'string' && val.length > max) {
+      return `Field '${key}' exceeds maximum length of ${max} characters`;
+    }
+  }
+  return null;
+}
 const ALLOWED_ORIGINS = [
   "https://ovora-cargo.ru",
   "https://www.ovora-cargo.ru",
@@ -519,6 +534,10 @@ app.post("/make-server-4e36197a/auth/register",
     const { email, firstName, lastName, phone, role, vehicle } = body;
     if (!email || !role) return c.json({ error: "email and role are required" }, 400);
 
+    const lenErr = assertMaxLen({ email, firstName, lastName, phone, vehicle },
+      { email: 254, firstName: 60, lastName: 60, phone: 20, vehicle: 100 });
+    if (lenErr) return c.json({ error: lenErr }, 400);
+
     const key = `ovora:user:email:${email.toLowerCase().trim()}`;
     const existing: any = await kv.get(key) || {};
     const now = new Date().toISOString();
@@ -526,12 +545,12 @@ app.post("/make-server-4e36197a/auth/register",
 
     const user = {
       ...existing,
-      email: email.toLowerCase().trim(),
-      firstName: firstName?.trim() || existing.firstName || "",
-      lastName: lastName?.trim() || existing.lastName || "",
-      phone: phone?.trim() || existing.phone || "",
+      email: clampStr(email, 254).toLowerCase(),
+      firstName: clampStr(firstName, 60) || existing.firstName || "",
+      lastName: clampStr(lastName, 60) || existing.lastName || "",
+      phone: clampStr(phone, 20) || existing.phone || "",
       role,
-      vehicle: vehicle || existing.vehicle || null,
+      vehicle: vehicle ? clampStr(vehicle, 100) : (existing.vehicle || null),
       createdAt: existing.createdAt || now,
       updatedAt: now,
     };
@@ -689,9 +708,13 @@ function cleanAddress(address: string): string {
 app.post("/make-server-4e36197a/trips", async (c) => {
   try {
     const body = await c.req.json();
+
+    const lenErr = assertMaxLen(body, { from: 200, to: 200, notes: 1000, vehicle: 100, email: 254 });
+    if (lenErr) return c.json({ error: lenErr }, 400);
+
     const id = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const now = new Date().toISOString();
-    
+
     // 🗺️ Очищаем адреса перед сохранением в БД
     const cleanedFrom = cleanAddress(body.from || '');
     const cleanedTo = cleanAddress(body.to || '');
