@@ -192,7 +192,7 @@ interface WorldCardProps {
 }
 function WorldCard({ title, desc, tags, accentLight, icon, onClick }: WorldCardProps) {
   return (
-    <button onClick={onClick} className="ovora-service-card" style={{
+    <button onClick={onClick} aria-label={`Перейти: ${title}`} className="ovora-service-card" style={{
       border: '1px solid rgba(255,255,255,0.08)',
       borderRadius: 16, padding: 0, width: '100%', cursor: 'pointer',
       textAlign: 'left', fontFamily: 'inherit',
@@ -360,7 +360,7 @@ export function Welcome() {
               {LANGS.map(l => {
                 const active = selectedLang === l.code;
                 return (
-                  <button key={l.code} onClick={() => handleLang(l.code)} className="lang-btn" style={{
+                  <button key={l.code} onClick={() => handleLang(l.code)} aria-pressed={active} aria-label={`Язык: ${l.display}`} className="lang-btn" style={{
                     flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
                     padding: 'clamp(7px,2vw,10px) 4px', borderRadius: 9,
                     border: active ? '1px solid rgba(91,163,245,0.5)' : '1px solid rgba(255,255,255,0.08)',
