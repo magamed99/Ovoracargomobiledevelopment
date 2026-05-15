@@ -308,6 +308,47 @@ export const translations = {
     edit: 'Таҳрир',
     from: 'Аз куҷо',
     to: 'Ба куҷо',
+
+    // Search view modes
+    search_from: 'Аз куҷо',
+    search_to: 'Ба куҷо',
+    search_listView: 'Рӯйхат',
+    search_mapView: 'Дар харита',
+    search_driversView: 'Ронандагон',
+
+    // Subscription Banner
+    sub_banner_expired: 'Обуна ба охир расид. Платформа муваққатан дастнорас аст.',
+    sub_banner_trial_last: 'Имрӯз охирин рӯзи давраи озмоишӣ аст',
+    sub_banner_trial_days_1: 'Давраи озмоишӣ пас аз',
+    sub_banner_trial_days_2: 'рӯз',
+    sub_banner_trial_days_5: 'рӯз',
+    sub_banner_trial_days_many: 'рӯз',
+    sub_banner_renew: 'Тамдид кунед',
+    sub_banner_subscribe: 'Обуна',
+
+    // Subscription Page
+    sub_page_title: 'Обуна',
+    sub_page_status_active: 'Фаъол',
+    sub_page_status_trial: 'Давраи озмоишӣ',
+    sub_page_status_expired: 'Ба охир расид',
+    sub_page_status_lifetime: 'Умрбод',
+    sub_page_days_left: 'рӯз монд',
+    sub_page_renew_title: 'Обунаро тамдид кунед',
+    sub_page_renew_desc: 'Пардохтро иҷро кунед ва ID-и транзаксияро ворид кунед',
+    sub_page_transfer_id: 'ID-и интиқол',
+    sub_page_send: 'Фиристодан',
+    sub_page_features_title: 'Чӣ дохил аст',
+
+    // Profile completeness
+    profile_completeness: 'Пурии профил',
+    profile_complete_name: 'Ном ва насаб',
+    profile_complete_photo: 'Аксҳои профил',
+    profile_complete_phone: 'Рақами телефон',
+    profile_complete_about: 'Дар бораи худ',
+    profile_complete_vehicle: 'Маълумоти мошин',
+    profile_fill_btn: 'Пур кардан',
+    profile_referral_title: 'Дӯстро даъват кунед',
+    profile_referral_share: 'Мубодила кардан',
   },
 
   en: {
@@ -391,6 +432,11 @@ export const translations = {
     search_filter: 'Filters',
     search_no_results: 'No trips found',
     search_results: 'Search results',
+    search_from: 'From',
+    search_to: 'To',
+    search_listView: 'List',
+    search_mapView: 'Map',
+    search_driversView: 'Drivers',
 
     // Messages
     messages_title: 'Messages',
