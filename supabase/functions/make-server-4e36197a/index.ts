@@ -6842,13 +6842,22 @@ app.post("/make-server-4e36197a/avia/deals", async (c) => {
       weightKg, price, currency, message,
       courierId, senderId, courierName, senderName,
       dealType, // 'cargo' | 'docs'
+      callerPhone, // ✅ IDOR fix: caller must match initiator
     } = body;
 
     if (!initiatorPhone || !recipientPhone || !adType || !adId || !courierId || !senderId) {
       return c.json({ error: 'Missing required fields' }, 400);
     }
 
-    const p1 = aviaCleanPhone(initiatorPhone);
+    // ✅ IDOR fix: verify caller is the initiator
+    const callerClean = aviaCleanPhone(callerPhone || '');
+    const initiatorClean = aviaCleanPhone(initiatorPhone);
+    if (!callerClean) return c.json({ error: 'callerPhone required' }, 400);
+    if (callerClean !== initiatorClean) {
+      return c.json({ error: 'Forbidden: callerPhone must match initiatorPhone' }, 403);
+    }
+
+    const p1 = initiatorClean;
     const p2 = aviaCleanPhone(recipientPhone);
     if (!p1 || !p2) return c.json({ error: 'Invalid phone numbers' }, 400);
     if (p1 === p2) return c.json({ error: 'Cannot make a deal with yourself' }, 400);
@@ -6950,9 +6959,19 @@ app.post("/make-server-4e36197a/avia/deals", async (c) => {
 app.get("/make-server-4e36197a/avia/deals/:id", async (c) => {
   try {
     const id = c.req.param("id");
+    const callerPhone = aviaCleanPhone(c.req.query("callerPhone") || "");
     if (!id) return c.json({ error: 'id required' }, 400);
-    const deal = await kv.get(`ovora:avia-deal:${id}`);
+    if (!callerPhone) return c.json({ error: 'callerPhone required' }, 400);
+
+    const deal: any = await kv.get(`ovora:avia-deal:${id}`);
     if (!deal) return c.json({ error: 'Deal not found' }, 404);
+
+    // ✅ IDOR fix: only participants can view deal details
+    const initiator = aviaCleanPhone(deal.initiatorPhone || '');
+    const recipient  = aviaCleanPhone(deal.recipientPhone || '');
+    if (callerPhone !== initiator && callerPhone !== recipient) {
+      return c.json({ error: 'Forbidden: not a participant' }, 403);
+    }
     return c.json({ deal });
   } catch (err) {
     console.log('Error GET /avia/deals/:id:', err);
@@ -6964,7 +6983,14 @@ app.get("/make-server-4e36197a/avia/deals/:id", async (c) => {
 app.get("/make-server-4e36197a/avia/deals/user/:phone", async (c) => {
   try {
     const phone = aviaCleanPhone(decodeURIComponent(c.req.param("phone")));
+    const callerPhone = aviaCleanPhone(c.req.query("callerPhone") || "");
     if (!phone) return c.json({ error: 'phone required' }, 400);
+    if (!callerPhone) return c.json({ error: 'callerPhone required' }, 400);
+
+    // ✅ IDOR fix: caller can only fetch their own deals
+    if (callerPhone !== phone) {
+      return c.json({ error: 'Forbidden: callerPhone must match phone' }, 403);
+    }
 
     const index: any[] = await kv.getByPrefix(`ovora:avia-userdeal:${phone}:`);
     const deals: any[] = [];

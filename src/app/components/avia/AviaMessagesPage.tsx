@@ -120,7 +120,7 @@ function DealOfferBubble({ msg, myPhone, refreshTick }: { msg: AviaChatMessage; 
 
   useEffect(() => {
     if (!meta?.dealId) { setLoading(false); return; }
-    getAviaDeal(meta.dealId).then(d => { setDeal(d); setLoading(false); });
+    getAviaDeal(meta.dealId, myPhone).then(d => { setDeal(d); setLoading(false); });
   }, [meta?.dealId]);
 
   useEffect(() => {
@@ -137,7 +137,7 @@ function DealOfferBubble({ msg, myPhone, refreshTick }: { msg: AviaChatMessage; 
 
   useEffect(() => {
     if (!meta?.dealId || !deal || deal.status !== 'pending') return;
-    getAviaDeal(meta.dealId).then(fresh => {
+    getAviaDeal(meta.dealId, myPhone).then(fresh => {
       if (fresh && fresh.status !== deal.status) setDeal(fresh);
     });
   }, [refreshTick]);
