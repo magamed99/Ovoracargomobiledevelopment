@@ -1133,7 +1133,7 @@ export function AviaDashboard() {
 
   const showCreateFlight  = activeTab === 'flights'  && (user.role === 'courier' || user.role === 'both');
   const showCreateRequest = activeTab === 'requests' && (user.role === 'sender'  || user.role === 'both');
-  const showCreateBtn     = (showCreateFlight || showCreateRequest) && activeTab !== 'my';
+  const showCreateBtn     = (showCreateFlight || showCreateRequest) && (activeTab as string) !== 'my';
   const createBtnDisabled = showCreateFlight ? !adCheck.allowed : !requestCheck.allowed;
 
   const handleRefresh = () => {

@@ -20,10 +20,10 @@ function extractOtpCode(description: string): string | null {
   return match ? match[1] : null;
 }
 
-interface Notification {
+interface AppNotification {
   id: string;
   userEmail: string;
-  type: 'trip' | 'system' | 'payment' | 'info' | 'auth' | 'offer' | 'message';
+  type: 'trip' | 'system' | 'payment' | 'info' | 'auth' | 'offer' | 'message' | 'document';
   iconName: string;
   iconBg: string;
   title: string;
@@ -84,7 +84,7 @@ export function NotificationsPage() {
   const { theme } = useTheme();
   const { user: currentUser } = useUser();
 
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<'all' | 'unread'>('all');
 
@@ -155,7 +155,7 @@ export function NotificationsPage() {
   };
 
   // ── Shared notification card ──
-  const renderNotifCard = (n: Notification) => {
+  const renderNotifCard = (n: AppNotification) => {
     const Icon = ICON_MAP[n.iconName] || Bell;
     const otpCode = extractOtpCode(n.description);
     const accentColor = TYPE_COLOR[n.type] || '#5ba3f5';
@@ -249,7 +249,7 @@ export function NotificationsPage() {
   };
 
   // ── Section renderer ──
-  const renderSection = (title: string, icon: React.ElementType, color: string, items: Notification[]) => {
+  const renderSection = (title: string, icon: React.ElementType, color: string, items: AppNotification[]) => {
     if (items.length === 0) return null;
     const SIcon = icon;
     return (

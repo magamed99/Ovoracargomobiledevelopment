@@ -15,6 +15,9 @@ interface User {
   about?: string;
   createdAt?: string;
   updatedAt?: string;
+  rating?: number | null;
+  totalTrips?: number | null;
+  verificationStatus?: string;
 }
 
 interface UserContextType {

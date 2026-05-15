@@ -3,6 +3,7 @@ import { ArrowLeft, Send, Truck, Package, Wifi, WifiOff, Mic, MicOff, Play, Paus
 import { useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
+// @ts-ignore — Vite virtual module resolved at build time
 import { projectId, publicAnonKey } from '/utils/supabase/info';
 
 const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;

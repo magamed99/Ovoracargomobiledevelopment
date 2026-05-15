@@ -98,7 +98,7 @@ class PushNotificationService {
     }
 
     try {
-      const notificationOptions: NotificationOptions = {
+      const notificationOptions: NotificationOptions & { vibrate?: number | number[]; actions?: any[] } = {
         body: options.body,
         icon: options.icon || '/icon-192.png',
         badge: options.badge || '/icon-192.png',

@@ -619,7 +619,7 @@ function ActiveTripDetail({ trip, isDark, userRole }: { trip: any; isDark: boole
         weight,
         volume: volume || '—',
         price: String(totalPriceVal),
-        currency,
+        currency: currency as 'TJS' | 'RUB' | 'USD',
         from: trip.from,
         to: trip.to,
         date: trip.date,
@@ -2507,6 +2507,7 @@ function CargoDetail({ cargo, isDark, userRole, currentUser }: {
 
 export function TripDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const { user: currentUser } = useUser();

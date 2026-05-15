@@ -12,6 +12,7 @@ import { useTrips } from '../contexts/TripsContext';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { getPublicAds } from '../api/dataApi';
 import { getCityCountry } from '../utils/addressUtils';
+// @ts-ignore — Vite virtual module resolved at build time
 import { projectId, publicAnonKey } from '/utils/supabase/info';
 
 const RADIO_BASE = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;

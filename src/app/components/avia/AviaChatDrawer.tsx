@@ -120,7 +120,7 @@ function DealOfferBubble({
 
   useEffect(() => {
     if (!meta?.dealId) { setLoading(false); return; }
-    getAviaDeal(meta.dealId).then(d => { setDeal(d); setLoading(false); });
+    getAviaDeal(meta.dealId, myPhone).then(d => { setDeal(d); setLoading(false); });
   }, [meta?.dealId]);
 
   // ── Загружаем статус отзыва когда сделка accepted/completed ─────────────
@@ -141,7 +141,7 @@ function DealOfferBubble({
   useEffect(() => {
     if (!meta?.dealId || !deal || deal.status !== 'pending') return;
     const timer = setInterval(async () => {
-      const fresh = await getAviaDeal(meta.dealId!);
+      const fresh = await getAviaDeal(meta.dealId!, myPhone);
       if (fresh && fresh.status !== deal.status) setDeal(fresh);
     }, 4_000);
     return () => clearInterval(timer);
@@ -784,7 +784,7 @@ export function AviaChatDrawer({
   const loadMessages = useCallback(async () => {
     if (!chatId) return;
     try {
-      const { messages: msgs, meta } = await getAviaChatMessages(chatId);
+      const { messages: msgs, meta } = await getAviaChatMessages(chatId, myPhone);
       setMessages(msgs);
       setChatMeta(meta);
       if (meta?.adRef) setAdRef(meta.adRef);

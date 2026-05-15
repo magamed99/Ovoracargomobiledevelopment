@@ -159,7 +159,7 @@ export function RouteMap({ from, to, height = '400px' }: RouteMapProps) {
             }}
             width="100%"
             height={height}
-            instanceRef={mapRef}
+            instanceRef={mapRef as any}
             onLoad={handleMapLoad}
           >
             {/* Point A - Start */}
