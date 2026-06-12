@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { motion } from 'motion/react';
@@ -28,25 +28,6 @@ const LANGS: { code: LangCode; display: string; flag: string }[] = [
   { code: 'en', display: 'EN', flag: '🇺🇸' },
 ];
 
-
-// ── Counter ────────────────────────────────────────────────────────────
-function Counter({ target, suffix }: { target: number; suffix: string }) {
-  const [count, setCount] = useState(0);
-  const started = useRef(false);
-  useEffect(() => {
-    if (started.current) return;
-    started.current = true;
-    const steps = Math.round((1200 / 1000) * 60);
-    let step = 0;
-    const timer = setInterval(() => {
-      step++;
-      setCount(Math.round((1 - Math.pow(1 - step / steps, 3)) * target));
-      if (step >= steps) clearInterval(timer);
-    }, 1000 / 60);
-    return () => clearInterval(timer);
-  }, [target]);
-  return <>{count.toLocaleString('ru-RU')}{suffix}</>;
-}
 
 // ── Live dot ───────────────────────────────────────────────────────────
 function LiveDot({ color = C.green, size = 8 }: { color?: string; size?: number }) {
@@ -110,41 +91,12 @@ function Logo() {
   );
 }
 
-// ── Eyebrow label ──────────────────────────────────────────────────────
-function Eyebrow({ label }: { label: string }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-      <div style={{ width: 22, height: 2, background: C.blue, borderRadius: 1 }} />
-      <span style={{ fontSize: 10, fontWeight: 700, color: C.blueLight, letterSpacing: '0.14em', textTransform: 'uppercase' }}>{label}</span>
-    </div>
-  );
-}
-
 // ── Arrow right ────────────────────────────────────────────────────────
 function ArrowRight({ color }: { color: string }) {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
       <path d="M5 12h14M13 5l7 7-7 7" />
     </svg>
-  );
-}
-
-// ── 3D icon wrapper ────────────────────────────────────────────────────
-function Icon3D({ size = 42, hue1, hue2, glow, children, radius = 12 }: {
-  size?: number; hue1: string; hue2: string; glow: string; children: ReactNode; radius?: number;
-}) {
-  return (
-    <div style={{
-      width: size, height: size, borderRadius: radius, flexShrink: 0,
-      background: `linear-gradient(155deg, ${hue1} 0%, ${hue2} 100%)`,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      position: 'relative', overflow: 'hidden',
-      boxShadow: `0 0 0 1px rgba(255,255,255,0.08),inset 0 1.2px 0 rgba(255,255,255,0.45),inset 0 -1.5px 1px rgba(0,0,0,0.25),0 8px 18px ${glow},0 2px 4px rgba(0,0,0,0.3)`,
-    }}>
-      <span style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '55%', background: 'linear-gradient(180deg, rgba(255,255,255,0.32), transparent)', borderRadius: `${radius}px ${radius}px 100% 100% / ${radius}px ${radius}px 30% 30%`, pointerEvents: 'none' }} />
-      <span style={{ position: 'absolute', top: '8%', left: '12%', width: '30%', height: '18%', background: 'rgba(255,255,255,0.55)', borderRadius: '50%', filter: 'blur(3px)', pointerEvents: 'none' }} />
-      <span style={{ position: 'relative', zIndex: 1, display: 'flex', filter: 'drop-shadow(0 1.5px 1.5px rgba(0,0,0,0.35))' }}>{children}</span>
-    </div>
   );
 }
 
@@ -192,7 +144,7 @@ interface WorldCardProps {
 }
 function WorldCard({ title, desc, tags, accentLight, icon, onClick }: WorldCardProps) {
   return (
-    <button onClick={onClick} className="ovora-service-card" style={{
+    <button onClick={onClick} aria-label={`Перейти: ${title}`} className="ovora-service-card" style={{
       border: '1px solid rgba(255,255,255,0.08)',
       borderRadius: 16, padding: 0, width: '100%', cursor: 'pointer',
       textAlign: 'left', fontFamily: 'inherit',
@@ -231,31 +183,12 @@ function WorldCard({ title, desc, tags, accentLight, icon, onClick }: WorldCardP
 }
 
 // ── Stat icon type ─────────────────────────────────────────────────────
-type StatIconType = 'box' | 'driver' | 'clock' | 'check';
-const STAT_HUES: Record<StatIconType, { h1: string; h2: string; glow: string }> = {
-  box:    { h1: '#7dd3fc', h2: '#0369a1', glow: 'rgba(56,189,248,0.4)' },
-  driver: { h1: '#6ee7b7', h2: '#047857', glow: 'rgba(52,211,153,0.4)' },
-  clock:  { h1: '#fdba74', h2: '#c2410c', glow: 'rgba(251,146,60,0.4)' },
-  check:  { h1: '#c4b5fd', h2: '#5b21b6', glow: 'rgba(167,139,250,0.4)' },
-};
-function StatIcon3D({ type }: { type: StatIconType }) {
-  const { h1, h2, glow } = STAT_HUES[type];
-  const p = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: '#fff', strokeWidth: 1.9, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
-  const svgs: Record<StatIconType, ReactNode> = {
-    box:    <svg {...p}><path d="M16.5 9.4 7.55 4.24"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>,
-    driver: <svg {...p}><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>,
-    clock:  <svg {...p}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
-    check:  <svg {...p}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>,
-  };
-  return <Icon3D size={32} hue1={h1} hue2={h2} glow={glow} radius={10}>{svgs[type]}</Icon3D>;
-}
-
 // ══════════════════════════════════════════════════════════════════════
 // WELCOME
 // ══════════════════════════════════════════════════════════════════════
 export function Welcome() {
   const navigate  = useNavigate();
-  const { lang, setLang } = useLanguage();
+  const { lang, setLang, t } = useLanguage();
   const [selectedLang, setSelectedLang] = useState<LangCode>(lang);
   const [mounted, setMounted]   = useState(false);
   const [liveStats, setLiveStats] = useState<{ drivers: number; cities: number; satisfied: number } | null>(null);
@@ -273,13 +206,13 @@ export function Welcome() {
 
   if (!mounted) return null;
 
-  const statsStrip = [
+  const _statsStrip = [
     { target: liveStats?.drivers  ?? 3400, suffix: liveStats ? '' : '+', label: 'Водителей', color: C.blueLight },
     { target: liveStats?.cities   ?? 12,   suffix: '',                    label: 'Городов',   color: C.purple },
     { target: liveStats?.satisfied ?? 98,  suffix: '%',                   label: 'Довольных', color: C.green },
   ];
 
-  const bottomStats: { icon: StatIconType; val: number; suffix: string; label: string; color: string }[] = [
+  const _bottomStats: { icon: string; val: number; suffix: string; label: string; color: string }[] = [
     { icon: 'box',    val: 128, suffix: '',      label: 'Грузов онлайн',      color: C.blueLight },
     { icon: 'driver', val: 43,  suffix: '',      label: 'Водителей онлайн',   color: C.green },
     { icon: 'clock',  val: 12,  suffix: ' мин',  label: 'Очередь на границе', color: C.orange },
@@ -289,8 +222,8 @@ export function Welcome() {
   // Feature items for bottom bar
   const FEATURES = [
     {
-      title: 'НАДЁЖНОСТЬ',
-      desc: 'Сохраним груз в целости',
+      title: t('wl_feat_reliability'),
+      desc: t('wl_feat_reliability_desc'),
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5ba3f5" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
@@ -299,8 +232,8 @@ export function Welcome() {
       ),
     },
     {
-      title: 'СКОРОСТЬ',
-      desc: 'Быстрая доставка в срок',
+      title: t('wl_feat_speed'),
+      desc: t('wl_feat_speed_desc'),
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="10"/>
@@ -309,8 +242,8 @@ export function Welcome() {
       ),
     },
     {
-      title: 'ГЕОГРАФИЯ',
-      desc: 'Широкая сеть маршрутов',
+      title: t('wl_feat_geo'),
+      desc: t('wl_feat_geo_desc'),
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="10"/>
@@ -320,8 +253,8 @@ export function Welcome() {
       ),
     },
     {
-      title: 'ПОДДЕРЖКА',
-      desc: '24/7 на связи с вами',
+      title: t('wl_feat_support'),
+      desc: t('wl_feat_support_desc'),
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff7a3b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.38 2 2 0 0 1 3.59 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.56a16 16 0 0 0 6.29 6.29l1.09-.87a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
@@ -355,12 +288,12 @@ export function Welcome() {
             padding: 'clamp(10px,3vw,12px)',
             display: 'flex', alignItems: 'center', gap: 8,
           }}>
-            <div className="lang-label" style={{ fontSize: 'clamp(8px,2vw,10px)', fontWeight: 700, color: C.dim2, letterSpacing: '0.12em', textTransform: 'uppercase', whiteSpace: 'nowrap', flexShrink: 0 }}>Язык интерфейса</div>
+            <div className="lang-label" style={{ fontSize: 'clamp(8px,2vw,10px)', fontWeight: 700, color: C.dim2, letterSpacing: '0.12em', textTransform: 'uppercase', whiteSpace: 'nowrap', flexShrink: 0 }}>{t('wl_lang_label')}</div>
             <div className="lang-buttons" style={{ display: 'flex', gap: 'clamp(5px,1.8vw,8px)', flex: 1 }}>
               {LANGS.map(l => {
                 const active = selectedLang === l.code;
                 return (
-                  <button key={l.code} onClick={() => handleLang(l.code)} className="lang-btn" style={{
+                  <button key={l.code} onClick={() => handleLang(l.code)} aria-pressed={active} aria-label={`Язык: ${l.display}`} className="lang-btn" style={{
                     flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
                     padding: 'clamp(7px,2vw,10px) 4px', borderRadius: 9,
                     border: active ? '1px solid rgba(91,163,245,0.5)' : '1px solid rgba(255,255,255,0.08)',
@@ -399,11 +332,11 @@ export function Welcome() {
 
           {/* Заголовок + разделитель + описание */}
           <div>
-            <div style={{ fontSize: 'clamp(28px,3.2vw,48px)', fontWeight: 900, color: '#fff', lineHeight: 1.06, letterSpacing: '-1.5px' }}>Платформа</div>
+            <div style={{ fontSize: 'clamp(28px,3.2vw,48px)', fontWeight: 900, color: '#fff', lineHeight: 1.06, letterSpacing: '-1.5px' }}>{t('wl_brand_platform')}</div>
             <div style={{ fontSize: 'clamp(28px,3.2vw,48px)', fontWeight: 900, color: C.blueLight, lineHeight: 1.06, letterSpacing: '-1.5px' }}>Ovora</div>
             <div style={{ width: 38, height: 2.5, background: C.blue, borderRadius: 2, margin: 'clamp(7px,1.2vh,12px) 0' }} />
-            <p style={{ fontSize: 'clamp(11px,1.2vw,14px)', color: C.dim, lineHeight: 1.6, margin: 0 }}>
-              Грузоперевозки и авиадоставка<br />между Россией, Таджикистаном<br />и СНГ.
+            <p style={{ fontSize: 'clamp(11px,1.2vw,14px)', color: C.dim, lineHeight: 1.6, margin: 0, maxWidth: 280 }}>
+              {t('wl_tagline')}
             </p>
           </div>
         </motion.div>
@@ -418,29 +351,29 @@ export function Welcome() {
             {/* AVIA — первая карточка */}
             <WorldCard
               title="AVIA"
-              desc="Авиагруз  Россия ↔ Таджикистан"
+              desc={t('wl_avia_desc')}
               icon={<PlaneBig src={siteConfig.icons.plane} />}
               accentLight={C.cyan}
               onClick={() => navigate('/avia')}
               tags={[
-                { icon: Ti.plane, label: 'Курьер' },
-                { icon: Ti.mail,  label: 'Отправитель' },
-                { icon: Ti.flex,  label: 'Гибкие роли' },
+                { icon: Ti.plane, label: t('wl_tag_courier') },
+                { icon: Ti.mail,  label: t('wl_tag_sender') },
+                { icon: Ti.flex,  label: t('wl_tag_flex') },
               ]}
             />
 
             {/* CARGO — вторая карточка */}
             <WorldCard
               title="CARGO"
-              desc="Грузоперевозки  Россия · Таджикистан · СНГ"
+              desc={t('wl_cargo_desc')}
               icon={<TruckBig src={siteConfig.icons.truck} />}
               accentLight={C.blueLight}
               onClick={() => navigate('/role-select')}
               tags={[
-                { icon: Ti.border, label: 'Границы' },
-                { icon: Ti.driver, label: 'Водители', bg: 'rgba(220,38,38,0.7)' },
-                { icon: Ti.box,    label: 'Грузы',    bg: 'rgba(217,119,6,0.7)' },
-                { icon: Ti.warehouse, label: 'Склад' },
+                { icon: Ti.border, label: t('wl_tag_borders') },
+                { icon: Ti.driver, label: t('wl_tag_drivers'), bg: 'rgba(220,38,38,0.7)' },
+                { icon: Ti.box,    label: t('wl_tag_cargo'),   bg: 'rgba(217,119,6,0.7)' },
+                { icon: Ti.warehouse, label: t('wl_tag_warehouse') },
               ]}
             />
 
@@ -468,9 +401,9 @@ export function Welcome() {
           {/* Партнёры */}
           <div className="ovora-partners-card" style={{ border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: 'clamp(10px,3vw,14px)', flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <div style={{ fontSize: 'clamp(12px,1.1vw,14px)', fontWeight: 800, color: '#fff' }}>Наши партнёры</div>
+              <div style={{ fontSize: 'clamp(12px,1.1vw,14px)', fontWeight: 800, color: '#fff' }}>{t('wl_partners')}</div>
               <div className="ovora-partners-see-all" style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color: C.blueLight, fontWeight: 600 }}>
-                Смотреть всех
+                {t('wl_partners_all')}
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.blueLight} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 5l7 7-7 7" /></svg>
               </div>
             </div>

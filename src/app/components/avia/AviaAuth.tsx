@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router';
 import { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, Plane, Phone, Lock, Users, Package, Repeat, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Plane, Lock, Users, Package, Repeat, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAvia } from './AviaContext';
 import { checkPhone, registerAvia, loginAvia } from '../../api/aviaApi';
@@ -668,7 +668,7 @@ export function AviaAuth() {
         display: 'flex', gap: 6, justifyContent: 'center', flexShrink: 0,
         padding: 'clamp(12px, 2dvh, 20px) 0 max(clamp(16px, 3dvh, 28px), env(safe-area-inset-bottom, 16px))',
       }}>
-        {['phone', 'pin', 'role'].map((s, i) => {
+        {['phone', 'pin', 'role'].map((s, _i) => {
           const current =
             s === 'phone' ? step === 'phone' :
             s === 'pin' ? (step === 'pin-create' || step === 'pin-login') :

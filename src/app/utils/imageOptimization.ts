@@ -157,7 +157,7 @@ export async function processImage(
       success: true,
       blob,
     };
-  } catch (error) {
+  } catch (_error) {
     return {
       success: false,
       error: 'Ошибка обработки изображения',

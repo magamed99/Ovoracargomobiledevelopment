@@ -13,7 +13,7 @@ interface PlatformStats {
   completedTrips: number; rating: number; timestamp: string;
 }
 
-const FEATURE_COLORS = ['#5ba3f5', '#10b981', '#f59e0b', '#ec4899'];
+const _FEATURE_COLORS = ['#5ba3f5', '#10b981', '#f59e0b', '#ec4899'];
 
 export function AboutPage() {
   const navigate = useNavigate();
@@ -511,7 +511,7 @@ export function AboutPage() {
                   {/* Vertical line */}
                   <div style={{ position:'absolute', left:42, top:24, bottom:24, width:1, background:'linear-gradient(180deg,#10b98150,#5ba3f530,#8b5cf630,#f59e0b30)' }} />
                   <div style={{ display:'flex', flexDirection:'column', gap:18 }}>
-                    {timeline.map((item, i) => (
+                    {timeline.map((item, _i) => (
                       <div key={item.year} style={{ display:'flex', alignItems:'flex-start', gap:16 }}>
                         {/* Year badge */}
                         <div style={{ width:40, height:40, borderRadius:14, display:'flex', alignItems:'center', justifyContent:'center', background: item.current ? `${item.color}22` : '#0a1520', borderWidth:1, borderStyle:'solid', borderColor: item.current ? `${item.color}55` : '#1a2d3d', flexShrink:0, zIndex:1, boxShadow: item.current ? `0 0 16px ${item.color}30` : 'none' }}>

@@ -1,8 +1,5 @@
 import { useState } from 'react';
-import {
-  ArrowLeft, Heart, Truck, Trash2, ChevronRight, Package,
-  Search, MapPin, Calendar, Clock, Star, Sparkles, X,
-} from 'lucide-react';
+import { ArrowLeft, Heart, Truck, Trash2, ChevronRight, Package, Search, MapPin, Calendar, Clock, Sparkles, X } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { useTheme } from '../context/ThemeContext';
 import { useFavorites } from '../hooks/useFavorites';
@@ -28,7 +25,7 @@ export function FavoritesPage() {
   /* ── helpers ── */
   const bg      = 'bg-[#0E1621]';
   const txt     = isDark ? 'text-white' : 'text-[#0f172a]';
-  const sub     = isDark ? 'text-[#64748b]' : 'text-slate-500';
+  const _sub     = isDark ? 'text-[#64748b]' : 'text-slate-500';
   const divider = isDark ? 'border-white/[0.06]' : 'border-black/[0.06]';
   const hover   = isDark ? 'hover:bg-white/[0.03]' : 'hover:bg-black/[0.02]';
 
@@ -372,7 +369,7 @@ export function FavoritesPage() {
                 <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(360px, 1fr))', gap:16 }}>
                   {favorites.map((trip, idx) => {
                     const accent = CARD_ACCENTS[idx % CARD_ACCENTS.length];
-                    const isHovered = hoveredId === trip.id;
+                    const _isHovered = hoveredId === trip.id;
                     return (
                       <div
                         key={trip.id}

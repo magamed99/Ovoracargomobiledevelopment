@@ -5,6 +5,8 @@ import { cors } from "npm:hono/cors";
 import { logger } from "npm:hono/logger";
 import { createClient } from "npm:@supabase/supabase-js";
 import webpush from "npm:web-push";
+import { SignJWT, jwtVerify } from "npm:jose";
+import { rateLimitMiddleware, RL } from "./rateLimit.tsx";
 import * as kv from "./kv_store.tsx";
 import { handleSendOtp, handleVerifyOtp } from "./otp.tsx";
 import { handleGenerateBackup, handleVerifyBackup, handleBackupExists } from "./backup.tsx";
@@ -18,30 +20,80 @@ import {
 
 const app = new Hono();
 app.use('*', logger(console.log));
+
+// ── Input sanitization helper ──────────────────────────────────────────────
+function clampStr(s: unknown, max: number): string {
+  if (typeof s !== 'string') return '';
+  return s.trim().slice(0, max);
+}
+function assertMaxLen(fields: Record<string, unknown>, limits: Record<string, number>): string | null {
+  for (const [key, max] of Object.entries(limits)) {
+    const val = fields[key];
+    if (typeof val === 'string' && val.length > max) {
+      return `Field '${key}' exceeds maximum length of ${max} characters`;
+    }
+  }
+  return null;
+}
+const ALLOWED_ORIGINS = [
+  "https://ovora-cargo.ru",
+  "https://www.ovora-cargo.ru",
+  "https://magamed99.github.io",
+  // local dev
+  "http://localhost:5173",
+  "http://localhost:4173",
+  "http://127.0.0.1:5173",
+];
 app.use("/*", cors({
-  origin: "*",
+  origin: (origin) => {
+    // Allow requests with no origin (mobile apps, curl, Postman)
+    if (!origin) return origin;
+    if (ALLOWED_ORIGINS.includes(origin)) return origin;
+    // Allow any subdomain of ovora-cargo.ru
+    if (/^https:\/\/([a-z0-9-]+\.)?ovora-cargo\.ru$/.test(origin)) return origin;
+    return null; // deny
+  },
   allowHeaders: ["Content-Type", "Authorization", "X-Admin-Code"],
   allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   exposeHeaders: ["Content-Length"],
+  credentials: true,
   maxAge: 600,
 }));
 
 // ── Admin Middleware — защита всех /admin/* и /kv/* маршрутов ─────────────────
 async function requireAdmin(c: any, next: any) {
+  // ── Primary: signed JWT (Authorization: Bearer <token>) ──────────────────
+  const authHeader = (c.req.header('Authorization') || '').trim();
+  if (authHeader.startsWith('Bearer ')) {
+    const token = authHeader.slice(7);
+    const jwtSecret = (Deno.env.get('ADMIN_JWT_SECRET') || '').trim();
+    if (!jwtSecret) {
+      console.error('[requireAdmin] ADMIN_JWT_SECRET not configured — JWT auth disabled');
+      return c.json({ error: 'Server configuration error: ADMIN_JWT_SECRET not set' }, 500);
+    }
+    try {
+      const secret = new TextEncoder().encode(jwtSecret);
+      await jwtVerify(token, secret);
+      console.log('[requireAdmin] JWT admin access granted for:', c.req.path);
+      return await next();
+    } catch (err) {
+      console.warn('[requireAdmin] Invalid/expired JWT for:', c.req.path, err);
+      return c.json({ error: 'Unauthorized: invalid or expired admin token' }, 401);
+    }
+  }
+
+  // ── Legacy fallback: X-Admin-Code plaintext (deprecated — migrate to JWT) ─
   const adminCode = (c.req.header('X-Admin-Code') || '').trim();
   const envCode = (Deno.env.get('ADMIN_ACCESS_CODE') || '').trim();
-  
   if (!envCode) {
     console.error('[requireAdmin] ADMIN_ACCESS_CODE not configured in environment');
     return c.json({ error: 'Server configuration error: Admin access code not set' }, 500);
   }
-  
   if (!adminCode || adminCode !== envCode) {
     console.warn('[requireAdmin] Unauthorized access attempt:', c.req.path, '| code provided:', adminCode ? 'yes' : 'no');
     return c.json({ error: 'Unauthorized: Admin access required' }, 401);
   }
-  
-  console.log('[requireAdmin] Admin access granted for:', c.req.path);
+  console.log('[requireAdmin] Legacy X-Admin-Code access granted for:', c.req.path);
   return await next();
 }
 
@@ -252,27 +304,44 @@ app.post("/make-server-4e36197a/push/unsubscribe", async (c) => {
 app.get("/make-server-4e36197a/health", (c) => c.json({ status: "ok" }));
 
 // ── Admin Auth — проверка кода из env ─────────────────────────────────────────
-app.post("/make-server-4e36197a/admin/auth", async (c) => {
+app.post("/make-server-4e36197a/admin/auth",
+  rateLimitMiddleware(RL.LOGIN, (c) => c.req.header('x-forwarded-for') || 'unknown'),
+  async (c) => {
   try {
     const { code } = await c.req.json();
-    const envCode = Deno.env.get('ADMIN_ACCESS_CODE') || '';
+    const envCode = (Deno.env.get('ADMIN_ACCESS_CODE') || '').trim();
+    const jwtSecret = (Deno.env.get('ADMIN_JWT_SECRET') || '').trim();
 
     if (!envCode) {
       console.log('[AdminAuth] ADMIN_ACCESS_CODE not set in env');
-      return c.json({ success: false, error: 'Код доступа не настроен на серве��е' }, 500);
+      return c.json({ success: false, error: 'Код доступа не настроен на сервере' }, 500);
     }
 
     if (!code || typeof code !== 'string') {
       return c.json({ success: false, error: 'Код обязателен' }, 400);
     }
 
-    if (code.trim() === envCode.trim()) {
-      console.log('[AdminAuth] Admin access granted');
-      return c.json({ success: true });
+    if (code.trim() !== envCode) {
+      console.log('[AdminAuth] Wrong admin code attempt');
+      return c.json({ success: false, error: 'Неверный код доступа' });
     }
 
-    console.log('[AdminAuth] Wrong admin code attempt');
-    return c.json({ success: false, error: 'Неверный код доступа' });
+    console.log('[AdminAuth] Admin access granted, issuing JWT');
+
+    // Issue a signed JWT (8 h expiry) so the plaintext code never travels in headers again
+    let token: string | undefined;
+    if (jwtSecret) {
+      const secret = new TextEncoder().encode(jwtSecret);
+      token = await new SignJWT({ role: 'admin' })
+        .setProtectedHeader({ alg: 'HS256' })
+        .setIssuedAt()
+        .setExpirationTime('8h')
+        .sign(secret);
+    } else {
+      console.warn('[AdminAuth] ADMIN_JWT_SECRET not set — token not issued, legacy X-Admin-Code still works');
+    }
+
+    return c.json({ success: true, token });
   } catch (err) {
     console.log('Error POST /admin/auth:', err);
     return c.json({ success: false, error: `${err}` }, 500);
@@ -280,7 +349,7 @@ app.post("/make-server-4e36197a/admin/auth", async (c) => {
 });
 
 // ── Config: Yandex API Key ────────────────────────────────────────────────────
-app.get("/make-server-4e36197a/config/yandex-key", (c) => {
+app.get("/make-server-4e36197a/config/yandex-key", requireAdmin, (c) => {
   try {
     const apiKey = Deno.env.get('YANDEX_GEOCODER_API_KEY') || '';
     if (!apiKey) {
@@ -401,7 +470,16 @@ app.get("/make-server-4e36197a/config/test-ocr-direct", requireAdmin, async (c) 
 app.post("/make-server-4e36197a/ocr/scan-document", async (c) => {
   try {
     const body = await c.req.json();
-    const { imageBase64, documentType } = body;
+    const { imageBase64, documentType, callerEmail } = body;
+
+    // Require authenticated user — prevents cost hijacking by anonymous callers
+    if (!callerEmail) {
+      return c.json({ error: 'callerEmail is required' }, 400);
+    }
+    const callerUser = await kv.get(`ovora:user:email:${String(callerEmail).toLowerCase().trim()}`);
+    if (!callerUser) {
+      return c.json({ error: 'Unauthorized: user not found' }, 401);
+    }
 
     if (!imageBase64) {
       return c.json({ error: 'imageBase64 is required' }, 400);
@@ -448,11 +526,17 @@ app.post("/make-server-4e36197a/ocr/scan-document", async (c) => {
 //  KV: ovora:user:email:{email} / ovora:user:phone:{phone} → email
 // ���═════════════════════════════════════════════════════════════════════════════
 
-app.post("/make-server-4e36197a/auth/register", async (c) => {
+app.post("/make-server-4e36197a/auth/register",
+  rateLimitMiddleware(RL.REGISTER, (c) => c.req.header('x-forwarded-for') || 'unknown'),
+  async (c) => {
   try {
     const body = await c.req.json();
     const { email, firstName, lastName, phone, role, vehicle } = body;
     if (!email || !role) return c.json({ error: "email and role are required" }, 400);
+
+    const lenErr = assertMaxLen({ email, firstName, lastName, phone, vehicle },
+      { email: 254, firstName: 60, lastName: 60, phone: 20, vehicle: 100 });
+    if (lenErr) return c.json({ error: lenErr }, 400);
 
     const key = `ovora:user:email:${email.toLowerCase().trim()}`;
     const existing: any = await kv.get(key) || {};
@@ -461,12 +545,12 @@ app.post("/make-server-4e36197a/auth/register", async (c) => {
 
     const user = {
       ...existing,
-      email: email.toLowerCase().trim(),
-      firstName: firstName?.trim() || existing.firstName || "",
-      lastName: lastName?.trim() || existing.lastName || "",
-      phone: phone?.trim() || existing.phone || "",
+      email: clampStr(email, 254).toLowerCase(),
+      firstName: clampStr(firstName, 60) || existing.firstName || "",
+      lastName: clampStr(lastName, 60) || existing.lastName || "",
+      phone: clampStr(phone, 20) || existing.phone || "",
       role,
-      vehicle: vehicle || existing.vehicle || null,
+      vehicle: vehicle ? clampStr(vehicle, 100) : (existing.vehicle || null),
       createdAt: existing.createdAt || now,
       updatedAt: now,
     };
@@ -494,7 +578,9 @@ app.post("/make-server-4e36197a/auth/register", async (c) => {
   }
 });
 
-app.post("/make-server-4e36197a/auth/login-email", async (c) => {
+app.post("/make-server-4e36197a/auth/login-email",
+  rateLimitMiddleware(RL.LOGIN, (c) => `login:${c.req.header('x-forwarded-for') || 'unknown'}`),
+  async (c) => {
   try {
     const { email } = await c.req.json();
     if (!email) return c.json({ error: "email required" }, 400);
@@ -505,14 +591,19 @@ app.post("/make-server-4e36197a/auth/login-email", async (c) => {
       console.log(`[auth/login-email] Blocked user: ${email}`);
       return c.json({ found: false, blocked: true, error: "Ваш аккаунт заблокирован. Обратитесь в поддержку." }, 403);
     }
-    return c.json({ found: true, user });
+    const { codeHash: _ch, passportNumber: _pn, passportData: _pd } = user as any;
+    const safeUser = { ...(user as any) };
+    delete safeUser.codeHash; delete safeUser.passportNumber; delete safeUser.passportData;
+    return c.json({ found: true, user: safeUser });
   } catch (err) {
     console.log("Error /auth/login-email:", err);
     return c.json({ error: `${err}` }, 500);
   }
 });
 
-app.post("/make-server-4e36197a/auth/login-phone", async (c) => {
+app.post("/make-server-4e36197a/auth/login-phone",
+  rateLimitMiddleware(RL.LOGIN, (c) => `login:${c.req.header('x-forwarded-for') || 'unknown'}`),
+  async (c) => {
   try {
     const { phone } = await c.req.json();
     if (!phone) return c.json({ error: "phone required" }, 400);
@@ -526,26 +617,44 @@ app.post("/make-server-4e36197a/auth/login-phone", async (c) => {
       console.log(`[auth/login-phone] Blocked user: ${emailRef}`);
       return c.json({ found: false, blocked: true, error: "Ваш аккаунт заблокирован. Обратитесь в поддержку." }, 403);
     }
-    return c.json({ found: true, user });
+    const safeUser = { ...(user as any) };
+    delete safeUser.codeHash; delete safeUser.passportNumber; delete safeUser.passportData;
+    return c.json({ found: true, user: safeUser });
   } catch (err) {
     console.log("Error /auth/login-phone:", err);
     return c.json({ error: `${err}` }, 500);
   }
 });
 
+// Fields users must never be allowed to change via self-service update
+const USER_PROTECTED_FIELDS = new Set([
+  'role', 'status', 'codeHash', 'blocked', 'isVerified',
+  'passportNumber', 'passportData', 'email', 'createdAt',
+]);
+
 app.put("/make-server-4e36197a/auth/user", async (c) => {
   try {
     const body = await c.req.json();
-    const { email, ...updates } = body;
+    const { email, ...rawUpdates } = body;
     if (!email) return c.json({ error: "email required" }, 400);
     const key = `ovora:user:email:${email.toLowerCase().trim()}`;
     const existing: any = await kv.get(key);
     if (!existing) return c.json({ error: "User not found" }, 404);
+
+    // Strip protected fields — prevents privilege escalation
+    const updates: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(rawUpdates)) {
+      if (!USER_PROTECTED_FIELDS.has(k)) updates[k] = v;
+    }
+
     const updated = { ...existing, ...updates, email: existing.email, updatedAt: new Date().toISOString() };
     await kv.set(key, updated);
     const newPhone = updated.phone?.replace(/\D/g, "");
     if (newPhone?.length >= 7) await kv.set(`ovora:user:phone:${newPhone}`, existing.email);
-    return c.json({ success: true, user: updated });
+
+    // Return safe user (never expose codeHash or passportNumber)
+    const { codeHash: _ch, passportNumber: _pn, passportData: _pd, ...safeUser } = updated;
+    return c.json({ success: true, user: safeUser });
   } catch (err) {
     console.log("Error PUT /auth/user:", err);
     return c.json({ error: `${err}` }, 500);
@@ -599,9 +708,13 @@ function cleanAddress(address: string): string {
 app.post("/make-server-4e36197a/trips", async (c) => {
   try {
     const body = await c.req.json();
+
+    const lenErr = assertMaxLen(body, { from: 200, to: 200, notes: 1000, vehicle: 100, email: 254 });
+    if (lenErr) return c.json({ error: lenErr }, 400);
+
     const id = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const now = new Date().toISOString();
-    
+
     // 🗺️ Очищаем адреса перед сохранением в БД
     const cleanedFrom = cleanAddress(body.from || '');
     const cleanedTo = cleanAddress(body.to || '');
@@ -906,9 +1019,13 @@ app.delete("/make-server-4e36197a/trips/:id", async (c) => {
 app.post("/make-server-4e36197a/cargos", async (c) => {
   try {
     const body = await c.req.json();
+
+    const lenErr = assertMaxLen(body, { from: 200, to: 200, notes: 1000, senderEmail: 254, senderName: 100, description: 500 });
+    if (lenErr) return c.json({ error: lenErr }, 400);
+
     const id = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const now = new Date().toISOString();
-    
+
     // Очищаем адреса
     const cleanedFrom = cleanAddress(body.from || '');
     const cleanedTo = cleanAddress(body.to || '');
@@ -999,10 +1116,20 @@ app.put("/make-server-4e36197a/cargos/:id", async (c) => {
     const existing: any = await kv.get(`ovora:cargo:${id}`);
     if (!existing) return c.json({ error: "Cargo not found" }, 404);
 
+    // Ownership check — only the cargo sender may update it
+    const callerEmail: string | undefined = (body as any).callerEmail;
+    if (!callerEmail) {
+      return c.json({ error: "callerEmail is required" }, 400);
+    }
+    if (existing.senderEmail && existing.senderEmail !== callerEmail) {
+      console.warn(`[PUT /cargos] IDOR attempt: ${callerEmail} tried to update cargo ${id} owned by ${existing.senderEmail}`);
+      return c.json({ error: "Forbidden: you are not the owner of this cargo" }, 403);
+    }
+
     const { callerEmail: _ignored, ...cleanedBody } = body as any;
     if (body.from) cleanedBody.from = cleanAddress(body.from);
     if (body.to) cleanedBody.to = cleanAddress(body.to);
-    
+
     const updated = { ...existing, ...cleanedBody, id, updatedAt: new Date().toISOString() };
     await kv.set(`ovora:cargo:${id}`, updated);
     return c.json({ success: true, cargo: updated });
@@ -1038,6 +1165,9 @@ app.post("/make-server-4e36197a/offers", async (c) => {
   try {
     const body = await c.req.json();
     const { tripId, senderEmail, senderName } = body;
+
+    const lenErr = assertMaxLen(body, { senderEmail: 254, senderName: 100, notes: 1000, driverEmail: 254, driverName: 100 });
+    if (lenErr) return c.json({ error: lenErr }, 400);
 
     // ✅ FIX #7: Валидация обязательных полей
     if (!tripId) return c.json({ error: "tripId required" }, 400);
@@ -1300,13 +1430,14 @@ app.put("/make-server-4e36197a/offers/:tripId/:offerId", async (c) => {
 
     // Проверка участника: только senderEmail или driverEmail вправе менять оферту
     const callerEmail: string | undefined = body.callerEmail;
-    if (callerEmail) {
-      const isSender = existing.senderEmail && existing.senderEmail === callerEmail;
-      const isDriver = existing.driverEmail && existing.driverEmail === callerEmail;
-      if (!isSender && !isDriver) {
-        console.warn(`[PUT /offers] Unauthorized update attempt by ${callerEmail} for offer ${offerId}`);
-        return c.json({ error: "Forbidden: you are not a participant of this offer" }, 403);
-      }
+    if (!callerEmail) {
+      return c.json({ error: "callerEmail is required" }, 400);
+    }
+    const isSender = existing.senderEmail && existing.senderEmail === callerEmail;
+    const isDriver = existing.driverEmail && existing.driverEmail === callerEmail;
+    if (!isSender && !isDriver) {
+      console.warn(`[PUT /offers] Unauthorized update attempt by ${callerEmail} for offer ${offerId}`);
+      return c.json({ error: "Forbidden: you are not a participant of this offer" }, 403);
     }
 
     const { callerEmail: _drop, ...safeBody } = body;
@@ -1674,9 +1805,12 @@ app.delete("/make-server-4e36197a/reviews/:reviewId", async (c) => {
     const existing: any = await kv.get(`ovora:review:${reviewId}`);
     if (!existing) return c.json({ error: "Review not found" }, 404);
 
-    // Только автор может удалять свой отзыв
+    // Только автор может удалять свой отзыв — callerEmail обязателен
     const { callerEmail } = await c.req.json().catch(() => ({})) as any;
-    if (callerEmail && existing.authorEmail && existing.authorEmail !== callerEmail) {
+    if (!callerEmail) {
+      return c.json({ error: "callerEmail is required" }, 400);
+    }
+    if (existing.authorEmail && existing.authorEmail !== callerEmail) {
       console.warn(`[DELETE /reviews] Unauthorized: ${callerEmail} tried to delete review by ${existing.authorEmail}`);
       return c.json({ error: "Forbidden: you are not the author of this review" }, 403);
     }
@@ -1850,9 +1984,19 @@ app.post("/make-server-4e36197a/chat/message", async (c) => {
 app.get("/make-server-4e36197a/chat/:chatId/messages", async (c) => {
   try {
     const chatId = c.req.param("chatId");
+    const callerEmail = c.req.query("callerEmail");
+    if (!callerEmail) return c.json({ error: "callerEmail query param required" }, 400);
+
+    // IDOR fix: verify caller is a participant before exposing messages
+    const meta: any = await kv.get(`ovora:chatmeta:${chatId}`);
+    if (meta?.participants?.length > 0 && !meta.participants.includes(callerEmail)) {
+      console.warn(`[GET /chat/messages] IDOR attempt: ${callerEmail} tried to read chat ${chatId}`);
+      return c.json({ error: "Forbidden: you are not a participant of this chat" }, 403);
+    }
+
     const messages: any[] = await kv.getByPrefix(`ovora:chat:${chatId}:`);
     const sorted = messages
-      .filter(m => m && m.msgId) // exclude metadata
+      .filter(m => m && m.msgId)
       .sort((a, b) => (a.ts || 0) - (b.ts || 0));
     return c.json({ messages: sorted });
   } catch (err) {
@@ -1867,9 +2011,14 @@ app.put("/make-server-4e36197a/chat/:chatId/read", async (c) => {
     const chatId = c.req.param("chatId");
     const { userEmail } = await c.req.json();
     if (!userEmail) return c.json({ error: "userEmail required" }, 400);
-    // Update metadata unread count
+
     const metaKey = `ovora:chatmeta:${chatId}`;
     const meta: any = await kv.get(metaKey) || {};
+
+    if (meta?.participants?.length > 0 && !meta.participants.includes(userEmail)) {
+      return c.json({ error: "Forbidden: you are not a participant of this chat" }, 403);
+    }
+
     const unreadByEmail = { ...(meta.unreadByEmail || {}), [userEmail]: 0 };
     await kv.set(metaKey, { ...meta, unreadByEmail });
     return c.json({ success: true });
@@ -2151,7 +2300,7 @@ app.get("/make-server-4e36197a/chats/user/:email", async (c) => {
 });
 
 // Одноразовая очистка демо-чатов из KV
-app.delete("/make-server-4e36197a/chats/cleanup-demo", async (c) => {
+app.delete("/make-server-4e36197a/chats/cleanup-demo", requireAdmin, async (c) => {
   try {
     const allMeta: any[] = await kv.getByPrefix(`ovora:chatmeta:`);
     const demoMetas = allMeta.filter(m => m?.chatId?.startsWith('demo_'));
@@ -2312,17 +2461,27 @@ app.delete("/make-server-4e36197a/chat/:chatId", async (c) => {
     const chatId = c.req.param("chatId");
     if (!chatId) return c.json({ error: "chatId required" }, 400);
 
+    const callerEmail = c.req.query("callerEmail");
+    if (!callerEmail) return c.json({ error: "callerEmail query param required" }, 400);
+
     console.log(`[delete-chat] Deleting chat: ${chatId}`);
 
     // 0. Read chatmeta BEFORE deleting — need tripIds + participants to reset offers
     const metaKey = `ovora:chatmeta:${chatId}`;
     const meta: any = await kv.get(metaKey) || {};
+
+    // IDOR fix: only participants may delete the chat
+    const participants: string[] = meta.participants || [];
+    if (participants.length > 0 && !participants.includes(callerEmail)) {
+      console.warn(`[delete-chat] Unauthorized: ${callerEmail} tried to delete chat ${chatId}`);
+      return c.json({ error: "Forbidden: you are not a participant of this chat" }, 403);
+    }
+
     const tripId: string | undefined = meta.tripId;
     const tripIds: Set<string> = new Set([
       ...(meta.tripIds || []),
       ...(meta.tripId ? [String(meta.tripId)] : []),
     ]);
-    const participants: string[] = meta.participants || [];
 
     // 0a. Cancel ALL pending offers between this pair of participants (chat_deleted = cancellation)
     // ✅ FIX: pair-based chat stores only the LAST tripId in chatmeta.
@@ -2397,6 +2556,16 @@ app.delete("/make-server-4e36197a/chat/:chatId/message/:msgId", async (c) => {
     const chatId = c.req.param("chatId");
     const msgId = c.req.param("msgId");
     if (!chatId || !msgId) return c.json({ error: "chatId and msgId required" }, 400);
+
+    const callerEmail = c.req.query("callerEmail");
+    if (!callerEmail) return c.json({ error: "callerEmail query param required" }, 400);
+
+    // Only the message author may delete it
+    const existing: any = await kv.get(`ovora:chat:${chatId}:${msgId}`);
+    if (existing && existing.senderId && existing.senderId !== callerEmail) {
+      console.warn(`[delete-message] Unauthorized: ${callerEmail} tried to delete message by ${existing.senderId}`);
+      return c.json({ error: "Forbidden: you are not the author of this message" }, 403);
+    }
 
     console.log(`[delete-message] Deleting message ${msgId} from chat ${chatId}`);
 
@@ -3844,7 +4013,7 @@ app.post("/make-server-4e36197a/documents/analyze/:documentId", async (c) => {
 /**
  * 🧪 Test OCR endpoint - для тестирования распозна��ания документов
  */
-app.post("/make-server-4e36197a/test-ocr", async (c) => {
+app.post("/make-server-4e36197a/test-ocr", requireAdmin, async (c) => {
   try {
     const { imageBase64, documentType } = await c.req.json();
 
@@ -5607,6 +5776,9 @@ app.put("/make-server-4e36197a/avia/profile", async (c) => {
       return c.json({ error: 'role must be courier/sender/both' }, 400);
     }
 
+    const lenErr = assertMaxLen(updates, { firstName: 60, lastName: 60, middleName: 60, bio: 500, city: 100 });
+    if (lenErr) return c.json({ error: lenErr }, 400);
+
     // 🔒 Паспортные данные нельзя менять через PUT — только через upload-passport
     delete updates.passportPhoto;
     delete updates.passportPhotoPath;
@@ -6405,15 +6577,22 @@ app.post("/make-server-4e36197a/avia/chat/init", async (c) => {
 // ── GET /avia/chat/:chatId/messages — история сообщений ──────────────────────
 app.get("/make-server-4e36197a/avia/chat/:chatId/messages", async (c) => {
   try {
-    const chatId = c.req.param("chatId");
-    if (!chatId) return c.json({ error: 'chatId required' }, 400);
+    const chatId     = c.req.param("chatId");
+    const callerPhone = aviaCleanPhone(c.req.query("callerPhone") || "");
+    if (!chatId)     return c.json({ error: 'chatId required' }, 400);
+    if (!callerPhone) return c.json({ error: 'callerPhone required' }, 400);
+
+    const meta: any = await kv.get(`ovora:avia-chatmeta:${chatId}`) || {};
+    const participants: string[] = meta.participants || [];
+    if (!participants.includes(callerPhone)) {
+      return c.json({ error: 'Forbidden: not a participant' }, 403);
+    }
 
     const messages: any[] = await kv.getByPrefix(`ovora:avia-chat:${chatId}:`);
     const sorted = messages
       .filter(m => m && m.id && !m.deleted)
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
-    const meta: any = await kv.get(`ovora:avia-chatmeta:${chatId}`) || {};
     return c.json({ messages: sorted, meta });
   } catch (err) {
     console.log('Error GET /avia/chat/:chatId/messages:', err);
@@ -6434,6 +6613,16 @@ app.post("/make-server-4e36197a/avia/chat/:chatId/messages", async (c) => {
 
     if (!chatId || !clean || (!text && type === 'text')) {
       return c.json({ error: 'chatId, senderPhone and text required' }, 400);
+    }
+
+    if (text.length > 2000) return c.json({ error: "Message text exceeds 2000 characters" }, 400);
+
+    // ✅ IDOR fix: senderPhone must be a participant of this chat
+    const chatMetaCheck: any = await kv.get(`ovora:avia-chatmeta:${chatId}`);
+    if (!chatMetaCheck) return c.json({ error: 'Chat not found' }, 404);
+    const participantsCheck: string[] = chatMetaCheck.participants || [];
+    if (!participantsCheck.includes(clean)) {
+      return c.json({ error: 'Forbidden: not a participant' }, 403);
     }
 
     const id  = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -6508,6 +6697,12 @@ app.post("/make-server-4e36197a/avia/chat/:chatId/seen", async (c) => {
     const metaKey = `ovora:avia-chatmeta:${chatId}`;
     const meta: any = await kv.get(metaKey);
     if (!meta) return c.json({ error: 'Chat not found' }, 404);
+
+    // ✅ IDOR fix: only participants can mark as seen
+    const seenParticipants: string[] = meta.participants || [];
+    if (!seenParticipants.includes(clean)) {
+      return c.json({ error: 'Forbidden: not a participant' }, 403);
+    }
 
     await kv.set(metaKey, {
       ...meta,
@@ -6682,13 +6877,25 @@ app.post("/make-server-4e36197a/avia/deals", async (c) => {
       weightKg, price, currency, message,
       courierId, senderId, courierName, senderName,
       dealType, // 'cargo' | 'docs'
+      callerPhone, // ✅ IDOR fix: caller must match initiator
     } = body;
 
     if (!initiatorPhone || !recipientPhone || !adType || !adId || !courierId || !senderId) {
       return c.json({ error: 'Missing required fields' }, 400);
     }
 
-    const p1 = aviaCleanPhone(initiatorPhone);
+    const lenErr = assertMaxLen(body, { message: 1000, adFrom: 200, adTo: 200, initiatorName: 100, recipientName: 100, courierName: 100, senderName: 100, currency: 10 });
+    if (lenErr) return c.json({ error: lenErr }, 400);
+
+    // ✅ IDOR fix: verify caller is the initiator
+    const callerClean = aviaCleanPhone(callerPhone || '');
+    const initiatorClean = aviaCleanPhone(initiatorPhone);
+    if (!callerClean) return c.json({ error: 'callerPhone required' }, 400);
+    if (callerClean !== initiatorClean) {
+      return c.json({ error: 'Forbidden: callerPhone must match initiatorPhone' }, 403);
+    }
+
+    const p1 = initiatorClean;
     const p2 = aviaCleanPhone(recipientPhone);
     if (!p1 || !p2) return c.json({ error: 'Invalid phone numbers' }, 400);
     if (p1 === p2) return c.json({ error: 'Cannot make a deal with yourself' }, 400);
@@ -6790,9 +6997,19 @@ app.post("/make-server-4e36197a/avia/deals", async (c) => {
 app.get("/make-server-4e36197a/avia/deals/:id", async (c) => {
   try {
     const id = c.req.param("id");
+    const callerPhone = aviaCleanPhone(c.req.query("callerPhone") || "");
     if (!id) return c.json({ error: 'id required' }, 400);
-    const deal = await kv.get(`ovora:avia-deal:${id}`);
+    if (!callerPhone) return c.json({ error: 'callerPhone required' }, 400);
+
+    const deal: any = await kv.get(`ovora:avia-deal:${id}`);
     if (!deal) return c.json({ error: 'Deal not found' }, 404);
+
+    // ✅ IDOR fix: only participants can view deal details
+    const initiator = aviaCleanPhone(deal.initiatorPhone || '');
+    const recipient  = aviaCleanPhone(deal.recipientPhone || '');
+    if (callerPhone !== initiator && callerPhone !== recipient) {
+      return c.json({ error: 'Forbidden: not a participant' }, 403);
+    }
     return c.json({ deal });
   } catch (err) {
     console.log('Error GET /avia/deals/:id:', err);
@@ -6804,7 +7021,14 @@ app.get("/make-server-4e36197a/avia/deals/:id", async (c) => {
 app.get("/make-server-4e36197a/avia/deals/user/:phone", async (c) => {
   try {
     const phone = aviaCleanPhone(decodeURIComponent(c.req.param("phone")));
+    const callerPhone = aviaCleanPhone(c.req.query("callerPhone") || "");
     if (!phone) return c.json({ error: 'phone required' }, 400);
+    if (!callerPhone) return c.json({ error: 'callerPhone required' }, 400);
+
+    // ✅ IDOR fix: caller can only fetch their own deals
+    if (callerPhone !== phone) {
+      return c.json({ error: 'Forbidden: callerPhone must match phone' }, 403);
+    }
 
     const index: any[] = await kv.getByPrefix(`ovora:avia-userdeal:${phone}:`);
     const deals: any[] = [];

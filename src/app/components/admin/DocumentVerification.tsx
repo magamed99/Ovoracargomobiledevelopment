@@ -1,10 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { 
-  FileCheck, X, Check, Clock, Eye, User, Car,
-  FileText, Shield, RefreshCw, Loader2, AlertTriangle,
-  ChevronDown, ChevronUp, Phone, Mail, Search, ZoomIn
-} from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { FileCheck, X, Check, RefreshCw, Loader2, AlertTriangle, ChevronDown, ChevronUp, Search, ZoomIn } from 'lucide-react';
+import { Card, CardContent } from '../ui/card';
 import { toast } from 'sonner';
 import { adminHeaders } from '../../api/dataApi';
 import { projectId } from '../../../../utils/supabase/info';
@@ -89,7 +85,7 @@ export function DocumentVerification() {
         : `❌ Документ отклонён`
       );
       setExpandedId(null);
-    } catch (err) {
+    } catch (_err) {
       toast.error('Ошибка изменения статуса');
     } finally {
       setActionLoading(null);

@@ -90,7 +90,7 @@ export async function subscribeToPush(userEmail: string): Promise<'granted' | 'd
     if (!subscription) {
       subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidKey),
+        applicationServerKey: urlBase64ToUint8Array(vapidKey) as unknown as string,
       });
     }
 
@@ -169,7 +169,7 @@ export async function ensurePushSubscription(userEmail: string): Promise<void> {
       await subscribeToPush(userEmail);
     } else {
       // Refresh subscription on server (in case server lost it)
-      const vapidKey = await getVapidPublicKey();
+      const _vapidKey = await getVapidPublicKey();
       await fetch(`${BASE}/push/subscribe`, {
         method: 'POST',
         headers: {

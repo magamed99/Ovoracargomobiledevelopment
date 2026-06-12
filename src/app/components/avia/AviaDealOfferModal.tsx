@@ -9,7 +9,7 @@ import { createAviaDeal } from '../../api/aviaDealApi';
 import type { AviaDeal } from '../../api/aviaDealApi';
 import type { AviaFlight, AviaRequest } from '../../api/aviaApi';
 import type { AviaUser } from '../../api/aviaApi';
-import { initAviaChat, sendTypedChatMessage, makeAviaChatId } from '../../api/aviaChatApi';
+import { initAviaChat, sendTypedChatMessage } from '../../api/aviaChatApi';
 import type { AviaChatAdRef } from '../../api/aviaChatApi';
 
 interface AviaDealOfferModalProps {
@@ -129,8 +129,8 @@ export function AviaDealOfferModal({ me, flight, request, onClose, onSuccess, on
       await sendTypedChatMessage(chatId, me.phone, '', 'deal_offer', {
         dealId:         deal.id,
         dealType,
-        weightKg:       dealType === 'cargo' ? Number(weightKg) : null,
-        price:          price ? Number(price) : null,
+        weightKg:       dealType === 'cargo' ? Number(weightKg) : undefined,
+        price:          price ? Number(price) : undefined,
         currency,
         adFrom,
         adTo,

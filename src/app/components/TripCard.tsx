@@ -18,19 +18,13 @@
  * 10. Fallback for cargo trips without weight
  */
 import { useNavigate } from 'react-router';
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import {
-  Play, Navigation, Snowflake, CheckCircle2, Trash2,
-  MessageSquare, Star, Users, Package, Weight, Truck,
-  FileText, Calendar, ArrowRight, Map as MapIcon,
-  CheckCircle, Clock, Phone, Shield, Baby, XCircle, Info,
-  ChevronDown, PhoneCall, Share2, Copy, Route,
-} from 'lucide-react';
+import { Play, Navigation, Snowflake, CheckCircle2, Trash2, MessageSquare, Star, Users, Package, Weight, Truck, FileText, Calendar, ArrowRight, Map as MapIcon, CheckCircle, Clock, Shield, Baby, XCircle, Info, ChevronDown, PhoneCall, Share2, Route } from 'lucide-react';
 import { WeatherAnimation } from './WeatherAnimation';
 import type { WeatherData } from '../api/weatherApi';
 import { cleanAddress } from '../utils/addressUtils';
-import { playAcceptSound, playDeclineSound, playDeleteSound, playSwipeSound } from '../utils/soundFeedback';
+import { playAcceptSound, playDeclineSound, playDeleteSound } from '../utils/soundFeedback';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -800,7 +794,7 @@ interface InlineOffersProps {
   onDeclineOffer?: (offer: any) => void;
 }
 
-function InlineOffers({ offers, totalCount, collapseThreshold, offerActionId, onAcceptOffer, onDeclineOffer }: InlineOffersProps) {
+function InlineOffers({ offers, totalCount: _totalCount, collapseThreshold, offerActionId, onAcceptOffer, onDeclineOffer }: InlineOffersProps) {
   const [expanded, setExpanded] = useState(false);
 
   const accepted = offers.filter((o: any) => o.status === 'accepted');

@@ -3,6 +3,7 @@ import { ArrowLeft, Send, Truck, Package, Wifi, WifiOff, Mic, MicOff, Play, Paus
 import { useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
+// @ts-ignore — Vite virtual module resolved at build time
 import { projectId, publicAnonKey } from '/utils/supabase/info';
 
 const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;
@@ -226,7 +227,7 @@ export function RadioPage() {
       const res  = await fetch(`${BASE}/radio/channels/${channel.id}/messages?limit=30`, { headers: H });
       const data = await res.json();
       if (data.messages) {
-        setMessages(prev => {
+        setMessages(_prev => {
           const incoming = data.messages as Message[];
           const diff = incoming.length - lastMsgCount.current;
           if (diff > 0 && lastMsgCount.current > 0) {
@@ -334,7 +335,7 @@ export function RadioPage() {
   }, []);
 
   /* Upload voice blob → get URL */
-  const uploadVoice = async (b: Blob, duration: number): Promise<string> => {
+  const uploadVoice = async (b: Blob, _duration: number): Promise<string> => {
     const ext  = b.type.includes('ogg') ? 'ogg' : 'webm';
     const form = new FormData();
     form.append('file', b, `voice_${Date.now()}.${ext}`);

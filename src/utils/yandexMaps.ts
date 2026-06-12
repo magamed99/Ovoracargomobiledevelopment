@@ -75,7 +75,7 @@ export function findNearestCity(coords: YandexCoordinates): {
   let nearest: { name: string; distance: number; coords: YandexCoordinates } | null = null;
   let minDistance = Infinity;
 
-  Object.entries(TAJIKISTAN_CITIES).forEach(([key, city]) => {
+  Object.entries(TAJIKISTAN_CITIES).forEach(([_key, city]) => {
     const distance = calculateDistance(coords, { lat: city.lat, lng: city.lng });
     if (distance < minDistance) {
       minDistance = distance;

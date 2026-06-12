@@ -13,7 +13,7 @@ interface SimpleBarChartProps {
 export function SimpleBarChart({ data, color = '#3b82f6', height = 200, valueSuffix = '' }: SimpleBarChartProps) {
   const max = Math.max(...data.map(d => d.value), 1);
   const barAreaHeight = height - 36; // reserve space for labels
-  const barWidth = 100 / data.length;
+  const _barWidth = 100 / data.length;
 
   return (
     <div style={{ height }} className="w-full relative flex flex-col">

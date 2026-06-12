@@ -36,6 +36,8 @@ export interface AviaFlight {
   courierId: string;
   courierName?: string;
   courierAvatar?: string;
+  courierRating?: number;
+  courierReviewCount?: number;
   from: string;
   to: string;
   date: string;
@@ -60,6 +62,7 @@ export interface AviaRequest {
   senderId: string;
   senderName?: string;
   senderAvatar?: string;
+  senderRating?: number;
   from: string;
   to: string;
   beforeDate: string;
@@ -389,6 +392,11 @@ export async function getAviaFlights(filters?: AviaFilters): Promise<AviaFlight[
   return data.flights || [];
 }
 
+export async function getAviaFlight(id: string): Promise<AviaFlight | null> {
+  const flights = await getAviaFlights();
+  return flights.find(f => f.id === id) ?? null;
+}
+
 export async function createAviaFlight(flightData: Partial<AviaFlight>): Promise<{ success: boolean; flight?: AviaFlight; error?: string }> {
   const res = await fetch(`${BASE}/avia/flights`, {
     method: 'POST',
@@ -404,6 +412,11 @@ export async function getAviaRequests(filters?: AviaFilters): Promise<AviaReques
   if (!res.ok) return [];
   const data = await res.json();
   return data.requests || [];
+}
+
+export async function getAviaRequest(id: string): Promise<AviaRequest | null> {
+  const requests = await getAviaRequests();
+  return requests.find(r => r.id === id) ?? null;
 }
 
 export async function createAviaRequest(requestData: Partial<AviaRequest>): Promise<{ success: boolean; request?: AviaRequest; error?: string }> {

@@ -1,11 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import {
-  ArrowLeft, Phone, Send, Paperclip,
-  CheckCheck, Check, FileText, X,
-  Shield, Star, Mic, Trash2, Copy,
-  MapPin, MoreVertical, UserX, Eraser, StopCircle,
-} from 'lucide-react';
+import { ArrowLeft, Phone, Send, Paperclip, CheckCheck, Check, FileText, X, Shield, Mic, Trash2, Copy, MapPin, MoreVertical, UserX, Eraser, StopCircle } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../contexts/UserContext';
@@ -13,12 +8,7 @@ import { ProposalCard } from './ProposalCard';
 import { ProposalFormModal } from './ProposalFormModal';
 import { VoiceMessage } from './VoiceMessage';
 import { toast } from 'sonner';
-import {
-  getChats, getMessages, pushMessage, markRead,
-  updateProposalStatus, fetchMessages, deleteMessage,
-  deleteChat,
-  ChatMessage, ChatProposal, ChatContact, ProposalStatus,
-} from '../api/chatStore';
+import { getChats, getMessages, pushMessage, markRead, updateProposalStatus, fetchMessages, deleteMessage, deleteChat, ChatMessage, ChatProposal, ChatContact } from '../api/chatStore';
 
 // ── SwipeableMessage Component ─────────────────────────────────────────────────
 interface SwipeableMessageProps {
@@ -30,7 +20,7 @@ interface SwipeableMessageProps {
   children: React.ReactNode;
 }
 
-function SwipeableMessage({ messageId, isMine, isDark, onDelete, onCopy, children }: SwipeableMessageProps) {
+function SwipeableMessage({ messageId, isMine, isDark: _isDark, onDelete, onCopy, children }: SwipeableMessageProps) {
   const [startX, setStartX] = useState(0);
   const [endX, setEndX] = useState(0);
   const [swipeOffset, setSwipeOffset] = useState(0);
@@ -436,7 +426,7 @@ export function ChatPage() {
   };
 
   // ── Send proposal (driver only) ──────────────────────────────────────────────
-  const sendProposal = async (data: Omit<ChatProposal, 'id' | 'status'>, requestedCapacity?: { seats: number; children: number; cargoKg: number }) => {
+  const sendProposal = async (data: Omit<ChatProposal, 'id' | 'status'>, _requestedCapacity?: { seats: number; children: number; cargoKg: number }) => {
     if (!chatId || !contact) return;
     if (isSendingProposalRef.current) return; // ✅ Prevent double send
     isSendingProposalRef.current = true;

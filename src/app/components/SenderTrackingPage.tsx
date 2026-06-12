@@ -52,7 +52,7 @@ export function SenderTrackingPage() {
   const [ymapsApi, setYmapsApi] = useState<any>(null);
 
   const { activeTrip: ctxTrip } = useTrips();
-  const { user } = useUser();
+  const { user: _user } = useUser();
   const [currentStatus, setCurrentStatus] = useState<ShipmentStatus>('pending');
   const [statusHistory, setStatusHistory] = useState<{ status: ShipmentStatus; timestamp: string }[]>([]);
   const [podPhotos, setPodPhotos] = useState<{ type: string; url: string; timestamp: string }[]>([]);

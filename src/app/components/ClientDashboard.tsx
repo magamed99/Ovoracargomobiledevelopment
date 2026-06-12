@@ -1,17 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { usePolling } from '../hooks/usePolling';
 import { useNavigate } from 'react-router';
-import {
-  Bell, Star, Users as UsersIcon, Truck,
-  Zap, TrendingUp, ArrowRight, MapPin,
-  Package
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { Star, Users as UsersIcon, Truck, Zap, TrendingUp, ArrowRight, MapPin, Package } from 'lucide-react';
+import { motion } from 'motion/react';
 import { useUser } from '../contexts/UserContext';
 import { useTrips } from '../contexts/TripsContext';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { getPublicAds } from '../api/dataApi';
 import { getCityCountry } from '../utils/addressUtils';
+// @ts-ignore — Vite virtual module resolved at build time
 import { projectId, publicAnonKey } from '/utils/supabase/info';
 
 const RADIO_BASE = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;

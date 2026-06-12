@@ -1,14 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
-import {
-  ArrowLeft, Calculator, Truck, Package, ChevronRight,
-  MapPin, Weight, Ruler, Banknote, Info, RefreshCw,
-  TrendingUp, TrendingDown, Minus, ArrowLeftRight,
-} from 'lucide-react';
+import { ArrowLeft, Calculator, Truck, ChevronRight, Weight, Ruler, Info, TrendingUp, ArrowLeftRight } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { useTheme } from '../context/ThemeContext';
 import { searchCities, City } from '../data/cities';
 import { getTrips } from '../api/dataApi';
-import { toast } from 'sonner';
 
 // Base price matrix (TJS per km per ton) — fallback if no trips in DB
 const BASE_RATE = 12; // TJS/km/ton
@@ -67,8 +62,8 @@ export function PriceCalculator() {
   const [fromSuggestions, setFromSuggestions] = useState<City[]>([]);
   const [toSuggestions, setToSuggestions] = useState<City[]>([]);
   const [dbTrips, setDbTrips] = useState<any[]>([]);
-  const [loadingTrips, setLoadingTrips] = useState(false);
-  const [calculated, setCalculated] = useState(false);
+  const [_loadingTrips, setLoadingTrips] = useState(false);
+  const [_calculated, _setCalculated] = useState(false);
 
   // Load DB trips for market price reference
   useEffect(() => {
@@ -147,7 +142,7 @@ export function PriceCalculator() {
   }, [fromCity, toCity, weight, volume, cargoType, currency, dbTrips]);
 
   const bg = 'bg-[#0E1621]';
-  const card = isDark ? 'bg-white/[0.03] border-white/[0.06]' : 'bg-black/[0.02] border-black/[0.06]';
+  const _card = isDark ? 'bg-white/[0.03] border-white/[0.06]' : 'bg-black/[0.02] border-black/[0.06]';
   const txt = isDark ? 'text-white' : 'text-[#0f172a]';
   const sub = isDark ? 'text-[#64748b]' : 'text-slate-500';
   const inputCls = `w-full px-4 py-3 border text-[14px] outline-none focus:border-[#1978e5] transition-colors font-medium ${

@@ -12,11 +12,7 @@ import {
   type Subscription,
   type SubStats,
 } from '../../api/subscriptionApi';
-import {
-  Crown, CheckCircle, XCircle, Clock, RefreshCw,
-  TrendingUp, Users, DollarSign, Percent,
-  ChevronDown, ChevronUp, Search, MoreVertical,
-} from 'lucide-react';
+import { Crown, CheckCircle, XCircle, RefreshCw, Users, DollarSign, Percent, ChevronDown, ChevronUp, Search, MoreVertical } from 'lucide-react';
 import { toast } from 'sonner';
 
 const ADMIN_EMAIL_KEY = 'ovora_admin_email';
@@ -212,6 +208,7 @@ export function SubscriptionManagement() {
       <AdminPageHeader
         title="Подписки"
         subtitle="Управление годовыми подписками пользователей"
+        icon={Crown}
       />
 
       {/* ── Stats ── */}

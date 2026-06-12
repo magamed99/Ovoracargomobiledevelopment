@@ -8,13 +8,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Bell, X } from 'lucide-react';
 import { toast } from 'sonner';
-import {
-  isPushSupported,
-  getPushPermission,
-  isPushSubscribed,
-  subscribeToPush,
-  ensurePushSubscription,
-} from '../utils/pushService';
+import { isPushSupported, getPushPermission, subscribeToPush, ensurePushSubscription } from '../utils/pushService';
 
 const BANNER_DISMISSED_KEY = 'ovora_push_banner_dismissed';
 

@@ -22,7 +22,7 @@ export function cacheClear(prefix?: string): void {
 }
 
 const TRIPS_TTL   = 30_000; // 30 сек
-const USER_TTL    = 60_000; // 1 мин
+const _USER_TTL    = 60_000; // 1 мин
 const STATS_TTL   = 120_000; // 2 мин
 
 function getAdminCode(): string {

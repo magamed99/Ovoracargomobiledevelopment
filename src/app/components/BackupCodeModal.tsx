@@ -1,8 +1,5 @@
 import { useState, useCallback } from 'react';
-import {
-  ShieldCheck, Copy, Download, KeyRound, AlertTriangle,
-  CheckCircle2, Eye, EyeOff, X
-} from 'lucide-react';
+import { ShieldCheck, Copy, Download, KeyRound, AlertTriangle, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 
 interface BackupCodeModalProps {
   code: string;           // 64 hex chars

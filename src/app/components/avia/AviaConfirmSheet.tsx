@@ -3,7 +3,7 @@
 
 import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { AlertTriangle, Trash2, X, XCircle, Flag, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle, Trash2, X, XCircle, Flag } from 'lucide-react';
 
 // ── Типы ─────────────────────────────────────────────────────────────────────
 

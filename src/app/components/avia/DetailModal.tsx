@@ -1,10 +1,6 @@
 import { useState } from 'react';
-import {
-  X, Plane, Package, ArrowRight, Calendar, User, Clock,
-  Phone, Copy, Check, Trash2, XCircle, MapPin, Weight,
-  DollarSign, FileText, Hash,
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { X, Plane, Package, Calendar, User, Clock, Phone, Copy, Check, Trash2, XCircle, MapPin, Weight, DollarSign, FileText, Hash } from 'lucide-react';
+import { motion } from 'motion/react';
 import { toast } from 'sonner';
 import type { AviaFlight, AviaRequest } from '../../api/aviaApi';
 import {

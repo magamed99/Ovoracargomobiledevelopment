@@ -1,8 +1,4 @@
-import {
-  Home, Truck, MessageSquare, User, Plus, Search,
-  X, Bell, Settings, LayoutGrid,
-  ChevronRight, Plane, Zap,
-} from 'lucide-react';
+import { Home, Truck, MessageSquare, User, Plus, Search, X, Bell, Settings, LayoutGrid, ChevronRight, Plane } from 'lucide-react';
 import { useLocation, Link, Outlet } from 'react-router';
 import { useTheme } from '../context/ThemeContext';
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -100,6 +96,8 @@ function DesktopSidebar({
             <Link
               key={item.name}
               to={item.href}
+              aria-label={badge > 0 ? `${item.name} (${badge} непрочитанных)` : item.name}
+              aria-current={active ? 'page' : undefined}
               className={`ovora-sb-link ${active ? 'ovora-sb-active' : ''}`}
               style={{
                 display: 'flex', alignItems: 'center', gap: 11,
@@ -152,7 +150,7 @@ function DesktopSidebar({
                   transition: 'all 0.17s ease',
                 }} />
                 {badge > 0 && (
-                  <span style={{
+                  <span aria-hidden="true" style={{
                     position: 'absolute', top: -5, right: -5,
                     minWidth: 17, height: 17, borderRadius: 9,
                     background: 'linear-gradient(135deg, #ef4444, #dc2626)',
@@ -405,6 +403,7 @@ function FloatingMenu({
               <div style={{ fontSize: 8.5, fontWeight: 700, color: '#2f8fe0', letterSpacing: '0.2em', textTransform: 'uppercase', marginTop: 4 }}>Cargo Mobile</div>
             </div>
             <button
+              aria-label="Закрыть меню"
               onClick={() => setMenuOpen(false)}
               style={{
                 marginLeft: 'auto', width: 30, height: 30, borderRadius: 9, border: '1px solid rgba(255,255,255,0.06)',
@@ -556,6 +555,8 @@ function FloatingMenu({
 
       {/* ── Toggle / Drag Button ── */}
       <button
+        aria-label={menuOpen ? 'Закрыть меню навигации' : 'Открыть меню навигации'}
+        aria-expanded={menuOpen}
         onMouseDown={handleMouseDown}
         onTouchStart={handleTouchStart}
         onClick={handleClick}
@@ -596,7 +597,7 @@ function FloatingMenu({
 // ─────────────────────────────────────────────────────────────────────────────
 export function MobileLayout() {
   const location  = useLocation();
-  const { theme } = useTheme();
+  const { theme: _theme } = useTheme();
   const { user }  = useUser();
   const userRole  = user?.role || sessionStorage.getItem('userRole') || 'sender';
   const userEmail = user?.email || sessionStorage.getItem('ovora_user_email') || '';

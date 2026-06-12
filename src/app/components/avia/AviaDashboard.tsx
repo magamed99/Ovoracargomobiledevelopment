@@ -1,13 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router';
-import {
-  Plane, User, LogOut, Package, Send, Repeat,
-  ShieldAlert, ShieldX, ShieldCheck,
-  Calendar, Trash2, Plus, RefreshCw,
-  ArrowRight, AlertTriangle, Phone, Copy, Check,
-  XCircle, Bookmark, SlidersHorizontal, X, Search,
-  ArrowDown, Bell, MessageCircle, Handshake, FileText, Flag,
-} from 'lucide-react';
+import { Plane, User, Package, Send, Repeat, ShieldAlert, ShieldX, ShieldCheck, Calendar, Trash2, Plus, RefreshCw, ArrowRight, AlertTriangle, Phone, Copy, Check, XCircle, Bookmark, SlidersHorizontal, X, Search, ArrowDown, Bell, MessageCircle, Handshake, FileText, Flag } from 'lucide-react';
 import { NotificationCenter } from './NotificationCenter';
 import { AviaConfirmSheet } from './AviaConfirmSheet';
 import { fmtDate, maskPhone } from '../../utils/aviaUtils';
@@ -40,7 +33,6 @@ import { CreateRequestModal } from './CreateRequestModal';
 import { FlightDetailModal, RequestDetailModal } from './DetailModal';
 import { AviaDealOfferModal } from './AviaDealOfferModal';
 import { getAviaDeals } from '../../api/aviaDealApi';
-import type { AviaDeal } from '../../api/aviaDealApi';
 
 type AvSortKey = 'date-desc' | 'date-asc' | 'weight-desc' | 'weight-asc' | 'price-asc' | 'price-desc';
 
@@ -831,7 +823,7 @@ export function AviaDashboard() {
   // ── Пакет I: Сделки ────────────────────────────────────────────────────────
   const [dealOfferFlight, setDealOfferFlight] = useState<AviaFlight | null>(null);
   const [dealOfferRequest, setDealOfferRequest] = useState<AviaRequest | null>(null);
-  const [pendingDealsCount, setPendingDealsCount] = useState(0);
+  const [_pendingDealsCount, setPendingDealsCount] = useState(0);
 
   const fetchDealsCount = useCallback(() => {
     if (!user?.phone) return;
@@ -1133,7 +1125,7 @@ export function AviaDashboard() {
 
   const showCreateFlight  = activeTab === 'flights'  && (user.role === 'courier' || user.role === 'both');
   const showCreateRequest = activeTab === 'requests' && (user.role === 'sender'  || user.role === 'both');
-  const showCreateBtn     = (showCreateFlight || showCreateRequest) && activeTab !== 'my';
+  const showCreateBtn     = (showCreateFlight || showCreateRequest) && (activeTab as string) !== 'my';
   const createBtnDisabled = showCreateFlight ? !adCheck.allowed : !requestCheck.allowed;
 
   const handleRefresh = () => {
@@ -1173,7 +1165,7 @@ export function AviaDashboard() {
     setMyRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'closed' } : r));
   };
 
-  const handleLogout = () => {
+  const _handleLogout = () => {
     logout();
     navigate('/avia', { replace: true });
   };

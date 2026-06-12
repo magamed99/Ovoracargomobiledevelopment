@@ -61,7 +61,7 @@ export async function getWeatherByCoords(
       source,
       city: cityName || data.name,
     };
-  } catch (error) {
+  } catch (_error) {
     // Тихая обработка ошибок - просто возвращаем фолбэк
     return { ...getFallbackWeather(), source: 'mock', city: cityName };
   }
@@ -85,7 +85,7 @@ export async function getCurrentLocation(): Promise<{ lat: number; lon: number }
         };
         resolve(coords);
       },
-      (error) => {
+      (_error) => {
         // Это НЕ ошибка - просто используем альтернативный метод (координаты города)
         resolve(null);
       },

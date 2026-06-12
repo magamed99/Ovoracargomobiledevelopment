@@ -8,7 +8,7 @@ import {
 import { useNavigate } from 'react-router';
 import { useUser } from '../contexts/UserContext';
 import { toast } from 'sonner';
-import { createTrip, createCargo } from '../api/dataApi';
+import { createTrip } from '../api/dataApi';
 import { AddressPicker } from './AddressPicker';
 import { RouteMap } from './RouteMap';
 import { SenderCargoForm } from './SenderCargoForm';
@@ -167,10 +167,6 @@ export function CreateAnnouncementPage() {
   const { user: currentUser } = useUser();
   const navigate = useNavigate();
 
-  if (currentUser?.role === 'sender') {
-    return <SenderCargoForm />;
-  }
-
   const [fromAddress, setFromAddress] = useState<{ address: string; lat: number; lng: number } | null>(null);
   const [toAddress,   setToAddress]   = useState<{ address: string; lat: number; lng: number } | null>(null);
   const [driverDate,  setDriverDate]  = useState('');
@@ -184,6 +180,10 @@ export function CreateAnnouncementPage() {
   const [notes,         setNotes]         = useState('');
   const [currency,      setCurrency]      = useState<'TJS' | 'USD' | 'RUB'>('TJS');
   const [publishing,    setPublishing]    = useState(false);
+
+  if (currentUser?.role === 'sender') {
+    return <SenderCargoForm />;
+  }
 
   // ✅ FIX S-5: минимальная дата — сегодня
   const todayStr = new Date().toISOString().split('T')[0];

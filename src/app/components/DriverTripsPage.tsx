@@ -3,10 +3,7 @@
  * Карточки рейсов — единый компонент TripCard (mode='driver').
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
-import {
-  Plus, Truck, X, MessageSquare, Shield, Zap, Award,
-  ArrowLeft, RefreshCw, Star, AlertTriangle, CheckCircle2,
-} from 'lucide-react';
+import { Plus, Truck, X, MessageSquare, Shield, Zap, Award, ArrowLeft, RefreshCw, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../contexts/UserContext';
@@ -319,7 +316,7 @@ export function DriverTripsPage() {
             senderEmail,
             senderName,
             senderPhone,
-            status: 'inProgress',
+            status: 'inProgress' as const,
           };
           localStorage.setItem('ovora_active_shipment', JSON.stringify(shipmentData));
           try { await saveActiveShipment(shipmentData); } catch {}

@@ -1,11 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, useInView } from 'motion/react';
-import {
-  Upload, FileText, CheckCircle, Clock, XCircle,
-  Camera, ArrowLeft, Shield, Car, CreditCard,
-  AlertCircle, Eye, ScanLine, Zap, AlertTriangle,
-  RefreshCw, BadgeCheck, User
-} from 'lucide-react';
+import { Upload, FileText, CheckCircle, XCircle, Camera, ArrowLeft, Shield, Car, CreditCard, AlertCircle, Eye, ScanLine, Zap, AlertTriangle, RefreshCw, BadgeCheck } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../contexts/UserContext';
@@ -188,7 +183,7 @@ export function DocumentVerificationPage() {
       const mergedDocs: DocItem[] = templates.map(template => {
         const dbDoc = dbDocs.find(d => d.id === template.id);
         if (dbDoc) {
-          if (dbDoc.status === 'pending') {
+          if ((dbDoc.status as string) === 'pending') {
             documentsApi.deleteDocument(dbDoc.id, dbDoc.userEmail).catch(err => {
               console.error(`[DocumentVerificationPage] Failed to delete legacy doc ${dbDoc.id}:`, err);
             });
@@ -484,8 +479,8 @@ export function DocumentVerificationPage() {
   const issueCount = Object.values(issues).filter(Boolean).length;
 
   // ── Theme tokens (flat Telegram style) ────────────────────────────────────
-  const bg          = isDark ? 'bg-[#0e1621]'   : 'bg-white';
-  const header      = isDark ? 'bg-[#0e1621]/95 border-[#1e2d3d]' : 'bg-white/95 border-[#e8eaed]';
+  const _bg          = isDark ? '_bg-[#0e1621]'   : '_bg-white';
+  const _header      = isDark ? 'bg-[#0e1621]/95 border-[#1e2d3d]' : 'bg-white/95 border-[#e8eaed]';
   const textPrimary = isDark ? 'text-white'      : 'text-[#0f172a]';
   const textSec     = isDark ? 'text-[#6b7f94]'  : 'text-[#94a3b8]';
   const textMuted   = isDark ? 'text-[#3d5263]'  : 'text-[#cbd5e1]';
@@ -711,7 +706,7 @@ export function DocumentVerificationPage() {
                   )}
                   {doc.status === 'not_uploaded' && (
                     <div className="px-4 pb-3">
-                      <input ref={el => fileInputRefs.current[doc.id] = el} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(doc, f); }} />
+                      <input ref={(el) => { fileInputRefs.current[doc.id] = el; }} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(doc, f); }} />
                       <button onClick={() => fileInputRefs.current[doc.id]?.click()} disabled={uploading} className="w-full flex items-center justify-center gap-2 py-2.5 text-[13px] font-bold text-[#1978e5] transition-all active:opacity-70 disabled:opacity-50">
                         <Camera className="w-4 h-4" />{uploading ? 'Загрузка...' : 'Загрузить документ'}
                       </button>
@@ -719,7 +714,7 @@ export function DocumentVerificationPage() {
                   )}
                   {doc.status === 'rejected' && (
                     <div className="px-4 pb-3">
-                      <input ref={el => fileInputRefs.current[doc.id] = el} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(doc, f); }} />
+                      <input ref={(el) => { fileInputRefs.current[doc.id] = el; }} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(doc, f); }} />
                       <button onClick={() => fileInputRefs.current[doc.id]?.click()} disabled={uploading} className="w-full flex items-center justify-center gap-2 py-2.5 text-[13px] font-bold text-[#1978e5] transition-all active:opacity-70 disabled:opacity-50">
                         <Upload className="w-4 h-4" />{uploading ? 'Загрузка...' : 'Загрузить заново'}
                       </button>
@@ -730,7 +725,7 @@ export function DocumentVerificationPage() {
                       <button onClick={() => { if (doc.photoUrl) window.open(doc.photoUrl, '_blank'); }} className="flex items-center gap-1.5 py-2 text-[12px] font-semibold transition-all active:opacity-70 text-[#6b7f94]">
                         <Eye className="w-3.5 h-3.5" />Просмотреть
                       </button>
-                      <input ref={el => fileInputRefs.current[doc.id] = el} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(doc, f); }} />
+                      <input ref={(el) => { fileInputRefs.current[doc.id] = el; }} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(doc, f); }} />
                       <button onClick={() => fileInputRefs.current[doc.id]?.click()} disabled={uploading} className="flex items-center gap-1.5 py-2 text-[12px] font-bold text-[#1978e5] transition-all active:opacity-70 disabled:opacity-50">
                         <Upload className="w-3.5 h-3.5" />{uploading ? 'Загрузка...' : 'Обновить'}
                       </button>
@@ -961,7 +956,7 @@ export function DocumentVerificationPage() {
                       )}
 
                       <div className="border-t border-white/[0.05] pt-3">
-                        <input ref={el => fileInputRefs.current[`desktop_${doc.id}`] = el} type="file" accept="image/*" className="hidden"
+                        <input ref={(el) => { fileInputRefs.current[`desktop_${doc.id}`] = el; }} type="file" accept="image/*" className="hidden"
                           onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(doc, f); }} />
                         {doc.status === 'not_uploaded' && (
                           <button onClick={() => fileInputRefs.current[`desktop_${doc.id}`]?.click()} disabled={uploading}

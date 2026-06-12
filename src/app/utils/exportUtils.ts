@@ -85,7 +85,7 @@ export const exportToExcel = (trips: Trip[], filename: string = 'ovora-trips') =
 /**
  * Экспорт поездок в PDF формат
  */
-export const exportToPDF = (trips: Trip[], filename: string = 'ovora-trips') => {
+export const exportToPDF = (trips: Trip[], _filename: string = 'ovora-trips') => {
   try {
     // Генерируем HTML для PDF
     const html = generatePDFHTML(trips);

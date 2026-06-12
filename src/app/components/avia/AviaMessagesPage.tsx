@@ -120,7 +120,7 @@ function DealOfferBubble({ msg, myPhone, refreshTick }: { msg: AviaChatMessage; 
 
   useEffect(() => {
     if (!meta?.dealId) { setLoading(false); return; }
-    getAviaDeal(meta.dealId).then(d => { setDeal(d); setLoading(false); });
+    getAviaDeal(meta.dealId, myPhone).then(d => { setDeal(d); setLoading(false); });
   }, [meta?.dealId]);
 
   useEffect(() => {
@@ -137,7 +137,7 @@ function DealOfferBubble({ msg, myPhone, refreshTick }: { msg: AviaChatMessage; 
 
   useEffect(() => {
     if (!meta?.dealId || !deal || deal.status !== 'pending') return;
-    getAviaDeal(meta.dealId).then(fresh => {
+    getAviaDeal(meta.dealId, myPhone).then(fresh => {
       if (fresh && fresh.status !== deal.status) setDeal(fresh);
     });
   }, [refreshTick]);
@@ -436,7 +436,7 @@ interface ChatPanelProps {
 
 function ChatPanel({ myPhone, chatId, otherPhone, adRef, onBack, onDeleted, onChatsUpdate, contactName: contactNameProp }: ChatPanelProps) {
   const [messages,    setMessages]    = useState<AviaChatMessage[]>([]);
-  const [chatMeta,    setChatMeta]    = useState<{ adRef?: AviaChatAdRef; participants?: string[] } | null>(null);
+  const [_chatMeta,    setChatMeta]    = useState<{ adRef?: AviaChatAdRef; participants?: string[] } | null>(null);
   const [chatLoading, setChatLoading] = useState(true);
   const [inputText,   setInputText]   = useState('');
   const [sending,     setSending]     = useState(false);
@@ -453,9 +453,9 @@ function ChatPanel({ myPhone, chatId, otherPhone, adRef, onBack, onDeleted, onCh
   const loadMessages = useCallback(async () => {
     if (!chatId) return;
     try {
-      const { messages: msgs, meta } = await getAviaChatMessages(chatId);
+      const { messages: msgs, meta } = await getAviaChatMessages(chatId, myPhone);
       setMessages(msgs);
-      setChatMeta(meta);
+      setChatMeta(meta as any);
       if (meta?.adRef) setResolvedAdRef(meta.adRef);
       const other = (meta?.participants || []).find((p: string) => p !== myPhone) || '';
       if (other) setResolvedOtherPhone(other);

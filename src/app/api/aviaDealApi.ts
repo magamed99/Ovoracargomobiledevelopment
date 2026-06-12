@@ -87,7 +87,7 @@ export async function createAviaDeal(params: {
     const res = await fetch(`${BASE}/avia/deals`, {
       method: 'POST',
       headers: HEADERS,
-      body: JSON.stringify(params),
+      body: JSON.stringify({ ...params, callerPhone: params.initiatorPhone }),
     });
     const data = await res.json();
     if (res.status === 409) return { success: false, error: data.error, dealId: data.dealId };
@@ -100,9 +100,10 @@ export async function createAviaDeal(params: {
 }
 
 /** Получить сделку по id */
-export async function getAviaDeal(dealId: string): Promise<AviaDeal | null> {
+export async function getAviaDeal(dealId: string, callerPhone: string): Promise<AviaDeal | null> {
   try {
-    const res = await fetch(`${BASE}/avia/deals/${encodeURIComponent(dealId)}`, {
+    const clean = callerPhone.replace(/\D/g, '');
+    const res = await fetch(`${BASE}/avia/deals/${encodeURIComponent(dealId)}?callerPhone=${encodeURIComponent(clean)}`, {
       headers: HEADERS,
     });
     if (!res.ok) return null;
@@ -118,7 +119,7 @@ export async function getAviaDeal(dealId: string): Promise<AviaDeal | null> {
 export async function getAviaDeals(phone: string): Promise<AviaDeal[]> {
   try {
     const clean = phone.replace(/\D/g, '');
-    const res = await fetch(`${BASE}/avia/deals/user/${encodeURIComponent(clean)}`, {
+    const res = await fetch(`${BASE}/avia/deals/user/${encodeURIComponent(clean)}?callerPhone=${encodeURIComponent(clean)}`, {
       headers: HEADERS,
     });
     if (!res.ok) return [];

@@ -4,24 +4,41 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ovora Cargo Mobile</title>
-    <style>html,body,#root{margin:0;padding:0;background:#0e1621;min-height:100%;}</style>
+    <!-- CSP via meta tag (GitHub Pages fallback — Netlify/Vercel enforce via HTTP headers) -->
+    <meta http-equiv="Content-Security-Policy" content="
+      default-src 'self';
+      script-src 'self' https://api-maps.yandex.ru https://developer.tech.yandex.ru https://mc.yandex.ru;
+      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+      font-src 'self' data: https://fonts.gstatic.com;
+      img-src 'self' data: blob: https://images.unsplash.com https://*.supabase.co https://static-maps.yandex.ru https://mc.yandex.ru;
+      connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.openweathermap.org https://geocode-maps.yandex.ru https://static-maps.yandex.ru https://mc.yandex.ru https://developer.tech.yandex.ru;
+      frame-src https://player.vimeo.com https://www.youtube.com https://rutube.ru;
+      worker-src 'self' blob:;
+      object-src 'none';
+      base-uri 'self';
+      form-action 'self';
+      upgrade-insecure-requests;
+    ">
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#03070f">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Ovora">
+    <link rel="apple-touch-icon" href="/icon-192.png">
+    <style>html,body,#root{margin:0;padding:0;background:#03070f;min-height:100%;}</style>
     <!-- Preconnect to reduce cold start latency -->
     <link rel="preconnect" href="https://mkbcjxnoeevtkzaqcpsh.supabase.co" crossorigin>
     <link rel="dns-prefetch" href="https://mkbcjxnoeevtkzaqcpsh.supabase.co">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <!-- Hero banner preload so it shows immediately on first paint -->
     <link rel="preload" as="image" href="/icons/hero-promo.png" fetchpriority="high">
   </head>
   <body>
-    <script>
-      // Restore path after GitHub Pages 404 redirect (see public/404.html)
-      (function() {
-        var redirect = sessionStorage.getItem('__spa_redirect');
-        if (redirect) {
-          sessionStorage.removeItem('__spa_redirect');
-          history.replaceState(null, null, redirect);
-        }
-      })();
-    </script>
+    <!-- Restore path after GitHub Pages 404 redirect (see public/404.html) -->
+    <script src="/spa-redirect.js"></script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
