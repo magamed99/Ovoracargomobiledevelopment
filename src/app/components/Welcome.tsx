@@ -188,7 +188,7 @@ function WorldCard({ title, desc, tags, accentLight, icon, onClick }: WorldCardP
 // ══════════════════════════════════════════════════════════════════════
 export function Welcome() {
   const navigate  = useNavigate();
-  const { lang, setLang } = useLanguage();
+  const { lang, setLang, t } = useLanguage();
   const [selectedLang, setSelectedLang] = useState<LangCode>(lang);
   const [mounted, setMounted]   = useState(false);
   const [liveStats, setLiveStats] = useState<{ drivers: number; cities: number; satisfied: number } | null>(null);
@@ -222,8 +222,8 @@ export function Welcome() {
   // Feature items for bottom bar
   const FEATURES = [
     {
-      title: 'НАДЁЖНОСТЬ',
-      desc: 'Сохраним груз в целости',
+      title: t('wl_feat_reliability'),
+      desc: t('wl_feat_reliability_desc'),
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5ba3f5" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
@@ -232,8 +232,8 @@ export function Welcome() {
       ),
     },
     {
-      title: 'СКОРОСТЬ',
-      desc: 'Быстрая доставка в срок',
+      title: t('wl_feat_speed'),
+      desc: t('wl_feat_speed_desc'),
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="10"/>
@@ -242,8 +242,8 @@ export function Welcome() {
       ),
     },
     {
-      title: 'ГЕОГРАФИЯ',
-      desc: 'Широкая сеть маршрутов',
+      title: t('wl_feat_geo'),
+      desc: t('wl_feat_geo_desc'),
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="10"/>
@@ -253,8 +253,8 @@ export function Welcome() {
       ),
     },
     {
-      title: 'ПОДДЕРЖКА',
-      desc: '24/7 на связи с вами',
+      title: t('wl_feat_support'),
+      desc: t('wl_feat_support_desc'),
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff7a3b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.38 2 2 0 0 1 3.59 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.56a16 16 0 0 0 6.29 6.29l1.09-.87a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
@@ -288,7 +288,7 @@ export function Welcome() {
             padding: 'clamp(10px,3vw,12px)',
             display: 'flex', alignItems: 'center', gap: 8,
           }}>
-            <div className="lang-label" style={{ fontSize: 'clamp(8px,2vw,10px)', fontWeight: 700, color: C.dim2, letterSpacing: '0.12em', textTransform: 'uppercase', whiteSpace: 'nowrap', flexShrink: 0 }}>Язык интерфейса</div>
+            <div className="lang-label" style={{ fontSize: 'clamp(8px,2vw,10px)', fontWeight: 700, color: C.dim2, letterSpacing: '0.12em', textTransform: 'uppercase', whiteSpace: 'nowrap', flexShrink: 0 }}>{t('wl_lang_label')}</div>
             <div className="lang-buttons" style={{ display: 'flex', gap: 'clamp(5px,1.8vw,8px)', flex: 1 }}>
               {LANGS.map(l => {
                 const active = selectedLang === l.code;
@@ -332,11 +332,11 @@ export function Welcome() {
 
           {/* Заголовок + разделитель + описание */}
           <div>
-            <div style={{ fontSize: 'clamp(28px,3.2vw,48px)', fontWeight: 900, color: '#fff', lineHeight: 1.06, letterSpacing: '-1.5px' }}>Платформа</div>
+            <div style={{ fontSize: 'clamp(28px,3.2vw,48px)', fontWeight: 900, color: '#fff', lineHeight: 1.06, letterSpacing: '-1.5px' }}>{t('wl_brand_platform')}</div>
             <div style={{ fontSize: 'clamp(28px,3.2vw,48px)', fontWeight: 900, color: C.blueLight, lineHeight: 1.06, letterSpacing: '-1.5px' }}>Ovora</div>
             <div style={{ width: 38, height: 2.5, background: C.blue, borderRadius: 2, margin: 'clamp(7px,1.2vh,12px) 0' }} />
-            <p style={{ fontSize: 'clamp(11px,1.2vw,14px)', color: C.dim, lineHeight: 1.6, margin: 0 }}>
-              Грузоперевозки и авиадоставка<br />между Россией, Таджикистаном<br />и СНГ.
+            <p style={{ fontSize: 'clamp(11px,1.2vw,14px)', color: C.dim, lineHeight: 1.6, margin: 0, maxWidth: 280 }}>
+              {t('wl_tagline')}
             </p>
           </div>
         </motion.div>
@@ -351,29 +351,29 @@ export function Welcome() {
             {/* AVIA — первая карточка */}
             <WorldCard
               title="AVIA"
-              desc="Авиагруз  Россия ↔ Таджикистан"
+              desc={t('wl_avia_desc')}
               icon={<PlaneBig src={siteConfig.icons.plane} />}
               accentLight={C.cyan}
               onClick={() => navigate('/avia')}
               tags={[
-                { icon: Ti.plane, label: 'Курьер' },
-                { icon: Ti.mail,  label: 'Отправитель' },
-                { icon: Ti.flex,  label: 'Гибкие роли' },
+                { icon: Ti.plane, label: t('wl_tag_courier') },
+                { icon: Ti.mail,  label: t('wl_tag_sender') },
+                { icon: Ti.flex,  label: t('wl_tag_flex') },
               ]}
             />
 
             {/* CARGO — вторая карточка */}
             <WorldCard
               title="CARGO"
-              desc="Грузоперевозки  Россия · Таджикистан · СНГ"
+              desc={t('wl_cargo_desc')}
               icon={<TruckBig src={siteConfig.icons.truck} />}
               accentLight={C.blueLight}
               onClick={() => navigate('/role-select')}
               tags={[
-                { icon: Ti.border, label: 'Границы' },
-                { icon: Ti.driver, label: 'Водители', bg: 'rgba(220,38,38,0.7)' },
-                { icon: Ti.box,    label: 'Грузы',    bg: 'rgba(217,119,6,0.7)' },
-                { icon: Ti.warehouse, label: 'Склад' },
+                { icon: Ti.border, label: t('wl_tag_borders') },
+                { icon: Ti.driver, label: t('wl_tag_drivers'), bg: 'rgba(220,38,38,0.7)' },
+                { icon: Ti.box,    label: t('wl_tag_cargo'),   bg: 'rgba(217,119,6,0.7)' },
+                { icon: Ti.warehouse, label: t('wl_tag_warehouse') },
               ]}
             />
 
@@ -401,9 +401,9 @@ export function Welcome() {
           {/* Партнёры */}
           <div className="ovora-partners-card" style={{ border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: 'clamp(10px,3vw,14px)', flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <div style={{ fontSize: 'clamp(12px,1.1vw,14px)', fontWeight: 800, color: '#fff' }}>Наши партнёры</div>
+              <div style={{ fontSize: 'clamp(12px,1.1vw,14px)', fontWeight: 800, color: '#fff' }}>{t('wl_partners')}</div>
               <div className="ovora-partners-see-all" style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color: C.blueLight, fontWeight: 600 }}>
-                Смотреть всех
+                {t('wl_partners_all')}
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.blueLight} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 5l7 7-7 7" /></svg>
               </div>
             </div>
