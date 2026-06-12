@@ -169,7 +169,7 @@ export async function ensurePushSubscription(userEmail: string): Promise<void> {
       await subscribeToPush(userEmail);
     } else {
       // Refresh subscription on server (in case server lost it)
-      const vapidKey = await getVapidPublicKey();
+      const _vapidKey = await getVapidPublicKey();
       await fetch(`${BASE}/push/subscribe`, {
         method: 'POST',
         headers: {

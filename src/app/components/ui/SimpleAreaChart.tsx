@@ -17,7 +17,7 @@ interface SimpleAreaChartProps {
 
 export function SimpleAreaChart({ data, labelKey, series, height = 240 }: SimpleAreaChartProps) {
   const chartH = height - 40;
-  const chartW = 100; // percentage-based
+  const _chartW = 100; // percentage-based
 
   const allValues = series.flatMap(s => data.map(d => Number(d[s.dataKey]) || 0));
   const max = Math.max(...allValues, 1);

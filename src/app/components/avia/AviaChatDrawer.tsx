@@ -723,7 +723,7 @@ export function AviaChatDrawer({
   const [otherPhone,   setOtherPhone]   = useState<string>(resolvedOtherPhone);
   const [adRef,        setAdRef]        = useState<AviaChatAdRef | null>(resolvedAdRef);
   const [messages,     setMessages]     = useState<AviaChatMessage[]>([]);
-  const [chatMeta,     setChatMeta]     = useState<any>(null);
+  const [_chatMeta,     setChatMeta]     = useState<any>(null);
   const [chatLoading,  setChatLoading]  = useState(false);
   const [inputText,    setInputText]    = useState('');
   const [sending,      setSending]      = useState(false);

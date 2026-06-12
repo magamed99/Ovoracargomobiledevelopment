@@ -1,11 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, useInView } from 'motion/react';
-import {
-  Upload, FileText, CheckCircle, Clock, XCircle,
-  Camera, ArrowLeft, Shield, Car, CreditCard,
-  AlertCircle, Eye, ScanLine, Zap, AlertTriangle,
-  RefreshCw, BadgeCheck, User
-} from 'lucide-react';
+import { Upload, FileText, CheckCircle, XCircle, Camera, ArrowLeft, Shield, Car, CreditCard, AlertCircle, Eye, ScanLine, Zap, AlertTriangle, RefreshCw, BadgeCheck } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../contexts/UserContext';
@@ -484,8 +479,8 @@ export function DocumentVerificationPage() {
   const issueCount = Object.values(issues).filter(Boolean).length;
 
   // ── Theme tokens (flat Telegram style) ────────────────────────────────────
-  const bg          = isDark ? 'bg-[#0e1621]'   : 'bg-white';
-  const header      = isDark ? 'bg-[#0e1621]/95 border-[#1e2d3d]' : 'bg-white/95 border-[#e8eaed]';
+  const _bg          = isDark ? '_bg-[#0e1621]'   : '_bg-white';
+  const _header      = isDark ? 'bg-[#0e1621]/95 border-[#1e2d3d]' : 'bg-white/95 border-[#e8eaed]';
   const textPrimary = isDark ? 'text-white'      : 'text-[#0f172a]';
   const textSec     = isDark ? 'text-[#6b7f94]'  : 'text-[#94a3b8]';
   const textMuted   = isDark ? 'text-[#3d5263]'  : 'text-[#cbd5e1]';

@@ -11,7 +11,7 @@ import { YandexMetrika } from './components/YandexMetrika';
 import { initYandexApiKey } from './config/yandex';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 
-function AppLoadingFallback() {
+function _AppLoadingFallback() {
   return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: '#0E1621' }}>
       <div className="text-center">

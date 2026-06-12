@@ -9,7 +9,7 @@ import { createAviaDeal } from '../../api/aviaDealApi';
 import type { AviaDeal } from '../../api/aviaDealApi';
 import type { AviaFlight, AviaRequest } from '../../api/aviaApi';
 import type { AviaUser } from '../../api/aviaApi';
-import { initAviaChat, sendTypedChatMessage, makeAviaChatId } from '../../api/aviaChatApi';
+import { initAviaChat, sendTypedChatMessage } from '../../api/aviaChatApi';
 import type { AviaChatAdRef } from '../../api/aviaChatApi';
 
 interface AviaDealOfferModalProps {

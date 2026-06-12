@@ -1,8 +1,4 @@
-import {
-  Home, Truck, MessageSquare, User, Plus, Search,
-  X, Bell, Settings, LayoutGrid,
-  ChevronRight, Plane, Zap,
-} from 'lucide-react';
+import { Home, Truck, MessageSquare, User, Plus, Search, X, Bell, Settings, LayoutGrid, ChevronRight, Plane } from 'lucide-react';
 import { useLocation, Link, Outlet } from 'react-router';
 import { useTheme } from '../context/ThemeContext';
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -601,7 +597,7 @@ function FloatingMenu({
 // ─────────────────────────────────────────────────────────────────────────────
 export function MobileLayout() {
   const location  = useLocation();
-  const { theme } = useTheme();
+  const { theme: _theme } = useTheme();
   const { user }  = useUser();
   const userRole  = user?.role || sessionStorage.getItem('userRole') || 'sender';
   const userEmail = user?.email || sessionStorage.getItem('ovora_user_email') || '';

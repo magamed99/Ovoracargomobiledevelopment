@@ -1,11 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router';
-import {
-  TrendingUp, Plane, Package, Handshake,
-  ThumbsUp, ThumbsDown, ArrowRight, Zap, ChevronRight,
-  Target, MapPin,
-} from 'lucide-react';
+import { TrendingUp, Plane, Package, Handshake, ThumbsUp, ThumbsDown, ArrowRight, Zap, ChevronRight, Target } from 'lucide-react';
 import type { AviaFlight, AviaRequest } from '../../api/aviaApi';
 import type { AviaUser } from '../../api/aviaApi';
 import { getAviaDeals } from '../../api/aviaDealApi';

@@ -1,11 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Settings, Star, Shield, Bell, HelpCircle, LogOut,
-  ChevronRight, Phone, Mail, MapPin,
-  Heart, Calendar, Info, Edit2, Truck,
-  Package, Award, Copy, Check, User,
-  Calculator, FileText, Scale, UserCheck, Share2, Crown, BarChart2,
-} from 'lucide-react';
+import { Settings, Star, Shield, Bell, HelpCircle, LogOut, ChevronRight, Phone, Mail, MapPin, Heart, Calendar, Info, Edit2, Truck, Package, Award, Copy, Check, User, Calculator, FileText, Scale, UserCheck, Share2, BarChart2 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { useUser } from '../contexts/UserContext';
 import * as notificationsApi from '../api/notificationsApi';

@@ -1,9 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import {
-  Search, RefreshCw, Loader2, Package, Clock, CheckCircle,
-  XCircle, ChevronDown, ChevronUp, User, Truck, Calendar,
-  Weight, MessageSquare, Download, ClipboardList,
-} from 'lucide-react';
+import { Search, RefreshCw, Package, Clock, CheckCircle, XCircle, ChevronDown, User, Truck, Weight, Download, ClipboardList } from 'lucide-react';
 import { toast } from 'sonner';
 import { getAdminOffers } from '../../api/dataApi';
 import { AdminPageHeader, HeaderBtn, FilterChips, SkeletonList } from './AdminPageHeader';
@@ -30,14 +26,6 @@ const STATUS_META: Record<string, { label: string; color: string; bg: string; do
   declined:  { label: 'Отказано', color: 'text-red-700',    bg: 'bg-red-50 border-red-200',    dot: 'bg-red-500',    icon: XCircle },
   cancelled: { label: 'Отменено', color: 'text-red-700',    bg: 'bg-red-50 border-red-200',    dot: 'bg-red-500',    icon: XCircle },
 };
-
-function fmtDate(iso?: string) {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleString('ru-RU', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  });
-}
 
 function RelTime({ iso }: { iso?: string }) {
   if (!iso) return <span className="text-gray-400">—</span>;

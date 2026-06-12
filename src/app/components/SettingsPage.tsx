@@ -1,10 +1,5 @@
 import { useState } from 'react';
-import {
-  Globe, Bell, Shield, LogOut, ChevronRight, ArrowLeft, Check,
-  Smartphone, Info, Trash2, RefreshCw, Truck, Package,
-  BellRing, MessageSquare, Navigation, KeyRound, Star, User,
-  Volume2, Vibrate,
-} from 'lucide-react';
+import { Globe, Bell, Shield, LogOut, ChevronRight, ArrowLeft, Check, Smartphone, Info, Trash2, RefreshCw, Truck, Package, BellRing, MessageSquare, Navigation, KeyRound, Star, Volume2, Vibrate } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router';
 import { useLanguage } from '../context/LanguageContext';
@@ -52,7 +47,7 @@ export function SettingsPage() {
   });
   const [showLang,    setShowLang]    = useState(false);
   const [showLogout,  setShowLogout]  = useState(false);
-  const [pushLoading, setPushLoading] = useState(false);
+  const [_pushLoading, setPushLoading] = useState(false);
 
   // Sound & Haptic state
   const [soundOn, setSoundOn] = useState(getSoundEnabled());

@@ -1,12 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'motion/react';
 import { useNavigate } from 'react-router';
-import {
-  Star, Users as UsersIcon, Truck, Zap, TrendingUp,
-  ArrowRight, MapPin, Package, ArrowUpRight, Navigation,
-  Clock, Globe, Shield, ChevronRight, Activity, Plus,
-  Search, CheckCircle, AlertCircle, Route,
-} from 'lucide-react';
+import { Truck, Zap, TrendingUp, ArrowRight, Package, ArrowUpRight, Navigation, Clock, Globe, Shield, ChevronRight, Activity, Plus, Search, CheckCircle, AlertCircle, Route } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { TripCard } from './TripCard';
 
@@ -39,29 +34,6 @@ function FloatOrb({ x, y, size, color, dur }: { x: string; y: string; size: numb
       animate={{ y: [0, -40, 0], x: [0, 25, 0], scale: [1, 1.15, 1] }}
       transition={{ duration: dur, repeat: Infinity, ease: 'easeInOut' }}
     />
-  );
-}
-
-// ── 3D Tilt card ──────────────────────────────────────────────────────────────
-function TiltCard({ children, className = '', onClick }: { children: React.ReactNode; className?: string; onClick?: () => void }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const rotX = useMotionValue(0);
-  const rotY = useMotionValue(0);
-  const sX = useSpring(rotX, { stiffness: 200, damping: 20 });
-  const sY = useSpring(rotY, { stiffness: 200, damping: 20 });
-  const onMouseMove = (e: React.MouseEvent) => {
-    const el = ref.current; if (!el) return;
-    const rect = el.getBoundingClientRect();
-    rotX.set(((e.clientY - rect.top - rect.height / 2) / rect.height) * -10);
-    rotY.set(((e.clientX - rect.left - rect.width / 2) / rect.width) * 10);
-  };
-  const onMouseLeave = () => { rotX.set(0); rotY.set(0); };
-  return (
-    <motion.div ref={ref} onClick={onClick} onMouseMove={onMouseMove} onMouseLeave={onMouseLeave}
-      className={className} style={{ rotateX: sX, rotateY: sY, transformPerspective: 800 }}
-      whileHover={{ scale: 1.02 }} transition={{ scale: { type: 'spring', stiffness: 300, damping: 20 } }}>
-      {children}
-    </motion.div>
   );
 }
 
@@ -132,7 +104,7 @@ export function DesktopDashboard({
   currentUser, displayName, initials, isDriver, greeting,
   advertisements, isFallback = false, currentAdIndex, setCurrentAdIndex,
   allPopularTrips, tripsLoading,
-  DriverActions, SenderActions,
+  DriverActions: _DriverActions, SenderActions: _SenderActions,
 }: Props) {
   const navigate = useNavigate();
   const currentAd = advertisements[currentAdIndex] ?? advertisements[0];

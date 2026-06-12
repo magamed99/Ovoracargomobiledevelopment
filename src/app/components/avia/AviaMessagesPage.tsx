@@ -436,7 +436,7 @@ interface ChatPanelProps {
 
 function ChatPanel({ myPhone, chatId, otherPhone, adRef, onBack, onDeleted, onChatsUpdate, contactName: contactNameProp }: ChatPanelProps) {
   const [messages,    setMessages]    = useState<AviaChatMessage[]>([]);
-  const [chatMeta,    setChatMeta]    = useState<{ adRef?: AviaChatAdRef; participants?: string[] } | null>(null);
+  const [_chatMeta,    setChatMeta]    = useState<{ adRef?: AviaChatAdRef; participants?: string[] } | null>(null);
   const [chatLoading, setChatLoading] = useState(true);
   const [inputText,   setInputText]   = useState('');
   const [sending,     setSending]     = useState(false);

@@ -88,7 +88,7 @@ export const userCache = new Cache(10 * 60 * 1000); // 10 минут для да
 export async function cachedFetch<T>(
   url: string,
   options?: RequestInit,
-  cacheTime?: number
+  _cacheTime?: number
 ): Promise<T> {
   const cacheKey = `fetch:${url}:${JSON.stringify(options)}`;
   

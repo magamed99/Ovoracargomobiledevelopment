@@ -3,12 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { DonutChart } from '../ui/DonutChart';
 import { SimpleBarChart } from '../ui/SimpleBarChart';
 import { SimpleAreaChart } from '../ui/SimpleAreaChart';
-import { TrendingUp, Users, Car, Package, MapPin, RefreshCw, Loader2, Activity, BarChart3 } from 'lucide-react';
+import { TrendingUp, Users, Car, Package, MapPin, RefreshCw, Activity, BarChart3 } from 'lucide-react';
 import { getAdminTrips, getAdminUsers, getAdminOffers, getAdminReviews } from '../../api/dataApi';
 import { toast } from 'sonner';
 import { AdminPageHeader, HeaderBtn, SkeletonList } from './AdminPageHeader';
 
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+const _COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
 export function Analytics() {
   const [loading, setLoading] = useState(true);

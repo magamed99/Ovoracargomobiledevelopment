@@ -7,7 +7,6 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useLanguage } from '../context/LanguageContext';
-import dispatchSvg from '../../imports/dispatch_17418872.svg';
 import { getPublicStats } from '../api/dataApi';
 import { getAllReviews } from '../api/dataApi';
 
@@ -149,7 +148,7 @@ export function RoleSelect() {
   const { t }    = useLanguage();
 
   const [selected, setSelected]  = useState<'driver' | 'sender' | null>(null);
-  const [pressing, setPressing]  = useState<string | null>(null);
+  const [_pressing, setPressing]  = useState<string | null>(null);
   const [liveStats, setLiveStats] = useState<{ drivers: number; cities: number; satisfied: number } | null>(null);
   const [realReview, setRealReview] = useState<{ text: string; author: string; initial: string } | null>(null);
 

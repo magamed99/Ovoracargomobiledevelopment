@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { motion } from 'motion/react';
@@ -28,25 +28,6 @@ const LANGS: { code: LangCode; display: string; flag: string }[] = [
   { code: 'en', display: 'EN', flag: '🇺🇸' },
 ];
 
-
-// ── Counter ────────────────────────────────────────────────────────────
-function Counter({ target, suffix }: { target: number; suffix: string }) {
-  const [count, setCount] = useState(0);
-  const started = useRef(false);
-  useEffect(() => {
-    if (started.current) return;
-    started.current = true;
-    const steps = Math.round((1200 / 1000) * 60);
-    let step = 0;
-    const timer = setInterval(() => {
-      step++;
-      setCount(Math.round((1 - Math.pow(1 - step / steps, 3)) * target));
-      if (step >= steps) clearInterval(timer);
-    }, 1000 / 60);
-    return () => clearInterval(timer);
-  }, [target]);
-  return <>{count.toLocaleString('ru-RU')}{suffix}</>;
-}
 
 // ── Live dot ───────────────────────────────────────────────────────────
 function LiveDot({ color = C.green, size = 8 }: { color?: string; size?: number }) {
@@ -110,41 +91,12 @@ function Logo() {
   );
 }
 
-// ── Eyebrow label ──────────────────────────────────────────────────────
-function Eyebrow({ label }: { label: string }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-      <div style={{ width: 22, height: 2, background: C.blue, borderRadius: 1 }} />
-      <span style={{ fontSize: 10, fontWeight: 700, color: C.blueLight, letterSpacing: '0.14em', textTransform: 'uppercase' }}>{label}</span>
-    </div>
-  );
-}
-
 // ── Arrow right ────────────────────────────────────────────────────────
 function ArrowRight({ color }: { color: string }) {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
       <path d="M5 12h14M13 5l7 7-7 7" />
     </svg>
-  );
-}
-
-// ── 3D icon wrapper ────────────────────────────────────────────────────
-function Icon3D({ size = 42, hue1, hue2, glow, children, radius = 12 }: {
-  size?: number; hue1: string; hue2: string; glow: string; children: ReactNode; radius?: number;
-}) {
-  return (
-    <div style={{
-      width: size, height: size, borderRadius: radius, flexShrink: 0,
-      background: `linear-gradient(155deg, ${hue1} 0%, ${hue2} 100%)`,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      position: 'relative', overflow: 'hidden',
-      boxShadow: `0 0 0 1px rgba(255,255,255,0.08),inset 0 1.2px 0 rgba(255,255,255,0.45),inset 0 -1.5px 1px rgba(0,0,0,0.25),0 8px 18px ${glow},0 2px 4px rgba(0,0,0,0.3)`,
-    }}>
-      <span style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '55%', background: 'linear-gradient(180deg, rgba(255,255,255,0.32), transparent)', borderRadius: `${radius}px ${radius}px 100% 100% / ${radius}px ${radius}px 30% 30%`, pointerEvents: 'none' }} />
-      <span style={{ position: 'absolute', top: '8%', left: '12%', width: '30%', height: '18%', background: 'rgba(255,255,255,0.55)', borderRadius: '50%', filter: 'blur(3px)', pointerEvents: 'none' }} />
-      <span style={{ position: 'relative', zIndex: 1, display: 'flex', filter: 'drop-shadow(0 1.5px 1.5px rgba(0,0,0,0.35))' }}>{children}</span>
-    </div>
   );
 }
 
@@ -231,25 +183,6 @@ function WorldCard({ title, desc, tags, accentLight, icon, onClick }: WorldCardP
 }
 
 // ── Stat icon type ─────────────────────────────────────────────────────
-type StatIconType = 'box' | 'driver' | 'clock' | 'check';
-const STAT_HUES: Record<StatIconType, { h1: string; h2: string; glow: string }> = {
-  box:    { h1: '#7dd3fc', h2: '#0369a1', glow: 'rgba(56,189,248,0.4)' },
-  driver: { h1: '#6ee7b7', h2: '#047857', glow: 'rgba(52,211,153,0.4)' },
-  clock:  { h1: '#fdba74', h2: '#c2410c', glow: 'rgba(251,146,60,0.4)' },
-  check:  { h1: '#c4b5fd', h2: '#5b21b6', glow: 'rgba(167,139,250,0.4)' },
-};
-function StatIcon3D({ type }: { type: StatIconType }) {
-  const { h1, h2, glow } = STAT_HUES[type];
-  const p = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: '#fff', strokeWidth: 1.9, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
-  const svgs: Record<StatIconType, ReactNode> = {
-    box:    <svg {...p}><path d="M16.5 9.4 7.55 4.24"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>,
-    driver: <svg {...p}><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>,
-    clock:  <svg {...p}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
-    check:  <svg {...p}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>,
-  };
-  return <Icon3D size={32} hue1={h1} hue2={h2} glow={glow} radius={10}>{svgs[type]}</Icon3D>;
-}
-
 // ══════════════════════════════════════════════════════════════════════
 // WELCOME
 // ══════════════════════════════════════════════════════════════════════
@@ -273,13 +206,13 @@ export function Welcome() {
 
   if (!mounted) return null;
 
-  const statsStrip = [
+  const _statsStrip = [
     { target: liveStats?.drivers  ?? 3400, suffix: liveStats ? '' : '+', label: 'Водителей', color: C.blueLight },
     { target: liveStats?.cities   ?? 12,   suffix: '',                    label: 'Городов',   color: C.purple },
     { target: liveStats?.satisfied ?? 98,  suffix: '%',                   label: 'Довольных', color: C.green },
   ];
 
-  const bottomStats: { icon: StatIconType; val: number; suffix: string; label: string; color: string }[] = [
+  const _bottomStats: { icon: string; val: number; suffix: string; label: string; color: string }[] = [
     { icon: 'box',    val: 128, suffix: '',      label: 'Грузов онлайн',      color: C.blueLight },
     { icon: 'driver', val: 43,  suffix: '',      label: 'Водителей онлайн',   color: C.green },
     { icon: 'clock',  val: 12,  suffix: ' мин',  label: 'Очередь на границе', color: C.orange },

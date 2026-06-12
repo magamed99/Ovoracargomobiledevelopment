@@ -1,9 +1,5 @@
 import { useState, useRef } from 'react';
-import {
-  Camera, Mail, Phone, MapPin, Calendar, ArrowLeft, Check,
-  Loader2, User as UserIcon, Truck, Package, FileText, Sparkles,
-  Save, Eye, EyeOff,
-} from 'lucide-react';
+import { Camera, Mail, Phone, MapPin, Calendar, ArrowLeft, Check, Loader2, User as UserIcon, Truck, Package, FileText, Sparkles, Save } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router';
 import { useUser } from '../contexts/UserContext';

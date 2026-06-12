@@ -8,7 +8,7 @@ import {
 import { useNavigate } from 'react-router';
 import { useUser } from '../contexts/UserContext';
 import { toast } from 'sonner';
-import { createTrip, createCargo } from '../api/dataApi';
+import { createTrip } from '../api/dataApi';
 import { AddressPicker } from './AddressPicker';
 import { RouteMap } from './RouteMap';
 import { SenderCargoForm } from './SenderCargoForm';

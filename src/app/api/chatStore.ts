@@ -152,7 +152,7 @@ function _upsertLocalChat(patch: Partial<Chat> & { id: string }) {
 }
 
 // ── Map server message → ChatMessage ─────────────────────────────────────────
-function _mapServerMsg(m: any, myRole: string, myEmail: string): ChatMessage {
+function _mapServerMsg(m: any, _myRole: string, _myEmail: string): ChatMessage {
   let fromRole: 'driver' | 'sender' | 'system' = m.from || 'sender';
   if (m.type === 'system') fromRole = 'system';
   return {

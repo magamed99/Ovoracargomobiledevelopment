@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { YMaps, Map, Placemark } from 'react-yandex-maps';
 import { YANDEX_MAPS_CONFIG } from '../config/yandex';
-import { Navigation, MapPin, Clock, TrendingUp } from 'lucide-react';
+import { Clock, TrendingUp } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 
 interface RouteMapProps {

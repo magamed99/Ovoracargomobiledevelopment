@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Filter, X, Download, Calendar, MapPin, DollarSign, FileText } from 'lucide-react';
+import { Filter, Download, Calendar, MapPin, DollarSign, FileText } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { toast } from 'sonner';
 

@@ -1,11 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { usePolling } from '../hooks/usePolling';
-import {
-  Calendar, Users, Plus, Minus, Package,
-  Search, Star, ArrowRight, X, Weight, Clock,
-  ArrowUpDown, MapPin, Flame, TrendingUp, Car,
-  Sparkles, ChevronRight,
-} from 'lucide-react';
+import { Calendar, Users, Plus, Minus, Package, Search, ArrowRight, X, Weight, Clock, ArrowUpDown, Flame, TrendingUp, Sparkles, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router';
 import { searchCities, City, addCustomCity } from '../data/cities';

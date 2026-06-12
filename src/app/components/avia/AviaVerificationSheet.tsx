@@ -1,13 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import {
-  X, ShieldCheck, ShieldAlert, ShieldX,
-  FileText, Camera, Lock, Eye, EyeOff,
-  CheckCircle2, AlertCircle, CalendarX2,
-  Loader2, MessageCircle, ChevronRight,
-  Clock, Fingerprint, BadgeCheck, Info,
-  Upload, Zap, Database, Globe, ImageIcon, Trash2,
-} from 'lucide-react';
+import { X, ShieldCheck, ShieldAlert, ShieldX, FileText, Camera, Lock, Eye, EyeOff, CheckCircle2, AlertCircle, CalendarX2, Loader2, MessageCircle, ChevronRight, Clock, Fingerprint, BadgeCheck, Upload, Zap, Database, Globe, ImageIcon, Trash2 } from 'lucide-react';
 import type { AviaUser } from '../../api/aviaApi';
 import { toast } from 'sonner';
 

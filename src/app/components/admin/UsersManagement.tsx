@@ -1,11 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router';
-import {
-  Search, Users as UsersIcon,
-  Car, RefreshCw, Loader2, Download,
-  Trash2, UserCheck, UserX, ChevronDown, ChevronUp, MoreVertical,
-  ShieldOff, Shield,
-} from 'lucide-react';
+import { Search, Users as UsersIcon, Car, RefreshCw, Loader2, Download, Trash2, UserCheck, UserX, ChevronDown, ChevronUp, MoreVertical } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '../ui/dropdown-menu';

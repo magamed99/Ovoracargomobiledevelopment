@@ -1,9 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import {
-  ArrowLeft, RefreshCw, AlertTriangle, CheckCircle2, XCircle,
-  Clock, Truck, ChevronDown, ChevronUp, Send, Radio,
-  TrendingUp, Users, Flag, Wifi, Info,
-} from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { ArrowLeft, RefreshCw, AlertTriangle, CheckCircle2, XCircle, Clock, Truck, ChevronDown, ChevronUp, Send, TrendingUp, Users, Flag, Wifi, Info } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';

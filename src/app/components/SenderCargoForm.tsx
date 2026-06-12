@@ -1,15 +1,10 @@
 import { useState } from 'react';
-import {
-  ArrowLeft, Calendar, Navigation, Package, DollarSign,
-  FileText, Zap, CheckCircle2, Truck, ChevronRight,
-  ArrowRight, MapPin, Weight
-} from 'lucide-react';
+import { ArrowLeft, Calendar, Navigation, Package, DollarSign, FileText, Zap, CheckCircle2, ChevronRight, Weight } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { useUser } from '../contexts/UserContext';
 import { toast } from 'sonner';
 import { createCargo } from '../api/dataApi';
 import { AddressPicker } from './AddressPicker';
-import { RouteMap } from './RouteMap';
 
 const STEPS = ['Маршрут', 'Детали', 'Бюджет'];
 

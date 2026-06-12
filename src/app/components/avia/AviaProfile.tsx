@@ -1,16 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useBlocker } from 'react-router';
 import { toast } from 'sonner';
-import {
-  User, Camera, Save, CheckCircle2,
-  Package, Send, Repeat, Loader2, AlertCircle,
-  ShieldCheck, ShieldAlert, ShieldX, Lock, CalendarX2,
-  KeyRound, Timer, Plane, Handshake, MessageCircle,
-  ThumbsUp, ThumbsDown, MapPin, AtSign, Star,
-  TrendingUp, Calendar, ChevronDown, ChevronUp,
-  LogOut, Plus, Search, ChevronRight,
-  Phone, Shield, Info, FileText, Eye, EyeOff,
-} from 'lucide-react';
+import { User, Camera, Save, CheckCircle2, Package, Send, Repeat, Loader2, AlertCircle, ShieldCheck, ShieldAlert, ShieldX, KeyRound, Timer, Plane, Handshake, MessageCircle, ThumbsUp, ThumbsDown, MapPin, AtSign, Star, TrendingUp, Calendar, ChevronDown, ChevronUp, LogOut, Plus, Search, ChevronRight, Phone, Shield, Info, Eye, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAvia } from './AviaContext';
 import { updateAviaProfile, canCreateAd, changeAviaPin } from '../../api/aviaApi';
@@ -24,7 +15,6 @@ import { getAviaUserReviews } from '../../api/aviaReviewApi';
 import type { AviaReview } from '../../api/aviaReviewApi';
 import { AviaRatingBadge } from './AviaRatingBadge';
 import { AviaVerificationSheet } from './AviaVerificationSheet';
-import { AviaProfileSkeleton } from './AviaProfileSkeleton';
 
 type AviaRole = 'courier' | 'sender' | 'both';
 
@@ -1530,7 +1520,7 @@ function SecurityCard({ phone }: { phone: string }) {
 
 export function AviaProfile() {
   const navigate = useNavigate();
-  const { user, isAuth, updateUserLocal, logout, chatUnreadCount } = useAvia();
+  const { user, isAuth: _isAuth, updateUserLocal, logout, chatUnreadCount } = useAvia();
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -1572,8 +1562,8 @@ export function AviaProfile() {
   });
 
   // Modal states for quick actions
-  const [showCreateFlight, setShowCreateFlight] = useState(false);
-  const [showCreateRequest, setShowCreateRequest] = useState(false);
+  const [_showCreateFlight, _setShowCreateFlight] = useState(false);
+  const [_showCreateRequest, _setShowCreateRequest] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 

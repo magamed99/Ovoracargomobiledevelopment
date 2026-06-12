@@ -1,9 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import {
-  Search, MoreVertical, Car, Star, CheckCircle, RefreshCw,
-  Loader2, UserX, UserCheck, Trash2, ChevronDown, ChevronUp,
-  Package, MapPin, TrendingUp, Award,
-} from 'lucide-react';
+import { Search, MoreVertical, Car, CheckCircle, RefreshCw, Loader2, UserX, UserCheck, Trash2, ChevronDown, ChevronUp, TrendingUp, Award } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import { toast } from 'sonner';
 import { getAdminUsers, getAdminTrips, getAdminOffers, adminHeaders } from '../../api/dataApi';
@@ -26,17 +22,6 @@ async function deleteUser(email: string) {
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
-
-function RelTime({ iso }: { iso?: string }) {
-  if (!iso) return <span className="text-gray-400">—</span>;
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 60) return <span>{Math.max(0, mins)} мин. назад</span>;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return <span>{hrs} ч. назад</span>;
-  return <span>{Math.floor(hrs / 24)} дн. назад</span>;
-}
-
 export function DriversManagement() {
   const [drivers, setDrivers] = useState<any[]>([]);
   const [tripsByDriver, setTripsByDriver] = useState<Record<string, number>>({});

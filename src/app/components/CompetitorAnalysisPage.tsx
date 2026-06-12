@@ -4,15 +4,7 @@
  */
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import {
-  ArrowLeft, Globe, TrendingUp, AlertTriangle, CheckCircle2,
-  XCircle, Zap, Shield, Star, Package, MapPin, FileText,
-  CreditCard, Users, BarChart3, Phone, Truck, Clock,
-  ChevronDown, ChevronUp, ExternalLink, Target, Flame,
-  Award, Lock, RefreshCw, Navigation, Camera, QrCode,
-  MessageSquare, Calculator, Building2, Layers, AlertCircle,
-  ArrowRight, Sparkles, DollarSign, Wifi, Bell
-} from 'lucide-react';
+import { ArrowLeft, Globe, TrendingUp, AlertTriangle, CheckCircle2, XCircle, Zap, Shield, Star, MapPin, FileText, CreditCard, Users, BarChart3, Truck, Clock, ChevronDown, ChevronUp, ExternalLink, Target, Flame, Award, Lock, RefreshCw, Navigation, Camera, QrCode, Building2, Layers, AlertCircle, Sparkles, DollarSign, Wifi, Bell } from 'lucide-react';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DATA

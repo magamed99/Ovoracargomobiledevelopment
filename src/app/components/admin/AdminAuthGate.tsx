@@ -7,7 +7,7 @@
 
 import { useState, useRef, useEffect, KeyboardEvent, ClipboardEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Truck, ShieldCheck, Eye, EyeOff, RefreshCw, ArrowLeft } from 'lucide-react';
+import { ShieldCheck, Eye, EyeOff, RefreshCw, ArrowLeft } from 'lucide-react';
 import { projectId, publicAnonKey } from '../../../../utils/supabase/info';
 import { useNavigate } from 'react-router';
 

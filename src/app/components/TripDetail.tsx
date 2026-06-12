@@ -3,20 +3,13 @@ import { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
 import { useUser } from '../contexts/UserContext';
 import { AVATARS } from '../constants/avatars';
-import { getTripById, getCargoById, submitOffer as submitOfferApi, getOffersForUser, getOffersForTrip, updateOffer, submitReview as submitReviewApi, submitCargoOffer, getCargoOffersForCargo, getCargoOffersForSender, updateCargoOffer } from '../api/dataApi';
-import {
-  Star, Users, Calendar, MessageSquare, Shield,
-  ArrowLeft, Share2, CheckCircle2, Truck, Phone,
-  Plus, Minus, Weight, X, CheckCircle, Clock,
-  Route, Banknote, ThumbsUp, Award, Zap, Heart,
-  MapPin, ChevronRight, Navigation, FileText, AlertCircle,
-  Package, UserCheck, XCircle,
-} from 'lucide-react';
+import { getTripById, getCargoById, submitOffer as submitOfferApi, getOffersForUser, getOffersForTrip, updateOffer, submitReview as submitReviewApi, submitCargoOffer, getCargoOffersForCargo, updateCargoOffer } from '../api/dataApi';
+import { Star, Users, Calendar, MessageSquare, Shield, ArrowLeft, Share2, CheckCircle2, Truck, Phone, Plus, Minus, X, CheckCircle, Clock, Route, Banknote, ThumbsUp, Award, Zap, Heart, Navigation, FileText, AlertCircle, Package, UserCheck, XCircle } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { toast } from 'sonner';
 import { useFavorites } from '../hooks/useFavorites';
 import { initChatRoom, pushMessage } from '../api/chatStore';
-import { generateTripChatId, generatePairChatId } from '../api/chatUtils';
+import { generatePairChatId } from '../api/chatUtils';
 import { cleanAddress } from '../utils/addressUtils';
 import { calculateDistance } from '@/utils/geolocation';
 import { StarRow } from './ui/StarRow';
@@ -371,12 +364,12 @@ function ActiveTripDetail({ trip, isDark, userRole }: { trip: any; isDark: boole
   const [offerCargoDesc, setOfferCargoDesc] = useState('');
   
   // Unified fields for submission
-  const [offerCargoType, setOfferCargoType] = useState('');
-  const [offerWeight, setOfferWeight] = useState('');
-  const [offerVolume, setOfferVolume] = useState('');
-  const [offerPrice, setOfferPrice] = useState('');
-  const [offerCurrency, setOfferCurrency] = useState<'TJS' | 'RUB' | 'USD'>('TJS');
-  const [offerNotes, setOfferNotes] = useState('');
+  const [_offerCargoType, setOfferCargoType] = useState('');
+  const [_offerWeight, setOfferWeight] = useState('');
+  const [_offerVolume, setOfferVolume] = useState('');
+  const [_offerPrice, setOfferPrice] = useState('');
+  const [_offerCurrency, _setOfferCurrency] = useState<'TJS' | 'RUB' | 'USD'>('TJS');
+  const [_offerNotes, setOfferNotes] = useState('');
 
   // profileUser уже доступен из useUser() в начале компонента
   const [offerName, setOfferName] = useState(`${profileUser?.firstName || ''} ${profileUser?.lastName || ''}`.trim());
@@ -2027,7 +2020,7 @@ function XCircleIcon({ className }: { className?: string }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // CARGO DETAIL — для объявлений отправителей (tripType === 'cargo')
 // ─────────────────────────────────────────────────────────────────────────────
-function CargoDetail({ cargo, isDark, userRole, currentUser }: {
+function CargoDetail({ cargo, isDark: _isDark, userRole, currentUser }: {
   cargo: any; isDark: boolean; userRole: string; currentUser: any;
 }) {
   const navigate = useNavigate();

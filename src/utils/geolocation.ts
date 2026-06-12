@@ -207,7 +207,7 @@ export function formatCoordinates(coords: Coordinates, precision: number = 6): s
  * Geocoding: Convert address to coordinates (mock implementation)
  * In production, use a real geocoding service like Nominatim, Google Maps, etc.
  */
-export async function geocodeAddress(address: string): Promise<GeolocationResult> {
+export async function geocodeAddress(_address: string): Promise<GeolocationResult> {
   // Mock implementation - in production, use actual geocoding API
   // For now, return Dushanbe center coordinates
   return {

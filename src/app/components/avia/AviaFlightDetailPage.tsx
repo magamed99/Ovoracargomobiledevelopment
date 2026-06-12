@@ -491,7 +491,7 @@ export function AviaFlightDetailPage() {
             flight={flight}
             onClose={() => setShowOffer(false)}
             onSuccess={() => toast.success('Предложение отправлено!')}
-            onOpenChat={(chatId, otherPhone, adRef) => {
+            onOpenChat={(_chatId, _otherPhone, _adRef) => {
               setShowOffer(false);
               if (flight && user) {
                 const params = new URLSearchParams({

@@ -84,7 +84,7 @@ function syncToLocalCache(userData: User) {
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [currentEmail, setCurrentEmail] = useState<string | null>(null);
+  const [_currentEmail, setCurrentEmail] = useState<string | null>(null);
 
   // ── Загрузить пользователя из БД по email ─────────────────────────────────
   const loadUser = async (email: string, signal?: AbortSignal) => {

@@ -1,9 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import {
-  Search, MapPin, Clock, DollarSign, Package, Car, Calendar,
-  XCircle, CheckCircle, AlertCircle, RefreshCw, Loader2,
-  ChevronDown, ChevronUp, Trash2, Share2, Download, Route,
-} from 'lucide-react';
+import { Search, Clock, Package, Car, Calendar, XCircle, RefreshCw, Loader2, ChevronDown, ChevronUp, Share2, Download, Route } from 'lucide-react';
 import { toast } from 'sonner';
 import { getAdminTrips, getAdminOffers, adminHeaders } from '../../api/dataApi';
 import { projectId } from '../../../../utils/supabase/info';

@@ -7,11 +7,7 @@
  */
 import { useState, useMemo, useEffect } from 'react';
 import { TripCardSkeleton } from './SkeletonCard';
-import {
-  ArrowLeft, Search, AlertCircle, SlidersHorizontal,
-  Check, Users, Package, TrendingUp, Calendar,
-  Truck, X, MapPin, ArrowRight, Zap, Weight, DollarSign,
-} from 'lucide-react';
+import { ArrowLeft, Search, AlertCircle, SlidersHorizontal, Check, Users, Package, TrendingUp, Calendar, Truck, X, MapPin, ArrowRight, Zap } from 'lucide-react';
 import { useNavigate, useSearchParams, Link } from 'react-router';
 import { useTheme } from '../context/ThemeContext';
 import { getTrips, getCargos } from '../api/dataApi';

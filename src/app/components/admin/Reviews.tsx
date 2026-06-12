@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Star, MessageSquare, Search, RefreshCw, ChevronDown, ChevronUp, TrendingUp } from 'lucide-react';
+import { Star, MessageSquare, Search, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { getAdminReviews } from '../../api/dataApi';
 import { AdminPageHeader, HeaderBtn, FilterChips, SkeletonList } from './AdminPageHeader';

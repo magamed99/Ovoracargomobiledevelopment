@@ -1,11 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useUser } from '../contexts/UserContext';
-import {
-  Trash2, Truck, Star, Wallet, Info, Car, Package,
-  Bell, BellRing, UserCheck, ShieldCheck, Copy, CheckCheck,
-  ArrowLeft, RefreshCw, BellOff, Zap, Clock, Calendar,
-  CheckCircle2, Filter,
-} from 'lucide-react';
+import { Trash2, Truck, Star, Wallet, Info, Car, Package, Bell, BellRing, UserCheck, ShieldCheck, Copy, CheckCheck, ArrowLeft, RefreshCw, BellOff, Zap, Clock, Calendar, CheckCircle2 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { useTheme } from '../context/ThemeContext';
 import { toast } from 'sonner';
@@ -81,7 +76,7 @@ const TYPE_LABEL: Record<string, string> = {
 
 export function NotificationsPage() {
   const navigate = useNavigate();
-  const { theme } = useTheme();
+  const { theme: _theme } = useTheme();
   const { user: currentUser } = useUser();
 
   const [notifications, setNotifications] = useState<AppNotification[]>([]);

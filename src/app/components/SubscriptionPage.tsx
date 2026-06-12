@@ -124,7 +124,7 @@ export function SubscriptionPage() {
 
   // ── Расчёт цены за пользователя ──────────────────────────────────────────
   const costPerUserUsd = PLATFORM_COSTS.annualCostUsd / PLATFORM_COSTS.payingUsers;
-  const coveragePercent = Math.round(
+  const _coveragePercent = Math.round(
     (details.amount / (costPerUserUsd * (currency === 'TJS' ? 11 : currency === 'RUB' ? 90 : 450))) * 100
   );
 

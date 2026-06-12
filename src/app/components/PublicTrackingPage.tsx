@@ -7,10 +7,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router';
 import { YMaps, Map, Placemark } from 'react-yandex-maps';
 import { YANDEX_MAPS_CONFIG } from '../config/yandex';
-import {
-  MapPin, Package, Truck, Clock, CheckCircle2,
-  Navigation, AlertCircle, RefreshCw, Camera,
-} from 'lucide-react';
+import { Package, Truck, Clock, CheckCircle2, Navigation, AlertCircle, RefreshCw, Camera } from 'lucide-react';
 import { getPublicTracking, SHIPMENT_STATUS_LABELS, SHIPMENT_STATUS_ICONS } from '../api/trackingApi';
 import { calculateDistance } from '@/utils/geolocation';
 import { cleanAddress } from '../utils/addressUtils';
@@ -272,7 +269,7 @@ export function PublicTrackingPage() {
             {STATUS_STEPS.map((step, i) => {
               const isActive = i === statusIdx;
               const isDone = i < statusIdx || isDelivered;
-              const isFuture = i > statusIdx && !isDelivered;
+              const _isFuture = i > statusIdx && !isDelivered;
               // Timestamp from history
               const histEntry = (shipment.statusHistory || []).find((h: any) => h.status === step.key);
               const ts = histEntry?.timestamp

@@ -1,12 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { usePolling } from '../hooks/usePolling';
 import { useNavigate } from 'react-router';
-import {
-  Bell, Star, Users as UsersIcon, Truck,
-  Zap, TrendingUp, ArrowRight, MapPin,
-  Package
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { Star, Users as UsersIcon, Truck, Zap, TrendingUp, ArrowRight, MapPin, Package } from 'lucide-react';
+import { motion } from 'motion/react';
 import { useUser } from '../contexts/UserContext';
 import { useTrips } from '../contexts/TripsContext';
 import { ImageWithFallback } from './figma/ImageWithFallback';

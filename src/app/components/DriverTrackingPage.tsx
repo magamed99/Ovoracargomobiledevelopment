@@ -3,7 +3,6 @@
  * GPS-геолокация в реальном времени, запись координат на сервер.
  */
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { AVATARS } from '../constants/avatars';
 import {
   ArrowLeft, Navigation, MessageSquare, AlertTriangle,
   Phone, Truck, MapPin, Shield, Package,
@@ -584,7 +583,7 @@ export function DriverTrackingPage() {
                 {/* Прогресс шагов */}
                 <div className="flex items-center gap-1 mb-3">
                   {STATUS_FLOW.slice(0, 6).map((s, i) => {
-                    const sCfg = getStatusConfig(currentStatus);
+                    const _sCfg = getStatusConfig(currentStatus);
                     const curIdx = STATUS_FLOW.findIndex(x => x.key === currentStatus);
                     const done = i <= curIdx;
                     return (

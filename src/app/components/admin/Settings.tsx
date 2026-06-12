@@ -1,8 +1,5 @@
 import { useState, useEffect } from 'react';
-import { 
-  Settings as SettingsIcon, Bell, DollarSign, Globe, Shield,
-  Smartphone, Save, AlertCircle, RefreshCw, Loader2, CheckCircle
-} from 'lucide-react';
+import { Bell, DollarSign, Globe, Shield, Smartphone, Save, AlertCircle, Loader2, CheckCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Switch } from '../ui/switch';
 import { Label } from '../ui/label';
