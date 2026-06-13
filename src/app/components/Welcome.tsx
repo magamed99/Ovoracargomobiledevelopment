@@ -320,6 +320,16 @@ export function Welcome() {
         <motion.div className="ovora-area-brand"
           initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.45 }}
         >
+          {/* Заголовок + разделитель + описание */}
+          <div>
+            <div style={{ fontSize: 'clamp(28px,3.2vw,48px)', fontWeight: 900, color: '#fff', lineHeight: 1.06, letterSpacing: '-1.5px' }}>{t('wl_brand_platform')}</div>
+            <div style={{ fontSize: 'clamp(28px,3.2vw,48px)', fontWeight: 900, color: C.blueLight, lineHeight: 1.06, letterSpacing: '-1.5px' }}>Ovora</div>
+            <div style={{ width: 38, height: 2.5, background: C.blue, borderRadius: 2, margin: 'clamp(7px,1.2vh,12px) 0' }} />
+            <p style={{ fontSize: 'clamp(11px,1.2vw,14px)', color: C.dim, lineHeight: 1.6, margin: 0, maxWidth: 280 }}>
+              {t('wl_tagline')}
+            </p>
+          </div>
+
           {/* Лого-строка */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <Logo />
@@ -331,16 +341,6 @@ export function Welcome() {
                 Logistics & Air Cargo
               </div>
             </div>
-          </div>
-
-          {/* Заголовок + разделитель + описание */}
-          <div>
-            <div style={{ fontSize: 'clamp(28px,3.2vw,48px)', fontWeight: 900, color: '#fff', lineHeight: 1.06, letterSpacing: '-1.5px' }}>{t('wl_brand_platform')}</div>
-            <div style={{ fontSize: 'clamp(28px,3.2vw,48px)', fontWeight: 900, color: C.blueLight, lineHeight: 1.06, letterSpacing: '-1.5px' }}>Ovora</div>
-            <div style={{ width: 38, height: 2.5, background: C.blue, borderRadius: 2, margin: 'clamp(7px,1.2vh,12px) 0' }} />
-            <p style={{ fontSize: 'clamp(11px,1.2vw,14px)', color: C.dim, lineHeight: 1.6, margin: 0, maxWidth: 280 }}>
-              {t('wl_tagline')}
-            </p>
           </div>
         </motion.div>
 
