@@ -170,11 +170,15 @@ button, a {
     align-items: start !important;
   }
 
-  /* Grid area assignments — brand top-left, cards below, lang right-middle */
-  .ovora-area-lang   { grid-column: 3; grid-row: 2;     padding: 0 !important; order: unset; align-self: center; }
+  /* Grid area assignments — brand top-left, cards lowered, lang top-right */
+  .ovora-area-lang   { grid-column: 3; grid-row: 1;     padding: 0 !important; order: unset; align-self: start; }
   .ovora-area-brand  { grid-column: 1; grid-row: 1;     display: flex !important; flex-direction: column !important; gap: clamp(14px,2.2vh,26px) !important; padding: 0 !important; order: unset; align-self: start !important; }
-  .ovora-area-cards  { grid-column: 1; grid-row: 2;     padding: 0 !important; align-self: start; order: unset; }
+  .ovora-area-cards  { grid-column: 1; grid-row: 2;     padding: 0 !important; align-self: center; order: unset; }
   .ovora-area-bottom { grid-column: 1 / -1; grid-row: 3; padding: 0 !important; align-self: end; order: unset; display: flex !important; align-items: flex-end !important; gap: clamp(12px,2vw,22px) !important; }
+
+  /* Bottom bar: partners LEFT, features RIGHT (swapped) */
+  .ovora-area-bottom .ovora-partners-card { order: 1 !important; }
+  .ovora-area-bottom .ovora-features-bar  { order: 2 !important; }
 
   /* ── Glass backgrounds ── */
   .ovora-service-card {
