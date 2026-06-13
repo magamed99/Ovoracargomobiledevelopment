@@ -271,7 +271,10 @@ export function Welcome() {
       <motion.div className="ovora-hero-fullbleed"
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}
       >
-        <img src={siteConfig.icons.hero} alt="Ovora Cargo" />
+        <picture>
+          <source media="(min-width: 700px)" srcSet="/icons/hero-desktop.png" />
+          <img src={siteConfig.icons.hero} alt="Ovora Cargo" />
+        </picture>
       </motion.div>
 
       {/* ── Контентная сетка ── */}
