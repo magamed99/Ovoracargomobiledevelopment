@@ -148,6 +148,7 @@ export function RoleSelect() {
   const { t }    = useLanguage();
 
   const [selected, setSelected]  = useState<'driver' | 'sender' | null>(null);
+  const [hovered, setHovered]    = useState<'driver' | 'sender' | null>(null);
   const [_pressing, setPressing]  = useState<string | null>(null);
   const [liveStats, setLiveStats] = useState<{ drivers: number; cities: number; satisfied: number } | null>(null);
   const [realReview, setRealReview] = useState<{ text: string; author: string; initial: string } | null>(null);
@@ -181,6 +182,8 @@ export function RoleSelect() {
   };
 
   const activeRole = ROLES.find(r => r.id === selected) ?? null;
+  // Role driving the reactive ambient glow: hovered takes priority, then selected
+  const focusRole  = ROLES.find(r => r.id === (hovered ?? selected)) ?? null;
 
   // ══════════════════════════════════════════════════════
   // MOBILE LAYOUT (unchanged)
@@ -642,11 +645,47 @@ export function RoleSelect() {
       </div>
 
       {/* ══ RIGHT PANEL ══ */}
-      <div className="rs-right flex flex-col overflow-y-auto" style={{ background: '#0a1322' }}>
+      <div className="rs-right flex flex-col overflow-y-auto relative" style={{ background: '#0a1322' }}>
+
+        {/* Ambient reactive background */}
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden', zIndex: 0 }}>
+          {/* fine grid */}
+          <div style={{
+            position: 'absolute', inset: 0,
+            backgroundImage: 'linear-gradient(#5ba3f5 1px, transparent 1px), linear-gradient(90deg, #5ba3f5 1px, transparent 1px)',
+            backgroundSize: '54px 54px', opacity: 0.022,
+            maskImage: 'radial-gradient(ellipse 90% 70% at 70% 20%, #000 30%, transparent 80%)',
+            WebkitMaskImage: 'radial-gradient(ellipse 90% 70% at 70% 20%, #000 30%, transparent 80%)',
+          }} />
+          {/* reactive color wash — shifts with hovered/selected role */}
+          <motion.div
+            animate={{
+              background: `radial-gradient(circle at 75% 18%, ${(focusRole?.gFrom ?? '#1d4ed8')}26 0%, transparent 55%)`,
+            }}
+            transition={{ duration: 0.6 }}
+            style={{ position: 'absolute', inset: 0 }}
+          />
+          <motion.div
+            animate={{
+              background: `radial-gradient(circle at 20% 90%, ${(focusRole?.gTo ?? '#0ea5e9')}1c 0%, transparent 50%)`,
+            }}
+            transition={{ duration: 0.6 }}
+            style={{ position: 'absolute', inset: 0 }}
+          />
+          {/* drifting glow orb */}
+          <motion.div
+            animate={{ background: `radial-gradient(circle, ${(focusRole?.color ?? '#1d4ed8')}1f 0%, transparent 70%)` }}
+            transition={{ duration: 0.6 }}
+            style={{
+              position: 'absolute', top: -60, right: -40, width: 320, height: 320, borderRadius: '50%',
+              animation: 'rs_orb1 10s ease-in-out infinite',
+            }}
+          />
+        </div>
 
         {/* Top bar */}
         <motion.div
-          className="flex items-center justify-between px-10 pt-8 pb-0 shrink-0"
+          className="flex items-center justify-between px-10 pt-8 pb-0 shrink-0 relative z-10"
           initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
         >
           <button
@@ -674,7 +713,7 @@ export function RoleSelect() {
 
         {/* Heading */}
         <motion.div
-          className="px-10 pt-8 pb-6 shrink-0"
+          className="px-10 pt-8 pb-6 shrink-0 relative z-10"
           initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
         >
           <h1 style={{ fontSize: 'clamp(26px, 2.5vw, 36px)', fontWeight: 900, color: '#fff', margin: 0, letterSpacing: '-0.5px', lineHeight: 1.1 }}>
@@ -686,32 +725,49 @@ export function RoleSelect() {
         </motion.div>
 
         {/* Role cards — 2 columns */}
-        <div className="px-10 pb-6 shrink-0">
+        <div className="px-10 pb-6 shrink-0 relative z-10">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             {ROLES.map((role, idx) => {
               const isSelected = selected === role.id;
+              const isHovered  = hovered === role.id;
+              const lit         = isSelected || isHovered;
               const Icon = role.icon;
               return (
                 <motion.button
                   key={role.id}
                   onClick={() => setSelected(role.id)}
+                  onMouseEnter={() => setHovered(role.id)}
+                  onMouseLeave={() => setHovered(null)}
                   initial={{ opacity: 0, y: 24 }}
                   animate={{ opacity: 1, y: 0 }}
+                  whileHover={{ y: -5 }}
+                  whileTap={{ scale: 0.985 }}
                   transition={{ delay: 0.18 + idx * 0.1, type: 'spring', stiffness: 240, damping: 22 }}
                   style={{
                     textAlign: 'left', borderRadius: 22, overflow: 'hidden',
-                    border: `1.5px solid ${isSelected ? role.color + '60' : '#ffffff10'}`,
-                    background: isSelected ? role.colorDim : '#ffffff06',
-                    boxShadow: isSelected ? `0 8px 40px ${role.color}28, 0 0 0 1px ${role.color}18` : 'none',
+                    border: `1.5px solid ${isSelected ? role.color + '70' : isHovered ? role.color + '40' : '#ffffff10'}`,
+                    background: isSelected ? role.colorDim : '#ffffff07',
+                    backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)',
+                    boxShadow: isSelected
+                      ? `0 14px 50px ${role.color}33, 0 0 0 1px ${role.color}22, inset 0 1px 0 #ffffff14`
+                      : isHovered
+                        ? `0 18px 48px ${role.color}24, inset 0 1px 0 #ffffff12`
+                        : 'inset 0 1px 0 #ffffff08',
                     cursor: 'pointer', position: 'relative',
                     transition: 'border-color 0.3s, background 0.3s, box-shadow 0.35s',
                     padding: 0,
                   }}
                 >
+                  {/* Corner glow highlight */}
+                  <div style={{
+                    position: 'absolute', top: -1, right: -1, width: 120, height: 120, pointerEvents: 'none',
+                    background: `radial-gradient(circle at top right, ${role.color}${lit ? '2e' : '12'}, transparent 70%)`,
+                    transition: 'background 0.35s', borderRadius: 'inherit',
+                  }} />
                   {/* Top accent */}
                   <div style={{
-                    height: 2,
-                    background: isSelected ? `linear-gradient(90deg, ${role.gFrom}, ${role.gTo})` : 'transparent',
+                    height: 3,
+                    background: lit ? `linear-gradient(90deg, ${role.gFrom}, ${role.gTo})` : 'transparent',
                     transition: 'background 0.3s',
                   }} />
 
@@ -719,10 +775,14 @@ export function RoleSelect() {
                     {/* Icon row */}
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
                       <div style={{
-                        width: 52, height: 52, borderRadius: 16,
-                        background: isSelected ? `linear-gradient(135deg, ${role.gFrom}, ${role.gTo})` : '#ffffff0a',
+                        width: 54, height: 54, borderRadius: 16,
+                        background: isSelected
+                          ? `linear-gradient(135deg, ${role.gFrom}, ${role.gTo})`
+                          : isHovered ? `${role.color}1c` : '#ffffff0a',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        boxShadow: isSelected ? `0 4px 20px ${role.color}40` : 'none',
+                        boxShadow: isSelected
+                          ? `0 6px 24px ${role.color}50`
+                          : isHovered ? `0 4px 18px ${role.color}2e` : 'none',
                         transition: 'background 0.3s, box-shadow 0.3s',
                         flexShrink: 0,
                       }}>
@@ -734,7 +794,8 @@ export function RoleSelect() {
                       </div>
                       {/* Radio */}
                       <div style={{
-                        width: 22, height: 22, borderRadius: '50%', border: `2px solid ${isSelected ? role.color : '#ffffff20'}`,
+                        width: 22, height: 22, borderRadius: '50%',
+                        border: `2px solid ${isSelected ? role.color : isHovered ? role.color + '99' : '#ffffff20'}`,
                         background: isSelected ? role.color : 'transparent',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         transition: 'border-color 0.25s, background 0.25s', flexShrink: 0,
@@ -778,7 +839,7 @@ export function RoleSelect() {
         </div>
 
         {/* Perks grid — appears when role selected */}
-        <div className="px-10 pb-6 flex-1">
+        <div className="px-10 pb-6 flex-1 relative z-10">
           <AnimatePresence mode="wait">
             {activeRole && (
               <motion.div
@@ -833,21 +894,56 @@ export function RoleSelect() {
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 transition={{ duration: 0.25 }}
                 style={{
-                  borderRadius: 20, border: '1.5px dashed #ffffff0d',
-                  padding: '32px 24px', textAlign: 'center',
+                  borderRadius: 20, border: '1.5px dashed #ffffff12',
+                  padding: '28px 24px', textAlign: 'center', position: 'relative', overflow: 'hidden',
+                  background: 'linear-gradient(180deg, #ffffff05, transparent)',
                 }}
               >
-                <div style={{ fontSize: 32, marginBottom: 12 }}>👆</div>
-                <p style={{ fontSize: 13, color: '#2a4060', fontWeight: 600, margin: 0 }}>
-                  Выберите роль выше, чтобы увидеть возможности
+                {/* Animated halo */}
+                <motion.div
+                  animate={{ opacity: [0.25, 0.5, 0.25], scale: [1, 1.12, 1] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                  style={{
+                    width: 64, height: 64, borderRadius: '50%', margin: '0 auto 14px',
+                    background: 'radial-gradient(circle, #5ba3f53a, transparent 70%)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  <motion.div
+                    animate={{ y: [0, -5, 0] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                    style={{ fontSize: 30 }}
+                  >👆</motion.div>
+                </motion.div>
+                <p style={{ fontSize: 14, color: '#6a89a5', fontWeight: 700, margin: 0 }}>
+                  Выберите роль выше
                 </p>
+                <p style={{ fontSize: 12, color: '#33506e', fontWeight: 500, margin: '6px 0 0' }}>
+                  чтобы увидеть возможности платформы
+                </p>
+                {/* Teaser skeleton of the perks grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 22 }}>
+                  {[0,1,2,3].map(i => (
+                    <div key={i} style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '13px 14px', borderRadius: 14,
+                      background: '#ffffff05', border: '1px solid #ffffff0a',
+                    }}>
+                      <div style={{ width: 30, height: 30, borderRadius: 10, background: '#ffffff0a', flexShrink: 0 }} />
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <div style={{ height: 7, borderRadius: 4, background: '#ffffff0d', width: '85%' }} />
+                        <div style={{ height: 7, borderRadius: 4, background: '#ffffff08', width: '55%' }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
         {/* CTA */}
-        <div className="px-10 pb-10 shrink-0">
+        <div className="px-10 pb-10 shrink-0 relative z-10">
           <div style={{ height: 1, background: '#ffffff08', marginBottom: 20 }} />
           <motion.button
             onClick={handleContinue}
