@@ -186,92 +186,85 @@ export function RoleSelect() {
   const focusRole  = ROLES.find(r => r.id === (hovered ?? selected)) ?? null;
 
   // ══════════════════════════════════════════════════════
-  // MOBILE LAYOUT (premium)
+  // MOBILE LAYOUT
   // ══════════════════════════════════════════════════════
   const MobileContent = (
-    <div className="md:hidden w-full flex flex-col font-['Sora'] text-white overflow-x-hidden"
-      style={{ minHeight: '100dvh', background: '#07101e', position: 'relative' }}>
+    <div className="md:hidden w-full flex flex-col font-['Sora'] bg-[#0e1621] text-white overflow-x-hidden" style={{ minHeight: '100dvh' }}>
 
-      {/* ── REACTIVE AMBIENT BG (fixed) ── */}
-      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0, overflow: 'hidden' }}>
-        <motion.div
-          animate={{ background: `radial-gradient(circle at 80% 8%, ${focusRole?.gFrom ?? '#1d4ed8'}28 0%, transparent 55%)` }}
-          transition={{ duration: 0.65 }}
-          style={{ position: 'absolute', inset: 0 }}
-        />
-        <motion.div
-          animate={{ background: `radial-gradient(circle at 18% 92%, ${focusRole?.gTo ?? '#0ea5e9'}1c 0%, transparent 52%)` }}
-          transition={{ duration: 0.65 }}
-          style={{ position: 'absolute', inset: 0 }}
-        />
-        <div style={{
-          position: 'absolute', inset: 0,
-          backgroundImage: 'linear-gradient(#5ba3f5 1px, transparent 1px), linear-gradient(90deg, #5ba3f5 1px, transparent 1px)',
-          backgroundSize: '42px 42px', opacity: 0.018,
-        }} />
-      </div>
-
-      {/* ── TOP BAR ── */}
-      <div className="relative z-10 flex items-center justify-between px-4 shrink-0"
-        style={{ paddingTop: 'max(52px, env(safe-area-inset-top, 52px))', paddingBottom: 10 }}>
-        <button
-          onClick={() => navigate('/welcome')}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 5,
-            fontSize: 13, fontWeight: 600, color: '#607080',
-            background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
-            WebkitTapHighlightColor: 'transparent',
-          }}
-        >
-          <ChevronLeft style={{ width: 15, height: 15 }} />
-          Назад
-        </button>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-          <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#5ba3f540' }} />
-          <div style={{ width: 22, height: 6, borderRadius: 3, background: '#5ba3f5' }} />
-          <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#5ba3f540' }} />
-          <span style={{ fontSize: 10, color: '#3a5570', fontWeight: 700, marginLeft: 4, letterSpacing: '0.05em' }}>2 / 3</span>
+      {/* ── HERO / BG ── */}
+      <div className="relative overflow-hidden shrink-0">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute inset-0"
+            style={{ background: 'linear-gradient(150deg, #0a1f3d 0%, #0e1621 60%)' }} />
+          <motion.div
+            className="absolute -top-16 sm:-top-20 -right-16 sm:-right-20 w-56 sm:w-72 h-56 sm:h-72 rounded-full"
+            animate={{ opacity: activeRole ? 0.25 : 0.15 }}
+            transition={{ duration: 0.5 }}
+            style={{
+              background: `radial-gradient(circle, ${activeRole?.gFrom ?? '#1d4ed8'} 0%, transparent 70%)`,
+            }}
+          />
+          <motion.div
+            className="absolute top-24 sm:top-32 -left-12 sm:-left-16 w-40 sm:w-52 h-40 sm:h-52 rounded-full"
+            animate={{ opacity: activeRole ? 0.20 : 0.10 }}
+            transition={{ duration: 0.5 }}
+            style={{
+              background: `radial-gradient(circle, ${activeRole?.gTo ?? '#0ea5e9'} 0%, transparent 70%)`,
+            }}
+          />
         </div>
 
-        <div style={{ width: 52 }} />
-      </div>
-
-      {/* ── HERO ── */}
-      <div className="relative z-10 flex flex-col items-center text-center px-5 pt-3 pb-5 shrink-0">
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 22 }}
-          style={{ marginBottom: 14, position: 'relative' }}
+        {/* Top bar */}
+        <div
+          className="relative flex items-center justify-between px-3 sm:px-4"
+          style={{ paddingTop: 'max(52px, env(safe-area-inset-top, 52px))', paddingBottom: 8 }}
         >
-          <motion.div
-            animate={{
-              boxShadow: `0 0 0 ${activeRole ? '10px' : '6px'} ${(focusRole?.color ?? '#5ba3f5')}${activeRole ? '22' : '14'}`,
-            }}
-            transition={{ duration: 0.5 }}
-            style={{ borderRadius: 24, display: 'inline-flex' }}
+          <button
+            onClick={() => navigate('/welcome')}
+            className="flex items-center gap-1 sm:gap-1.5 text-[12px] sm:text-[13px] font-semibold text-[#607080] hover:text-white active:scale-90 transition-all"
           >
-            <motion.div
-              animate={{
+            <ChevronLeft className="w-3.5 sm:w-4 h-3.5 sm:h-4" />
+            Назад
+          </button>
+
+          <div className="flex items-center gap-1.5">
+            <div className="w-1.5 h-1.5 rounded-full bg-[#5ba3f5]/40" />
+            <div className="w-4 sm:w-5 h-1.5 rounded-full bg-[#5ba3f5]" />
+            <div className="w-1.5 h-1.5 rounded-full bg-[#5ba3f5]/40" />
+          </div>
+
+          <div className="w-12 sm:w-14" />
+        </div>
+
+        {/* Brand block */}
+        <div className="relative px-3 sm:px-4 pt-3 sm:pt-4 pb-5 sm:pb-6 flex flex-col items-center text-center">
+          <motion.div
+            className="relative mb-2.5 sm:mb-3"
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+          >
+            <div
+              className="w-14 sm:w-16 h-14 sm:h-16 rounded-2xl sm:rounded-3xl flex items-center justify-center relative overflow-hidden"
+              style={{
                 background: activeRole
                   ? `linear-gradient(160deg, ${activeRole.gFrom}ee 0%, ${activeRole.gTo} 100%)`
                   : 'linear-gradient(160deg, #1d4ed8ee 0%, #0ea5e9 100%)',
                 boxShadow: activeRole
-                  ? `0 4px 0 ${activeRole.gFrom}88 inset, 0 -4px 0 #00000040 inset, 0 18px 52px ${activeRole.color}55`
-                  : '0 4px 0 #3b82f688 inset, 0 -4px 0 #00000040 inset, 0 18px 52px #1d4ed855',
-              }}
-              transition={{ duration: 0.45 }}
-              style={{
-                width: 76, height: 76, borderRadius: 24,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                position: 'relative', overflow: 'hidden',
+                  ? `0 2px 0 ${activeRole.gFrom}88 inset, 0 -3px 0 #00000040 inset, 0 12px 36px ${activeRole.color}55, 0 4px 12px #00000060`
+                  : '0 2px 0 #3b82f688 inset, 0 -3px 0 #00000040 inset, 0 12px 36px #1d4ed855, 0 4px 12px #00000060',
+                transition: 'background 0.4s, box-shadow 0.4s',
               }}
             >
               <div style={{
                 position: 'absolute', top: 0, left: 0, right: 0, height: '52%',
-                background: 'linear-gradient(180deg, #ffffff2a 0%, transparent 100%)',
-                borderRadius: 'inherit', pointerEvents: 'none',
+                background: 'linear-gradient(180deg, #ffffff28 0%, #ffffff08 60%, transparent 100%)',
+                borderRadius: 'inherit', pointerEvents: 'none', zIndex: 1,
+              }} />
+              <div style={{
+                position: 'absolute', top: 0, left: '15%', right: '15%', height: 1,
+                background: 'linear-gradient(90deg, transparent, #ffffff60, transparent)',
+                pointerEvents: 'none', zIndex: 2,
               }} />
               <AnimatePresence mode="wait">
                 <motion.div
@@ -283,32 +276,26 @@ export function RoleSelect() {
                   style={{ position: 'relative', zIndex: 3 }}
                 >
                   {activeRole?.id === 'sender' ? (
-                    <Package style={{ width: 36, height: 36, color: '#fff', filter: 'drop-shadow(0 2px 8px #00000060)' }} />
+                    <Package style={{ width: 34, height: 34, color: '#fff', filter: 'drop-shadow(0 2px 8px #00000060)' }} />
                   ) : (
-                    <TruckSvg size={46} />
+                    <TruckSvg size={44} />
                   )}
                 </motion.div>
               </AnimatePresence>
-            </motion.div>
+            </div>
           </motion.div>
-        </motion.div>
 
-        <motion.h1
-          style={{ fontSize: 26, fontWeight: 900, color: '#fff', margin: 0, letterSpacing: '-0.5px', lineHeight: 1.1 }}
-          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-        >
-          {t('role_title')}
-        </motion.h1>
-        <motion.p
-          style={{ fontSize: 13, color: '#4a6880', margin: '8px 0 0', maxWidth: 260, lineHeight: 1.55, fontWeight: 500 }}
-          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
-        >
-          {t('role_subtitle')}
-        </motion.p>
+          <motion.h1 className="text-[24px] font-black text-white leading-tight" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+            {t('role_title')}
+          </motion.h1>
+          <motion.p className="text-[13px] text-[#607080] mt-1 max-w-[260px] leading-snug" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+            {t('role_subtitle')}
+          </motion.p>
+        </div>
       </div>
 
       {/* ── ROLE CARDS ── */}
-      <div className="relative z-10 flex flex-col px-4 gap-3 shrink-0">
+      <div className="flex flex-col px-4 gap-3 pb-6">
         {ROLES.map((role, idx) => {
           const isSelected = selected === role.id;
           const Icon = role.icon;
@@ -318,252 +305,136 @@ export function RoleSelect() {
               onClick={() => setSelected(role.id)}
               onTouchStart={() => setPressing(role.id)}
               onTouchEnd={() => setPressing(null)}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
-              whileTap={{ scale: 0.975 }}
               transition={{ delay: 0.18 + idx * 0.08, type: 'spring', stiffness: 260, damping: 22 }}
+              className="w-full text-left rounded-3xl overflow-hidden relative transition-transform duration-150 active:scale-[0.97]"
               style={{
-                textAlign: 'left', borderRadius: 22, overflow: 'hidden', position: 'relative',
-                border: `1.5px solid ${isSelected ? role.color + '60' : '#ffffff0f'}`,
-                background: isSelected ? role.colorDim : '#ffffff07',
-                backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
-                boxShadow: isSelected
-                  ? `0 10px 40px ${role.color}30, 0 0 0 1px ${role.color}1a, inset 0 1px 0 #ffffff12`
-                  : 'inset 0 1px 0 #ffffff08',
-                cursor: 'pointer', padding: 0,
-                transition: 'border-color 0.3s, background 0.3s, box-shadow 0.35s',
-                WebkitTapHighlightColor: 'transparent',
+                border: `1.5px solid ${isSelected ? role.color + '60' : 'rgba(255,255,255,0.07)'}`,
+                background: isSelected ? role.colorDim : 'rgba(255,255,255,0.035)',
+                boxShadow: isSelected ? `0 8px 32px ${role.color}28, 0 0 0 1px ${role.color}20` : 'none',
+                transition: 'border-color 0.3s, background 0.3s, box-shadow 0.3s',
               }}
             >
-              {/* Top accent bar */}
-              <div style={{
-                height: 3,
-                background: isSelected ? `linear-gradient(90deg, ${role.gFrom}, ${role.gTo})` : 'transparent',
-                transition: 'background 0.3s',
-              }} />
+              <AnimatePresence>
+                {isSelected && (
+                  <motion.div className="absolute top-0 inset-x-0 h-[2px]"
+                    initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} exit={{ scaleX: 0 }} transition={{ duration: 0.3 }}
+                    style={{ background: `linear-gradient(90deg, ${role.gFrom}, ${role.gTo})` }}
+                  />
+                )}
+              </AnimatePresence>
 
-              {/* Corner glow */}
-              <div style={{
-                position: 'absolute', top: 0, right: 0, width: 100, height: 100, pointerEvents: 'none',
-                background: `radial-gradient(circle at top right, ${role.color}${isSelected ? '28' : '10'}, transparent 70%)`,
-                transition: 'background 0.35s',
-              }} />
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px 15px' }}>
-                {/* Icon */}
-                <div style={{
-                  width: 52, height: 52, borderRadius: 16, flexShrink: 0,
-                  background: isSelected ? `linear-gradient(135deg, ${role.gFrom}, ${role.gTo})` : '#ffffff0a',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: isSelected ? `0 4px 20px ${role.color}40` : 'none',
-                  transition: 'background 0.3s, box-shadow 0.3s',
-                }}>
+              <div className="flex items-center gap-4 px-4 pt-4 pb-3">
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 transition-all duration-300"
+                  style={{
+                    background: isSelected ? `linear-gradient(135deg, ${role.gFrom}, ${role.gTo})` : 'rgba(255,255,255,0.07)',
+                    boxShadow: isSelected ? `0 4px 20px ${role.color}40` : 'none',
+                  }}
+                >
                   {role.id === 'driver' ? (
-                    <TruckSvg size={40} selected={isSelected} />
+                    <TruckSvg size={44} selected={isSelected} />
                   ) : (
-                    <Icon style={{ width: 24, height: 24, color: isSelected ? '#fff' : role.color, transition: 'color 0.3s' }} />
+                    <Icon className="w-7 h-7 transition-colors duration-300" style={{ color: isSelected ? '#fff' : role.color }} />
                   )}
                 </div>
 
-                {/* Text */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-                    <h3 style={{ fontSize: 17, fontWeight: 900, color: '#fff', margin: 0 }}>{role.label}</h3>
-                    <span style={{
-                      fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 7,
-                      background: isSelected ? role.colorDim : '#ffffff08',
-                      color: isSelected ? role.color : '#607080',
-                      border: `1px solid ${isSelected ? role.colorBrd : '#ffffff08'}`,
-                      transition: 'all 0.25s',
-                    }}>{role.labelTj}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <h3 className="text-[17px] font-black text-white">{role.label}</h3>
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-lg"
+                      style={{
+                        background: isSelected ? role.colorDim : 'rgba(255,255,255,0.07)',
+                        color: isSelected ? role.color : '#607080',
+                        border: `1px solid ${isSelected ? role.colorBrd : 'rgba(255,255,255,0.07)'}`,
+                      }}
+                    >
+                      {role.labelTj}
+                    </span>
                   </div>
-                  <p style={{ fontSize: 12, color: isSelected ? role.color : '#607080', margin: 0, lineHeight: 1.4, fontWeight: 500, transition: 'color 0.25s' }}>
+                  <p className="text-[12px] font-medium leading-snug transition-colors duration-300"
+                    style={{ color: isSelected ? role.color : '#607080' }}>
                     {role.tagline}
                   </p>
                 </div>
 
-                {/* Radio */}
-                <div style={{
-                  width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
-                  border: `2px solid ${isSelected ? role.color : '#ffffff20'}`,
-                  background: isSelected ? role.color : 'transparent',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  transition: 'border-color 0.25s, background 0.25s',
-                }}>
+                <div className="w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-all duration-300"
+                  style={{ borderColor: isSelected ? role.color : 'rgba(255,255,255,0.15)', background: isSelected ? role.color : 'transparent' }}>
                   <AnimatePresence>
                     {isSelected && (
-                      <motion.div
+                      <motion.svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3.5}
                         initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }}
-                        transition={{ type: 'spring', stiffness: 500, damping: 20 }}
-                      >
-                        <Check style={{ width: 11, height: 11, color: '#fff', strokeWidth: 3 }} />
-                      </motion.div>
+                        transition={{ type: 'spring', stiffness: 400, damping: 18 }}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </motion.svg>
                     )}
                   </AnimatePresence>
                 </div>
               </div>
+
+              <AnimatePresence>
+                {isSelected && (
+                  <motion.div className="overflow-hidden"
+                    initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.32, ease: [0.4, 0, 0.2, 1] }}>
+                    <div className="mx-4 mb-4 rounded-2xl p-3 flex flex-col gap-2"
+                      style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${role.colorBrd}` }}>
+                      {role.perks.map((perk, i) => {
+                        const PIcon = perk.icon;
+                        return (
+                          <motion.div key={i} className="flex items-center gap-2.5"
+                            initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.055 }}>
+                            <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
+                              style={{ background: role.colorDim, border: `1px solid ${role.colorBrd}` }}>
+                              <PIcon className="w-3.5 h-3.5" style={{ color: role.color }} />
+                            </div>
+                            <span className="text-[12px] text-[#c0d0e0] leading-snug">{perk.text}</span>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.button>
           );
         })}
+
+        {/* ── CTA ── */}
+        <motion.div className="mt-1" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.36 }}>
+          <motion.button
+            onClick={handleContinue}
+            disabled={!selected}
+            whileTap={selected ? { scale: 0.97 } : {}}
+            className="w-full h-13 rounded-3xl font-black text-[15px] flex items-center justify-center gap-2.5 transition-all duration-300"
+            style={
+              selected
+                ? { background: `linear-gradient(135deg, ${activeRole!.gFrom}, ${activeRole!.gTo})`, boxShadow: `0 4px 24px ${activeRole!.color}40`, color: '#fff' }
+                : { background: 'rgba(255,255,255,0.05)', color: '#607080', cursor: 'not-allowed' }
+            }
+          >
+            <AnimatePresence mode="wait">
+              {selected ? (
+                <motion.span key="continue" className="flex items-center gap-2"
+                  initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}>
+                  {t('role_continue')}
+                  <ArrowRight style={{ width: 18, height: 18 }} />
+                </motion.span>
+              ) : (
+                <motion.span key="hint" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}>
+                  Выберите роль для продолжения
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </motion.button>
+          <motion.p className="text-center text-[12px] text-[#607080] mt-3 leading-snug"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
+            {t('role_helper')}
+          </motion.p>
+        </motion.div>
+
+        <div style={{ height: 'env(safe-area-inset-bottom, 16px)', minHeight: 16 }} />
       </div>
-
-      {/* ── PERKS / EMPTY STATE ── */}
-      <div className="relative z-10 px-4 pt-4 pb-2">
-        <AnimatePresence mode="wait">
-          {activeRole ? (
-            <motion.div
-              key={activeRole.id}
-              initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }}
-              transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                <div style={{ flex: 1, height: 1, background: '#ffffff08' }} />
-                <span style={{ fontSize: 10, fontWeight: 700, color: activeRole.color, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                  Возможности · {activeRole.label}
-                </span>
-                <div style={{ flex: 1, height: 1, background: '#ffffff08' }} />
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                {activeRole.perks.map((perk, i) => {
-                  const PIcon = perk.icon;
-                  return (
-                    <motion.div
-                      key={i}
-                      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.055 }}
-                      style={{
-                        display: 'flex', flexDirection: 'column', gap: 8,
-                        padding: '12px 14px', borderRadius: 16,
-                        background: activeRole.colorDim, border: `1px solid ${activeRole.colorBrd}`,
-                      }}
-                    >
-                      <div style={{
-                        width: 32, height: 32, borderRadius: 10,
-                        background: `${activeRole.color}18`, border: `1px solid ${activeRole.colorBrd}`,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}>
-                        <PIcon style={{ width: 15, height: 15, color: activeRole.color }} />
-                      </div>
-                      <span style={{ fontSize: 11, color: '#c0d0e0', lineHeight: 1.45, fontWeight: 500 }}>{perk.text}</span>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            </motion.div>
-          ) : (
-            <motion.div
-              key="hint"
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              style={{
-                borderRadius: 20, border: '1.5px dashed #ffffff10',
-                padding: '22px 20px', textAlign: 'center',
-                background: 'linear-gradient(180deg, #ffffff04, transparent)',
-              }}
-            >
-              <motion.div
-                animate={{ opacity: [0.3, 0.6, 0.3], scale: [1, 1.1, 1] }}
-                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-                style={{
-                  width: 52, height: 52, borderRadius: '50%', margin: '0 auto 10px',
-                  background: 'radial-gradient(circle, #5ba3f530, transparent 70%)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}
-              >
-                <motion.div
-                  animate={{ y: [0, -4, 0] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-                  style={{ fontSize: 24 }}
-                >👆</motion.div>
-              </motion.div>
-              <p style={{ fontSize: 13, color: '#6a89a5', fontWeight: 700, margin: 0 }}>Выберите роль выше</p>
-              <p style={{ fontSize: 11, color: '#33506e', margin: '4px 0 0', fontWeight: 500 }}>чтобы увидеть возможности платформы</p>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* ── STATS ── */}
-      <div className="relative z-10 px-4 pb-3 shrink-0">
-        <div style={{
-          display: 'flex', borderRadius: 16, overflow: 'hidden',
-          border: '1px solid #ffffff0e', background: '#ffffff06',
-        }}>
-          {[
-            { value: liveStats?.drivers ?? 3400, suffix: '+', label: 'Водителей', color: '#5ba3f5' },
-            { value: liveStats?.cities  ?? 12,   suffix: '',  label: 'Городов',   color: '#a78bfa' },
-            { value: liveStats?.satisfied ?? 98,  suffix: '%', label: 'Довольных', color: '#34d399' },
-          ].map((s, i, arr) => (
-            <div key={s.label} style={{
-              flex: 1, textAlign: 'center', padding: '12px 6px',
-              borderRight: i < arr.length - 1 ? '1px solid #ffffff08' : 'none',
-            }}>
-              <div style={{ fontSize: 18, fontWeight: 900, color: s.color, letterSpacing: '-0.03em', lineHeight: 1 }}>
-                <StatCounter key={`${s.label}-${s.value}`} target={s.value} suffix={s.suffix} />
-              </div>
-              <div style={{ fontSize: 10, color: '#4a6880', fontWeight: 600, marginTop: 3 }}>{s.label}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── CTA ── */}
-      <div className="relative z-10 px-4 pb-4 shrink-0">
-        <motion.button
-          onClick={handleContinue}
-          disabled={!selected}
-          whileTap={selected ? { scale: 0.97 } : {}}
-          style={{
-            width: '100%', borderRadius: 18, fontWeight: 900, fontSize: 15,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-            height: 56,
-            background: selected
-              ? `linear-gradient(135deg, ${activeRole!.gFrom} 0%, ${activeRole!.gTo} 100%)`
-              : '#ffffff08',
-            color: selected ? '#fff' : '#2a4060',
-            border: 'none', cursor: selected ? 'pointer' : 'not-allowed',
-            boxShadow: selected ? `0 8px 32px ${activeRole!.color}40, inset 0 1px 0 #ffffff22` : 'none',
-            fontFamily: 'inherit', position: 'relative', overflow: 'hidden',
-            transition: 'background 0.3s, box-shadow 0.3s, color 0.3s',
-            WebkitTapHighlightColor: 'transparent',
-          }}
-        >
-          {selected && (
-            <div style={{
-              position: 'absolute', inset: 0,
-              background: 'linear-gradient(105deg, transparent 20%, #ffffff20 50%, transparent 80%)',
-              animation: 'rs_shimmer 2.6s ease-in-out infinite',
-              borderRadius: 18,
-            }} />
-          )}
-          <AnimatePresence mode="wait">
-            {selected ? (
-              <motion.span key="go"
-                initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
-                style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: 10 }}
-              >
-                {t('role_continue')}
-                <ArrowRight style={{ width: 18, height: 18 }} />
-              </motion.span>
-            ) : (
-              <motion.span key="hint"
-                initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
-                style={{ position: 'relative', zIndex: 1 }}
-              >
-                Выберите роль для продолжения
-              </motion.span>
-            )}
-          </AnimatePresence>
-        </motion.button>
-
-        <motion.p
-          style={{ textAlign: 'center', fontSize: 11, color: '#4a6880', margin: '10px 0 0', lineHeight: 1.5 }}
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
-        >
-          {t('role_helper')}
-        </motion.p>
-      </div>
-
-      <div style={{ height: 'env(safe-area-inset-bottom, 16px)', minHeight: 16 }} />
     </div>
   );
 
