@@ -7,7 +7,7 @@ import type { LangCode } from '../i18n/translations';
 import { getPublicStats } from '../api/dataApi';
 import { getSiteConfig } from '../utils/siteConfig';
 
-// ── Palette ────────────────────────────────────────────────────────────
+// ── Palette ──────────────────────────────────────────────────────────────────
 const C = {
   dim:       '#6b8299',
   dim2:      '#4a6080',
@@ -29,7 +29,7 @@ const LANGS: { code: LangCode; display: string; flag: string }[] = [
 ];
 
 
-// ── Live dot ───────────────────────────────────────────────────────────
+// ── Live dot ───────────────────────────────────────────────────────────────
 function LiveDot({ color = C.green, size = 8 }: { color?: string; size?: number }) {
   return (
     <span style={{ position: 'relative', width: size, height: size, display: 'inline-block', flexShrink: 0 }}>
@@ -78,7 +78,7 @@ function MapBackground() {
   );
 }
 
-// ── Logo ───────────────────────────────────────────────────────────────
+// ── Logo ───────────────────────────────────────────────────────────────────
 function Logo() {
   return (
     <div style={{
@@ -91,7 +91,7 @@ function Logo() {
   );
 }
 
-// ── Arrow right ────────────────────────────────────────────────────────
+// ── Arrow right ──────────────────────────────────────────────────────────────
 function ArrowRight({ color }: { color: string }) {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
@@ -100,7 +100,7 @@ function ArrowRight({ color }: { color: string }) {
   );
 }
 
-// ── Tag mini-icons ─────────────────────────────────────────────────────
+// ── Tag mini-icons ─────────────────────────────────────────────────────────────
 const _ti = (paths: ReactNode) => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">{paths}</svg>
 );
@@ -115,7 +115,7 @@ const Ti = {
   warehouse: _ti(<><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></>),
 };
 
-// ── Cargo truck photo ─────────────────────────────────────────────────
+// ── Cargo truck photo ─────────────────────────────────────────────────────
 function TruckBig({ src }: { src: string }) {
   return (
     <div className="ovora-card-vehicle" style={{ width: 'clamp(74px,22vw,100px)', height: 'clamp(64px,19vw,88px)', borderRadius: 12, flexShrink: 0, overflow: 'hidden', background: 'rgba(0,8,24,0.85)', boxShadow: '0 0 0 1px rgba(91,163,245,0.15)' }}>
@@ -124,7 +124,7 @@ function TruckBig({ src }: { src: string }) {
   );
 }
 
-// ── Avia plane photo ──────────────────────────────────────────────────
+// ── Avia plane photo ──────────────────────────────────────────────────────
 function PlaneBig({ src }: { src: string }) {
   return (
     <div className="ovora-card-vehicle" style={{ width: 'clamp(74px,22vw,100px)', height: 'clamp(64px,19vw,88px)', borderRadius: 12, flexShrink: 0, overflow: 'hidden', background: 'rgba(0,8,24,0.85)', boxShadow: '0 0 0 1px rgba(91,163,245,0.15)' }}>
@@ -133,7 +133,7 @@ function PlaneBig({ src }: { src: string }) {
   );
 }
 
-// ── Card ──────────────────────────────────────────────────────────────
+// ── Card ────────────────────────────────────────────────────────────────────────
 interface WorldCardProps {
   title: string;
   desc: string;
@@ -182,10 +182,10 @@ function WorldCard({ title, desc, tags, accentLight, icon, onClick }: WorldCardP
   );
 }
 
-// ── Stat icon type ─────────────────────────────────────────────────────
-// ══════════════════════════════════════════════════════════════════════
+// ── Stat icon type ─────────────────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════════════
 // WELCOME
-// ══════════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════════════
 export function Welcome() {
   const navigate  = useNavigate();
   const { lang, setLang, t } = useLanguage();
@@ -267,17 +267,20 @@ export function Welcome() {
     <div className="ovora-app">
       <MapBackground />
 
-      {/* ── Hero: полный экран на десктопе, в потоке на мобиле ── */}
+      {/* ── Hero: полный экран на десктопе, в потоке на мобайле ── */}
       <motion.div className="ovora-hero-fullbleed"
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}
       >
-        <img src={siteConfig.icons.hero} alt="Ovora Cargo" />
+        <picture>
+          <source media="(min-width: 700px)" srcSet="/icons/hero-desktop.png" />
+          <img src={siteConfig.icons.hero} alt="Ovora Cargo" />
+        </picture>
       </motion.div>
 
       {/* ── Контентная сетка ── */}
       <div className="ovora-screen" style={{ position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', gap: 'clamp(8px,2vw,14px)' }}>
 
-        {/* ════ AREA: LANG (верх-лево на десктопе, после карточек на мобиле) ════ */}
+        {/* ╔╗ AREA: LANG (верх-лево на десктопе, после карточек на мобайле) ╔╗ */}
         <motion.div className="ovora-area-lang"
           style={{ padding: '0 clamp(8px,3vw,0px)' }}
           initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.4 }}
@@ -313,7 +316,7 @@ export function Welcome() {
           </div>
         </motion.div>
 
-        {/* ════ AREA: BRAND (только десктоп — лого + заголовок + текст) ════ */}
+        {/* ╔╗ AREA: BRAND (только десктоп — лого + заголовок + текст) ╔╗ */}
         <motion.div className="ovora-area-brand"
           initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.45 }}
         >
@@ -341,7 +344,7 @@ export function Welcome() {
           </div>
         </motion.div>
 
-        {/* ════ AREA: CARDS — AVIA сверху, CARGO снизу ════ */}
+        {/* ╔╗ AREA: CARDS — AVIA сверху, CARGO снизу ╔╗ */}
         <motion.div className="ovora-area-cards"
           initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15, duration: 0.45 }}
           style={{ padding: '0 clamp(8px,3vw,0px)' }}
@@ -380,12 +383,12 @@ export function Welcome() {
           </div>
         </motion.div>
 
-        {/* ════ AREA: BOTTOM — полоса фич (десктоп) + партнёры ════ */}
+        {/* ╔╗ AREA: BOTTOM — полоса фич (десктоп) + партнёры ╔╗ */}
         <motion.div className="ovora-area-bottom"
           style={{ padding: '0 clamp(8px,3vw,0px) clamp(8px,3vw,0px)' }}
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3, duration: 0.4 }}
         >
-          {/* Полоса фич — только на десктопе (скрыта на мобиле через CSS) */}
+          {/* Полоса фич — только на десктопе (скрыта на мобайле через CSS) */}
           <div className="ovora-features-bar">
             {FEATURES.map((f, i) => (
               <div key={i} className="ovora-feature-item">
