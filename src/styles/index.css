@@ -283,17 +283,17 @@ button, a {
 
 @media (min-width: 1100px) {
   .ovora-screen {
-    grid-template-columns: minmax(280px, 380px) 1fr minmax(320px, 440px) !important;
+    grid-template-columns: minmax(280px, 380px) 1fr minmax(250px, 370px) !important;
   }
-  .ovora-card-vehicle { width: 64px !important; height: 57px !important; }
+  .ovora-card-vehicle { width: 50px !important; height: 46px !important; }
 }
 
 @media (min-width: 1400px) {
   .ovora-screen {
-    grid-template-columns: minmax(320px, 440px) 1fr minmax(340px, 470px) !important;
+    grid-template-columns: minmax(320px, 440px) 1fr minmax(260px, 380px) !important;
     padding: clamp(80px,10vh,108px) clamp(48px,5vw,80px) clamp(20px,3vh,36px) !important;
   }
-  .ovora-card-vehicle { width: 72px !important; height: 64px !important; }
+  .ovora-card-vehicle { width: 54px !important; height: 48px !important; }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
