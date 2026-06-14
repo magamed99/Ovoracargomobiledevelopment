@@ -184,7 +184,7 @@ button, a {
   /* Grid: brand left (spans rows 1-2), cards right (spans rows 1-2), lang hidden */
   .ovora-area-lang   { display: none !important; }
   .ovora-area-brand  { grid-column: 1; grid-row: 1 / 3; display: flex !important; flex-direction: column !important; gap: clamp(16px,2.4vh,28px) !important; padding: 0 !important; order: unset; align-self: center !important; }
-  .ovora-area-cards  { grid-column: 3; grid-row: 1 / 3; padding: 0 !important; align-self: start; order: unset; }
+  .ovora-area-cards  { grid-column: 3; grid-row: 1 / 3; padding: 0 !important; align-self: center; order: unset; }
   .ovora-area-bottom { grid-column: 1 / -1; grid-row: 3; padding: 0 !important; align-self: end; order: unset; display: flex !important; align-items: flex-end !important; gap: clamp(12px,2vw,22px) !important; }
 
   /* Hide logo row from brand — logo lives in navbar */
