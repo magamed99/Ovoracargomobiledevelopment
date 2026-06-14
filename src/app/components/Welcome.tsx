@@ -277,6 +277,45 @@ export function Welcome() {
         </picture>
       </motion.div>
 
+      {/* ── Desktop Navbar (скрыт на мобайле через CSS) ── */}
+      <motion.nav className="ovora-navbar"
+        initial={{ opacity: 0, y: -14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+          <Logo />
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 900, color: '#fff', letterSpacing: '-0.2px', lineHeight: 1.1 }}>
+              Ovora <span style={{ color: C.blueLight }}>Cargo</span>
+            </div>
+            <div style={{ fontSize: 9, fontWeight: 700, color: C.dim2, letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 1 }}>
+              Logistics & Air Cargo
+            </div>
+          </div>
+        </div>
+        <div style={{ flex: 1 }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 10, fontWeight: 600, color: C.dim2, letterSpacing: '0.1em', textTransform: 'uppercase', marginRight: 4 }}>{t('wl_lang_label')}</span>
+          {LANGS.map(l => {
+            const active = selectedLang === l.code;
+            return (
+              <button key={l.code} onClick={() => handleLang(l.code)} aria-pressed={active} aria-label={`Язык: ${l.display}`} style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                padding: '6px 14px', borderRadius: 8,
+                border: active ? '1px solid rgba(91,163,245,0.5)' : '1px solid rgba(255,255,255,0.1)',
+                background: active ? 'rgba(33,118,232,0.22)' : 'rgba(255,255,255,0.04)',
+                color: active ? '#e8f0ff' : C.dim,
+                fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+                transition: 'all 0.18s ease', position: 'relative', overflow: 'hidden',
+              }}>
+                {active && <span style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at top, rgba(91,163,245,0.18), transparent 70%)' }} />}
+                <span style={{ fontSize: 15, position: 'relative' }}>{l.flag}</span>
+                <span style={{ position: 'relative' }}>{l.display}</span>
+              </button>
+            );
+          })}
+        </div>
+      </motion.nav>
+
       {/* ── Контентная сетка ── */}
       <div className="ovora-screen" style={{ position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', gap: 'clamp(8px,2vw,14px)' }}>
 
@@ -325,13 +364,25 @@ export function Welcome() {
             <div style={{ fontSize: 'clamp(28px,3.2vw,48px)', fontWeight: 900, color: '#fff', lineHeight: 1.06, letterSpacing: '-1.5px' }}>{t('wl_brand_platform')}</div>
             <div style={{ fontSize: 'clamp(28px,3.2vw,48px)', fontWeight: 900, color: C.blueLight, lineHeight: 1.06, letterSpacing: '-1.5px' }}>Ovora</div>
             <div style={{ width: 38, height: 2.5, background: C.blue, borderRadius: 2, margin: 'clamp(7px,1.2vh,12px) 0' }} />
-            <p style={{ fontSize: 'clamp(11px,1.2vw,14px)', color: C.dim, lineHeight: 1.6, margin: 0, maxWidth: 280 }}>
+            <p style={{ fontSize: 'clamp(11px,1.2vw,14px)', color: C.dim, lineHeight: 1.6, margin: 0, maxWidth: 300 }}>
               {t('wl_tagline')}
             </p>
           </div>
 
+          {/* Stats strip — только на десктопе */}
+          <div className="ovora-brand-stats" style={{ display: 'flex', gap: 'clamp(20px,3vw,40px)' }}>
+            {_statsStrip.map((s, i) => (
+              <div key={i} style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 'clamp(22px,2.5vw,36px)', fontWeight: 900, color: s.color, lineHeight: 1, letterSpacing: '-0.5px' }}>
+                  {s.target.toLocaleString()}{s.suffix}
+                </div>
+                <div style={{ fontSize: 'clamp(9px,0.9vw,11px)', color: C.dim, marginTop: 4, fontWeight: 600 }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+
           {/* Лого-строка */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div className="ovora-brand-logo-row" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <Logo />
             <div>
               <div style={{ fontSize: 'clamp(18px,2vw,24px)', fontWeight: 900, color: '#fff', letterSpacing: '-0.3px', lineHeight: 1.1 }}>
