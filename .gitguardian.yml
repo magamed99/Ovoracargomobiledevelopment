@@ -1,0 +1,6 @@
+version: 2
+# Supabase anon key is a PUBLIC client-side key — not a secret.
+# Intentionally hardcoded for browser builds (info.tsx and info.ts).
+ignore-paths:
+  - utils/supabase/info.ts
+  - utils/supabase/info.tsx
