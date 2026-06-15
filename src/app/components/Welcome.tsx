@@ -7,7 +7,7 @@ import type { LangCode } from '../i18n/translations';
 import { getPublicStats } from '../api/dataApi';
 import { getSiteConfig } from '../utils/siteConfig';
 
-// ── Palette ──────────────────────────────────────────────────────────────────
+// ── Palette ────────────────────────────────────────────────────────────────────────────
 const C = {
   dim:       '#6b8299',
   dim2:      '#4a6080',
@@ -21,7 +21,7 @@ const C = {
   cardLine:  'rgba(80,140,230,0.14)',
 } as const;
 
-// ── Language list ──────────────────────────────────────────────────────
+// ── Language list ───────────────────────────────────────
 const LANGS: { code: LangCode; display: string; flag: string }[] = [
   { code: 'ru', display: 'RU', flag: '🇷🇺' },
   { code: 'tj', display: 'TJ', flag: '🇹🇯' },
@@ -29,7 +29,7 @@ const LANGS: { code: LangCode; display: string; flag: string }[] = [
 ];
 
 
-// ── Live dot ───────────────────────────────────────────────────────────────
+// ── Live dot ───────────────────────────────────────────────────────────────────────
 function LiveDot({ color = C.green, size = 8 }: { color?: string; size?: number }) {
   return (
     <span style={{ position: 'relative', width: size, height: size, display: 'inline-block', flexShrink: 0 }}>
@@ -39,7 +39,7 @@ function LiveDot({ color = C.green, size = 8 }: { color?: string; size?: number 
   );
 }
 
-// ── Map background ─────────────────────────────────────────────────────
+// ── Map background ───────────────────────────────────────────────
 function MapBackground() {
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: 0, overflow: 'hidden' }}>
@@ -78,7 +78,7 @@ function MapBackground() {
   );
 }
 
-// ── Logo ───────────────────────────────────────────────────────────────────
+// ── Logo ─────────────────────────────────────────────────────────────────────────────
 function Logo() {
   return (
     <div style={{
@@ -91,7 +91,7 @@ function Logo() {
   );
 }
 
-// ── Arrow right ──────────────────────────────────────────────────────────────
+// ── Arrow right ──────────────────────────────────────────────────────────────────
 function ArrowRight({ color }: { color: string }) {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
@@ -100,7 +100,7 @@ function ArrowRight({ color }: { color: string }) {
   );
 }
 
-// ── Tag mini-icons ─────────────────────────────────────────────────────────────
+// ── Tag mini-icons ───────────────────────────────────────────────────────────────────────────
 const _ti = (paths: ReactNode) => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">{paths}</svg>
 );
@@ -115,7 +115,7 @@ const Ti = {
   warehouse: _ti(<><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></>),
 };
 
-// ── Cargo truck photo ─────────────────────────────────────────────────────
+// ── Cargo truck photo ──────────────────────────────────────────────────────────────────────────
 function TruckBig({ src }: { src: string }) {
   return (
     <div className="ovora-card-vehicle" style={{ width: 'clamp(74px,22vw,100px)', height: 'clamp(64px,19vw,88px)', borderRadius: 12, flexShrink: 0, overflow: 'hidden', background: 'rgba(0,8,24,0.85)', boxShadow: '0 0 0 1px rgba(91,163,245,0.15)' }}>
@@ -124,7 +124,7 @@ function TruckBig({ src }: { src: string }) {
   );
 }
 
-// ── Avia plane photo ──────────────────────────────────────────────────────
+// ── Avia plane photo ──────────────────────────────────────────────────────────────────────────
 function PlaneBig({ src }: { src: string }) {
   return (
     <div className="ovora-card-vehicle" style={{ width: 'clamp(74px,22vw,100px)', height: 'clamp(64px,19vw,88px)', borderRadius: 12, flexShrink: 0, overflow: 'hidden', background: 'rgba(0,8,24,0.85)', boxShadow: '0 0 0 1px rgba(91,163,245,0.15)' }}>
@@ -133,7 +133,7 @@ function PlaneBig({ src }: { src: string }) {
   );
 }
 
-// ── Card ────────────────────────────────────────────────────────────────────────
+// ── Card ──────────────────────────────────────────────────────────────────────────────────
 interface WorldCardProps {
   title: string;
   desc: string;
@@ -141,8 +141,9 @@ interface WorldCardProps {
   accentLight: string;
   icon: ReactNode;
   onClick: () => void;
+  soon?: boolean;
 }
-function WorldCard({ title, desc, tags, accentLight, icon, onClick }: WorldCardProps) {
+function WorldCard({ title, desc, tags, accentLight, icon, onClick, soon }: WorldCardProps) {
   return (
     <button onClick={onClick} aria-label={`Перейти: ${title}`} className="ovora-service-card" style={{
       border: '1px solid rgba(255,255,255,0.08)',
@@ -154,9 +155,15 @@ function WorldCard({ title, desc, tags, accentLight, icon, onClick }: WorldCardP
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
             <span style={{ fontSize: 'clamp(14px,4.2vw,17px)', fontWeight: 800, color: '#fff', letterSpacing: '-0.2px' }}>{title}</span>
-            <span style={{ fontSize: 'clamp(7px,2vw,9px)', fontWeight: 700, color: C.green, padding: '2px 5px', borderRadius: 6, background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.28)', letterSpacing: '0.05em', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-              <LiveDot size={4} /> LIVE
-            </span>
+            {soon ? (
+              <span style={{ fontSize: 'clamp(7px,2vw,9px)', fontWeight: 700, color: C.orange, padding: '2px 5px', borderRadius: 6, background: 'rgba(255,122,59,0.12)', border: '1px solid rgba(255,122,59,0.28)', letterSpacing: '0.05em', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                Скоро
+              </span>
+            ) : (
+              <span style={{ fontSize: 'clamp(7px,2vw,9px)', fontWeight: 700, color: C.green, padding: '2px 5px', borderRadius: 6, background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.28)', letterSpacing: '0.05em', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                <LiveDot size={4} /> LIVE
+              </span>
+            )}
           </div>
           <p style={{ fontSize: 'clamp(8px,2.5vw,10px)', color: 'rgba(155,170,210,0.85)', lineHeight: 1.35, margin: 0 }}>{desc}</p>
         </div>
@@ -182,7 +189,7 @@ function WorldCard({ title, desc, tags, accentLight, icon, onClick }: WorldCardP
   );
 }
 
-// ── Stat icon type ─────────────────────────────────────────────────────────────────
+// ── Stat icon type ────────────────────────────────────────────────────────────────────────────────
 // ════════════════════════════════════════════════════════════════════════
 // WELCOME
 // ════════════════════════════════════════════════════════════════════════
@@ -408,6 +415,7 @@ export function Welcome() {
               desc={t('wl_avia_desc')}
               icon={<PlaneBig src={siteConfig.icons.plane} />}
               accentLight={C.cyan}
+              soon
               onClick={() => navigate('/avia')}
               tags={[
                 { icon: Ti.plane, label: t('wl_tag_courier') },

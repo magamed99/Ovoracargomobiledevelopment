@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /dashboard/
+Disallow: /role-select
+Disallow: /email-auth
+
+Sitemap: https://ovora-cargo.ru/sitemap.xml
