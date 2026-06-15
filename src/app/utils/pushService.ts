@@ -77,7 +77,6 @@ export async function subscribeToPush(userEmail: string): Promise<'granted' | 'd
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') {
     localStorage.setItem(PUSH_STATE_KEY, 'denied');
-    console.log('[Push] ❌ Permission denied');
     return 'denied';
   }
 
@@ -110,10 +109,9 @@ export async function subscribeToPush(userEmail: string): Promise<'granted' | 'd
     }
 
     localStorage.setItem(PUSH_STATE_KEY, 'yes');
-    console.log('[Push] ✅ Subscribed successfully for', userEmail);
     return 'granted';
   } catch (err) {
-    console.error('[Push] ❌ Subscribe error:', err);
+    console.error('[Push] Subscribe error:', err);
     // Don't mark as 'denied' — user DID grant permission, just technical error
     return 'granted'; // permission was granted even if save failed
   }
@@ -145,9 +143,8 @@ export async function unsubscribeFromPush(userEmail: string): Promise<void> {
     }
 
     localStorage.removeItem(PUSH_STATE_KEY);
-    console.log('[Push] ✅ Unsubscribed for', userEmail);
   } catch (err) {
-    console.error('[Push] ❌ Unsubscribe error:', err);
+    console.error('[Push] Unsubscribe error:', err);
   }
 }
 
@@ -165,7 +162,6 @@ export async function ensurePushSubscription(userEmail: string): Promise<void> {
 
     if (!subscription) {
       // Subscription expired — re-subscribe silently
-      console.log('[Push] 🔄 Subscription expired, re-subscribing...');
       await subscribeToPush(userEmail);
     } else {
       // Refresh subscription on server (in case server lost it)
@@ -178,9 +174,8 @@ export async function ensurePushSubscription(userEmail: string): Promise<void> {
         },
         body: JSON.stringify({ email: userEmail, subscription: subscription.toJSON() }),
       }).catch(() => {});
-      console.log('[Push] ✅ Subscription refreshed for', userEmail);
     }
   } catch (err) {
-    console.warn('[Push] ensurePushSubscription error:', err);
+    console.error('[Push] ensurePushSubscription error:', err);
   }
 }

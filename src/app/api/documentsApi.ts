@@ -65,16 +65,12 @@ export async function uploadDocument(params: {
 
   if (!res.ok) {
     const err = await res.text();
-    console.error('[documentsApi] Upload error:', err);
     throw new Error(`Ошибка загрузки документа: ${err}`);
   }
 
   const data = await res.json();
   if (data.error) throw new Error(data.error);
 
-  console.log('[documentsApi] Document uploaded:', data.document);
-  console.log('[documentsApi] Profile updated:', data.profileUpdated);
-  
   // ✅ Возвращаем весь объект, включая updatedUser и profileUpdated
   return {
     ...data.document,
@@ -103,21 +99,18 @@ export async function getUserDocuments(userEmail: string): Promise<Document[]> {
 
       if (!res.ok) {
         const err = await res.text();
-        console.error(`[documentsApi] Fetch error (attempt ${attempt}):`, err);
         throw new Error(`Ошибка загрузки документов: ${err}`);
       }
 
       const data = await res.json();
       if (data.error) throw new Error(data.error);
 
-      console.log('[documentsApi] Loaded documents:', data.documents?.length || 0);
       return data.documents || [];
     } catch (err: any) {
       lastError = err;
       const isNetworkError = err?.name === 'TypeError' || err?.name === 'AbortError';
       if (isNetworkError && attempt < MAX_ATTEMPTS) {
         const delay = attempt * 1000; // 1s, 2s
-        console.warn(`[documentsApi] Network error on attempt ${attempt}, retrying in ${delay}ms...`, err?.message);
         await new Promise(r => setTimeout(r, delay));
         continue;
       }
@@ -144,14 +137,12 @@ export async function updateDocument(
 
   if (!res.ok) {
     const err = await res.text();
-    console.error('[documentsApi] Update error:', err);
     throw new Error(`Ошибка обновления документа: ${err}`);
   }
 
   const data = await res.json();
   if (data.error) throw new Error(data.error);
 
-  console.log('[documentsApi] Document updated:', data.document);
   return data.document;
 }
 
@@ -167,14 +158,11 @@ export async function deleteDocument(documentId: string, userEmail: string): Pro
 
   if (!res.ok) {
     const err = await res.text();
-    console.error('[documentsApi] Delete error:', err);
     throw new Error(`Ошибка удаления документа: ${err}`);
   }
 
   const data = await res.json();
   if (data.error) throw new Error(data.error);
-
-  console.log('[documentsApi] Document deleted:', documentId);
 }
 
 /**
@@ -189,13 +177,11 @@ export async function analyzeDocument(documentId: string, userEmail: string): Pr
 
   if (!res.ok) {
     const err = await res.text();
-    console.error('[documentsApi] Analyze error:', err);
     throw new Error(`Ошибка анализа документа: ${err}`);
   }
 
   const data = await res.json();
   if (data.error) throw new Error(data.error);
 
-  console.log('[documentsApi] Document analyzed:', data.photoQualityScore);
   return data.photoQualityScore;
 }

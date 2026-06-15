@@ -192,8 +192,7 @@ function FlightCard({
       await deleteAviaFlight(flight.id);
       onDelete(flight.id);
       toast.success('Рейс удалён', { duration: 2500 });
-    } catch (e: any) {
-      console.error('[FlightCard] delete error:', e);
+    } catch {
       toast.error('Не удалось удалить рейс');
     } finally { setDeleting(false); }
   };
@@ -204,8 +203,7 @@ function FlightCard({
       await closeAviaFlight(flight.id);
       if (onClose) onClose(flight.id);
       toast.success('Рейс закрыт', { duration: 2500 });
-    } catch (e: any) {
-      console.error('[FlightCard] close error:', e);
+    } catch {
       toast.error('Не удалось закрыть рейс');
     } finally { setClosing(false); }
   };
@@ -217,8 +215,7 @@ function FlightCard({
       if (result.error) throw new Error(result.error);
       if (onComplete) onComplete(flight.id);
       toast.success(`Поездка завершена! Завершено сделок: ${result.completedDeals ?? 0}`, { duration: 3000 });
-    } catch (e: any) {
-      console.error('[FlightCard] complete error:', e);
+    } catch {
       toast.error('Не удалось завершить поездку');
     } finally { setCompleting(false); }
   };
@@ -532,8 +529,7 @@ function RequestCard({
       await deleteAviaRequest(request.id);
       onDelete(request.id);
       toast.success('Заявка удалена', { duration: 2500 });
-    } catch (e: any) {
-      console.error('[RequestCard] delete error:', e);
+    } catch {
       toast.error('Не удалось удалить заявку');
     } finally { setDeleting(false); }
   };
@@ -544,8 +540,7 @@ function RequestCard({
       await closeAviaRequest(request.id);
       if (onClose) onClose(request.id);
       toast.success('Заявка закрыта', { duration: 2500 });
-    } catch (e: any) {
-      console.error('[RequestCard] close error:', e);
+    } catch {
       toast.error('Не удалось закрыть заявку');
     } finally { setClosing(false); }
   };
@@ -832,7 +827,7 @@ export function AviaDashboard() {
         const incoming = deals.filter(d => d.recipientPhone === user.phone && d.status === 'pending').length;
         setPendingDealsCount(incoming);
       })
-      .catch((e) => console.warn('[AviaDashboard] fetchDealsCount error:', e));
+      .catch(() => {});
   }, [user?.phone]);
 
   useEffect(() => {
@@ -904,7 +899,7 @@ export function AviaDashboard() {
     setLoadingMy(true);
     return getMyAviaAds(user.phone)
       .then(({ flights: mf, requests: mr }) => { setMyFlights(mf); setMyRequests(mr); })
-      .catch((e) => console.error('[AviaDashboard] fetch my error:', e))
+      .catch(() => {})
       .finally(() => setLoadingMy(false));
   };
 
@@ -912,7 +907,7 @@ export function AviaDashboard() {
     if (!user) return;
     setLoadingData(true);
     fetchMainData()
-      .catch((e) => console.error('[AviaDashboard] fetch error:', e))
+      .catch(() => {})
       .finally(() => setLoadingData(false));
   }, [user?.id]);
 
@@ -940,7 +935,7 @@ export function AviaDashboard() {
         if (other) map[other] = (map[other] || 0) + (chat.unread || 0);
       }
       chatUnreadByPhone.current = map;
-    }).catch((e) => console.warn('[AviaDashboard] chatUnreadByPhone error:', e));
+    }).catch(() => {});
   }, [user?.phone, chatUnreadCount]);
 
   // ── Пакет D: Auto-polling + New items counter + Pull-to-refresh ─────────────
@@ -979,7 +974,7 @@ export function AviaDashboard() {
       setRequests(newR);
       setLastPollAt(new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }));
       isInitialLoad.current = false;
-    }).catch(e => console.warn('[AviaDashboard] poll error:', e));
+    }).catch(() => {});
   }, [user]); // только user; refs читаются без подписки на их изменения
 
   // Авто-polling по интервалу
