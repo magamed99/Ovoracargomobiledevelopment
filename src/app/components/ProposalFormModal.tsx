@@ -61,12 +61,8 @@ export function ProposalFormModal({
         const serverTrip = await getTripById(tripId || '');
         if (serverTrip) {
           setTrip(serverTrip);
-        } else {
-          console.warn('Trip not found anywhere (cache + server). TripId:', tripId);
         }
-      } catch (err) {
-        console.error('Failed to load trip:', err);
-      }
+      } catch {}
       setLoading(false);
     }
 
@@ -129,8 +125,6 @@ export function ProposalFormModal({
 
   // ── Submit ────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
-    console.log('[ProposalFormModal] handleSubmit called', { isSubmitting });
-
     if (!offerName.trim()) {
       toast.error('Укажите ваше имя');
       return;
@@ -140,11 +134,9 @@ export function ProposalFormModal({
       return;
     }
     if (isSubmitting) {
-      console.log('[ProposalFormModal] Already submitting, skipping...');
       return;
     }
     setIsSubmitting(true);
-    console.log('[ProposalFormModal] Starting submission...');
 
     const seatsPart = includeSeats
       ? `${offerSeats} взр.${offerChildren > 0 ? ` + ${offerChildren} дет.` : ''}`
@@ -206,21 +198,11 @@ export function ProposalFormModal({
 
     try {
       await submitOffer(offerData);
-    } catch (err) {
-      console.error('Failed to submit offer to server:', err);
+    } catch {
       toast.error('Ошибка при отправке оферты');
       setIsSubmitting(false);
       return;
     }
-
-    console.log('[ProposalFormModal] Calling onSend...', {
-      proposal,
-      capacity: {
-        seats: includeSeats ? offerSeats : 0,
-        children: includeSeats ? offerChildren : 0,
-        cargoKg: includeCargo ? offerCargoKg : 0,
-      },
-    });
 
     onSend(proposal, {
       seats: includeSeats ? offerSeats : 0,

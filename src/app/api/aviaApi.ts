@@ -108,7 +108,6 @@ export function getAviaSession(): { phone: string; user: AviaUser } | null {
     // ── Проверяем TTL ──────────────────────────────────────────────────────
     if (parsed.expiresAt && Date.now() > parsed.expiresAt) {
       localStorage.removeItem(AVIA_SESSION_KEY);
-      console.warn('[aviaApi] Session expired, cleared');
       return null;
     }
 
@@ -125,12 +124,10 @@ export function saveAviaSession(phone: string, user: AviaUser): void {
     expiresAt: Date.now() + SESSION_TTL_MS,
   };
   localStorage.setItem(AVIA_SESSION_KEY, JSON.stringify(data));
-  console.log('[aviaApi] Session saved:', phone);
 }
 
 export function clearAviaSession(): void {
   localStorage.removeItem(AVIA_SESSION_KEY);
-  console.log('[aviaApi] Session cleared');
 }
 
 /** Продлить TTL сессии при активном использовании (вызывать при логине) */
@@ -541,7 +538,6 @@ export async function getAviaNotifications(phone: string, signal?: AbortSignal):
     if (isAbortError(err) || signal?.aborted) return [];
     // Транзиентная сетевая ошибка (холодный старт, обрыв) — не критично для polling
     if (isNetworkError(err)) {
-      console.warn('[aviaApi] getAviaNotifications: transient network error, skipping');
       return [];
     }
     console.error('[aviaApi] getAviaNotifications error:', err);

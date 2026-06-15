@@ -57,7 +57,6 @@ function clearUserDataCache() {
       }
     }
     keysToRemove.forEach(k => localStorage.removeItem(k));
-    if (keysToRemove.length) console.log('[authApi] Cleared user data cache:', keysToRemove.length, 'keys');
   } catch { /* ignore */ }
 }
 
@@ -66,7 +65,6 @@ function clearPreviousUserCache(newEmail: string) {
   try {
     const oldEmail = sessionStorage.getItem(USER_EMAIL_KEY);
     if (oldEmail && oldEmail.toLowerCase() !== newEmail.toLowerCase()) {
-      console.log('[authApi] Clearing old user cache:', oldEmail, '→', newEmail);
       localStorage.removeItem(CURRENT_USER_KEY);
       // Clear chat data that belongs to the previous user
       localStorage.removeItem('ovora_chats_v2');
