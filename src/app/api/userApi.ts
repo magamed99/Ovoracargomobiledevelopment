@@ -93,7 +93,6 @@ export async function syncUserNameInChats(
   email: string,
   userData: { firstName?: string; lastName?: string; middleName?: string; fullName?: string; avatarUrl?: string }
 ): Promise<void> {
-  console.log('[userApi] Syncing user name in chats:', email, userData);
   try {
     const res = await fetch(`${BASE}/users/${encodeURIComponent(email)}/sync-chats`, {
       method: 'PUT',
@@ -101,13 +100,11 @@ export async function syncUserNameInChats(
       body: JSON.stringify(userData),
     });
     if (!res.ok) {
-      console.warn('[userApi] sync-chats returned:', res.status);
       return;
     }
-    const data = await res.json();
-    console.log('[userApi] sync-chats result:', data);
-  } catch (err) {
-    console.warn('[userApi] sync-chats error (non-critical):', err);
+    await res.json();
+  } catch {
+    // non-critical
   }
 }
 
@@ -119,7 +116,6 @@ export async function syncUserNameInTrips(
   email: string,
   userData: { firstName?: string; lastName?: string; middleName?: string; fullName?: string; avatarUrl?: string }
 ): Promise<void> {
-  console.log('[userApi] Syncing user name in trips:', email, userData);
   try {
     const res = await fetch(`${BASE}/users/${encodeURIComponent(email)}/sync-trips`, {
       method: 'PUT',
@@ -127,12 +123,10 @@ export async function syncUserNameInTrips(
       body: JSON.stringify(userData),
     });
     if (!res.ok) {
-      console.warn('[userApi] sync-trips returned:', res.status);
       return;
     }
-    const data = await res.json();
-    console.log('[userApi] sync-trips result:', data);
-  } catch (err) {
-    console.warn('[userApi] sync-trips error (non-critical):', err);
+    await res.json();
+  } catch {
+    // non-critical
   }
 }
