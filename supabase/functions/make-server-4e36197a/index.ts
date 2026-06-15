@@ -37,7 +37,9 @@ function assertMaxLen(fields: Record<string, unknown>, limits: Record<string, nu
 }
 const ALLOWED_ORIGINS = [
   "https://ovora-cargo.ru",
+  "http://ovora-cargo.ru",
   "https://www.ovora-cargo.ru",
+  "http://www.ovora-cargo.ru",
   "https://magamed99.github.io",
   // local dev
   "http://localhost:5173",
@@ -49,8 +51,8 @@ app.use("/*", cors({
     // Allow requests with no origin (mobile apps, curl, Postman)
     if (!origin) return origin;
     if (ALLOWED_ORIGINS.includes(origin)) return origin;
-    // Allow any subdomain of ovora-cargo.ru
-    if (/^https:\/\/([a-z0-9-]+\.)?ovora-cargo\.ru$/.test(origin)) return origin;
+    // Allow any subdomain of ovora-cargo.ru (http and https)
+    if (/^https?:\/\/([a-z0-9-]+\.)?ovora-cargo\.ru$/.test(origin)) return origin;
     return null; // deny
   },
   allowHeaders: ["Content-Type", "Authorization", "X-Admin-Code"],
