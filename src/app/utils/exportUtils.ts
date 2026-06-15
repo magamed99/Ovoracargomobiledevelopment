@@ -74,10 +74,8 @@ export const exportToExcel = (trips: Trip[], filename: string = 'ovora-trips') =
     // Скачиваем файл
     downloadFile(blob, `${filename}_${getDateString()}.csv`);
 
-    console.log('[Export] ✅ Excel export successful:', trips.length, 'trips');
     return true;
-  } catch (error) {
-    console.error('[Export] ❌ Excel export failed:', error);
+  } catch {
     return false;
   }
 };
@@ -107,10 +105,8 @@ export const exportToPDF = (trips: Trip[], _filename: string = 'ovora-trips') =>
       setTimeout(() => printWindow.close(), 100);
     };
 
-    console.log('[Export] ✅ PDF export successful:', trips.length, 'trips');
     return true;
-  } catch (error) {
-    console.error('[Export] ❌ PDF export failed:', error);
+  } catch {
     return false;
   }
 };

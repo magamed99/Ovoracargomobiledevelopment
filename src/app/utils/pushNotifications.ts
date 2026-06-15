@@ -46,16 +46,13 @@ class PushNotificationService {
    */
   async requestPermission(): Promise<NotificationPermission> {
     if (!this.isSupported()) {
-      console.warn('[PushNotifications] ⚠️ Push notifications not supported');
       return 'denied';
     }
 
     try {
       this.permission = await Notification.requestPermission();
-      console.log('[PushNotifications] 🔔 Permission status:', this.permission);
       return this.permission;
-    } catch (error) {
-      console.error('[PushNotifications] ❌ Error requesting permission:', error);
+    } catch {
       return 'denied';
     }
   }
@@ -65,16 +62,14 @@ class PushNotificationService {
    */
   async registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
     if (!('serviceWorker' in navigator)) {
-      console.warn('[PushNotifications] ⚠️ Service Worker not supported');
       return null;
     }
 
     try {
       this.registration = await navigator.serviceWorker.ready;
-      console.log('[PushNotifications] ✅ Service Worker registered');
       return this.registration;
     } catch (error) {
-      console.error('[PushNotifications] ❌ Service Worker registration failed:', error);
+      console.error('[PushNotifications] Service Worker registration failed:', error);
       return null;
     }
   }
@@ -84,7 +79,6 @@ class PushNotificationService {
    */
   async sendNotification(options: PushNotificationOptions): Promise<void> {
     if (this.permission !== 'granted') {
-      console.warn('[PushNotifications] ⚠️ Permission not granted');
       return;
     }
 
@@ -93,7 +87,6 @@ class PushNotificationService {
     }
 
     if (!this.registration) {
-      console.error('[PushNotifications] ❌ No Service Worker registration');
       return;
     }
 
@@ -111,9 +104,8 @@ class PushNotificationService {
       };
 
       await this.registration.showNotification(options.title, notificationOptions);
-      console.log('[PushNotifications] ✅ Notification sent:', options.title);
     } catch (error) {
-      console.error('[PushNotifications] ❌ Error sending notification:', error);
+      console.error('[PushNotifications] Error sending notification:', error);
     }
   }
 
@@ -138,7 +130,6 @@ class PushNotificationService {
 
     const notifications = await this.registration.getNotifications(tag ? { tag } : undefined);
     notifications.forEach((notification) => notification.close());
-    console.log('[PushNotifications] 🔕 Closed notifications:', notifications.length);
   }
 }
 
@@ -255,27 +246,23 @@ export const sendQuickNotification = {
 // Инициализация при загрузке
 export const initPushNotifications = async (): Promise<boolean> => {
   if (!pushNotificationService.isSupported()) {
-    console.warn('[PushNotifications] ⚠️ Not supported in this browser');
     return false;
   }
 
   // Проверяем текущее разрешение
   const currentPermission = pushNotificationService.getPermission();
-  
+
   if (currentPermission === 'granted') {
     await pushNotificationService.registerServiceWorker();
-    console.log('[PushNotifications] ✅ Already initialized');
     return true;
   }
 
   if (currentPermission === 'denied') {
-    console.warn('[PushNotifications] ⚠️ Permission denied');
     return false;
   }
 
   // Если разрешение еще не запрашивалось, не запрашиваем автоматически
   // Пользователь должен сам нажать кнопку
-  console.log('[PushNotifications] ℹ️ Permission not requested yet');
   return false;
 };
 

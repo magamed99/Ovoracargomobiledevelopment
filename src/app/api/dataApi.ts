@@ -382,12 +382,8 @@ export async function getChatMessages(chatId: string): Promise<any[]> {
 export async function markChatRead(chatId: string, userEmail: string) {
   try {
     await req('PUT', `/chat/${chatId}/read`, { userEmail });
-  } catch (err: any) {
+  } catch {
     // Silent fail - marking as read is not critical
-    // Log only if it's not a connection error
-    if (!err?.message?.includes('connection')) {
-      console.warn('[dataApi] markChatRead error:', err);
-    }
   }
 }
 

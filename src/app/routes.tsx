@@ -35,7 +35,6 @@ function requireAuth() {
       sessionStorage.setItem('ovora_user_email', persistent.email);
       sessionStorage.setItem('userRole', persistent.role);
       sessionStorage.setItem('isAuthenticated', 'true');
-      console.log('[requireAuth] Session restored from localStorage for:', persistent.email);
       return null;
     }
   } catch { /* ignore */ }

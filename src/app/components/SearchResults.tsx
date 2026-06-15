@@ -41,13 +41,15 @@ export function SearchResults() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
     setLoading(true);
     // In cargo mode: load cargos (sender listings for drivers)
     // In trip/all mode: load trips (driver listings for senders)
     const fetcher = isCargoMode ? getCargos : getTrips;
     fetcher()
-      .then(items => { setAllTrips(items || []); setLoading(false); })
-      .catch(() => { setLoading(false); });
+      .then(items => { if (mounted) { setAllTrips(items || []); setLoading(false); } })
+      .catch(() => { if (mounted) setLoading(false); });
+    return () => { mounted = false; };
   }, [isCargoMode]);
 
   const fromParam   = searchParams.get('from')   || '';

@@ -57,7 +57,6 @@ function clearUserDataCache() {
       }
     }
     keysToRemove.forEach(k => localStorage.removeItem(k));
-    if (keysToRemove.length) console.log('[authApi] Cleared user data cache:', keysToRemove.length, 'keys');
   } catch { /* ignore */ }
 }
 
@@ -66,7 +65,6 @@ function clearPreviousUserCache(newEmail: string) {
   try {
     const oldEmail = sessionStorage.getItem(USER_EMAIL_KEY);
     if (oldEmail && oldEmail.toLowerCase() !== newEmail.toLowerCase()) {
-      console.log('[authApi] Clearing old user cache:', oldEmail, '→', newEmail);
       localStorage.removeItem(CURRENT_USER_KEY);
       // Clear chat data that belongs to the previous user
       localStorage.removeItem('ovora_chats_v2');
@@ -87,7 +85,6 @@ function saveUserSession(email: string, role: 'driver' | 'sender') {
   sessionStorage.setItem('isAuthenticated', 'true');
   // ✅ Persist auth across browser restarts
   localStorage.setItem(PERSISTENT_AUTH_KEY, JSON.stringify({ email, role }));
-  console.log('[authApi] User session saved:', { email, role });
 }
 
 function clearUserSession() {
@@ -96,7 +93,6 @@ function clearUserSession() {
   sessionStorage.removeItem('isAuthenticated');
   // ✅ Clear persistent auth too
   localStorage.removeItem(PERSISTENT_AUTH_KEY);
-  console.log('[authApi] User session cleared');
 }
 
 export function getUserSession(): { email: string; role: 'driver' | 'sender' } | null {
@@ -114,7 +110,6 @@ export function getUserSession(): { email: string; role: 'driver' | 'sender' } |
         sessionStorage.setItem(USER_EMAIL_KEY, email!);
         sessionStorage.setItem(USER_ROLE_KEY, role!);
         sessionStorage.setItem('isAuthenticated', 'true');
-        console.log('[authApi] Session restored from localStorage:', email);
       }
     } catch { /* ignore */ }
   }
@@ -139,12 +134,9 @@ export function getCachedUser(): Partial<OvoraUser> | null {
           role: session.role,
         };
       }
-      console.warn('[authApi] Cached user email mismatch, clearing:', cachedUser?.email, '≠', session.email);
       localStorage.removeItem(CURRENT_USER_KEY);
       clearUserDataCache();
-    } catch (e) {
-      console.warn('[authApi] Failed to parse cached user:', e);
-    }
+    } catch {}
   }
   
   return {

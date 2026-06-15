@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   X, Plane, Package, ArrowRight, Scale,
@@ -46,20 +46,23 @@ export function AviaDealOfferModal({ me, flight, request, onClose, onSuccess, on
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
 
+  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
+
   // Определяем, кто получатель
-  const recipientPhone = flight ? flight.courierId : request!.senderId;
-  const recipientName  = flight ? (flight.courierName || flight.courierId) : (request!.senderName || request!.senderId);
+  const recipientPhone = flight ? flight.courierId : (request?.senderId ?? '');
+  const recipientName  = flight ? (flight.courierName || flight.courierId) : (request?.senderName || request?.senderId || '');
   const adType: 'flight' | 'request' = flight ? 'flight' : 'request';
-  const adId    = flight ? flight.id   : request!.id;
-  const adFrom  = flight ? flight.from : request!.from;
-  const adTo    = flight ? flight.to   : request!.to;
-  const adDate  = flight ? flight.date : request!.beforeDate;
+  const adId    = flight ? flight.id   : (request?.id ?? '');
+  const adFrom  = flight ? flight.from : (request?.from ?? '');
+  const adTo    = flight ? flight.to   : (request?.to ?? '');
+  const adDate  = flight ? flight.date : (request?.beforeDate ?? '');
 
   // Роли
   const courierId   = flight ? flight.courierId : me.phone;
-  const senderId    = flight ? me.phone : request!.senderId;
+  const senderId    = flight ? me.phone : (request?.senderId ?? '');
   const courierName = flight ? (flight.courierName || '') : (`${me.firstName || ''} ${me.lastName || ''}`.trim() || me.phone);
-  const senderName  = flight ? (`${me.firstName || ''} ${me.lastName || ''}`.trim() || me.phone) : (request!.senderName || '');
+  const senderName  = flight ? (`${me.firstName || ''} ${me.lastName || ''}`.trim() || me.phone) : (request?.senderName || '');
   const myName      = `${me.firstName || ''} ${me.lastName || ''}`.trim() || me.phone;
 
   // Доступный кг на рейсе
@@ -85,6 +88,7 @@ export function AviaDealOfferModal({ me, flight, request, onClose, onSuccess, on
   };
 
   const handleSubmit = async () => {
+    if (loading) return;
     if (dealType === 'cargo' && (!weightKg || Number(weightKg) <= 0)) {
       setError('Укажите вес в кг');
       return;
@@ -140,13 +144,12 @@ export function AviaDealOfferModal({ me, flight, request, onClose, onSuccess, on
         initiatorPhone: me.phone,
         recipientPhone,
       });
-      setTimeout(() => {
+      timerRef.current = setTimeout(() => {
         onClose();
         if (onOpenChat) onOpenChat(chatId, recipientPhone, adRef);
       }, 1200);
-    } catch (chatErr) {
-      console.warn('[AviaDealOfferModal] Chat init error (non-fatal):', chatErr);
-      setTimeout(() => onClose(), 1800);
+    } catch {
+      timerRef.current = setTimeout(() => onClose(), 1800);
     }
   };
 

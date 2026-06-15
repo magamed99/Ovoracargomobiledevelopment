@@ -62,7 +62,6 @@ export async function createAviaReview(params: {
     if (!res.ok || data.error) return { success: false, error: data.error || 'Ошибка создания отзыва' };
     return { success: true, review: data.review };
   } catch (err: any) {
-    console.error('[aviaReviewApi] createAviaReview error:', err);
     return { success: false, error: err.message || 'Ошибка сети' };
   }
 }
@@ -76,8 +75,7 @@ export async function getAviaDealReviewStatus(dealId: string): Promise<AviaDealR
     if (!res.ok) return {};
     const data = await res.json();
     return data.reviewed || {};
-  } catch (err) {
-    console.error('[aviaReviewApi] getAviaDealReviewStatus error:', err);
+  } catch {
     return {};
   }
 }
@@ -92,8 +90,7 @@ export async function getAviaUserReviews(phone: string): Promise<AviaReview[]> {
     if (!res.ok) return [];
     const data = await res.json();
     return data.reviews || [];
-  } catch (err) {
-    console.error('[aviaReviewApi] getAviaUserReviews error:', err);
+  } catch {
     return [];
   }
 }
@@ -111,8 +108,7 @@ export async function getAviaPublicProfile(phone: string): Promise<{
     if (!res.ok) return null;
     const data = await res.json();
     return data;
-  } catch (err) {
-    console.error('[aviaReviewApi] getAviaPublicProfile error:', err);
+  } catch {
     return null;
   }
 }

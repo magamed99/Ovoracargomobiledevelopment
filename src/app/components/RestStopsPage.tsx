@@ -236,7 +236,7 @@ export function RestStopsPage() {
       const res = await fetch(`${BASE}/rest-stops`, { headers: H });
       const data = await res.json();
       if (data.places) setStops(data.places);
-    } catch (e) { console.error('[rest-stops] load failed', e); }
+    } catch { /* ignore */ }
     finally { setLoading(false); }
   }, []);
 

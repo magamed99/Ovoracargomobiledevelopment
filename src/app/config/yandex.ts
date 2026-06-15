@@ -41,7 +41,6 @@ async function fetchYandexKey(timeoutMs = 4000): Promise<string> {
       return data.apiKey || '';
     }
 
-    console.warn('[Yandex Config] Server responded with status:', response.status);
     return '';
   } finally {
     clearTimeout(timer);
@@ -57,17 +56,14 @@ async function fetchWithRetry(
     try {
       const key = await fetchYandexKey();
       if (key) return key;
-    } catch (err: any) {
+    } catch {
       const isLast = attempt === maxAttempts;
-      const isAbort = err?.name === 'AbortError';
 
       if (isLast) {
-        console.warn(`[Yandex Config] All ${maxAttempts} attempts failed:`, err?.message || err);
         return '';
       }
 
       const delay = baseDelayMs * Math.pow(2, attempt - 1); // 1s, 2s, 4s
-      console.warn(`[Yandex Config] Attempt ${attempt}/${maxAttempts} failed${isAbort ? ' (timeout)' : ''}, retrying in ${delay}ms...`);
       await new Promise(r => setTimeout(r, delay));
     }
   }
@@ -88,9 +84,7 @@ export async function initYandexApiKey(): Promise<string> {
   initPromise = (async () => {
     const key = await fetchWithRetry(2, 500);
     cachedApiKey = key;
-    if (key) {
-      console.log('[Yandex Config] API key loaded: ✓');
-    } else {
+    if (!key) {
       console.warn('[Yandex Config] API key not available — карты могут не работать');
     }
     return key;

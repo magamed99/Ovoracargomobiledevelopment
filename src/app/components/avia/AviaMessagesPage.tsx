@@ -460,8 +460,7 @@ function ChatPanel({ myPhone, chatId, otherPhone, adRef, onBack, onDeleted, onCh
       const other = (meta?.participants || []).find((p: string) => p !== myPhone) || '';
       if (other) setResolvedOtherPhone(other);
       setRefreshTick(t => t + 1);
-    } catch (err) {
-      console.warn('[ChatPanel] loadMessages error:', err);
+    } catch {
     }
   }, [chatId, myPhone]);
 
@@ -513,10 +512,9 @@ function ChatPanel({ myPhone, chatId, otherPhone, adRef, onBack, onDeleted, onCh
       const msg = await sendAviaChatMessage(chatId, myPhone, text);
       setMessages(prev => prev.map(m => m.id === optimistic.id ? msg : m));
       onChatsUpdate();
-    } catch (err: any) {
+    } catch {
       setMessages(prev => prev.filter(m => m.id !== optimistic.id));
       toast.error('Не удалось отправить сообщение');
-      console.error('[ChatPanel] send error:', err);
     } finally {
       setSending(false);
       inputRef.current?.focus();
@@ -543,9 +541,8 @@ function ChatPanel({ myPhone, chatId, otherPhone, adRef, onBack, onDeleted, onCh
           } else {
             toast.error(result.error || 'Ошибка удаления');
           }
-        } catch (err) {
+        } catch {
           toast.error('Ошибка удаления чата');
-          console.error('[ChatPanel] deleteChat error:', err);
         } finally {
           setDeleting(false);
         }
@@ -770,8 +767,7 @@ export function AviaMessagesPage() {
           if (Object.keys(newNames).length > 0) setContactNames(prev => ({ ...prev, ...newNames }));
         });
       }
-    } catch (err) {
-      console.warn('[AviaMessagesPage] loadChats error:', err);
+    } catch {
     } finally {
       setChatsLoading(false);
     }

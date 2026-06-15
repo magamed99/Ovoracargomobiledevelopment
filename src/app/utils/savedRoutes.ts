@@ -29,8 +29,8 @@ export function getSavedRoutes(): SavedRoute[] {
     const data = localStorage.getItem(STORAGE_KEY);
     if (!data) return [];
     return JSON.parse(data);
-  } catch (error) {
-    console.error('[SavedRoutes] Error loading routes:', error);
+  } catch {
+    // silently ignore
     return [];
   }
 }
@@ -47,7 +47,6 @@ export function saveRoute(route: Omit<SavedRoute, 'id' | 'useCount' | 'createdAt
   );
   
   if (existing) {
-    console.log('[SavedRoutes] Route already exists:', existing.id);
     return existing;
   }
   
@@ -61,8 +60,6 @@ export function saveRoute(route: Omit<SavedRoute, 'id' | 'useCount' | 'createdAt
   
   routes.push(newRoute);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(routes));
-  
-  console.log('[SavedRoutes] ✅ Route saved:', newRoute.name);
   return newRoute;
 }
 
@@ -74,14 +71,11 @@ export function updateRoute(id: string, updates: Partial<SavedRoute>): boolean {
   const index = routes.findIndex(r => r.id === id);
   
   if (index === -1) {
-    console.error('[SavedRoutes] Route not found:', id);
     return false;
   }
-  
+
   routes[index] = { ...routes[index], ...updates };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(routes));
-  
-  console.log('[SavedRoutes] ✅ Route updated:', id);
   return true;
 }
 
@@ -93,12 +87,10 @@ export function deleteRoute(id: string): boolean {
   const filtered = routes.filter(r => r.id !== id);
   
   if (filtered.length === routes.length) {
-    console.error('[SavedRoutes] Route not found:', id);
     return false;
   }
-  
+
   localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
-  console.log('[SavedRoutes] ✅ Route deleted:', id);
   return true;
 }
 
@@ -110,16 +102,13 @@ export function useRoute(id: string): SavedRoute | null {
   const route = routes.find(r => r.id === id);
   
   if (!route) {
-    console.error('[SavedRoutes] Route not found:', id);
     return null;
   }
-  
+
   route.useCount++;
   route.lastUsedAt = Date.now();
-  
+
   localStorage.setItem(STORAGE_KEY, JSON.stringify(routes));
-  console.log('[SavedRoutes] ✅ Route used:', route.name, `(${route.useCount} times)`);
-  
   return route;
 }
 
@@ -192,10 +181,8 @@ export function importRoutes(json: string): boolean {
     });
     
     localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
-    console.log('[SavedRoutes] ✅ Routes imported:', routes.length);
     return true;
-  } catch (error) {
-    console.error('[SavedRoutes] Import failed:', error);
+  } catch {
     return false;
   }
 }
@@ -205,7 +192,6 @@ export function importRoutes(json: string): boolean {
  */
 export function clearAllRoutes(): void {
   localStorage.removeItem(STORAGE_KEY);
-  console.log('[SavedRoutes] ✅ All routes cleared');
 }
 
 /**

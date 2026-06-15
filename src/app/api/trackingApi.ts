@@ -169,7 +169,6 @@ export async function updateDriverLocation(
   try {
     const shipment = await getActiveShipment(tripId);
     if (!shipment) {
-      console.warn('[trackingApi] Shipment not found for location update');
       return;
     }
     await saveActiveShipment({

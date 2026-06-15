@@ -113,8 +113,7 @@ export function DriverTrackingPage() {
       } else {
         toast.error('Не удалось обновить статус');
       }
-    } catch (e) {
-      console.error('[DriverTracking] status update error:', e);
+    } catch {
       toast.error('Ошибка обновления статуса');
     } finally {
       setStatusUpdating(false);
@@ -148,8 +147,7 @@ export function DriverTrackingPage() {
         setPodUploading(null);
       };
       reader.readAsDataURL(file);
-    } catch (e) {
-      console.error('[DriverTracking] POD upload error:', e);
+    } catch {
       toast.error('Ошибка загрузки фото');
       setPodUploading(null);
     }
@@ -312,8 +310,7 @@ export function DriverTrackingPage() {
     if (effectiveTrip?.id) {
       try {
         await completeShipment(effectiveTrip.id);
-      } catch (e) {
-        console.error('[DriverTracking] completeShipment failed:', e);
+      } catch {
       }
     }
     navigate('/trips');

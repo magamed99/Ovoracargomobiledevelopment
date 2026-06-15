@@ -48,7 +48,6 @@ export function AddressPicker({ value, onChange, placeholder = 'Введите �
     }
 
     if (!YANDEX_MAPS_CONFIG.apiKey) {
-      console.error('[AddressPicker] ⚠️ Yandex API key not found. Please set YANDEX_GEOCODER_API_KEY in environment variables.');
       setSearchResults([]);
       return;
     }
@@ -67,7 +66,6 @@ export function AddressPicker({ value, onChange, placeholder = 'Введите �
       const data = await response.json();
       
       if (!data.response?.GeoObjectCollection?.featureMember) {
-        console.warn('[AddressPicker] No results found or invalid response format');
         setSearchResults([]);
         setShowResults(false);
         return;
@@ -120,9 +118,7 @@ export function AddressPicker({ value, onChange, placeholder = 'Введите �
 
       setSearchResults(uniqueResults);
       setShowResults(true);
-      console.log('[AddressPicker] Found unique results:', uniqueResults.length, '(filtered from', results.length, ')');
-    } catch (error) {
-      console.error('[AddressPicker] Search error:', error);
+    } catch {
       setSearchResults([]);
       setShowResults(false);
     } finally {
@@ -176,7 +172,6 @@ export function AddressPicker({ value, onChange, placeholder = 'Введите �
     const lng = coords[1];
 
     if (!YANDEX_MAPS_CONFIG.apiKey) {
-      console.error('[AddressPicker] ⚠️ Yandex API key not found for reverse geocoding');
       onChange({
         address: `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
         lat,
@@ -233,8 +228,7 @@ export function AddressPicker({ value, onChange, placeholder = 'Введите �
           lng,
         });
       }
-    } catch (error) {
-      console.error('[AddressPicker] Reverse geocoding error:', error);
+    } catch {
       // Fallback - use coordinates as address
       onChange({
         address: `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
@@ -259,7 +253,6 @@ export function AddressPicker({ value, onChange, placeholder = 'Введите �
           
           // Get address
           if (!YANDEX_MAPS_CONFIG.apiKey) {
-            console.error('[AddressPicker] ⚠️ Yandex API key not found for geolocation');
             const coordsAddress = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
             setSearchQuery(coordsAddress);
             onChange({
@@ -317,8 +310,7 @@ export function AddressPicker({ value, onChange, placeholder = 'Введите �
                 lng,
               });
             }
-          } catch (error) {
-            console.error('[AddressPicker] Error getting address:', error);
+          } catch {
             // Fallback to coordinates
             const coordsAddress = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
             setSearchQuery(coordsAddress);
@@ -337,22 +329,17 @@ export function AddressPicker({ value, onChange, placeholder = 'Введите �
             switch (error.code) {
               case error.PERMISSION_DENIED:
                 errorMessage = 'Доступ к геолокации запрещён. Разрешите доступ в настройках браузера.';
-                console.warn('[AddressPicker] Geolocation permission denied');
                 break;
               case error.POSITION_UNAVAILABLE:
                 errorMessage = 'Информация о местоположении недоступна';
-                console.warn('[AddressPicker] Geolocation position unavailable');
                 break;
               case error.TIMEOUT:
                 errorMessage = 'Превышено время ожидания определения местоположения';
-                console.warn('[AddressPicker] Geolocation timeout');
                 break;
               default:
-                console.warn('[AddressPicker] Geolocation error:', error.message || 'Unknown error');
                 break;
             }
           } else {
-            console.warn('[AddressPicker] Geolocation error: Unknown error (empty error object)');
           }
           
           alert(errorMessage);
@@ -365,7 +352,6 @@ export function AddressPicker({ value, onChange, placeholder = 'Введите �
       );
     } else {
       alert('Геолокация не поддерживается вашим браузером');
-      console.warn('[AddressPicker] Geolocation not supported');
     }
   };
 

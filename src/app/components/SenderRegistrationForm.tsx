@@ -57,7 +57,6 @@ export function SenderRegistrationForm() {
       toast.success('Регистрация успешно завершена!');
       navigate('/dashboard');
     } catch (err: any) {
-      console.error('[SenderRegistrationForm] Error:', err);
       toast.error(err?.message || 'Ошибка сохранения данных');
     } finally {
       setSubmitting(false);

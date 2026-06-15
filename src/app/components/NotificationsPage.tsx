@@ -90,8 +90,7 @@ export function NotificationsPage() {
     try {
       const data = await notificationsApi.getNotifications(userEmail);
       setNotifications(data.map(n => ({ ...n, section: getSection(n.createdAt) })));
-    } catch (err) {
-      console.error('[NotificationsPage] Error:', err);
+    } catch {
       toast.error('Ошибка загрузки уведомлений');
     } finally {
       setLoading(false);

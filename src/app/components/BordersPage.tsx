@@ -289,8 +289,7 @@ export function BordersPage() {
       const res = await fetch(`${BASE}/borders`, { headers: H });
       const data = await res.json();
       if (data.borders) setBorders(data.borders);
-    } catch (e) {
-      console.error('[borders] load failed', e);
+    } catch {
     } finally {
       setLoading(false);
     }

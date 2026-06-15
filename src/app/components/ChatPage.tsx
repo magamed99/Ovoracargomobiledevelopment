@@ -431,8 +431,6 @@ export function ChatPage() {
     if (isSendingProposalRef.current) return; // ✅ Prevent double send
     isSendingProposalRef.current = true;
 
-    console.log('[ChatPage] sendProposal called', { chatId, data });
-
     try {
       const proposal: ChatProposal = {
         ...data,
@@ -551,8 +549,7 @@ export function ChatPage() {
       setMessages(prev => prev.filter(m => m.id !== messageId));
       await deleteMessage(chatId, messageId);
       toast.success('Сообщение удалено');
-    } catch (err) {
-      console.error('[ChatPage] Delete message failed:', err);
+    } catch {
       toast.error('Ошибка удаления');
       // Rollback - reload messages
       loadMessages();
@@ -577,8 +574,7 @@ export function ChatPage() {
       await deleteChat(chatId);
       toast.success('Чат удалён');
       navigate('/messages');
-    } catch (err) {
-      console.error('[ChatPage] Delete chat failed:', err);
+    } catch {
       toast.error('Ошибка удаления чата');
     }
   };

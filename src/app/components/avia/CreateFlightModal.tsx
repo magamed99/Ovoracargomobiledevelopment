@@ -86,7 +86,6 @@ export function CreateFlightModal({ user, onClose, onSuccess }: Props) {
       if (result.flight) onSuccess(result.flight);
       else throw new Error('Сервер не вернул данные рейса');
     } catch (e: any) {
-      console.error('[CreateFlightModal]', e);
       const msg = e.message || 'Ошибка создания рейса';
       setError(msg);
       toast.error(msg, { duration: 3000 });

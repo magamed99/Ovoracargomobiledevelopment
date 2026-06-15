@@ -120,8 +120,7 @@ export function ReviewsPage() {
         targetEmail: r.targetEmail,
       }));
       setReviews(mapped);
-    } catch (err) {
-      console.error('[ReviewsPage] ❌ Failed to load reviews:', err);
+    } catch {
       toast.error('Не удалось загрузить отзывы');
     } finally {
       setLoading(false);
@@ -197,8 +196,7 @@ export function ReviewsPage() {
       setActiveTab('given');
       toast.success('Отзыв опубликован!');
       loadReviews();
-    } catch (err) {
-      console.error('[ReviewsPage] Submit review failed:', err);
+    } catch {
       toast.error('Не удалось отправить отзыв');
     }
   };

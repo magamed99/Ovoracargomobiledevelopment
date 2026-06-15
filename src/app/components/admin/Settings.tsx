@@ -78,9 +78,8 @@ export function Settings() {
       const now = new Date().toISOString();
       setSavedAt(now);
       toast.success('✅ Настройки сохранены в базу данных');
-    } catch (err) {
+    } catch {
       toast.error('Ошибка сохранения настроек');
-      console.error(err);
     } finally {
       setSaving(false);
     }

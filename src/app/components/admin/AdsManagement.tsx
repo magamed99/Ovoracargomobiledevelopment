@@ -373,7 +373,6 @@ export function AdsManagement() {
     if (!form.title.trim()) return;
     setSaving(true);
     try {
-      console.log('[AdsManagement] Saving form:', form);
       if (editAd) {
         const updated = await updateAdminAd(editAd.id, form);
         setAds(prev => prev.map(a => a.id === editAd.id ? updated : a));

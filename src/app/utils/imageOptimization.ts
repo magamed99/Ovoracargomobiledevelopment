@@ -68,7 +68,6 @@ export async function optimizeImage(
         canvas.toBlob(
           (blob) => {
             if (blob) {
-              console.log(`[ImageOptimization] Оригинал: ${(file.size / 1024).toFixed(1)} KB → Сжато: ${(blob.size / 1024).toFixed(1)} KB (${((1 - blob.size / file.size) * 100).toFixed(0)}% экономии)`);
               resolve(blob);
             } else {
               reject(new Error('Blob conversion failed'));

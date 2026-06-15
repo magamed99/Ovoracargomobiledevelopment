@@ -94,7 +94,6 @@ export async function createAviaDeal(params: {
     if (!res.ok || data.error) return { success: false, error: data.error || 'Ошибка создания сделки' };
     return { success: true, deal: data.deal };
   } catch (err: any) {
-    console.error('[aviaDealApi] createAviaDeal error:', err);
     return { success: false, error: err.message || 'Ошибка сети' };
   }
 }
@@ -109,8 +108,7 @@ export async function getAviaDeal(dealId: string, callerPhone: string): Promise<
     if (!res.ok) return null;
     const data = await res.json();
     return data.deal || null;
-  } catch (err) {
-    console.error('[aviaDealApi] getAviaDeal error:', err);
+  } catch {
     return null;
   }
 }
@@ -125,8 +123,7 @@ export async function getAviaDeals(phone: string): Promise<AviaDeal[]> {
     if (!res.ok) return [];
     const data = await res.json();
     return data.deals || [];
-  } catch (err) {
-    console.error('[aviaDealApi] getAviaDeals error:', err);
+  } catch {
     return [];
   }
 }
@@ -222,8 +219,7 @@ export async function getAviaStats(phone: string): Promise<AviaStats | null> {
     if (!res.ok) return null;
     const data = await res.json();
     return data.stats || null;
-  } catch (err) {
-    console.error('[aviaDealApi] getAviaStats error:', err);
+  } catch {
     return null;
   }
 }
