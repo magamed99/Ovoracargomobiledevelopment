@@ -4,3 +4,8 @@ version: 2
 ignore-paths:
   - utils/supabase/info.ts
   - utils/supabase/info.tsx
+
+# Suppress detection of the Supabase anon key across all historical commits.
+# This JWT is the PUBLIC anon key, not a secret — safe to embed in browser code.
+ignored-matches:
+  - match: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1rYmNqeG5vZWV2dGt6YXFjcHNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1MzIyNjIsImV4cCI6MjA4ODEwODI2Mn0.Xs69UZv49GxjWcJesdQ05brrEVFQYYNKydVqkIGoJJE"
