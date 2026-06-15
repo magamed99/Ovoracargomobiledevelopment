@@ -141,8 +141,9 @@ interface WorldCardProps {
   accentLight: string;
   icon: ReactNode;
   onClick: () => void;
+  soon?: boolean;
 }
-function WorldCard({ title, desc, tags, accentLight, icon, onClick }: WorldCardProps) {
+function WorldCard({ title, desc, tags, accentLight, icon, onClick, soon }: WorldCardProps) {
   return (
     <button onClick={onClick} aria-label={`Перейти: ${title}`} className="ovora-service-card" style={{
       border: '1px solid rgba(255,255,255,0.08)',
@@ -154,9 +155,15 @@ function WorldCard({ title, desc, tags, accentLight, icon, onClick }: WorldCardP
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
             <span style={{ fontSize: 'clamp(14px,4.2vw,17px)', fontWeight: 800, color: '#fff', letterSpacing: '-0.2px' }}>{title}</span>
-            <span style={{ fontSize: 'clamp(7px,2vw,9px)', fontWeight: 700, color: C.green, padding: '2px 5px', borderRadius: 6, background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.28)', letterSpacing: '0.05em', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-              <LiveDot size={4} /> LIVE
-            </span>
+            {soon ? (
+              <span style={{ fontSize: 'clamp(7px,2vw,9px)', fontWeight: 700, color: C.orange, padding: '2px 5px', borderRadius: 6, background: 'rgba(255,122,59,0.12)', border: '1px solid rgba(255,122,59,0.28)', letterSpacing: '0.05em', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                Скоро
+              </span>
+            ) : (
+              <span style={{ fontSize: 'clamp(7px,2vw,9px)', fontWeight: 700, color: C.green, padding: '2px 5px', borderRadius: 6, background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.28)', letterSpacing: '0.05em', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                <LiveDot size={4} /> LIVE
+              </span>
+            )}
           </div>
           <p style={{ fontSize: 'clamp(8px,2.5vw,10px)', color: 'rgba(155,170,210,0.85)', lineHeight: 1.35, margin: 0 }}>{desc}</p>
         </div>
@@ -408,6 +415,7 @@ export function Welcome() {
               desc={t('wl_avia_desc')}
               icon={<PlaneBig src={siteConfig.icons.plane} />}
               accentLight={C.cyan}
+              soon
               onClick={() => navigate('/avia')}
               tags={[
                 { icon: Ti.plane, label: t('wl_tag_courier') },
