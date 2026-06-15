@@ -46,10 +46,7 @@ function clearLocalCache() {
       if (k?.startsWith('ovora_msgs_v2_')) msgKeys.push(k);
     }
     msgKeys.forEach(k => localStorage.removeItem(k));
-    console.log('[UserContext] Local cache cleared');
-  } catch (e) {
-    console.warn('[UserContext] Failed to clear local cache:', e);
-  }
+  } catch { /* silently ignore */ }
 }
 
 // ── Сохраняет данные пользователя строго по его email ────────────────────────
@@ -66,8 +63,6 @@ function syncToLocalCache(userData: User) {
         // ✅ Сливаем только если email совпадает — иначе начинаем с чистого листа
         if (parsed?.email && parsed.email === userData.email) {
           base = parsed;
-        } else {
-          console.log('[UserContext] Different user detected, clearing old cache:', parsed?.email, '→', userData.email);
         }
       } catch { /* ignore */ }
     }
@@ -75,10 +70,7 @@ function syncToLocalCache(userData: User) {
     const merged = { ...base, ...userData };
     localStorage.setItem('ovora_current_user', JSON.stringify(merged));
     window.dispatchEvent(new CustomEvent('ovora_user_updated', { detail: merged }));
-    console.log('[UserContext] Synced to cache:', merged.email, merged.firstName, merged.lastName);
-  } catch (e) {
-    console.warn('[UserContext] Failed to sync to local cache:', e);
-  }
+  } catch { /* silently ignore */ }
 }
 
 export function UserProvider({ children }: { children: ReactNode }) {
@@ -89,7 +81,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
   // ── Загрузить пользователя из БД по email ─────────────────────────────────
   const loadUser = async (email: string, signal?: AbortSignal) => {
     try {
-      console.log('[UserProvider] Loading user from DB:', email);
       setLoading(true);
 
       // ✅ Перед загрузкой нового пользователя сбрасываем состояние
@@ -98,17 +89,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
       const userData = await userApi.getUser(email);
 
-      if (signal?.aborted) {
-        console.log('[UserProvider] Load aborted');
-        return;
-      }
+      if (signal?.aborted) return;
 
       if (userData) {
         setUser(userData);
         syncToLocalCache(userData);
-        console.log('[UserProvider] User loaded from DB:', userData.email, userData.firstName);
       } else {
-        console.log('[UserProvider] User not found in DB for email:', email);
         setUser(null);
       }
     } catch (error) {
@@ -125,12 +111,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
   // ── Установить email (при входе / регистрации) ─────────────────────────────
   const setUserEmail = (email: string) => {
     const normalized = email.trim().toLowerCase();
-    console.log('[UserProvider] setUserEmail:', normalized);
 
     // ✅ Если email сменился — чистим кеш предыдущего пользователя
     const oldEmail = sessionStorage.getItem('ovora_user_email');
     if (oldEmail && oldEmail !== normalized) {
-      console.log('[UserProvider] User switched:', oldEmail, '→', normalized, '— clearing old cache');
       clearLocalCache();
       setUser(null);
     }
@@ -145,7 +129,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const setUserDirectly = (userData: Partial<User>) => {
     if (!userData.email) return;
     const normalized = userData.email.trim().toLowerCase();
-    console.log('[UserProvider] setUserDirectly:', normalized, userData.firstName);
 
     // Чистим кеш если сменился пользователь
     const oldEmail = sessionStorage.getItem('ovora_user_email');
@@ -165,17 +148,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   // ── Обновить профиль в БД ──────────────────────────────────────────────────
   const updateUser = async (updates: Partial<User>) => {
-    if (!user?.email) {
-      console.error('[UserProvider] Cannot update: no user email');
-      return;
-    }
+    if (!user?.email) return;
     try {
-      console.log('[UserProvider] Updating user:', user.email, updates);
       const updatedUser = await userApi.updateUser(user.email, updates);
       const merged = { ...user, ...updatedUser, ...updates } as User;
       setUser(merged);
       syncToLocalCache(merged);
-      console.log('[UserProvider] User updated successfully');
     } catch (error) {
       console.error('[UserProvider] Error updating user:', error);
       throw error;
@@ -185,16 +163,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
   // ── Перезагрузить данные из БД ─────────────────────────────────────────────
   const refreshUser = async () => {
     const email = user?.email || sessionStorage.getItem('ovora_user_email');
-    if (!email) {
-      console.error('[UserProvider] Cannot refresh: no email');
-      return;
-    }
+    if (!email) return;
     await loadUser(email);
   };
 
   // ── Выход из системы ───────────────────────────────────────────────────────
   const logout = () => {
-    console.log('[UserProvider] Logging out');
     // ✅ Полностью чистим все сессионные данные
     sessionStorage.removeItem('ovora_user_email');
     sessionStorage.removeItem('userRole');
@@ -220,17 +194,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
           sessionStorage.setItem('ovora_user_email', persistent.email);
           sessionStorage.setItem('userRole', persistent.role);
           sessionStorage.setItem('isAuthenticated', 'true');
-          console.log('[UserProvider] Session restored from localStorage:', persistent.email);
-        }
+          }
       } catch { /* ignore */ }
     }
 
     if (savedEmail) {
-      console.log('[UserProvider] Restoring session for:', savedEmail);
       setCurrentEmail(savedEmail);
       loadUser(savedEmail, abortController.signal);
     } else {
-      console.log('[UserProvider] No session found');
       setLoading(false);
     }
 

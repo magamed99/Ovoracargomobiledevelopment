@@ -24,24 +24,19 @@ export interface User {
  * 👤 Получить данные пользователя из БД
  */
 export async function getUser(email: string): Promise<User | null> {
-  console.log('[userApi] Getting user from DB:', email);
-  
   const res = await fetch(`${BASE}/users/${encodeURIComponent(email)}`, {
     headers: HEADERS,
   });
 
   if (!res.ok) {
-    console.error('[userApi] Failed to get user:', res.status);
     return null;
   }
 
   const data = await res.json();
   if (data.error) {
-    console.error('[userApi] Error getting user:', data.error);
     return null;
   }
 
-  console.log('[userApi] User loaded from DB:', data.user);
   return data.user || null;
 }
 
@@ -49,8 +44,6 @@ export async function getUser(email: string): Promise<User | null> {
  * ✏️ Обновить профиль пользователя в БД
  */
 export async function updateUser(email: string, updates: Partial<User>): Promise<User | null> {
-  console.log('[userApi] Updating user in DB:', email, updates);
-  
   const res = await fetch(`${BASE}/users/${encodeURIComponent(email)}`, {
     method: 'PUT',
     headers: HEADERS,
@@ -59,14 +52,12 @@ export async function updateUser(email: string, updates: Partial<User>): Promise
 
   if (!res.ok) {
     const err = await res.text();
-    console.error('[userApi] Failed to update user:', err);
     throw new Error(`Ошибка обновления профиля: ${err}`);
   }
 
   const data = await res.json();
   if (data.error) throw new Error(data.error);
 
-  console.log('[userApi] User updated in DB:', data.user);
   return data.user;
 }
 
@@ -74,8 +65,6 @@ export async function updateUser(email: string, updates: Partial<User>): Promise
  * 📷 Загрузить фото профиля в Supabase Storage
  */
 export async function uploadAvatar(email: string, file: File): Promise<string> {
-  console.log('[userApi] Uploading avatar for:', email, 'file size:', file.size);
-
   const formData = new FormData();
   formData.append('avatar', file);
 
@@ -87,14 +76,12 @@ export async function uploadAvatar(email: string, file: File): Promise<string> {
 
   if (!res.ok) {
     const err = await res.text();
-    console.error('[userApi] Failed to upload avatar:', err);
     throw new Error(`Ошибка загрузки фото: ${err}`);
   }
 
   const data = await res.json();
   if (data.error) throw new Error(data.error);
 
-  console.log('[userApi] Avatar uploaded, URL:', data.avatarUrl);
   return data.avatarUrl as string;
 }
 
