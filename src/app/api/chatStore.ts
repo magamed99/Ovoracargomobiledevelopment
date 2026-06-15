@@ -254,7 +254,7 @@ export async function initChatRoom(
     contactInfo,
     senderInfo,
     tripData, // ✅ Pass tripData to API
-  ).catch(err => console.warn('[chatStore] initChat API error:', err));
+  ).catch(() => {});
 
   return existing || getChats().find(c => c.id === chatId)!;
 }
@@ -316,8 +316,7 @@ export async function pushMessage(
       saveMessages(chatId, confirmedMsgs);
       // No emit — avoid extra re-render; next poll will show consistent state
     }
-  } catch (err) {
-    console.warn('[chatStore] sendMessage API error:', err);
+  } catch {
     // Keep optimistic message — offline mode
   }
 
@@ -356,8 +355,8 @@ export async function fetchMessages(chatId: string): Promise<ChatMessage[]> {
       emit();
       return merged;
     }
-  } catch (err) {
-    console.warn('[chatStore] getChatMessages API error:', err);
+  } catch {
+    // Fallback to local cache
   }
 
   // Fallback: local cache
@@ -453,9 +452,7 @@ export async function fetchChats(): Promise<Chat[]> {
       emit();
       return merged;
     }
-  } catch (err) {
-    console.warn('[chatStore] getUserChats API error:', err);
-  }
+  } catch {}
 
   return getChats();
 }
@@ -476,9 +473,7 @@ export async function markRead(chatId: string) {
   }
 
   // API (non-blocking)
-  apiMarkRead(chatId, email).catch(err =>
-    console.warn('[chatStore] markChatRead API error:', err)
-  );
+  apiMarkRead(chatId, email).catch(() => {});
 }
 
 /**
@@ -518,9 +513,7 @@ export async function updateProposalStatus(
   emit();
 
   // 3. API call
-  apiUpdateProposal(chatId, proposalId, status as 'accepted' | 'rejected', myEmail).catch(err =>
-    console.warn('[chatStore] updateChatProposal API error:', err)
-  );
+  apiUpdateProposal(chatId, proposalId, status as 'accepted' | 'rejected', myEmail).catch(() => {});
 
   return msgs;
 }
