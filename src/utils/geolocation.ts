@@ -87,7 +87,6 @@ export function calculateDistance(
     point1 = point1OrLat1;
     point2 = point2OrLng1;
   } else {
-    console.error('[calculateDistance] Invalid arguments');
     return 0;
   }
 

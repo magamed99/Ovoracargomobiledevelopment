@@ -19,7 +19,6 @@ async function fetchWithRetry(fn: () => Promise<any[]>, retries = 3, delayMs = 1
       const isNetworkError = err instanceof TypeError && err.message.includes('fetch');
       if (isNetworkError && attempt < retries) {
         const wait = delayMs * Math.pow(2, attempt);
-        console.warn(`[TripsContext] Network error, retrying in ${wait}ms (attempt ${attempt + 1}/${retries})...`);
         await new Promise(r => setTimeout(r, wait));
         continue;
       }
@@ -80,7 +79,6 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       setError(null);
       hasCacheRef.current = true;
     } catch (err: any) {
-      console.warn('[TripsContext] Failed to load feed:', err.message);
       if (!hasCacheRef.current) {
         setError(err.message);
       }
