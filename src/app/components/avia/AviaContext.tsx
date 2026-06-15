@@ -58,7 +58,6 @@ export function AviaProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const session = getAviaSession();
     if (session?.user?.phone) {
-      console.log('[AviaContext] Restoring session for:', session.phone);
       setUser(session.user);
       // Фоновое обновление из БД
       getAviaProfile(session.phone)
@@ -68,7 +67,7 @@ export function AviaProvider({ children }: { children: ReactNode }) {
             saveAviaSession(session.phone, freshUser);
           }
         })
-        .catch((e) => console.warn('[AviaContext] Background refresh failed:', e));
+        .catch(() => {});
     }
     setLoading(false);
   }, []);
@@ -90,11 +89,7 @@ export function AviaProvider({ children }: { children: ReactNode }) {
       if (signal?.aborted) return;
       setNotifications(notifs);
       prevUnreadRef.current = notifs.filter(n => n.isUnread).length;
-    } catch (e) {
-      if (!(e as any)?.name?.includes('Abort')) {
-        console.warn('[AviaContext] fetchFullNotifications failed:', e);
-      }
-    }
+    } catch {}
   }, []);
 
   const smartPollNotifications = useCallback(async (signal?: AbortSignal) => {
@@ -113,11 +108,7 @@ export function AviaProvider({ children }: { children: ReactNode }) {
         await fetchFullNotifications(signal);
       }
       // Иначе: всё то же самое, пропускаем тяжёлый запрос
-    } catch (e) {
-      if (!(e as any)?.name?.includes('Abort')) {
-        console.warn('[AviaContext] smartPollNotifications failed:', e);
-      }
-    }
+    } catch {}
   }, [fetchFullNotifications]);
 
   const fetchChatUnread = useCallback(async (signal?: AbortSignal) => {
@@ -128,11 +119,7 @@ export function AviaProvider({ children }: { children: ReactNode }) {
       const chats = await getAviaUserChats(phone);
       if (signal?.aborted) return;
       setChatUnreadCount(chats.reduce((s, c) => s + (c.unread || 0), 0));
-    } catch (e) {
-      if (!(e as any)?.name?.includes('Abort')) {
-        console.warn('[AviaContext] chatUnread poll failed:', e);
-      }
-    }
+    } catch {}
   }, []);
 
   // ── Запускаем polling при авторизации ──────────────────────────────────────
@@ -195,9 +182,7 @@ export function AviaProvider({ children }: { children: ReactNode }) {
         setUser(freshUser);
         saveAviaSession(session.phone, freshUser);
       }
-    } catch (e) {
-      console.error('[AviaContext] refreshUser failed:', e);
-    }
+    } catch {}
   };
 
   const updateUserLocal = (updates: Partial<AviaUser>) => {
