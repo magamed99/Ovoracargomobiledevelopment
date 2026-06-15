@@ -148,8 +148,7 @@ export function AviaDealOfferModal({ me, flight, request, onClose, onSuccess, on
         onClose();
         if (onOpenChat) onOpenChat(chatId, recipientPhone, adRef);
       }, 1200);
-    } catch (chatErr) {
-      console.warn('[AviaDealOfferModal] Chat init error (non-fatal):', chatErr);
+    } catch {
       timerRef.current = setTimeout(() => onClose(), 1800);
     }
   };

@@ -184,9 +184,7 @@ export function DocumentVerificationPage() {
         const dbDoc = dbDocs.find(d => d.id === template.id);
         if (dbDoc) {
           if ((dbDoc.status as string) === 'pending') {
-            documentsApi.deleteDocument(dbDoc.id, dbDoc.userEmail).catch(err => {
-              console.error(`[DocumentVerificationPage] Failed to delete legacy doc ${dbDoc.id}:`, err);
-            });
+            documentsApi.deleteDocument(dbDoc.id, dbDoc.userEmail).catch(() => {});
             return {
               id: template.id, type: template.type, title: template.title,
               subtitle: template.subtitle, status: 'not_uploaded' as DocumentStatus,
@@ -213,8 +211,7 @@ export function DocumentVerificationPage() {
         };
       });
       setDocuments(mergedDocs);
-    } catch (error) {
-      console.error('[DocumentVerificationPage] Error loading documents:', error);
+    } catch {
       const templates = DOCUMENT_TEMPLATES[userRole] || DOCUMENT_TEMPLATES.sender;
       const fallbackDocs: DocItem[] = templates.map(template => ({
         id: template.id, type: template.type, title: template.title,
@@ -378,8 +375,7 @@ export function DocumentVerificationPage() {
       } else {
         setOcrResult({ fullName: null, birthDate: null, detectedType: null });
       }
-    } catch (err) {
-      console.error('[OCR Prescan] Exception:', err);
+    } catch {
       setOcrResult({ fullName: null, birthDate: null, detectedType: null });
     } finally {
       setOcrScanning(false);
@@ -440,8 +436,8 @@ export function DocumentVerificationPage() {
         if (currentUser?.email && uploadedDoc.updatedUser) {
           const { firstName, lastName, middleName, fullName, avatarUrl } = uploadedDoc.updatedUser;
           const syncData = { firstName, lastName, middleName, fullName, avatarUrl };
-          syncUserNameInChats(currentUser.email, syncData).catch(err => console.warn('[DocVerification] sync-chats error:', err));
-          syncUserNameInTrips(currentUser.email, syncData).catch(err => console.warn('[DocVerification] sync-trips error:', err));
+          syncUserNameInChats(currentUser.email, syncData).catch(() => {});
+          syncUserNameInTrips(currentUser.email, syncData).catch(() => {});
         }
         toast.success('✅ Паспорт одобрен! Профиль обновлён', {
           description: updatedFields.join(' • ') || 'Данные из паспорта сохранены в профиле',
@@ -464,7 +460,6 @@ export function DocumentVerificationPage() {
       await loadDocuments();
       setTimeout(() => { setScanPhase('idle'); runScan(); }, 500);
     } catch (error) {
-      console.error('[DocumentVerificationPage] Upload error:', error);
       toast.error('Ошибка загрузки', { description: (error as Error).message });
     } finally {
       setModalSubmitting(false); setUploading(false);

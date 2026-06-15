@@ -122,7 +122,7 @@ export function DriverTripsPage() {
     if (!currentUser?.email) return;
     const doCleanup = () => {
       cleanupOrphanedOffers(currentUser.email).then(n => {
-        if (n > 0) { console.log(`[cleanup] Cancelled ${n} orphaned offers`); loadData(true); }
+        if (n > 0) { loadData(true); }
       });
     };
     const timer = setTimeout(doCleanup, 5000); // первый раз через 5с

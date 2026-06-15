@@ -332,8 +332,7 @@ export function AviaDealsPage() {
         }
       }));
       setReviewedDeals(statuses);
-    } catch (e) {
-      console.error('[AviaDealsPage] fetchDeals error:', e);
+    } catch {
     } finally {
       setLoading(false);
       setRefreshing(false);

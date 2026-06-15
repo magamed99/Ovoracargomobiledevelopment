@@ -78,7 +78,6 @@ export function CreateRequestModal({ user, onClose, onSuccess }: Props) {
       if (result.request) onSuccess(result.request);
       else throw new Error('Сервер не вернул данные заявки');
     } catch (e: any) {
-      console.error('[CreateRequestModal]', e);
       const msg = e.message || 'Ошибка создания заявки';
       setError(msg);
       toast.error(msg, { duration: 3000 });

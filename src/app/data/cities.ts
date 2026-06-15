@@ -165,8 +165,8 @@ export function getCustomCities(): City[] {
     const stored = localStorage.getItem(CUSTOM_CITIES_KEY);
     if (!stored) return [];
     return JSON.parse(stored) as City[];
-  } catch (error) {
-    console.error('Error loading custom cities:', error);
+  } catch {
+    // silently ignore
     return [];
   }
 }
@@ -174,7 +174,6 @@ export function getCustomCities(): City[] {
 // Сохранить новый город (только для водителей)
 export function addCustomCity(city: City, userRole: string): boolean {
   if (userRole !== 'driver') {
-    console.warn('Only drivers can add new cities');
     return false;
   }
 
@@ -189,7 +188,6 @@ export function addCustomCity(city: City, userRole: string): boolean {
     );
     
     if (exists) {
-      console.warn('City already exists');
       return false;
     }
 
@@ -197,8 +195,7 @@ export function addCustomCity(city: City, userRole: string): boolean {
     customCities.push(city);
     localStorage.setItem(CUSTOM_CITIES_KEY, JSON.stringify(customCities));
     return true;
-  } catch (error) {
-    console.error('Error adding custom city:', error);
+  } catch {
     return false;
   }
 }

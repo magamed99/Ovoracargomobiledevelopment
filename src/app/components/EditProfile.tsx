@@ -109,7 +109,6 @@ export function EditProfile() {
       toast.success('Профиль сохранён!');
       navigate('/profile');
     } catch (err) {
-      console.error('[EditProfile] Save error:', err);
       toast.error(`Ошибка сохранения: ${err}`);
     } finally {
       setSaving(false);

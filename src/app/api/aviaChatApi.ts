@@ -117,8 +117,7 @@ export async function getAviaChatMessages(
     });
     if (!res.ok) return { messages: [], meta: { chatId, participants: [], unread: 0 } as any };
     return await res.json();
-  } catch (err) {
-    console.error('[aviaChatApi] getAviaChatMessages error:', err);
+  } catch {
     return { messages: [], meta: { chatId, participants: [], unread: 0 } as any };
   }
 }
@@ -177,7 +176,6 @@ export async function markAviaChatSeen(
   } catch (err: any) {
     // AbortError — нормальное поведение при размонтировании
     if (err?.name === 'AbortError') return;
-    console.log('[aviaChatApi] markAviaChatSeen error:', err);
   }
 }
 
@@ -199,7 +197,6 @@ export async function deleteAviaChat(
     }
     return { success: true, cancelledDealIds: data.cancelledDealIds || [] };
   } catch (err) {
-    console.error('[aviaChatApi] deleteAviaChat error:', err);
     return { success: false, cancelledDealIds: [], error: `${err}` };
   }
 }
@@ -215,8 +212,7 @@ export async function getAviaUserChats(phone: string): Promise<AviaChat[]> {
     if (!res.ok) return [];
     const data = await res.json();
     return data.chats || [];
-  } catch (err) {
-    console.error('[aviaChatApi] getAviaUserChats error:', err);
+  } catch {
     return [];
   }
 }

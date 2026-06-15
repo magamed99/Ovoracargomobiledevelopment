@@ -747,8 +747,7 @@ export function AviaChatDrawer({
     try {
       const list = await getAviaUserChats(myPhone);
       setChats(list);
-    } catch (err) {
-      console.warn('[AviaChatDrawer] loadChats error:', err);
+    } catch {
     } finally {
       setChatsLoading(false);
     }
@@ -770,8 +769,7 @@ export function AviaChatDrawer({
         const { chatId: cid } = await initAviaChat(myPhone, resolvedOtherPhone, resolvedAdRef);
         setChatId(cid);
         setView('chat');
-      } catch (err) {
-        console.error('[AviaChatDrawer] init error:', err);
+      } catch {
         // Вычислим chatId локально
         setChatId(makeAviaChatId(myPhone, resolvedOtherPhone));
         setView('chat');
@@ -790,9 +788,7 @@ export function AviaChatDrawer({
       if (meta?.adRef) setAdRef(meta.adRef);
       const other = (meta?.participants || []).find((p: string) => p !== myPhone) || '';
       if (other) setOtherPhone(other);
-    } catch (err) {
-      console.warn('[AviaChatDrawer] loadMessages error:', err);
-    }
+    } catch {}
   }, [chatId, myPhone]);
 
   useEffect(() => {
@@ -854,11 +850,10 @@ export function AviaChatDrawer({
       // Заменяем оптимистичное на реальное
       setMessages(prev => prev.map(m => m.id === optimistic.id ? msg : m));
       loadChats(); // обновим preview в списке
-    } catch (err: any) {
+    } catch {
       // Откатываем оптимистичное
       setMessages(prev => prev.filter(m => m.id !== optimistic.id));
       toast.error('Не удалось отправить сообщение');
-      console.error('[AviaChatDrawer] send error:', err);
     } finally {
       setSending(false);
       inputRef.current?.focus();
@@ -894,9 +889,8 @@ export function AviaChatDrawer({
       } else {
         toast.error(result.error || 'Ошибка удаления');
       }
-    } catch (err) {
+    } catch {
       toast.error('Ошибка удаления чата');
-      console.error('[AviaChatDrawer] deleteChat error:', err);
     } finally {
       setDeleting(false);
     }
