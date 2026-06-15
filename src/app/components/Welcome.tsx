@@ -415,7 +415,6 @@ export function Welcome() {
               desc={t('wl_avia_desc')}
               icon={<PlaneBig src={siteConfig.icons.plane} />}
               accentLight={C.cyan}
-              soon
               onClick={() => navigate('/avia')}
               tags={[
                 { icon: Ti.plane, label: t('wl_tag_courier') },
