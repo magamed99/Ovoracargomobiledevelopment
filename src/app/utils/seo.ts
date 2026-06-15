@@ -60,7 +60,6 @@ export function setPageMeta(meta: SEOMetadata): void {
     updateMetaTag('name', 'author', meta.author);
   }
   
-  console.log('[SEO] ✅ Meta tags updated');
 }
 
 /**
@@ -91,7 +90,6 @@ export function setCanonicalUrl(url: string): void {
   }
   
   link.href = url;
-  console.log('[SEO] ✅ Canonical URL set:', url);
 }
 
 /**
@@ -109,7 +107,6 @@ export function addStructuredData(data: any): void {
   }
   
   document.head.appendChild(script);
-  console.log('[SEO] ✅ Structured data added');
 }
 
 /**

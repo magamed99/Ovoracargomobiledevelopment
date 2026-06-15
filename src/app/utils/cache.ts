@@ -95,11 +95,8 @@ export async function cachedFetch<T>(
   // Проверяем кэш
   const cached = apiCache.get<T>(cacheKey);
   if (cached) {
-    console.log(`[Cache] ✅ Hit: ${url}`);
     return cached;
   }
-
-  console.log(`[Cache] ❌ Miss: ${url}`);
   
   // Делаем запрос
   const response = await fetch(url, options);

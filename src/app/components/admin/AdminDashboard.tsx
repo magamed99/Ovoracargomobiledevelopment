@@ -71,12 +71,6 @@ export function AdminDashboard() {
       const [tripsData, usersData, offersData, reviewsData] = await Promise.all([
         getAdminTrips(), getAdminUsers(), getAdminOffers(), getAdminReviews(),
       ]);
-      console.log('[AdminDashboard] Data loaded:', {
-        trips: (tripsData || []).length,
-        users: (usersData || []).length,
-        offers: (offersData || []).length,
-        reviews: (reviewsData || []).length,
-      });
       const t = tripsData || [];
       const u = usersData || [];
       const o = offersData || [];
@@ -95,7 +89,6 @@ export function AdminDashboard() {
       });
       setLastUpdated(new Date());
     } catch (err) {
-      console.error('[AdminDashboard] Load error:', err);
       toast.error('Ошибка загрузки данных: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       setLoading(false);

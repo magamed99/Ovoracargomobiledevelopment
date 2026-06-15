@@ -65,9 +65,8 @@ export function DocumentVerification() {
     try {
       const data = await fetchAllDocuments();
       setDocs(data);
-    } catch (err) {
+    } catch {
       toast.error('Ошибка загрузки документов');
-      console.error(err);
     } finally {
       setLoading(false);
     }

@@ -57,17 +57,13 @@ export default function App() {
       headers: { 'Authorization': `Bearer ${publicAnonKey}` },
     }).catch(() => {});
 
-    initYandexApiKey().then((key) => {
-      if (key) console.log('[App] Yandex Maps API initialized successfully');
-      else console.warn('[App] Yandex Maps API key not loaded');
-    });
+    initYandexApiKey().catch(() => {});
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker
           .register('/service-worker.js')
           .then((registration) => {
-            console.log('[PWA] Service Worker registered:', registration.scope);
             setInterval(() => { registration.update(); }, 5 * 60 * 1000);
           })
           .catch((error) => {

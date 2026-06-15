@@ -156,7 +156,7 @@ export function RoleSelect() {
   useEffect(() => {
     getPublicStats()
       .then(s => setLiveStats(s))
-      .catch(err => console.warn('[RoleSelect] stats error:', err));
+      .catch(() => {});
 
     getAllReviews()
       .then(reviews => {
@@ -172,7 +172,7 @@ export function RoleSelect() {
           setRealReview({ text: r.comment.trim(), author, initial });
         }
       })
-      .catch(err => console.warn('[RoleSelect] reviews error:', err));
+      .catch(() => {});
   }, []);
 
   const handleContinue = () => {

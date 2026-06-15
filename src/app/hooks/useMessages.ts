@@ -48,9 +48,7 @@ export function useMessages() {
       fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a/chats/cleanup-demo`,
         { method: 'DELETE', headers: { Authorization: `Bearer ${publicAnonKey}` } }
-      ).then(r => r.json()).then(d => {
-        console.log('[cleanup-demo] Удалено с сервера:', d.deleted ?? 0);
-      }).catch(() => {});
+      ).then(r => r.json()).catch(() => {});
     }
 
     loadLocal();
@@ -86,8 +84,7 @@ export function useMessages() {
     try {
       setChats(prev => prev.filter(c => c.id !== chatId));
       await deleteChat(chatId);
-    } catch (err) {
-      console.error('[MessagesPage] Delete chat failed:', err);
+    } catch {
       loadLocal();
     }
   }, [loadLocal]);

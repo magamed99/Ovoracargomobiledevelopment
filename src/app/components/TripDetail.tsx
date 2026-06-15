@@ -573,8 +573,7 @@ function ActiveTripDetail({ trip, isDark, userRole }: { trip: any; isDark: boole
       setOfferStatus('pending'); // ✅ Set status to pending immediately
       // ✅ Sync server state to clear any stale localStorage cache
       checkAlreadyOffered();
-    } catch (err) {
-      console.error('❌ Failed to submit offer to server:', err);
+    } catch {
       toast.error('Ошибка при отправке оферты. Попробуйте снова.');
       setIsSubmitting(false);
       return;

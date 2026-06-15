@@ -24,11 +24,7 @@ export function usePolling(
     abortRef.current = new AbortController();
     try {
       await fnRef.current(abortRef.current.signal);
-    } catch (err: any) {
-      if (err?.name !== 'AbortError') {
-        console.warn('[usePolling] error:', err?.message ?? err);
-      }
-    }
+    } catch { /* ignore AbortError and other polling errors */ }
   }, []);
 
   useEffect(() => {

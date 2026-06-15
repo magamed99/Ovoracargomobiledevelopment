@@ -42,7 +42,6 @@ export function YandexMetrika() {
         a.parentNode.insertBefore(k, a);
       })(window, document, 'script', 'https://mc.yandex.ru/metrika/tag.js', 'ym', undefined, undefined);
 
-      console.log('[Analytics] Yandex Metrika initialized');
     }
 
     // Initialize counter — called after the loader IIFE so window.ym is defined

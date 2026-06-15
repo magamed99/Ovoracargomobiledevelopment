@@ -117,10 +117,7 @@ export function generateStaticMapUrl(
  * В реальном приложении это должно использовать Geocoding API
  */
 export async function geocodeAddress(address: string): Promise<YandexCoordinates | null> {
-  // Заглушка - в реальном приложении здесь будет вызов API
-  console.log('Geocoding address:', address);
-  
-  // Для демонстрации возвращаем координаты Душанбе
+  // Stub — returns Dushanbe coordinates until real API is wired up
   return TAJIKISTAN_CENTER;
 }
 
@@ -129,9 +126,6 @@ export async function geocodeAddress(address: string): Promise<YandexCoordinates
  * В реальном приложении это должно использовать Reverse Geocoding API
  */
 export async function reverseGeocode(coords: YandexCoordinates): Promise<string | null> {
-  // Заглушка - в реальном приложении здесь будет вызов API
-  console.log('Reverse geocoding:', coords);
-  
   const nearest = findNearestCity(coords);
   return nearest ? nearest.name : 'Неизвестное местоположение';
 }
