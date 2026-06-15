@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
 import { X } from 'lucide-react';
 import { Users, Truck, Plus, Minus, CheckCircle, AlertCircle } from 'lucide-react';
@@ -91,6 +91,9 @@ export function ProposalFormModal({
 
   const [offerDone, setOfferDone] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 
   // Auto-fill form with trip data
   useEffect(() => {
@@ -227,7 +230,7 @@ export function ProposalFormModal({
 
     setOfferDone(true);
 
-    setTimeout(() => {
+    timerRef.current = setTimeout(() => {
       setOfferDone(false);
       setIsSubmitting(false);
       setIncludeSeats(false);

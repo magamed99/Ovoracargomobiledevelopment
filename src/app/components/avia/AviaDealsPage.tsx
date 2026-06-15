@@ -323,9 +323,13 @@ export function AviaDealsPage() {
       const completed = data.filter(d => ['completed', 'accepted', 'cancelled', 'rejected'].includes(d.status));
       const statuses: Record<string, boolean> = {};
       await Promise.all(completed.map(async d => {
-        const s = await getAviaDealReviewStatus(d.id);
-        const isInit = d.initiatorPhone === myPhone;
-        statuses[d.id] = isInit ? !!s.byInitiator : !!s.byRecipient;
+        try {
+          const s = await getAviaDealReviewStatus(d.id);
+          const isInit = d.initiatorPhone === myPhone;
+          statuses[d.id] = isInit ? !!s.byInitiator : !!s.byRecipient;
+        } catch {
+          statuses[d.id] = false;
+        }
       }));
       setReviewedDeals(statuses);
     } catch (e) {
