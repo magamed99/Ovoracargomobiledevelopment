@@ -320,6 +320,20 @@ export function AddressPicker({
         </div>
       )}
 
+      {/* Selected Address Display */}
+      {value && value.address && (
+        <div className={`p-3 rounded-lg border ${
+          theme === 'dark'
+            ? 'bg-blue-500/10 border-blue-500/30 text-blue-400'
+            : 'bg-blue-50 border-blue-200 text-blue-700'
+        }`}>
+          <div className="flex items-start gap-2">
+            <MapPin className="w-4 h-4 shrink-0 mt-0.5" />
+            <p className="text-sm font-medium">{value.address}</p>
+          </div>
+        </div>
+      )}
+
       {/* Map */}
       {showMap && (
         <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
