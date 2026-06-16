@@ -30,10 +30,10 @@ export const DEFAULT_PARTNERS: PartnerConfig[] = [
 ];
 
 export const DEFAULT_ICONS: SiteIcons = {
-  logo:  '/icons/logo-bird.png',
-  truck: '/icons/cargo-truck.png',
-  plane: '/icons/avia-plane.png',
-  hero:  '/icons/hero-promo.png',
+  logo:  `${import.meta.env.BASE_URL}icons/logo-bird.png`,
+  truck: `${import.meta.env.BASE_URL}icons/cargo-truck.png`,
+  plane: `${import.meta.env.BASE_URL}icons/avia-plane.png`,
+  hero:  `${import.meta.env.BASE_URL}icons/hero-promo.png`,
 };
 
 const DEFAULT_CONFIG: SiteConfig = {
