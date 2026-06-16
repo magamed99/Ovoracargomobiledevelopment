@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   ArrowLeft, Mail, User, Phone, AlertCircle, CheckCircle2,
   Truck, Package, ChevronRight, MessageCircle, Lock,
-  Eye, EyeOff, ShieldCheck, Fingerprint, Sparkles,
+  Eye, EyeOff, ShieldCheck, Fingerprint, Sparkles, ArrowRight,
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useUser } from '../contexts/UserContext';
@@ -810,83 +810,81 @@ export function EmailAuth() {
           {/* ══ STEP 5: Login found ══ */}
           {step === 'login_found' && existingUser && (<>
             <motion.div
-              className="flex flex-col items-center text-center pt-6 pb-2"
+              className="flex flex-col items-center text-center pt-8 pb-4"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.4 }}
             >
-              <div className="relative mb-6 flex items-center justify-center">
+              {/* Circular glow icon */}
+              <div className="relative mb-8 flex items-center justify-center">
                 {[1, 2, 3].map(i => (
                   <motion.div
                     key={i}
-                    className="absolute rounded-full border border-emerald-400"
-                    initial={{ width: 88, height: 88, opacity: 0.5 }}
-                    animate={{ width: 88 + i * 36, height: 88 + i * 36, opacity: 0 }}
-                    transition={{ duration: 1.4, delay: i * 0.22, repeat: Infinity, ease: 'easeOut' }}
+                    className="absolute rounded-full"
+                    style={{ border: '1px solid #10b981' }}
+                    initial={{ width: 80, height: 80, opacity: 0.4 }}
+                    animate={{ width: 80 + i * 40, height: 80 + i * 40, opacity: 0 }}
+                    transition={{ duration: 1.8, delay: i * 0.3, repeat: Infinity, ease: 'easeOut' }}
                   />
                 ))}
                 <motion.div
-                  className="relative z-10 rounded-3xl flex items-center justify-center"
-                  style={{ width: 88, height: 88, background: 'linear-gradient(135deg, #059669, #10b981)' }}
-                  initial={{ scale: 0.4, opacity: 0, rotate: -12 }}
-                  animate={{ scale: 1, opacity: 1, rotate: 0 }}
-                  transition={{ type: 'spring', stiffness: 320, damping: 18, delay: 0.05 }}
+                  className="relative z-10 rounded-full flex items-center justify-center"
+                  style={{ width: 88, height: 88, background: 'linear-gradient(135deg, #059669, #10b981)', boxShadow: '0 0 48px #10b98150, 0 0 80px #10b98120' }}
+                  initial={{ scale: 0.5, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 18, delay: 0.05 }}
                 >
-                  <div style={{ position: 'absolute', inset: 0, borderRadius: 20, boxShadow: '0 8px 40px #10b98160' }} />
                   <motion.div
                     initial={{ scale: 0, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    transition={{ type: 'spring', stiffness: 400, damping: 16, delay: 0.25 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 16, delay: 0.28 }}
                   >
-                    <CheckCircle2 className="w-11 h-11 text-white" />
+                    <CheckCircle2 className="w-11 h-11 text-white" strokeWidth={2} />
                   </motion.div>
-                </motion.div>
-                <motion.div
-                  className="absolute -bottom-2 -right-2 z-20 w-8 h-8 rounded-xl bg-[#0e1621] border-2 border-emerald-400 flex items-center justify-center"
-                  initial={{ scale: 0, rotate: 45 }}
-                  animate={{ scale: 1, rotate: 0 }}
-                  transition={{ type: 'spring', stiffness: 500, damping: 20, delay: 0.45 }}
-                >
-                  <motion.span
-                    className="text-emerald-400 font-black text-[13px]"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.6 }}
-                  >✓</motion.span>
                 </motion.div>
               </div>
 
               <motion.p
-                className="text-[11px] font-black text-emerald-400 uppercase tracking-widest mb-2"
-                initial={{ opacity: 0, y: 10 }}
+                className="text-[22px] font-black text-white mb-2"
+                initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.38, duration: 0.35 }}
               >
-                PIN верный
+                PIN-код подтверждён
               </motion.p>
-              <motion.h2
-                className="text-[26px] font-black text-white leading-tight"
-                initial={{ opacity: 0, y: 14 }}
+              <motion.p
+                className="text-[14px] text-[#607080] mb-6"
+                initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.46, duration: 0.35 }}
               >
-                {existingUser.firstName} {existingUser.lastName}
-              </motion.h2>
+                Добро пожаловать!
+              </motion.p>
               <motion.div
-                className="flex items-center gap-1.5 mt-2 px-3 py-1.5 rounded-full border border-white/[0.08] bg-white/[0.04]"
-                initial={{ opacity: 0, y: 10 }}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-white/[0.08] bg-white/[0.04]"
+                initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.54, duration: 0.35 }}
               >
-                <Mail className="w-3 h-3 text-[#607080]" />
-                <p className="text-[12px] text-[#607080]">{existingUser.email}</p>
+                <Mail className="w-3.5 h-3.5 text-[#607080]" />
+                <p className="text-[13px] text-[#607080]">{existingUser.email}</p>
               </motion.div>
             </motion.div>
 
             <CTAButton onClick={() => handleLogin(existingUser)} color="#059669">
-              <CheckCircle2 className="w-5 h-5" />
+              <ArrowRight className="w-5 h-5" />
               <span>Войти в аккаунт</span>
             </CTAButton>
+
+            <motion.div
+              className="flex items-center justify-center gap-1.5 mt-3"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.7 }}
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-[#3d5a6a]" />
+              <p className="text-[11px] text-[#3d5a6a]">Ваши данные защищены и находятся в безопасности</p>
+            </motion.div>
           </>)}
 
           {/* ══ Role conflict ══ */}
