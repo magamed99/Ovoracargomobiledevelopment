@@ -107,333 +107,254 @@ function SenderCargoCard({
       </div>
       <div className="flex items-center gap-1.5 flex-wrap">
         {(cargo.cargoWeight ?? 0) > 0 && (
-          <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
-            <Weight className="w-3 h-3 text-amber-400" />
-            <span className="text-[11px] font-bold text-white">{cargo.cargoWeight} кг</span>
-          </div>
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/[0.06] text-[#8a9baa]">
+            <Weight className="w-2.5 h-2.5" />{cargo.cargoWeight} кг
+          </span>
         )}
         {(cargo.budget ?? 0) > 0 && (
-          <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-            <span className="text-[11px] font-bold text-emerald-400">Бюджет: {cargo.budget} {cargo.currency || 'TJS'}</span>
-          </div>
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400">
+            {cargo.budget} {cargo.currency || 'TJS'}
+          </span>
         )}
-        {cargo.cargoType && (
-          <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white/[0.05] border border-white/[0.08]">
-            <Package className="w-3 h-3 text-[#607080]" />
-            <span className="text-[11px] text-[#8a9baa]">{cargo.cargoType}</span>
-          </div>
+        {cargo.notes && (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/[0.04] text-[#607080] max-w-[160px] truncate">
+            {cargo.notes}
+          </span>
         )}
       </div>
-
-      {/* Accepted driver contact info */}
-      {acceptedOffer && (
-        <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25">
-          <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-[12px] font-bold text-emerald-400 truncate">
-              {acceptedOffer.driverName || 'Водитель принял заявку'}
-            </p>
-            {acceptedOffer.driverPhone && (
-              <p className="text-[10px] text-emerald-400/60">{acceptedOffer.driverPhone}</p>
-            )}
-            {acceptedOffer.vehicle && (
-              <p className="text-[10px] text-emerald-400/60">{acceptedOffer.vehicle}</p>
-            )}
-          </div>
-          {acceptedOffer.driverPhone && (
-            <a
-              href={`tel:${acceptedOffer.driverPhone}`}
-              onClick={e => e.stopPropagation()}
-              className="h-8 w-8 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/35 flex items-center justify-center transition-all active:scale-90 shrink-0"
-            >
-              <PhoneCall className="w-3.5 h-3.5 text-emerald-400" />
-            </a>
-          )}
-          {acceptedOffer.driverRating && (
-            <div className="flex items-center gap-0.5 shrink-0">
-              <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
-              <span className="text-[11px] font-semibold text-amber-400">{acceptedOffer.driverRating}</span>
-            </div>
+      <div className="flex items-center justify-between gap-2 pt-1 border-t border-white/[0.05]">
+        <div className="flex items-center gap-1.5">
+          {totalOffers === 0 ? (
+            <span className="text-[11px] text-[#475569]">Откликов нет</span>
+          ) : (
+            <span className="text-[11px] text-[#8a9baa]">{totalOffers} {totalOffers === 1 ? 'отклик' : totalOffers < 5 ? 'отклика' : 'откликов'}</span>
           )}
         </div>
-      )}
-
-      {/* Pending offers summary */}
-      {!acceptedOffer && totalOffers > 0 && st === 'active' && (
-        <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-[#1a2d45]/60 border border-white/[0.06]">
-          <div className="flex items-center gap-2">
-            <Truck className="w-3.5 h-3.5 text-[#5ba3f5] shrink-0" />
-            <span className="text-[11px] font-semibold text-[#8a9baa]">
-              {`${pendingCount} водител${pendingCount === 1 ? 'ь' : pendingCount < 5 ? 'я' : 'ей'} откликнулись`}
-            </span>
-          </div>
-          <span className="text-[10px] font-bold text-[#5ba3f5]">Смотреть →</span>
-        </div>
-      )}
-
-      {st === 'active' && (
         <button
           onClick={e => { e.stopPropagation(); onDelete(cargo.id); }}
-          className="w-full h-9 flex items-center justify-center gap-2 rounded-xl bg-rose-500/08 border border-rose-500/15 text-rose-400/70 hover:bg-rose-500/15 hover:text-rose-400 transition-all text-[11px] font-semibold"
+          className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold text-rose-400 hover:bg-rose-500/10 transition-all active:scale-95"
         >
-          <Trash2 className="w-3.5 h-3.5" /> Удалить объявление
+          <Trash2 className="w-3 h-3" /> Удалить
         </button>
+      </div>
+      {acceptedOffer && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+          <PhoneCall className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-[11px] font-bold text-emerald-400">{acceptedOffer.driverName}</p>
+            <p className="text-[10px] text-[#4a6278] truncate">{acceptedOffer.driverPhone}</p>
+          </div>
+          <Star className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+        </div>
       )}
     </div>
   );
 }
 
-// ── Основной компонент ────────────────────────────────────────────────────────
 export function SenderTripsPage() {
   const navigate = useNavigate();
   const { theme } = useTheme();
-  const isDark = theme === 'dark';
+  const isDark = theme === 'dark' || !theme;
   const { user: currentUser } = useUser();
   const isMountedRef = useIsMounted();
-  const [activeTab, setActiveTab] = useState<'active' | 'cargos' | 'completed' | 'cancelled'>('active');
+  const [activeTab, setActiveTab] = useState<'active' | 'completed' | 'cancelled'>('active');
 
   const [reviewModal, setReviewModal] = useState<{
-    tripId: string; route: string; counterpart: string;
-    counterpartAvatar?: string; driverEmail?: string;
+    offerId: string; tripId: string; driverEmail: string;
+    driverName: string; route: string;
   } | null>(null);
-  const [reviewedTrips, setReviewedTrips] = useState<string[]>([]);
-  const [formRating, setFormRating] = useState(0);
-  const [formComment, setFormComment] = useState('');
-  const [formCats, setFormCats] = useState({ punctuality: 0, reliability: 0, communication: 0, packaging: 0 });
+  const [reviewRatings, setReviewRatings] = useState<Record<string, number>>({});
+  const [reviewText, setReviewText] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewedTrips, setReviewedTrips] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem(REVIEWED_TRIPS_KEY) || '[]'); }
+    catch { return []; }
+  });
   const [confirmModal, setConfirmModal] = useState<{
-    title: string; msg: string; confirmLabel: string;
-    danger?: boolean; onConfirm: () => void;
+    title: string; message: string; confirmLabel: string;
+    onConfirm: () => void; isDanger?: boolean;
   } | null>(null);
-  const showConfirm = (
-    title: string, msg: string, confirmLabel: string,
-    onConfirm: () => void, danger = false
-  ) => setConfirmModal({ title, msg, confirmLabel, danger, onConfirm });
 
-  const [publishedTrips, setPublishedTrips] = useState<any[]>([]);
-  const [offers, setOffers] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const loadDataRef = useRef<(silent?: boolean) => Promise<void>>(async () => {});
-
-  const { containerRef: pullRef, pullY, isRefreshing: isPulling,
-    onTouchStart: pullTouchStart, onTouchMove: pullTouchMove, onTouchEnd: pullTouchEnd,
-  } = usePullToRefresh({ onRefresh: () => loadDataRef.current(true) });
-
+  const [senderTrips, setSenderTrips]       = useState<any[]>([]);
   const [publishedCargos, setPublishedCargos] = useState<any[]>([]);
-  // ✅ FIX П-CG: Map of cargoId → incoming cargo offers from drivers
-  const [cargoOffersMap, setCargoOffersMap] = useState<Record<string, any[]>>({});
+  const [cargoOffersMap, setCargoOffersMap]   = useState<Record<string, any[]>>({});
+  const [chats, setChats]                   = useState<any[]>([]);
+  const [loading, setLoading]               = useState(true);
+  const [isRefreshing, setIsRefreshing]     = useState(false);
+  const [isPulling, setIsPulling]           = useState(false);
 
-  // ── Load data ─────────────────────────────────────────────────────────────
-  const loadData = useCallback(async (silent = false) => {
-    if (!isMountedRef.current) return;
-    if (!silent) setLoading(true); else setIsRefreshing(true);
+  const pullRef = useRef<HTMLDivElement>(null);
+  const [pullY, setPullY]   = useState(0);
+  const pullStartY          = useRef(0);
+  const isPullingRef        = useRef(false);
+
+  const showConfirm = (
+    title: string, message: string, confirmLabel: string,
+    onConfirm: () => void, isDanger = false
+  ) => setConfirmModal({ title, message, confirmLabel, onConfirm, isDanger });
+
+  // ── Load cargos ────────────────────────────────────────────────────────────
+  const loadCargos = useCallback(async () => {
+    if (!currentUser?.email) return;
     try {
-      const email = currentUser?.email;
-      const [offersData, cargosData] = await Promise.all([
-        email ? getOffersForUser(email) : Promise.resolve([]),
-        email ? getMyCargos(email) : Promise.resolve([])
+      const cargos = await getMyCargos(currentUser.email);
+      if (!isMountedRef.current) return;
+      setPublishedCargos(cargos);
+      // Load offers for each cargo
+      const offersMap: Record<string, any[]> = {};
+      await Promise.all(
+        cargos.map(async (cargo: any) => {
+          try {
+            const offers = await getCargoOffersForCargo(cargo.id);
+            offersMap[cargo.id] = offers;
+          } catch { offersMap[cargo.id] = []; }
+        })
+      );
+      if (isMountedRef.current) setCargoOffersMap(offersMap);
+    } catch {}
+  }, [currentUser?.email]);
+
+  // ── Main data load ─────────────────────────────────────────────────────────
+  const loadData = useCallback(async (silent = false) => {
+    if (!currentUser?.email) return;
+    if (!silent) setLoading(true);
+    else setIsRefreshing(true);
+    try {
+      const [offerList, chatList] = await Promise.all([
+        getOffersForUser(currentUser.email),
+        getChats(currentUser.email),
       ]);
       if (!isMountedRef.current) return;
-      const tripIds = [...new Set(offersData.map((o: any) => String(o.tripId)).filter(Boolean))];
-      const tripsData = await getTripsByIds(tripIds);
-      if (!isMountedRef.current) return;
-      setPublishedTrips(tripsData);
-      setOffers(offersData);
-      setPublishedCargos(cargosData);
+      setChats(chatList);
 
-      // Load cargo offers for all non-deleted cargos (including completed/cancelled)
-      // so every card shows its real accept/pending counts
-      const cargosToLoad = cargosData.filter((c: any) => !c.deletedAt);
-      if (cargosToLoad.length > 0) {
-        const offersResults = await Promise.allSettled(
-          cargosToLoad.map((c: any) => getCargoOffersForCargo(c.id))
-        );
-        const newMap: Record<string, any[]> = {};
-        cargosToLoad.forEach((c: any, i: number) => {
-          const res = offersResults[i];
-          if (res.status === 'fulfilled') newMap[c.id] = res.value;
-        });
-        if (isMountedRef.current) setCargoOffersMap(newMap);
-      }
-    } catch {
-      if (!isMountedRef.current) return;
-      setPublishedTrips(JSON.parse(localStorage.getItem('ovora_published_trips') || '[]'));
-      setOffers(JSON.parse(localStorage.getItem('ovora_cached_offers') || '[]'));
-      setPublishedCargos(JSON.parse(localStorage.getItem('ovora_all_cargos') || '[]'));
-      if (!silent) toast.error('Нет соединения — показаны кэшированные данные');
-    } finally {
-      if (isMountedRef.current) { if (!silent) setLoading(false); else setIsRefreshing(false); }
-    }
-  }, [currentUser?.email, isMountedRef]);
-
-  useEffect(() => { loadDataRef.current = loadData; }, [loadData]);
-  useEffect(() => { loadData(false); }, [loadData]);
-  useEffect(() => {
-    const interval = setInterval(() => { if (document.visibilityState !== 'hidden') loadData(true); }, 8000);
-    return () => clearInterval(interval);
-  }, [loadData]);
-  useEffect(() => { setReviewedTrips(JSON.parse(localStorage.getItem(REVIEWED_TRIPS_KEY) || '[]').map(String)); }, []);
-
-  // ── Build sender booking items (trips через offers) ───────────────────────
-  const senderTrips: any[] = offers.map((offer: any) => {
-    const tripData = publishedTrips.find(t => String(t.id) === String(offer.tripId));
-    const tripFrom = offer.from || tripData?.from || '';
-    const tripTo   = offer.to   || tripData?.to   || '';
-    if (!tripFrom && !tripTo) return null;
-
-    const offerStatus = offer.status || 'pending';
-    const tripStatus = (tripData?.status || '').toLowerCase();
-
-    // ✅ FIX П-8: Корректная проверка статуса inProgress (camelCase в БД)
-    const status =
-      offerStatus === 'completed' || tripStatus === 'completed'                                          ? 'completed'
-      : (offerStatus === 'cancelled' || offerStatus === 'rejected' || offerStatus === 'declined'
-         || tripStatus === 'cancelled')                                                                   ? 'cancelled'
-      : tripStatus === 'frozen'                                                                           ? 'frozen'
-      : offerStatus === 'accepted' && ['inprogress', 'inProgress', 'started', 'in_progress'].includes(tripData?.status || '') ? 'inProgress'
-      : offerStatus === 'accepted'                                                                        ? 'accepted'
-      : 'planned';
-
-    return {
-      id: offer.offerId || offer.id,
-      tripId: offer.tripId,
-      from: tripFrom,
-      to: tripTo,
-      date: offer.date || tripData?.date || '',
-      time: tripData?.time || '',
-      status,
-      offerStatus,
-      // Driver contact & profile (needed by TripCard sender mode)
-      driverName:   tripData?.driverName   || '',
-      driverAvatar: tripData?.driverAvatar || '',
-      driverEmail:  tripData?.driverEmail  || tripData?.email || '',
-      driverPhone:  tripData?.driverPhone  || '',
-      driverRating: tripData?.driverRating ?? null,
-      // Trip details (capacity, vehicle, notes)
-      vehicle:        tripData?.vehicle        || '',
-      notes:          tripData?.notes          || '',
-      availableSeats: tripData?.availableSeats ?? 0,
-      cargoCapacity:  tripData?.cargoCapacity  ?? 0,
-      pricePerSeat:   tripData?.pricePerSeat   ?? 0,
-      pricePerKg:     tripData?.pricePerKg     ?? 0,
-      pricePerChild:  tripData?.pricePerChild  ?? 0,
-      // Coords for tracking page
-      fromLat: tripData?.fromLat ?? null,
-      fromLng: tripData?.fromLng ?? null,
-      toLat:   tripData?.toLat   ?? null,
-      toLng:   tripData?.toLng   ?? null,
-      // What sender paid / offered
-      pricePaid: offer.price ?? offer.totalPrice ?? 0,
-      // When the offer was submitted (shown as "заявка X ч назад" in TripCard)
-      offerCreatedAt: offer.createdAt || offer.timestamp || null,
-    };
-  }).filter(Boolean);
-
-  // Грузы — сортируем: active первыми, затем cancelled/completed
-  const senderAllCargos = [...publishedCargos].sort((a, b) => {
-    const order: Record<string, number> = { active: 0, cancelled: 1, completed: 2 };
-    return (order[a.status] ?? 1) - (order[b.status] ?? 1);
-  });
-
-  const filteredTrips = senderTrips.filter(trip =>
-    activeTab === 'active'    ? ['planned', 'accepted', 'inProgress', 'frozen'].includes(trip.status)
-    : activeTab === 'cancelled' ? trip.status === 'cancelled'
-    : trip.status === 'completed'
-  );
-
-  const activeCount  = senderTrips.filter(t => ['planned', 'accepted', 'inProgress', 'frozen'].includes(t.status)).length;
-  const cargosCount  = senderAllCargos.filter(c => !c.deletedAt && c.status !== 'cancelled' && c.status !== 'completed').length;
-
-  // ── Unread messages ───────────────────────────────────────────────────────
-  const getUnread = (trip: any) => {
-    const tripChatId = String(trip.tripId ?? trip.id);
-    return getChats()
-      .filter((c: any) => c.tripId === tripChatId || c.id.includes(tripChatId))
-      .reduce((acc: number, c: any) => acc + (c.unread || 0), 0);
-  };
-
-  // ── Actions ───────────────────────────────────────────────────────────────
-  const openReview = (e: React.MouseEvent, trip: any) => {
-    e.stopPropagation();
-    if (!trip.driverEmail) {
-      toast.error('Нет данных о водителе для этой поездки');
-      return;
-    }
-    setReviewModal({
-      tripId: trip.id,
-      route: `${trip.from} → ${trip.to}`,
-      counterpart: trip.driverName || 'Водитель',
-      counterpartAvatar: trip.driverAvatar,
-      driverEmail: trip.driverEmail,
-    });
-    setFormRating(0); setFormComment('');
-    setFormCats({ punctuality: 0, reliability: 0, communication: 0, packaging: 0 });
-  };
-
-  const submitReview = async () => {
-    if (!formRating) { toast.error('Укажите оценку'); return; }
-    if (!formComment.trim()) { toast.error('Напишите комментарий'); return; }
-    const authorName = currentUser?.fullName || currentUser?.firstName || 'Отправитель';
-    try {
-      await submitReviewApi({
-        authorEmail: currentUser?.email || '',
-        authorName,
-        targetEmail: reviewModal?.driverEmail || '',
-        tripId: reviewModal!.tripId,
-        rating: formRating,
-        comment: formComment.trim(),
-        tripRoute: reviewModal!.route,
-        categories: {
-          punctuality: formCats.punctuality || formRating,
-          reliability: formCats.reliability || formRating,
-          communication: formCats.communication || formRating,
-          packaging: formCats.packaging || formRating,
-        },
-        type: 'given', verified: true,
-      });
-      const reviewed = [...reviewedTrips, reviewModal!.tripId];
-      setReviewedTrips(reviewed);
-      localStorage.setItem(REVIEWED_TRIPS_KEY, JSON.stringify(reviewed));
-      setReviewModal(null);
-      toast.success('Отзыв опубликован! Спасибо 🙏');
-    } catch (err: any) {
-      if (err?.message === 'DUPLICATE_REVIEW') {
-        toast.error('Вы уже оставляли отзыв на эту поездку');
-        const reviewed = [...reviewedTrips, reviewModal!.tripId];
-        setReviewedTrips(reviewed);
-        localStorage.setItem(REVIEWED_TRIPS_KEY, JSON.stringify(reviewed));
-        setReviewModal(null);
+      const acceptedOffers = offerList.filter((o: any) => o.status === 'accepted');
+      const tripIds = [...new Set(acceptedOffers.map((o: any) => o.tripId).filter(Boolean))] as string[];
+      if (tripIds.length > 0) {
+        const trips = await getTripsByIds(tripIds);
+        if (!isMountedRef.current) return;
+        const merged = acceptedOffers.map((offer: any) => {
+          const trip = trips.find((t: any) => t.id === offer.tripId);
+          return trip ? {
+            ...trip,
+            offerId:      offer.id,
+            offerStatus:  offer.status,
+            senderEmail:  offer.senderEmail,
+            inProgress:   offer.inProgress ?? false,
+          } : null;
+        }).filter(Boolean);
+        setSenderTrips(merged);
       } else {
-        toast.error('Не удалось отправить отзыв');
+        setSenderTrips([]);
       }
+      await loadCargos();
+    } catch {}
+    finally {
+      if (isMountedRef.current) { setLoading(false); setIsRefreshing(false); }
     }
+  }, [currentUser?.email, loadCargos]);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  // ── Pull to refresh ────────────────────────────────────────────────────────
+  const pullTouchStart = (e: React.TouchEvent) => {
+    if (!pullRef.current) return;
+    const scrollTop = pullRef.current.scrollTop;
+    if (scrollTop > 0) return;
+    pullStartY.current = e.touches[0].clientY;
+    isPullingRef.current = true;
+  };
+  const pullTouchMove = (e: React.TouchEvent) => {
+    if (!isPullingRef.current) return;
+    const dy = e.touches[0].clientY - pullStartY.current;
+    if (dy > 0) { setPullY(Math.min(dy, 80)); setIsPulling(dy > 40); }
+  };
+  const pullTouchEnd = async () => {
+    if (isPulling) await loadData(true);
+    setPullY(0); setIsPulling(false); isPullingRef.current = false;
   };
 
-  const openDriverChat = (e: React.MouseEvent, trip: any) => {
+  // ── Computed values ────────────────────────────────────────────────────────
+  const activeCount  = senderTrips.filter(t => t.status === 'active' || t.status === 'inProgress').length;
+  const cargosCount  = publishedCargos.length;
+  const filteredTrips = senderTrips.filter(t => {
+    if (activeTab === 'active')    return t.status === 'active' || t.status === 'inProgress';
+    if (activeTab === 'completed') return t.status === 'completed';
+    if (activeTab === 'cancelled') return t.status === 'cancelled';
+    return false;
+  });
+  const senderAllCargos = publishedCargos;
+
+  const getUnread = (trip: any) => {
+    const chatId = generatePairChatId(currentUser?.email || '', trip.driverEmail || '');
+    const chat = chats.find(c => c.id === chatId);
+    return chat?.unreadCount || 0;
+  };
+
+  const openDriverChat = async (e: React.MouseEvent, trip: any) => {
     e.stopPropagation();
-    const driverEmail = trip.driverEmail || `driver_${trip.tripId ?? trip.id}`;
-    const chatId = generatePairChatId(driverEmail, currentUser?.email || 'guest');
-    initChatRoom(chatId, {
-      id: driverEmail, name: trip.driverName || 'Водитель', avatar: trip.driverAvatar || '',
-      role: 'driver', sub: 'Водитель', rating: trip.driverRating, online: true, verified: true,
-    }, String(trip.tripId ?? trip.id), `${trip.from} → ${trip.to}`, trip);
+    if (!currentUser?.email || !trip.driverEmail) return;
+    const chatId = generatePairChatId(currentUser.email, trip.driverEmail);
+    await initChatRoom(chatId, currentUser.email, trip.driverEmail,
+      `${currentUser.firstName} ${currentUser.lastName}`, trip.driverName || 'Водитель',
+      currentUser.avatarUrl || null, trip.driverAvatar || null);
     navigate(`/chat/${chatId}`);
   };
 
-  const handleCancelBooking = (e: React.MouseEvent, trip: any) => {
+  const openReview = (e: React.MouseEvent, trip: any) => {
+    e.stopPropagation();
+    setReviewRatings({});
+    setReviewText('');
+    setReviewModal({
+      offerId: trip.offerId, tripId: trip.tripId || trip.id,
+      driverEmail: trip.driverEmail, driverName: trip.driverName || 'Водитель',
+      route: `${cleanAddress(trip.from)} → ${cleanAddress(trip.to)}`,
+    });
+  };
+
+  const submitReview = async () => {
+    if (!reviewModal || !currentUser) return;
+    const totalRatings = Object.keys(CATEGORY_LABELS).length;
+    const filledRatings = Object.keys(reviewRatings).length;
+    if (filledRatings < totalRatings) {
+      toast.error('Пожалуйста, оцените все категории');
+      return;
+    }
+    const avgRating = Object.values(reviewRatings).reduce((a, b) => a + b, 0) / totalRatings;
+    setReviewSubmitting(true);
+    try {
+      await submitReviewApi({
+        tripId: reviewModal.tripId,
+        reviewerEmail: currentUser.email,
+        reviewedEmail: reviewModal.driverEmail,
+        rating: avgRating,
+        comment: reviewText.trim(),
+        categoryRatings: reviewRatings,
+        callerEmail: currentUser.email,
+      });
+      const key = `${reviewModal.offerId}_${reviewModal.tripId}`;
+      const updated = [...reviewedTrips, key];
+      setReviewedTrips(updated);
+      localStorage.setItem(REVIEWED_TRIPS_KEY, JSON.stringify(updated));
+      toast.success('Отзыв отправлен!');
+      setReviewModal(null);
+    } catch { toast.error('Ошибка при отправке отзыва'); }
+    finally { setReviewSubmitting(false); }
+  };
+
+  const handleCancelBooking = async (e: any, trip: any) => {
     e.stopPropagation();
     showConfirm(
       'Отменить бронирование?',
-      `${trip.from} → ${trip.to}`,
+      'Вы уверены, что хотите отменить эту поездку?',
       'Отменить',
       async () => {
         try {
-          await updateOffer(String(trip.tripId), String(trip.id), { status: 'declined' });
-          setOffers(prev => prev.map((o: any) =>
-            String(o.offerId || o.id) === String(trip.id) ? { ...o, status: 'declined' } : o
-          ));
+          await updateOffer(trip.offerId, { status: 'cancelled', callerEmail: currentUser?.email });
+          setSenderTrips(prev =>
+            prev.map(t => t.offerId === trip.offerId ? { ...t, status: 'cancelled' } : t)
+          );
           toast.success('Бронирование отменено');
-        } catch { toast.error('Ошибка при отмене бронирования'); }
+        } catch { toast.error('Ошибка при отмене'); }
       },
       true
     );
@@ -458,7 +379,6 @@ export function SenderTripsPage() {
   // ── Tabs ──────────────────────────────────────────────────────────────────
   const tabs = [
     { key: 'active' as const,    label: 'Бронирования', count: activeCount },
-    { key: 'cargos' as const,    label: 'Мои грузы',    count: cargosCount },
     { key: 'completed' as const, label: 'Завершённые',  count: senderTrips.filter(t => t.status === 'completed').length },
     { key: 'cancelled' as const, label: 'Отменённые',   count: senderTrips.filter(t => t.status === 'cancelled').length },
   ];
@@ -479,10 +399,6 @@ export function SenderTripsPage() {
             <Package className="w-7 h-7 text-amber-400" />
           </div>
           <p className="text-sm font-medium text-[#475569] text-center">Объявлений о грузах нет</p>
-          <button onClick={() => navigate('/create-trip')}
-            className="flex items-center gap-2 bg-amber-500 text-white font-semibold px-5 py-2.5 rounded-full text-sm">
-            <Plus className="w-4 h-4" /> Разместить груз
-          </button>
         </div>
       );
     }
@@ -526,7 +442,7 @@ export function SenderTripsPage() {
                 </div>
               )}
             </div>
-            <p className="text-[11px] mt-0.5 text-[#64748b]">Бронирования и грузы</p>
+            <p className="text-[11px] mt-0.5 text-[#64748b]">Ваши бронирования</p>
           </div>
           <button onClick={() => loadData(true)} className="w-9 h-9 rounded-full flex items-center justify-center text-[#1978e5] hover:bg-[#1978e5]/15 active:scale-90 transition-all">
             <RefreshCw style={{ width: 18, height: 18 }} className={isRefreshing ? 'animate-spin' : ''} />
@@ -553,9 +469,7 @@ export function SenderTripsPage() {
           onTouchStart={pullTouchStart} onTouchMove={pullTouchMove} onTouchEnd={pullTouchEnd}>
           <PullIndicator pullY={pullY} isRefreshing={isPulling} />
 
-          {/* ✅ FIX П-6: Вкладка «Мои грузы» — отдельный компонент */}
-          {activeTab === 'cargos' ? renderCargoList(false) : (
-            <>
+          <>
               {loading && filteredTrips.length === 0 && (
                 <div className="px-4 pt-3 space-y-3">{[1,2,3].map(i => <TripCardSkeleton key={i} isDark={isDark} />)}</div>
               )}
@@ -602,7 +516,6 @@ export function SenderTripsPage() {
                 </div>
               ))}
             </>
-          )}
           <div style={{ height: 'env(safe-area-inset-bottom, 16px)', minHeight: 80 }} />
         </div>
       </div>
@@ -622,12 +535,11 @@ export function SenderTripsPage() {
                   <span className="px-2.5 py-0.5 rounded-full bg-emerald-500 text-white text-[11px] font-black">{activeCount} активных</span>
                 )}
               </div>
-              <p className="text-[11px] text-[#4a6278] mt-0.5">Бронирования и объявления о грузах</p>
+              <p className="text-[11px] text-[#4a6278] mt-0.5">Ваши бронирования поездок</p>
             </div>
             <div className="flex items-center gap-3">
               {[
                 { label: 'Бронирования', value: activeCount, color: '#10b981' },
-                { label: 'Мои грузы',   value: cargosCount, color: '#f59e0b' },
                 { label: 'Завершённые', value: senderTrips.filter(t => t.status === 'completed').length, color: '#5ba3f5' },
               ].map(s => (
                 <div key={s.label} className="flex flex-col items-center px-4 py-2 rounded-2xl"
@@ -671,8 +583,7 @@ export function SenderTripsPage() {
 
         <div className="flex-1 overflow-y-auto" style={{ background: '#0E1621' }}>
           <div className="max-w-6xl mx-auto px-8 py-6">
-            {activeTab === 'cargos' ? renderCargoList(true) : (
-              <>
+            <>
                 {loading && filteredTrips.length === 0 && (
                   <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
                     {[1,2,3,4].map(i => (
@@ -732,7 +643,6 @@ export function SenderTripsPage() {
                   </div>
                 )}
               </>
-            )}
           </div>
         </div>
       </div>
@@ -754,52 +664,73 @@ export function SenderTripsPage() {
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              {reviewModal.counterpartAvatar && (
-                <img src={reviewModal.counterpartAvatar} alt="" className="w-12 h-12 rounded-full object-cover mx-auto my-3" />
-              )}
-              <p className="text-[10px] uppercase tracking-wider font-medium mb-1 text-[#475569]">Оцените водителя</p>
-              <p className="text-sm font-bold mb-4 text-white">{reviewModal.counterpart}</p>
-              <div className="flex justify-center mb-4"><StarRow value={formRating} onChange={setFormRating} size="lg" /></div>
-              {Object.entries(CATEGORY_LABELS).map(([key, label]) => {
-                const Icon = CATEGORY_ICONS[key];
-                return (
-                  <div key={key} className="flex items-center justify-between py-2.5 border-b border-white/[0.06]">
-                    <div className="flex items-center gap-2">
-                      <Icon className="w-3.5 h-3.5 text-[#475569]" />
-                      <span className="text-sm text-[#94a3b8]">{label}</span>
+              <div className="space-y-4">
+                {Object.entries(CATEGORY_LABELS).map(([key, label]) => {
+                  const Icon = CATEGORY_ICONS[key];
+                  return (
+                    <div key={key} className="space-y-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <Icon className="w-3.5 h-3.5 text-[#5ba3f5]" />
+                        <p className="text-xs font-medium text-[#8a9baa]">{label}</p>
+                      </div>
+                      <StarRow
+                        value={reviewRatings[key] || 0}
+                        onChange={v => setReviewRatings(prev => ({ ...prev, [key]: v }))}
+                      />
                     </div>
-                    <StarRow value={formCats[key as keyof typeof formCats]} onChange={v => setFormCats(p => ({ ...p, [key]: v }))} size="sm" />
-                  </div>
-                );
-              })}
-              <textarea placeholder="Комментарий..." value={formComment} onChange={e => setFormComment(e.target.value)}
-                className="w-full mt-4 p-3 text-sm rounded-xl border resize-none outline-none bg-[#1a2736] border-white/[0.08] text-white placeholder-[#475569]"
-                rows={3} />
-              <button onClick={submitReview}
-                className="mt-4 w-full py-3.5 bg-[#1978e5] hover:bg-[#1565cc] text-white font-bold rounded-2xl text-sm active:scale-[0.98] transition-all">
-                Опубликовать отзыв
-              </button>
+                  );
+                })}
+                <div className="space-y-1.5">
+                  <p className="text-xs font-medium text-[#8a9baa]">Комментарий (необязательно)</p>
+                  <textarea
+                    value={reviewText}
+                    onChange={e => setReviewText(e.target.value)}
+                    placeholder="Расскажите о поездке..."
+                    rows={3}
+                    className="w-full px-3 py-2 rounded-xl text-sm resize-none bg-[#0d1929] border border-white/[0.08] text-white placeholder-[#3d5a6a] focus:outline-none focus:border-[#5ba3f5]/40"
+                  />
+                </div>
+                <button
+                  onClick={submitReview}
+                  disabled={reviewSubmitting}
+                  className="w-full py-3 rounded-2xl text-white text-sm font-bold bg-[#1978e5] hover:bg-[#1565c0] transition-all disabled:opacity-50"
+                >
+                  {reviewSubmitting ? 'Отправляем...' : 'Отправить отзыв'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── Confirm Modal ──────────────────────────────────────────────────── */}
+      {/* ── Confirm Modal ─────────────────────────────────────────────────────── */}
       {confirmModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" onClick={() => setConfirmModal(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={() => setConfirmModal(null)}>
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-          <div className="relative w-full max-w-sm rounded-3xl p-6 shadow-2xl bg-[#162030]" onClick={e => e.stopPropagation()}>
-            {confirmModal.danger && <AlertTriangle className="w-8 h-8 text-rose-400 mx-auto mb-3" />}
-            <h3 className="text-lg font-bold text-white text-center mb-1">{confirmModal.title}</h3>
-            <p className="text-sm text-[#475569] text-center mb-6">{confirmModal.msg}</p>
-            <div className="flex gap-3">
+          <div className="relative w-full max-w-sm mx-4 rounded-3xl shadow-2xl bg-[#162030] overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="px-6 pt-6 pb-2">
+              <div className="flex items-start gap-3">
+                {confirmModal.isDanger && (
+                  <div className="w-9 h-9 rounded-full bg-rose-500/15 flex items-center justify-center shrink-0 mt-0.5">
+                    <AlertTriangle className="w-4.5 h-4.5 text-rose-400" />
+                  </div>
+                )}
+                <div>
+                  <h3 className="text-base font-bold text-white">{confirmModal.title}</h3>
+                  <p className="text-sm text-[#475569] mt-1">{confirmModal.message}</p>
+                </div>
+              </div>
+            </div>
+            <div className="px-6 pb-6 pt-4 flex gap-3">
               <button onClick={() => setConfirmModal(null)}
-                className="flex-1 py-3 rounded-2xl text-sm font-semibold bg-white/[0.06] text-[#94a3b8]">
+                className="flex-1 py-2.5 rounded-2xl text-sm font-semibold text-[#8a9baa] bg-white/[0.06] hover:bg-white/[0.10] transition-all">
                 Отмена
               </button>
               <button
-                onClick={() => { setConfirmModal(null); confirmModal.onConfirm(); }}
-                className={`flex-1 py-3 rounded-2xl text-sm font-bold text-white ${confirmModal.danger ? 'bg-rose-500' : 'bg-[#1978e5]'}`}>
+                onClick={() => { confirmModal.onConfirm(); setConfirmModal(null); }}
+                className={`flex-1 py-2.5 rounded-2xl text-sm font-bold text-white transition-all ${
+                  confirmModal.isDanger ? 'bg-rose-500 hover:bg-rose-600' : 'bg-[#1978e5] hover:bg-[#1565c0]'
+                }`}>
                 {confirmModal.confirmLabel}
               </button>
             </div>
