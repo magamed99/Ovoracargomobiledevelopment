@@ -8,12 +8,12 @@ import {
 import { useNavigate } from 'react-router';
 import { useUser } from '../contexts/UserContext';
 import { toast } from 'sonner';
-import { createTrip } from '../api/dataApi';
+import { createTrip, createCargo } from '../api/dataApi';
 import { AddressPicker } from './AddressPicker';
 import { RouteMap } from './RouteMap';
 import { SenderCargoForm } from './SenderCargoForm';
 
-// ─── Stepper ────────────────────────────────────────────
+// ─── Stepper ────────────────────────────────────────────────
 const STEPS = ['Маршрут', 'Дата', 'Вместимость', 'Цены'];
 
 function Stepper({ current }: { current: number }) {
@@ -55,7 +55,7 @@ function Stepper({ current }: { current: number }) {
   );
 }
 
-// ─── Counter ────────────────────────────────────────────
+// ─── Counter ──────────────────────────────────────────────
 function Counter({
   value, onChange, min = 0, max = 9999, label, sub, icon, color,
 }: {
@@ -106,359 +106,338 @@ function Counter({
   );
 }
 
-// ─── SectionLabel ───────────────────────────────────────────
-function SectionLabel({ title, icon }: { title: string; icon: React.ReactNode }) {
+// ─── Price Input ───────────────────────────────────────────
+function PriceInput({
+  label, emoji, placeholder, value, onChange, accent, required, currency,
+}: {
+  label: string; emoji: string; placeholder: string;
+  value: string; onChange: (v: string) => void;
+  accent: string; required?: boolean; currency?: string;
+}) {
+  const filled = !!(value && parseFloat(value) > 0);
   return (
-    <div className="flex items-center gap-2 mb-3">
-      <div className="w-5 h-5 rounded-lg bg-[#5ba3f5]/10 flex items-center justify-center">{icon}</div>
-      <p className="text-[10px] font-black uppercase tracking-widest text-[#5ba3f5]">{title}</p>
+    <div
+      className={`flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all duration-200 ${
+        filled ? 'bg-[#111c28] border-white/[0.13]' : 'bg-[#111c28] border-white/[0.07]'
+      }`}
+    >
+      <div
+        className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 text-base"
+        style={{ background: accent + '1a' }}
+      >
+        {emoji}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-[10px] text-[#4a6278] mb-0.5">
+          {label}
+          {required && <span className="text-red-400 ml-0.5">*</span>}
+        </p>
+        <input
+          type="number"
+          placeholder={placeholder}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          className="w-full text-[14px] font-bold bg-transparent outline-none tabular-nums
+            [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none
+            [&::-webkit-outer-spin-button]:appearance-none placeholder-[#253545]"
+          style={{ color: filled ? accent : '#4a6278' }}
+        />
+      </div>
+      <span className="text-[11px] font-bold flex-shrink-0" style={{ color: filled ? accent : '#4a6278' }}>
+        {currency || 'TJS'}
+      </span>
     </div>
   );
 }
 
-// ═══ Main Component ════════════════════════════════════════════════════════════════════════════════════
+// ─── Section label ──────────────────────────────────────────
+function SectionLabel({ title, icon }: { title: string; icon: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2 mb-3">
+      <div className="w-5 h-5 rounded-lg bg-[#5ba3f5]/15 flex items-center justify-center">
+        {icon}
+      </div>
+      <p className="text-[9px] font-black uppercase tracking-widest text-[#5ba3f5]">{title}</p>
+    </div>
+  );
+}
+
+// ─── Main ─────────────────────────────────────────────────────
 export function CreateAnnouncementPage() {
+  const { user: currentUser } = useUser();
   const navigate = useNavigate();
-  const { user } = useUser();
 
-  // State for multi-step form
-  const [step, setStep] = useState(0);
+  if (currentUser?.role === 'sender') {
+    return <SenderCargoForm />;
+  }
 
-  // Step 1: Route
   const [fromAddress, setFromAddress] = useState<{ address: string; lat: number; lng: number } | null>(null);
-  const [toAddress, setToAddress] = useState<{ address: string; lat: number; lng: number } | null>(null);
+  const [toAddress,   setToAddress]   = useState<{ address: string; lat: number; lng: number } | null>(null);
+  const [driverDate,  setDriverDate]  = useState('');
+  const [driverTime,  setDriverTime]  = useState('');
+  const [seats,       setSeats]       = useState(3);
+  const [children,    setChildren]    = useState(0);
+  const [cargo,       setCargo]       = useState(100);
+  const [pricePerSeat,  setPricePerSeat]  = useState('');
+  const [pricePerChild, setPricePerChild] = useState('');
+  const [pricePerKg,    setPricePerKg]    = useState('');
+  const [notes,         setNotes]         = useState('');
+  const [currency,      setCurrency]      = useState<'TJS' | 'USD' | 'RUB'>('TJS');
+  const [publishing,    setPublishing]    = useState(false);
 
-  // Step 2: Date & Time
-  const [departureDate, setDepartureDate] = useState('');
-  const [departureTime, setDepartureTime] = useState('');
-  const [arrivalDate, setArrivalDate] = useState('');
-  const [arrivalTime, setArrivalTime] = useState('');
+  const todayStr = new Date().toISOString().split('T')[0];
 
-  // Step 3: Capacity
-  const [maxPassengers, setMaxPassengers] = useState(3);
-  const [maxChildren, setMaxChildren] = useState(0);
-  const [maxBaggage, setMaxBaggage] = useState(2);
-  const [maxCargo, setMaxCargo] = useState(0);
+  const step = (() => {
+    if (!fromAddress || !toAddress) return 0;
+    if (!driverDate || !driverTime) return 1;
+    if (seats === 0 && cargo === 0) return 2;
+    return 3;
+  })();
 
-  // Step 4: Prices
-  const [pricePerPerson, setPricePerPerson] = useState(0);
-  const [pricePerKg, setPricePerKg] = useState(0);
-  const [currency, setCurrency] = useState<'TJS' | 'USD' | 'RUB'>('TJS');
-  const [notes, setNotes] = useState('');
-
-  const [loading, setLoading] = useState(false);
-
-  const canProceed = () => {
-    if (step === 0) return fromAddress && toAddress && fromAddress.address && toAddress.address;
-    if (step === 1) return departureDate && departureTime;
-    if (step === 2) return maxPassengers > 0 || maxCargo > 0;
-    return true;
-  };
-
-  const handleNext = () => {
-    if (step < 3) setStep(step + 1);
-    else handlePublish();
-  };
+  const isReady = !!(
+    fromAddress && toAddress &&
+    driverDate && driverTime &&
+    pricePerSeat && parseFloat(pricePerSeat) > 0 &&
+    pricePerKg   && parseFloat(pricePerKg) > 0
+  );
 
   const handlePublish = async () => {
-    if (!user?.email) { toast.error('Необходимо авторизоваться'); return; }
-    if (!fromAddress || !toAddress) { toast.error('Укажите маршрут'); return; }
+    if (publishing) return;
+    if (!fromAddress?.lat) { toast.error('Укажите точку отправления'); return; }
+    if (!toAddress?.lat)   { toast.error('Укажите точку назначения');  return; }
+    if (!driverDate)       { toast.error('Укажите дату');              return; }
+    if (!driverTime)       { toast.error('Укажите время');             return; }
+    if (!pricePerSeat || parseFloat(pricePerSeat) <= 0) { toast.error('Укажите цену за место'); return; }
+    if (!pricePerKg   || parseFloat(pricePerKg)   <= 0) { toast.error('Укажите цену за кг');    return; }
 
-    setLoading(true);
+    setPublishing(true);
     try {
       await createTrip({
-        driverEmail: user.email,
-        fromCity: fromAddress.address,
-        toCity: toAddress.address,
-        fromLat: fromAddress.lat,
-        fromLng: fromAddress.lng,
-        toLat: toAddress.lat,
-        toLng: toAddress.lng,
-        departureDate,
-        departureTime,
-        arrivalDate: arrivalDate || undefined,
-        arrivalTime: arrivalTime || undefined,
-        maxPassengers,
-        maxChildren,
-        maxBaggage,
-        maxCargo,
-        pricePerPerson,
-        pricePerKg,
+        from: fromAddress.address, to: toAddress.address,
+        date: driverDate, time: driverTime,
+        fromLat: fromAddress.lat, fromLng: fromAddress.lng,
+        toLat:   toAddress.lat,   toLng:   toAddress.lng,
+        availableSeats: seats, cargoCapacity: cargo,
+        childSeats:     children > 0 ? children : 0,
+        pricePerSeat:   parseFloat(pricePerSeat),
+        pricePerKg:     parseFloat(pricePerKg),
+        pricePerChild:  pricePerChild && parseFloat(pricePerChild) > 0 ? parseFloat(pricePerChild) : 0,
+        fromCountry: 'Таджикистан', toCountry: 'Таджикистан',
+        duration: null,
+        driverEmail:    currentUser?.email || '',
+        driverName:     currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : 'Водитель',
+        driverPhone:    currentUser?.phone || '',
+        driverAvatar:   currentUser?.avatarUrl || null,
+        driverRating:   currentUser?.rating || null,
+        driverTrips:    currentUser?.totalTrips || null,
+        driverVerified: currentUser?.verificationStatus === 'verified',
+        notes:   notes.trim(),
+        status:  'planned',
+        role:    'driver',
+        tripType: 'trip' as const,
+        mapImage: 'https://images.unsplash.com/photo-1524661135-423995f22d0b?w=400&h=400&fit=crop',
         currency,
-        notes: notes.trim() || undefined,
       });
-      toast.success('Объявление опубликовано!');
-      navigate('/driver-trips');
+      toast.success(
+        `${fromAddress.address.split(',')[0]} → ${toAddress.address.split(',')[0]} опубликовано!`,
+        { description: `${driverDate} в ${driverTime} · ${seats} мест · ${pricePerSeat} ${currency}`, duration: 4000 },
+      );
+      setFromAddress(null); setToAddress(null);
+      setDriverDate(''); setDriverTime('');
+      setSeats(3); setChildren(0); setCargo(100);
+      setPricePerSeat(''); setPricePerKg(''); setPricePerChild('');
+      setNotes('');
+      window.dispatchEvent(new Event('ovora_trip_update'));
+      navigate('/trips');
     } catch (err) {
-      toast.error(`Ошибка: ${err}`);
+      toast.error(`Ошибка публикации: ${err}`);
     } finally {
-      setLoading(false);
+      setPublishing(false);
     }
   };
 
-  // Mobile layout (< 640px)
-  const renderMobile = () => (
-    <div className="flex flex-col min-h-screen bg-[#0c1520] text-white font-['Sora']">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3" style={{ paddingTop: 'max(16px, env(safe-area-inset-top))' }}>
-        <button
-          onClick={() => step > 0 ? setStep(step - 1) : navigate(-1)}
-          className="w-9 h-9 rounded-xl bg-[#111c28] flex items-center justify-center active:scale-90"
-        >
-          <ArrowLeft className="w-4 h-4 text-white" />
-        </button>
-        <div className="text-center">
-          <p className="text-[13px] font-black text-white">Новое объявление</p>
-          <p className="text-[10px] text-[#4a6278]">Шаг {step + 1} из 4</p>
-        </div>
-        <div className="w-9 h-9 rounded-xl bg-[#5ba3f5]/10 flex items-center justify-center">
-          <Truck className="w-4 h-4 text-[#5ba3f5]" />
-        </div>
-      </div>
-
-      <Stepper current={step} />
-
-      <div className="flex-1 overflow-y-auto pb-32">
-        {/* Step 1: Route */}
-        {step === 0 && (
-          <div className="px-4 mb-5">
-            <SectionLabel title="Маршрут" icon={<Navigation className="w-3 h-3 text-[#5ba3f5]" />} />
-            <div className="rounded-2xl overflow-hidden border border-white/[0.07] bg-[#111c28]">
-              <div className="px-4 pt-4 pb-3 border-b border-white/[0.07]">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-2 h-2 rounded-full bg-[#5ba3f5] ring-2 ring-[#5ba3f5]/30" />
-                  <p className="text-[9px] font-black uppercase tracking-widest text-[#4a6278]">Откуда</p>
-                </div>
-                <AddressPicker value={fromAddress} onChange={setFromAddress} placeholder="Выберите город отправления" label="" />
-              </div>
-              <div className="px-4 pt-3 pb-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-emerald-400/30" />
-                  <p className="text-[9px] font-black uppercase tracking-widest text-[#4a6278]">Куда</p>
-                </div>
-                <AddressPicker value={toAddress} onChange={setToAddress} placeholder="Выберите город назначения" label="" showCurrentLocation={false} />
-              </div>
-            </div>
-            {fromAddress && toAddress && fromAddress.lat && toAddress.lat && (
-              <div className="rounded-2xl overflow-hidden border border-white/[0.07] mt-2">
-                <RouteMap from={fromAddress} to={toAddress} height="160px" />
-              </div>
-            )}
+  const PublishBtn = (
+    <button
+      onClick={handlePublish}
+      disabled={publishing}
+      className={`w-full h-13 rounded-2xl text-white text-[14px] font-black flex items-center justify-center gap-2
+        transition-all duration-200 shadow-lg ${isReady ? 'active:scale-[0.97]' : 'opacity-40 cursor-not-allowed'}`}
+      style={{
+        background: publishing
+          ? 'linear-gradient(135deg,#1d3a60,#2a5080)'
+          : isReady
+          ? 'linear-gradient(135deg,#1d4ed8 0%,#5ba3f5 100%)'
+          : 'linear-gradient(135deg,#1a2a3a,#213045)',
+        boxShadow: isReady ? '0 8px 24px #3b82f640' : 'none',
+      }}
+    >
+      {publishing ? (
+        <>
+          <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+          Публикуем…
+        </>
+      ) : (
+        <>
+          <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center">
+            <Zap className="w-3.5 h-3.5" strokeWidth={2.5} />
           </div>
-        )}
-
-        {/* Step 2: Date & Time */}
-        {step === 1 && (
-          <div className="px-4 mb-5">
-            <SectionLabel title="Дата и Время" icon={<Calendar className="w-3 h-3 text-[#5ba3f5]" />} />
-            <div className="grid grid-cols-2 gap-2">
-              <label className="flex flex-col gap-2 px-4 py-3 rounded-2xl bg-[#111c28] border border-white/[0.07] cursor-pointer">
-                <div className="flex items-center gap-1.5">
-                  <Calendar className="w-3 h-3 text-[#5ba3f5]" />
-                  <p className="text-[9px] font-black uppercase tracking-widest text-[#4a6278]">Дата отправления</p>
-                </div>
-                <input
-                  type="date"
-                  value={departureDate}
-                  onChange={e => setDepartureDate(e.target.value)}
-                  className="bg-transparent text-white text-[13px] font-bold outline-none w-full"
-                />
-              </label>
-              <label className="flex flex-col gap-2 px-4 py-3 rounded-2xl bg-[#111c28] border border-white/[0.07] cursor-pointer">
-                <div className="flex items-center gap-1.5">
-                  <Clock className="w-3 h-3 text-[#5ba3f5]" />
-                  <p className="text-[9px] font-black uppercase tracking-widest text-[#4a6278]">Время отправления</p>
-                </div>
-                <input
-                  type="time"
-                  value={departureTime}
-                  onChange={e => setDepartureTime(e.target.value)}
-                  className="bg-transparent text-white text-[13px] font-bold outline-none w-full"
-                />
-              </label>
-              <label className="flex flex-col gap-2 px-4 py-3 rounded-2xl bg-[#111c28] border border-white/[0.07] cursor-pointer">
-                <div className="flex items-center gap-1.5">
-                  <Calendar className="w-3 h-3 text-emerald-400" />
-                  <p className="text-[9px] font-black uppercase tracking-widest text-[#4a6278]">Дата прибытия</p>
-                </div>
-                <input
-                  type="date"
-                  value={arrivalDate}
-                  onChange={e => setArrivalDate(e.target.value)}
-                  className="bg-transparent text-white text-[13px] font-bold outline-none w-full"
-                />
-              </label>
-              <label className="flex flex-col gap-2 px-4 py-3 rounded-2xl bg-[#111c28] border border-white/[0.07] cursor-pointer">
-                <div className="flex items-center gap-1.5">
-                  <Clock className="w-3 h-3 text-emerald-400" />
-                  <p className="text-[9px] font-black uppercase tracking-widest text-[#4a6278]">Время прибытия</p>
-                </div>
-                <input
-                  type="time"
-                  value={arrivalTime}
-                  onChange={e => setArrivalTime(e.target.value)}
-                  className="bg-transparent text-white text-[13px] font-bold outline-none w-full"
-                />
-              </label>
-            </div>
-          </div>
-        )}
-
-        {/* Step 3: Capacity */}
-        {step === 2 && (
-          <div className="px-4 mb-5">
-            <SectionLabel title="Вместимость" icon={<Users className="w-3 h-3 text-[#5ba3f5]" />} />
-            <div className="flex flex-col gap-2">
-              <Counter value={maxPassengers} onChange={setMaxPassengers} min={0} max={20}
-                label="Пассажиры" sub="Взрослые"
-                icon={<Users className="w-4 h-4" />} color="#5ba3f5" />
-              <Counter value={maxChildren} onChange={setMaxChildren} min={0} max={10}
-                label="Дети" sub="До 12 лет"
-                icon={<Baby className="w-4 h-4" />} color="#f59e0b" />
-              <Counter value={maxBaggage} onChange={setMaxBaggage} min={0} max={50}
-                label="Багаж" sub="Места для чемоданов"
-                icon={<Package className="w-4 h-4" />} color="#8b5cf6" />
-              <Counter value={maxCargo} onChange={setMaxCargo} min={0} max={9999}
-                label="Груз (kg)" sub="Макс. вес груза"
-                icon={<Truck className="w-4 h-4" />} color="#10b981" />
-            </div>
-          </div>
-        )}
-
-        {/* Step 4: Prices */}
-        {step === 3 && (
-          <div className="px-4 mb-5">
-            <SectionLabel title="Цены" icon={<DollarSign className="w-3 h-3 text-[#5ba3f5]" />} />
-
-            {/* Currency selector */}
-            <div className="flex gap-2 mb-4">
-              {(['TJS', 'USD', 'RUB'] as const).map(c => (
-                <button key={c} onClick={() => setCurrency(c)}
-                  className={`flex-1 py-2 rounded-xl text-[12px] font-black transition-all ${
-                    currency === c
-                      ? 'bg-[#5ba3f5] text-white shadow-lg'
-                      : 'bg-[#111c28] text-[#4a6278] border border-white/[0.07]'
-                  }`}>
-                  {c}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex flex-col gap-3">
-              <div className="flex flex-col gap-1.5 px-4 py-3 rounded-2xl bg-[#111c28] border border-white/[0.07]">
-                <div className="flex items-center gap-1.5">
-                  <Users className="w-3 h-3 text-[#5ba3f5]" />
-                  <p className="text-[9px] font-black uppercase tracking-widest text-[#4a6278]">Цена за человека</p>
-                </div>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  value={pricePerPerson || ''}
-                  onChange={e => setPricePerPerson(Number(e.target.value))}
-                  placeholder="0"
-                  className="bg-transparent text-white text-[20px] font-black outline-none w-full placeholder-[#2a3f52]"
-                />
-              </div>
-              <div className="flex flex-col gap-1.5 px-4 py-3 rounded-2xl bg-[#111c28] border border-white/[0.07]">
-                <div className="flex items-center gap-1.5">
-                  <Package className="w-3 h-3 text-emerald-400" />
-                  <p className="text-[9px] font-black uppercase tracking-widest text-[#4a6278]">Цена за 1 kg груза</p>
-                </div>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  value={pricePerKg || ''}
-                  onChange={e => setPricePerKg(Number(e.target.value))}
-                  placeholder="0"
-                  className="bg-transparent text-white text-[20px] font-black outline-none w-full placeholder-[#2a3f52]"
-                />
-              </div>
-              <div className="flex flex-col gap-1.5 px-4 py-3 rounded-2xl bg-[#111c28] border border-white/[0.07]">
-                <div className="flex items-center gap-1.5">
-                  <FileText className="w-3 h-3 text-[#4a6278]" />
-                  <p className="text-[9px] font-black uppercase tracking-widest text-[#4a6278]">Примечания (необязательно)</p>
-                </div>
-                <textarea
-                  value={notes}
-                  onChange={e => setNotes(e.target.value)}
-                  placeholder="Дополнительная информация..."
-                  rows={3}
-                  className="bg-transparent text-white text-[13px] font-medium outline-none w-full resize-none placeholder-[#2a3f52]"
-                />
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Bottom CTA */}
-      <div className="fixed bottom-0 left-0 right-0 px-4 pb-safe" style={{ paddingBottom: 'max(20px, env(safe-area-inset-bottom))' }}>
-        <div className="bg-[#0c1520]/90 backdrop-blur-xl pt-3">
-          <button
-            onClick={handleNext}
-            disabled={!canProceed() || loading}
-            className="w-full h-14 rounded-2xl font-black text-[15px] text-white flex items-center justify-center gap-2.5 transition-all active:scale-[0.98] disabled:opacity-40"
-            style={{
-              background: canProceed() ? 'linear-gradient(135deg, #1d4ed8, #5ba3f5)' : '#1a2a3a',
-              boxShadow: canProceed() ? '0 4px 20px #1d4ed840' : 'none',
-            }}
-          >
-            {loading ? (
-              <>
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                <span>Публикуем...</span>
-              </>
-            ) : step < 3 ? (
-              <>
-                <Zap className="w-5 h-5" />
-                <span>Опубликовать объявление</span>
-                <ChevronRight className="w-4 h-4" />
-              </>
-            ) : (
-              <>
-                <Zap className="w-5 h-5" />
-                <span>Опубликовать объявление</span>
-                <ArrowRight className="w-4 h-4" />
-              </>
-            )}
-          </button>
-          {!canProceed() && (
-            <p className="text-center text-[10px] text-[#2a3f52] mt-1.5 pb-1">Заполните все обязательные поля</p>
-          )}
-        </div>
-      </div>
-    </div>
+          Опубликовать объявление
+          <ChevronRight className="w-4 h-4 opacity-50" />
+        </>
+      )}
+    </button>
   );
 
-  // Desktop layout (>= 640px)
-  const renderDesktop = () => (
-    <div className="min-h-screen bg-[#0c1520] text-white font-['Sora'] flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between px-8 py-4 border-b border-white/[0.06]">
-        <button
-          onClick={() => step > 0 ? setStep(step - 1) : navigate(-1)}
-          className="flex items-center gap-2 text-[#4a6278] hover:text-white transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span className="text-[13px] font-semibold">Назад</span>
-        </button>
-        <div className="text-center">
-          <p className="text-[15px] font-black">Новое объявление</p>
-          <p className="text-[11px] text-[#4a6278]">Шаг {step + 1} из 4</p>
+  return (
+    <div className="font-['Sora'] bg-[#0E1621]">
+
+      {/* MOBILE HEADER */}
+      <div className="md:hidden sticky top-0 z-30 bg-[#0E1621]/95 backdrop-blur-xl border-b border-white/[0.06]">
+        <div style={{ height: 'env(safe-area-inset-top, 0px)' }} />
+        <div className="flex items-center gap-3 px-4 py-3">
+          <button
+            onClick={() => navigate(-1)}
+            className="w-9 h-9 rounded-xl bg-white/[0.06] flex items-center justify-center text-[#607080] active:scale-90 transition-all flex-shrink-0"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-[15px] font-black text-white leading-none">Новое объявление</h1>
+            <p className="text-[9px] text-[#4a6278] mt-0.5">Шаг {step + 1} из {STEPS.length}</p>
+          </div>
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#1d4ed8,#5ba3f5)' }}>
+            <Truck className="w-4 h-4 text-white" />
+          </div>
         </div>
-        <div className="w-9 h-9 rounded-xl bg-[#5ba3f5]/10 flex items-center justify-center">
-          <Truck className="w-4 h-4 text-[#5ba3f5]" />
+        <Stepper current={step} />
+      </div>
+
+      {/* DESKTOP HEADER */}
+      <div className="hidden md:block border-b border-white/[0.06] bg-[#0E1621]">
+        <div className="max-w-5xl mx-auto px-8 py-5 flex items-center gap-4">
+          <button
+            onClick={() => navigate(-1)}
+            className="w-9 h-9 rounded-xl bg-white/[0.06] flex items-center justify-center text-[#607080] hover:text-white hover:bg-white/[0.10] transition-all flex-shrink-0"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-[20px] font-black text-white leading-none">Новое объявление</h1>
+            <p className="text-[11px] text-[#4a6278] mt-1">Заполните маршрут, время и цены — объявление появится сразу</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {STEPS.map((label, i) => (
+              <div key={label} className="flex items-center gap-2">
+                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold transition-all ${
+                  i === step ? 'bg-[#5ba3f5] text-white' : i < step ? 'bg-[#5ba3f5]/20 text-[#5ba3f5]' : 'bg-[#1a2a3a] text-[#4a6278]'
+                }`}>
+                  {i < step ? <CheckCircle2 className="w-3 h-3" /> : <span>{i + 1}</span>}
+                  <span>{label}</span>
+                </div>
+                {i < STEPS.length - 1 && (
+                  <div className={`w-4 h-[2px] rounded-full ${i < step ? 'bg-[#5ba3f5]/60' : 'bg-[#1a2a3a]'}`} />
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
-      <div className="flex-1 flex gap-6 px-8 py-6 max-w-5xl mx-auto w-full">
-        {/* Left: stepper + form */}
-        <div className="flex-1">
-          <Stepper current={step} />
+      {/* MOBILE CONTENT */}
+      <div className="md:hidden pb-[160px] pt-4">
 
-          <div className="mt-4">
-            {/* Step 1 desktop */}
-            {step === 0 && (
+        <div className="px-4 mb-5">
+          <SectionLabel title="Маршрут" icon={<Navigation className="w-3 h-3 text-[#5ba3f5]" />} />
+          <div className="rounded-2xl overflow-hidden border border-white/[0.07] bg-[#111c28]">
+            <div className="px-4 pt-4 pb-3 border-b border-white/[0.07]">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-2 h-2 rounded-full bg-[#5ba3f5] ring-2 ring-[#5ba3f5]/30" />
+                <p className="text-[9px] font-black uppercase tracking-widest text-[#4a6278]">Откуда</p>
+              </div>
+              <AddressPicker value={fromAddress} onChange={setFromAddress} placeholder="Выберите город отправления" label="" />
+            </div>
+            <div className="px-4 pt-3 pb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-emerald-400/30" />
+                <p className="text-[9px] font-black uppercase tracking-widest text-[#4a6278]">Куда</p>
+              </div>
+              <AddressPicker value={toAddress} onChange={setToAddress} placeholder="Выберите город назначения" label="" />
+            </div>
+          </div>
+          {fromAddress && toAddress && fromAddress.lat && toAddress.lat && (
+            <div className="rounded-2xl overflow-hidden border border-white/[0.07] mt-2">
+              <RouteMap from={fromAddress} to={toAddress} height="160px" />
+            </div>
+          )}
+        </div>
+
+        <div className="px-4 mb-5">
+          <SectionLabel title="Дата и Время" icon={<Calendar className="w-3 h-3 text-[#5ba3f5]" />} />
+          <div className="grid grid-cols-2 gap-2">
+            <label className="flex flex-col gap-2 px-4 py-3 rounded-2xl bg-[#111c28] border border-white/[0.07] cursor-pointer">
+              <div className="flex items-center gap-1.5">
+                <Calendar className="w-3 h-3 text-[#5ba3f5]" />
+                <p className="text-[9px] font-black uppercase tracking-widest text-[#4a6278]">Дата</p>
+              </div>
+              <input type="date" value={driverDate} min={todayStr} onChange={e => setDriverDate(e.target.value)}
+                className="w-full text-[12px] font-bold bg-transparent outline-none text-white [color-scheme:dark]" />
+            </label>
+            <label className="flex flex-col gap-2 px-4 py-3 rounded-2xl bg-[#111c28] border border-white/[0.07] cursor-pointer">
+              <div className="flex items-center gap-1.5">
+                <Clock className="w-3 h-3 text-[#5ba3f5]" />
+                <p className="text-[9px] font-black uppercase tracking-widest text-[#4a6278]">Время</p>
+              </div>
+              <input type="time" value={driverTime} onChange={e => setDriverTime(e.target.value)}
+                className="w-full text-[12px] font-bold bg-transparent outline-none text-white [color-scheme:dark]" />
+            </label>
+          </div>
+        </div>
+
+        <div className="px-4 mb-5">
+          <SectionLabel title="Вместимость" icon={<Users className="w-3 h-3 text-[#5ba3f5]" />} />
+          <div className="space-y-2">
+            <Counter label="Пассажиры" sub="взрослые места" icon={<Users className="w-3.5 h-3.5" />} color="#5ba3f5" value={seats} onChange={setSeats} min={1} max={20} />
+            <Counter label="Дети" sub="детские места" icon={<Baby className="w-3.5 h-3.5" />} color="#34d399" value={children} onChange={setChildren} min={0} max={10} />
+            <Counter label="Грузоподъём" sub="максимум кг" icon={<Package className="w-3.5 h-3.5" />} color="#f59e0b" value={cargo} onChange={setCargo} min={0} max={5000} />
+          </div>
+        </div>
+
+        <div className="px-4 mb-5">
+          <SectionLabel title="Цены и Валюта" icon={<DollarSign className="w-3 h-3 text-[#5ba3f5]" />} />
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-[#111c28] border border-white/[0.07]">
+              <span className="text-[11px] font-bold text-[#4a6278] flex-shrink-0">Валюта</span>
+              <div className="flex-1 flex gap-1.5 justify-end">
+                {(['TJS', 'USD', 'RUB'] as const).map(cur => (
+                  <button key={cur} onClick={() => setCurrency(cur)}
+                    className={`px-3 py-1.5 rounded-xl text-[11px] font-black transition-all active:scale-95 ${currency === cur ? 'bg-[#5ba3f5] text-white' : 'bg-[#1a2a3a] text-[#4a6278]'}`}>{cur}</button>
+                ))}
+              </div>
+            </div>
+            <PriceInput label="Взрослое место" emoji="💺" placeholder="5 000" value={pricePerSeat} onChange={setPricePerSeat} accent="#5ba3f5" required currency={currency} />
+            <PriceInput label="Детское место"  emoji="👶" placeholder="2 500" value={pricePerChild} onChange={setPricePerChild} accent="#34d399" currency={currency} />
+            <PriceInput label="1 кг груза"     emoji="📦" placeholder="50"    value={pricePerKg}    onChange={setPricePerKg}    accent="#f59e0b" required currency={currency} />
+          </div>
+        </div>
+
+        <div className="px-4 mb-5">
+          <SectionLabel title="Примечание" icon={<FileText className="w-3 h-3 text-[#5ba3f5]" />} />
+          <div className="rounded-2xl bg-[#111c28] border border-white/[0.07] overflow-hidden focus-within:border-white/[0.13] transition-all">
+            <textarea rows={3} placeholder="Остановки, условия, требования к грузу…" value={notes} onChange={e => setNotes(e.target.value)}
+              maxLength={500}
+              className="w-full px-4 py-3 text-[13px] leading-relaxed bg-transparent outline-none resize-none text-white placeholder-[#253545]" />
+            <p className="px-4 pb-2 text-[10px] text-[#4a6278] text-right">{notes.length}/500</p>
+          </div>
+        </div>
+      </div>
+
+      {/* DESKTOP CONTENT */}
+      <div className="hidden md:block">
+        <div className="max-w-5xl mx-auto px-8 py-8">
+          <div className="grid grid-cols-[1fr_340px] gap-6 items-start">
+
+            <div className="space-y-5">
+
               <div className="rounded-3xl border border-white/[0.07] bg-[#111c28] overflow-hidden">
                 <div className="px-5 py-3 border-b border-white/[0.06] flex items-center gap-2">
                   <Navigation className="w-3.5 h-3.5 text-[#5ba3f5]" />
@@ -476,13 +455,10 @@ export function CreateAnnouncementPage() {
                     <div className="w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-emerald-400/30" />
                     <p className="text-[9px] font-black uppercase tracking-widest text-[#4a6278]">Куда</p>
                   </div>
-                  <AddressPicker value={toAddress} onChange={setToAddress} placeholder="Выберите город назначения" label="" showCurrentLocation={false} />
+                  <AddressPicker value={toAddress} onChange={setToAddress} placeholder="Выберите город назначения" label="" />
                 </div>
               </div>
-            )}
 
-            {/* Step 2 desktop */}
-            {step === 1 && (
               <div className="rounded-3xl border border-white/[0.07] bg-[#111c28] overflow-hidden">
                 <div className="px-5 py-3 border-b border-white/[0.06] flex items-center gap-2">
                   <Calendar className="w-3.5 h-3.5 text-[#5ba3f5]" />
@@ -494,180 +470,189 @@ export function CreateAnnouncementPage() {
                       <Calendar className="w-3 h-3 text-[#5ba3f5]" />
                       <p className="text-[9px] font-black uppercase tracking-widest text-[#4a6278]">Дата отправления</p>
                     </div>
-                    <input type="date" value={departureDate} onChange={e => setDepartureDate(e.target.value)}
-                      className="bg-[#0c1520] text-white text-[13px] font-bold outline-none w-full px-3 py-2 rounded-xl border border-white/[0.07]" />
+                    <input type="date" value={driverDate} min={todayStr} onChange={e => setDriverDate(e.target.value)}
+                      className="text-[14px] font-bold bg-transparent outline-none text-white [color-scheme:dark] border-b border-white/[0.08] pb-1" />
                   </label>
                   <label className="flex flex-col gap-2 cursor-pointer">
                     <div className="flex items-center gap-1.5">
                       <Clock className="w-3 h-3 text-[#5ba3f5]" />
                       <p className="text-[9px] font-black uppercase tracking-widest text-[#4a6278]">Время отправления</p>
                     </div>
-                    <input type="time" value={departureTime} onChange={e => setDepartureTime(e.target.value)}
-                      className="bg-[#0c1520] text-white text-[13px] font-bold outline-none w-full px-3 py-2 rounded-xl border border-white/[0.07]" />
-                  </label>
-                  <label className="flex flex-col gap-2 cursor-pointer">
-                    <div className="flex items-center gap-1.5">
-                      <Calendar className="w-3 h-3 text-emerald-400" />
-                      <p className="text-[9px] font-black uppercase tracking-widest text-[#4a6278]">Дата прибытия</p>
-                    </div>
-                    <input type="date" value={arrivalDate} onChange={e => setArrivalDate(e.target.value)}
-                      className="bg-[#0c1520] text-white text-[13px] font-bold outline-none w-full px-3 py-2 rounded-xl border border-white/[0.07]" />
-                  </label>
-                  <label className="flex flex-col gap-2 cursor-pointer">
-                    <div className="flex items-center gap-1.5">
-                      <Clock className="w-3 h-3 text-emerald-400" />
-                      <p className="text-[9px] font-black uppercase tracking-widest text-[#4a6278]">Время прибытия</p>
-                    </div>
-                    <input type="time" value={arrivalTime} onChange={e => setArrivalTime(e.target.value)}
-                      className="bg-[#0c1520] text-white text-[13px] font-bold outline-none w-full px-3 py-2 rounded-xl border border-white/[0.07]" />
+                    <input type="time" value={driverTime} onChange={e => setDriverTime(e.target.value)}
+                      className="text-[14px] font-bold bg-transparent outline-none text-white [color-scheme:dark] border-b border-white/[0.08] pb-1" />
                   </label>
                 </div>
               </div>
-            )}
 
-            {/* Step 3 desktop */}
-            {step === 2 && (
               <div className="rounded-3xl border border-white/[0.07] bg-[#111c28] overflow-hidden">
                 <div className="px-5 py-3 border-b border-white/[0.06] flex items-center gap-2">
                   <Users className="w-3.5 h-3.5 text-[#5ba3f5]" />
                   <p className="text-[10px] font-black uppercase tracking-widest text-[#5ba3f5]">Вместимость</p>
                 </div>
-                <div className="px-5 py-4 flex flex-col gap-2">
-                  <Counter value={maxPassengers} onChange={setMaxPassengers} min={0} max={20}
-                    label="Пассажиры" sub="Взрослые"
-                    icon={<Users className="w-4 h-4" />} color="#5ba3f5" />
-                  <Counter value={maxChildren} onChange={setMaxChildren} min={0} max={10}
-                    label="Дети" sub="До 12 лет"
-                    icon={<Baby className="w-4 h-4" />} color="#f59e0b" />
-                  <Counter value={maxBaggage} onChange={setMaxBaggage} min={0} max={50}
-                    label="Багаж" sub="Места для чемоданов"
-                    icon={<Package className="w-4 h-4" />} color="#8b5cf6" />
-                  <Counter value={maxCargo} onChange={setMaxCargo} min={0} max={9999}
-                    label="Груз (kg)" sub="Макс. вес груза"
-                    icon={<Truck className="w-4 h-4" />} color="#10b981" />
+                <div className="px-5 py-4 space-y-3">
+                  <Counter label="Пассажиры" sub="взрослые места" icon={<Users className="w-3.5 h-3.5" />} color="#5ba3f5" value={seats} onChange={setSeats} min={1} max={20} />
+                  <Counter label="Дети" sub="детские места" icon={<Baby className="w-3.5 h-3.5" />} color="#34d399" value={children} onChange={setChildren} min={0} max={10} />
+                  <Counter label="Грузоподъём" sub="максимум кг" icon={<Package className="w-3.5 h-3.5" />} color="#f59e0b" value={cargo} onChange={setCargo} min={0} max={5000} />
                 </div>
               </div>
-            )}
 
-            {/* Step 4 desktop */}
-            {step === 3 && (
               <div className="rounded-3xl border border-white/[0.07] bg-[#111c28] overflow-hidden">
-                <div className="px-5 py-3 border-b border-white/[0.06] flex items-center gap-2">
-                  <DollarSign className="w-3.5 h-3.5 text-[#5ba3f5]" />
-                  <p className="text-[10px] font-black uppercase tracking-widest text-[#5ba3f5]">Цены</p>
-                </div>
-                <div className="px-5 py-4">
-                  <div className="flex gap-2 mb-5">
-                    {(['TJS', 'USD', 'RUB'] as const).map(c => (
-                      <button key={c} onClick={() => setCurrency(c)}
-                        className={`flex-1 py-2 rounded-xl text-[12px] font-black transition-all ${
-                          currency === c
-                            ? 'bg-[#5ba3f5] text-white shadow-lg'
-                            : 'bg-[#0c1520] text-[#4a6278] border border-white/[0.07]'
-                        }`}>
-                        {c}
-                      </button>
+                <div className="px-5 py-3 border-b border-white/[0.06] flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="w-3.5 h-3.5 text-[#5ba3f5]" />
+                    <p className="text-[10px] font-black uppercase tracking-widest text-[#5ba3f5]">Цены</p>
+                  </div>
+                  <div className="flex gap-1.5">
+                    {(['TJS', 'USD', 'RUB'] as const).map(cur => (
+                      <button key={cur} onClick={() => setCurrency(cur)}
+                        className={`px-3 py-1 rounded-lg text-[11px] font-black transition-all active:scale-95 ${currency === cur ? 'bg-[#5ba3f5] text-white' : 'bg-[#1a2a3a] text-[#4a6278] hover:text-white'}`}>{cur}</button>
                     ))}
                   </div>
-                  <div className="flex flex-col gap-3">
-                    <div className="flex flex-col gap-1.5 px-4 py-3 rounded-2xl bg-[#0c1520] border border-white/[0.07]">
-                      <div className="flex items-center gap-1.5">
-                        <Users className="w-3 h-3 text-[#5ba3f5]" />
-                        <p className="text-[9px] font-black uppercase tracking-widest text-[#4a6278]">Цена за человека</p>
-                      </div>
-                      <input type="number" inputMode="numeric" value={pricePerPerson || ''}
-                        onChange={e => setPricePerPerson(Number(e.target.value))}
-                        placeholder="0"
-                        className="bg-transparent text-white text-[20px] font-black outline-none w-full placeholder-[#2a3f52]" />
-                    </div>
-                    <div className="flex flex-col gap-1.5 px-4 py-3 rounded-2xl bg-[#0c1520] border border-white/[0.07]">
-                      <div className="flex items-center gap-1.5">
-                        <Package className="w-3 h-3 text-emerald-400" />
-                        <p className="text-[9px] font-black uppercase tracking-widest text-[#4a6278]">Цена за 1 kg груза</p>
-                      </div>
-                      <input type="number" inputMode="numeric" value={pricePerKg || ''}
-                        onChange={e => setPricePerKg(Number(e.target.value))}
-                        placeholder="0"
-                        className="bg-transparent text-white text-[20px] font-black outline-none w-full placeholder-[#2a3f52]" />
-                    </div>
-                    <div className="flex flex-col gap-1.5 px-4 py-3 rounded-2xl bg-[#0c1520] border border-white/[0.07]">
-                      <div className="flex items-center gap-1.5">
-                        <FileText className="w-3 h-3 text-[#4a6278]" />
-                        <p className="text-[9px] font-black uppercase tracking-widest text-[#4a6278]">Примечания</p>
-                      </div>
-                      <textarea value={notes} onChange={e => setNotes(e.target.value)}
-                        placeholder="Дополнительная информация..."
-                        rows={3}
-                        className="bg-transparent text-white text-[13px] font-medium outline-none w-full resize-none placeholder-[#2a3f52]" />
-                    </div>
-                  </div>
+                </div>
+                <div className="px-5 py-4 grid grid-cols-3 gap-3">
+                  <PriceInput label="Взрослое место" emoji="💺" placeholder="5 000" value={pricePerSeat} onChange={setPricePerSeat} accent="#5ba3f5" required currency={currency} />
+                  <PriceInput label="Детское место"  emoji="👶" placeholder="2 500" value={pricePerChild} onChange={setPricePerChild} accent="#34d399" currency={currency} />
+                  <PriceInput label="1 кг груза"     emoji="📦" placeholder="50"    value={pricePerKg}    onChange={setPricePerKg}    accent="#f59e0b" required currency={currency} />
                 </div>
               </div>
-            )}
-          </div>
 
-          {/* CTA button */}
-          <div className="mt-4">
-            <button
-              onClick={handleNext}
-              disabled={!canProceed() || loading}
-              className="w-full h-14 rounded-2xl font-black text-[15px] text-white flex items-center justify-center gap-2.5 transition-all active:scale-[0.98] disabled:opacity-40"
-              style={{
-                background: canProceed() ? 'linear-gradient(135deg, #1d4ed8, #5ba3f5)' : '#1a2a3a',
-                boxShadow: canProceed() ? '0 4px 20px #1d4ed840' : 'none',
-              }}
-            >
-              {loading ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Публикуем...</span>
-                </>
-              ) : step < 3 ? (
-                <>
-                  <Zap className="w-5 h-5" />
-                  <span>Опубликовать объявление</span>
-                  <ChevronRight className="w-4 h-4" />
-                </>
-              ) : (
-                <>
-                  <Zap className="w-5 h-5" />
-                  <span>Опубликовать объявление</span>
-                  <ArrowRight className="w-4 h-4" />
-                </>
-              )}
-            </button>
-            {!canProceed() && (
-              <p className="text-center text-[11px] text-[#2a3f52] mt-2">Заполните все обязательные поля</p>
-            )}
-          </div>
-        </div>
-
-        {/* Right: route map preview */}
-        {fromAddress && toAddress && fromAddress.lat && toAddress.lat && (
-          <div className="w-80 shrink-0">
-            <div className="rounded-3xl overflow-hidden border border-white/[0.07] sticky top-6">
-              <RouteMap from={fromAddress} to={toAddress} height="300px" />
-              <div className="px-4 py-3 bg-[#111c28] border-t border-white/[0.07]">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="w-2 h-2 rounded-full bg-[#5ba3f5]" />
-                  <p className="text-[11px] font-bold text-white truncate">{fromAddress.address}</p>
+              <div className="rounded-3xl border border-white/[0.07] bg-[#111c28] overflow-hidden">
+                <div className="px-5 py-3 border-b border-white/[0.06] flex items-center gap-2">
+                  <FileText className="w-3.5 h-3.5 text-[#5ba3f5]" />
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[#5ba3f5]">Примечание</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-emerald-400" />
-                  <p className="text-[11px] font-bold text-white truncate">{toAddress.address}</p>
+                <div className="px-5 py-4">
+                  <textarea rows={3} placeholder="Остановки, условия, требования к грузу…" value={notes} onChange={e => setNotes(e.target.value)}
+                    maxLength={500}
+                    className="w-full text-[14px] leading-relaxed bg-transparent outline-none resize-none text-white placeholder-[#253545]" />
+                  <p className="text-[10px] text-[#4a6278] text-right mt-1">{notes.length}/500</p>
                 </div>
               </div>
             </div>
+
+            <div className="sticky top-6 space-y-4">
+              <div className="rounded-3xl overflow-hidden border border-white/[0.07] bg-[#111c28]">
+                {fromAddress && toAddress && fromAddress.lat && toAddress.lat ? (
+                  <RouteMap from={fromAddress} to={toAddress} height="220px" />
+                ) : (
+                  <div className="h-[220px] flex flex-col items-center justify-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-[#1a2a3a] flex items-center justify-center">
+                      <MapPin className="w-5 h-5 text-[#4a6278]" />
+                    </div>
+                    <p className="text-[12px] text-[#4a6278] text-center px-6">Укажите маршрут,<br />чтобы увидеть карту</p>
+                  </div>
+                )}
+              </div>
+
+              {(fromAddress || toAddress || driverDate) && (
+                <div className="rounded-3xl border border-[#5ba3f5]/20 overflow-hidden"
+                  style={{ background: 'linear-gradient(135deg,#0d1e35 0%,#0f2548 100%)' }}>
+                  <div className="px-4 py-2.5 border-b border-[#5ba3f5]/15 flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#5ba3f5] animate-pulse" />
+                    <p className="text-[9px] font-black uppercase tracking-widest text-[#5ba3f5]/70">Предпросмотр</p>
+                  </div>
+                  <div className="px-4 py-3 space-y-2.5">
+                    {(fromAddress || toAddress) && (
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[9px] text-[#4a6278]">Откуда</p>
+                          <p className="text-[13px] font-bold text-white truncate">
+                            {fromAddress ? fromAddress.address.split(',')[0] : '—'}
+                          </p>
+                        </div>
+                        <ArrowRight className="w-4 h-4 text-[#5ba3f5] flex-shrink-0" />
+                        <div className="flex-1 min-w-0 text-right">
+                          <p className="text-[9px] text-[#4a6278]">Куда</p>
+                          <p className="text-[13px] font-bold text-white truncate">
+                            {toAddress ? toAddress.address.split(',')[0] : '—'}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    {(driverDate || driverTime) && (
+                      <div className="flex gap-2">
+                        {driverDate && (
+                          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white/[0.05] flex-1">
+                            <Calendar className="w-3 h-3 text-[#5ba3f5] flex-shrink-0" />
+                            <span className="text-[11px] font-semibold text-white truncate">{driverDate}</span>
+                          </div>
+                        )}
+                        {driverTime && (
+                          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white/[0.05] flex-1">
+                            <Clock className="w-3 h-3 text-[#5ba3f5] flex-shrink-0" />
+                            <span className="text-[11px] font-semibold text-white">{driverTime}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <div className="flex flex-wrap gap-1.5">
+                      {seats > 0 && (
+                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#5ba3f5]/10 border border-[#5ba3f5]/20">
+                          <Users className="w-3 h-3 text-[#5ba3f5]" />
+                          <span className="text-[11px] font-bold text-white">{seats} мест</span>
+                          {pricePerSeat && <span className="text-[11px] text-[#5ba3f5]">· {pricePerSeat} {currency}</span>}
+                        </div>
+                      )}
+                      {children > 0 && (
+                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                          <Baby className="w-3 h-3 text-emerald-400" />
+                          <span className="text-[11px] font-bold text-white">{children} дет.</span>
+                        </div>
+                      )}
+                      {cargo > 0 && (
+                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                          <Package className="w-3 h-3 text-amber-400" />
+                          <span className="text-[11px] font-bold text-white">{cargo} кг</span>
+                          {pricePerKg && <span className="text-[11px] text-amber-400">· {pricePerKg}/кг</span>}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="rounded-3xl border border-white/[0.07] bg-[#111c28] px-4 py-4 space-y-2">
+                <p className="text-[9px] font-black uppercase tracking-widest text-[#4a6278] mb-3">Готовность</p>
+                {[
+                  { label: 'Маршрут указан',    done: !!(fromAddress && toAddress) },
+                  { label: 'Дата и время',       done: !!(driverDate && driverTime) },
+                  { label: 'Цена за место',      done: !!(pricePerSeat && parseFloat(pricePerSeat) > 0) },
+                  { label: 'Цена за кг',         done: !!(pricePerKg   && parseFloat(pricePerKg)   > 0) },
+                ].map(item => (
+                  <div key={item.label} className="flex items-center gap-2.5">
+                    <div className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${item.done ? 'bg-[#5ba3f5]' : 'bg-[#1a2a3a] border border-white/[0.08]'}`}>
+                      {item.done && <CheckCircle2 className="w-2.5 h-2.5 text-white" />}
+                    </div>
+                    <span className={`text-[12px] font-semibold ${item.done ? 'text-white' : 'text-[#4a6278]'}`}>{item.label}</span>
+                  </div>
+                ))}
+              </div>
+
+              {PublishBtn}
+              {!isReady && (
+                <p className="text-center text-[11px] text-[#4a6278]">Заполните все обязательные поля</p>
+              )}
+            </div>
           </div>
-        )}
+        </div>
+      </div>
+
+      {/* MOBILE FIXED BOTTOM BUTTON */}
+      <div
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+      >
+        <div
+          className="absolute inset-x-0 bottom-0 pointer-events-none"
+          style={{ top: '-32px', background: 'linear-gradient(to top,#0E1621 55%,transparent)' }}
+        />
+        <div className="relative px-4 pb-[80px] pt-3">
+          {PublishBtn}
+          {!isReady && (
+            <p className="text-center text-[11px] text-[#4a6278] mt-2">Заполните все обязательные поля</p>
+          )}
+        </div>
       </div>
     </div>
-  );
-
-  return (
-    <>
-      <div className="sm:hidden">{renderMobile()}</div>
-      <div className="hidden sm:block">{renderDesktop()}</div>
-    </>
   );
 }
