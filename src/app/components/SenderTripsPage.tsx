@@ -190,7 +190,7 @@ export function SenderTripsPage() {
   const isDark = theme === 'dark';
   const { user: currentUser } = useUser();
   const isMountedRef = useIsMounted();
-  const [activeTab, setActiveTab] = useState<'active' | 'cargos' | 'completed' | 'cancelled'>('active');
+  const [activeTab, setActiveTab] = useState<'active' | 'completed' | 'cancelled'>('active');
 
   const [reviewModal, setReviewModal] = useState<{
     tripId: string; route: string; counterpart: string;
@@ -458,7 +458,6 @@ export function SenderTripsPage() {
   // ── Tabs ──────────────────────────────────────────────────────────────────
   const tabs = [
     { key: 'active' as const,    label: 'Бронирования', count: activeCount },
-    { key: 'cargos' as const,    label: 'Мои грузы',    count: cargosCount },
     { key: 'completed' as const, label: 'Завершённые',  count: senderTrips.filter(t => t.status === 'completed').length },
     { key: 'cancelled' as const, label: 'Отменённые',   count: senderTrips.filter(t => t.status === 'cancelled').length },
   ];
@@ -553,9 +552,7 @@ export function SenderTripsPage() {
           onTouchStart={pullTouchStart} onTouchMove={pullTouchMove} onTouchEnd={pullTouchEnd}>
           <PullIndicator pullY={pullY} isRefreshing={isPulling} />
 
-          {/* ✅ FIX П-6: Вкладка «Мои грузы» — отдельный компонент */}
-          {activeTab === 'cargos' ? renderCargoList(false) : (
-            <>
+          <>
               {loading && filteredTrips.length === 0 && (
                 <div className="px-4 pt-3 space-y-3">{[1,2,3].map(i => <TripCardSkeleton key={i} isDark={isDark} />)}</div>
               )}
@@ -602,7 +599,6 @@ export function SenderTripsPage() {
                 </div>
               ))}
             </>
-          )}
           <div style={{ height: 'env(safe-area-inset-bottom, 16px)', minHeight: 80 }} />
         </div>
       </div>
@@ -622,12 +618,11 @@ export function SenderTripsPage() {
                   <span className="px-2.5 py-0.5 rounded-full bg-emerald-500 text-white text-[11px] font-black">{activeCount} активных</span>
                 )}
               </div>
-              <p className="text-[11px] text-[#4a6278] mt-0.5">Бронирования и объявления о грузах</p>
+              <p className="text-[11px] text-[#4a6278] mt-0.5">Ваши бронирования поездок</p>
             </div>
             <div className="flex items-center gap-3">
               {[
                 { label: 'Бронирования', value: activeCount, color: '#10b981' },
-                { label: 'Мои грузы',   value: cargosCount, color: '#f59e0b' },
                 { label: 'Завершённые', value: senderTrips.filter(t => t.status === 'completed').length, color: '#5ba3f5' },
               ].map(s => (
                 <div key={s.label} className="flex flex-col items-center px-4 py-2 rounded-2xl"
@@ -671,8 +666,7 @@ export function SenderTripsPage() {
 
         <div className="flex-1 overflow-y-auto" style={{ background: '#0E1621' }}>
           <div className="max-w-6xl mx-auto px-8 py-6">
-            {activeTab === 'cargos' ? renderCargoList(true) : (
-              <>
+            <>
                 {loading && filteredTrips.length === 0 && (
                   <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
                     {[1,2,3,4].map(i => (
@@ -732,7 +726,6 @@ export function SenderTripsPage() {
                   </div>
                 )}
               </>
-            )}
           </div>
         </div>
       </div>
