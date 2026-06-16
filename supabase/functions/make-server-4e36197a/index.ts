@@ -351,7 +351,7 @@ app.post("/make-server-4e36197a/admin/auth",
 });
 
 // ── Config: Yandex API Key ────────────────────────────────────────────────────
-app.get("/make-server-4e36197a/config/yandex-key", requireAdmin, (c) => {
+app.get("/make-server-4e36197a/config/yandex-key", (c) => {
   try {
     const apiKey = Deno.env.get('YANDEX_GEOCODER_API_KEY') || '';
     if (!apiKey) {
