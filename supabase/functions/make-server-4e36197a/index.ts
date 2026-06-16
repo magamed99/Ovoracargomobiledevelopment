@@ -17,3 +17,21 @@ import {
   offerAcceptedTemplate, offerRejectedTemplate,
   tripCompletedTemplate, newMessageTemplate,
 } from "./email.tsx";
+
+const app = new Hono();
+app.use('*', logger(console.log));
+
+// ── Input sanitization helper ──────────────────────────────────────────────
+function clampStr(s: unknown, max: number): string {
+  if (typeof s !== 'string') return '';
+  return s.trim().slice(0, max);
+}
+function assertMaxLen(fields: Record<string, unknown>, limits: Record<string, number>): string | null {
+  for (const [key, max] of Object.entries(limits)) {
+    const val = fields[key];
+    if (typeof val === 'string' && val.length > max) {
+      return `Field '${key}' exceeds maximum length of ${max} characters`;
+    }
+  }
+  return null;
+}
