@@ -86,7 +86,7 @@ function Logo() {
       boxShadow: '0 0 0 1px rgba(91,163,245,0.3), 0 8px 24px rgba(25,100,200,0.55)',
       overflow: 'hidden', flexShrink: 0,
     }}>
-      <img src="/icons/logo-bird.png" alt="Ovora" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+      <img src={`${import.meta.env.BASE_URL}icons/logo-bird.png`} alt="Ovora" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
     </div>
   );
 }
@@ -279,7 +279,7 @@ export function Welcome() {
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}
       >
         <picture>
-          <source media="(min-width: 700px)" srcSet="/icons/hero-desktop.png" />
+          <source media="(min-width: 700px)" srcSet={`${import.meta.env.BASE_URL}icons/hero-desktop.png`} />
           <img src={siteConfig.icons.hero} alt="Ovora Cargo" />
         </picture>
       </motion.div>
