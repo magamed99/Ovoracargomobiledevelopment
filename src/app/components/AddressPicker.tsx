@@ -19,7 +19,7 @@ interface SearchResult {
   lng: number;
 }
 
-// ── Yandex helpers ────────────────────────────────────────────────────────────────────────────
+// ── Yandex helpers ────────────────────────────────────────────────────────────
 
 function extractCity(components: { kind: string; name: string }[]): string {
   let city = '', district = '', province = '';
@@ -64,7 +64,7 @@ async function yandexReverse(lat: number, lng: number, apiKey: string): Promise<
   return name;
 }
 
-// ── Nominatim fallback (free, no API key) ────────────────────────────────────────────
+// ── Nominatim fallback (free, no API key) ────────────────────────────────────
 
 const NOM_HDR = { 'User-Agent': 'OvoraCargo/1.0 contact@ovora.tj' };
 
@@ -97,7 +97,7 @@ async function nominatimReverse(lat: number, lng: number): Promise<string> {
   return a.city || a.town || a.village || a.municipality || a.county || a.state || '';
 }
 
-// ── Unified geocoding (Yandex first, Nominatim fallback) ─────────────────────────
+// ── Unified geocoding (Yandex first, Nominatim fallback) ─────────────────────
 
 async function geocodeSearch(query: string): Promise<SearchResult[]> {
   const key = YANDEX_MAPS_CONFIG.apiKey;
@@ -317,6 +317,20 @@ export function AddressPicker({
               </div>
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Selected Address Display */}
+      {value && value.address && (
+        <div className={`p-3 rounded-lg border ${
+          theme === 'dark'
+            ? 'bg-blue-500/10 border-blue-500/30 text-blue-400'
+            : 'bg-blue-50 border-blue-200 text-blue-700'
+        }`}>
+          <div className="flex items-start gap-2">
+            <MapPin className="w-4 h-4 shrink-0 mt-0.5" />
+            <p className="text-sm font-medium">{value.address}</p>
+          </div>
         </div>
       )}
 
