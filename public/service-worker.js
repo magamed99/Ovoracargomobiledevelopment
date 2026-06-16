@@ -1,12 +1,13 @@
 // Service Worker для Ovora Cargo PWA
-const CACHE_VERSION = 'v4.0.1';
+const CACHE_VERSION = 'v4.0.2';
 const STATIC_CACHE  = `ovora-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `ovora-dynamic-${CACHE_VERSION}`;
+const BASE_PATH     = '/Ovoracargomobiledevelopment/';
 
 // Статика — файлы с хешем в имени, никогда не меняются
 function isImmutableAsset(url) {
   return (
-    url.pathname.startsWith('/assets/') ||
+    url.pathname.includes('/assets/') ||
     /\.(woff2?|ttf|otf|eot)$/.test(url.pathname)
   );
 }
@@ -21,7 +22,7 @@ self.addEventListener('install', event => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(STATIC_CACHE).then(cache =>
-      cache.addAll(['/', '/manifest.json'])
+      cache.addAll([BASE_PATH, BASE_PATH + 'manifest.json'])
     )
   );
 });
@@ -76,7 +77,7 @@ self.addEventListener('fetch', event => {
           return response;
         })
         .catch(() =>
-          caches.match(request).then(cached => cached || caches.match('/'))
+          caches.match(request).then(cached => cached || caches.match(BASE_PATH))
         )
     );
   }
@@ -87,9 +88,9 @@ self.addEventListener('push', event => {
   let data = {
     title: 'Ovora Cargo',
     body: 'У вас новое уведомление',
-    icon: '/icons/logo-bird.png',
+    icon: BASE_PATH + 'icons/logo-bird.png',
     tag: 'notification',
-    url: '/notifications',
+    url: BASE_PATH,
   };
   if (event.data) {
     try { data = { ...data, ...event.data.json() }; }
@@ -107,7 +108,7 @@ self.addEventListener('push', event => {
 
 self.addEventListener('notificationclick', event => {
   event.notification.close();
-  const url = event.notification.data?.url || '/';
+  const url = event.notification.data?.url || BASE_PATH;
   event.waitUntil(
     clients.matchAll({ type: 'window' }).then(list => {
       const existing = list.find(c => c.url.includes(url));

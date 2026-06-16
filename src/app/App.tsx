@@ -62,7 +62,7 @@ export default function App() {
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker
-          .register('/service-worker.js')
+          .register(`${import.meta.env.BASE_URL}service-worker.js`)
           .then((registration) => {
             setInterval(() => { registration.update(); }, 5 * 60 * 1000);
           })
