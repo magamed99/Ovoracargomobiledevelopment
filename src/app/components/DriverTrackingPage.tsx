@@ -79,8 +79,11 @@ export function DriverTrackingPage() {
   const podTypeRef = useRef<'loading' | 'unloading'>('loading');
   // Копирование ссылки
   const [linkCopied, setLinkCopied] = useState(false);
-  // ── Принятая оферта: реальные данные груза/мест берём из неё, не из самого Trip ──
-  const [acceptedOffer, setAcceptedOffer] = useState<any | null>(null);
+  // ── Принятые оферты: реальные данные груза/мест берём из них, не из самого Trip ──
+  // (на одной поездке может быть несколько отправителей с разными accepted-офферами)
+  const [acceptedOffers, setAcceptedOffers] = useState<any[]>([]);
+  const [selectedOfferIdx, setSelectedOfferIdx] = useState(0);
+  const acceptedOffer = acceptedOffers[selectedOfferIdx] || null;
 
   // ✅ FIX S-1: localStorage fallback — если контекст ещё не загружен,
   // используем данные из 'ovora_active_shipment' (записывается при старте поездки)
@@ -95,11 +98,12 @@ export function DriverTrackingPage() {
 
   // ── Подгружаем принятую оферту — в ней реальные цена/места/груз, а не в Trip ──
   useEffect(() => {
-    if (!effectiveTrip?.id) { setAcceptedOffer(null); return; }
+    if (!effectiveTrip?.id) { setAcceptedOffers([]); setSelectedOfferIdx(0); return; }
     let cancelled = false;
     getOffersForTrip(effectiveTrip.id).then(offers => {
       if (cancelled) return;
-      setAcceptedOffer(offers.find((o: any) => o.status === 'accepted') || null);
+      setAcceptedOffers(offers.filter((o: any) => o.status === 'accepted'));
+      setSelectedOfferIdx(0);
     }).catch(() => {});
     return () => { cancelled = true; };
   }, [effectiveTrip?.id]);
@@ -318,7 +322,11 @@ export function DriverTrackingPage() {
   ].filter(Boolean).join(' + ');
 
   const contactPerson = effectiveTrip
-    ? { name: effectiveTrip.contactName || effectiveTrip.senderName || 'Отправитель', phone: effectiveTrip.senderPhone || effectiveTrip.contactPhone || '', avatar: effectiveTrip.contactAvatar || '' }
+    ? {
+        name: acceptedOffer?.senderName || effectiveTrip.contactName || effectiveTrip.senderName || 'Отправитель',
+        phone: acceptedOffer?.senderPhone || effectiveTrip.senderPhone || effectiveTrip.contactPhone || '',
+        avatar: acceptedOffer?.senderAvatar || effectiveTrip.contactAvatar || '',
+      }
     : { name: '—', phone: '', avatar: '' };
 
   // ── Sheet drag ─────────────────────────────────────────────────────────────
@@ -734,6 +742,25 @@ export function DriverTrackingPage() {
             </button>
           )}
 
+          {/* ── Переключатель отправителей (если на поездке несколько) ── */}
+          {acceptedOffers.length > 1 && (
+            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+              {acceptedOffers.map((o, idx) => (
+                <button
+                  key={o.offerId || idx}
+                  onClick={() => setSelectedOfferIdx(idx)}
+                  className={`shrink-0 px-3 py-1.5 rounded-full text-[12px] font-bold border transition-all ${
+                    idx === selectedOfferIdx
+                      ? 'bg-[#5ba3f5]/15 border-[#5ba3f5]/40 text-[#5ba3f5]'
+                      : 'bg-white/[0.04] border-white/[0.08] text-[#607080]'
+                  }`}
+                >
+                  {o.senderName || `Отправитель ${idx + 1}`}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* ── Contact card ── */}
           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.04] overflow-hidden">
             <div className="flex items-center gap-3 p-4">
@@ -760,8 +787,8 @@ export function DriverTrackingPage() {
                     </span>
                   )}
                 </div>
-                {activeTrip?.senderPhone && (
-                  <p className="text-[11px] text-[#607080] mt-0.5">{activeTrip.senderPhone}</p>
+                {activeTrip && contactPerson.phone && (
+                  <p className="text-[11px] text-[#607080] mt-0.5">{contactPerson.phone}</p>
                 )}
               </div>
             </div>
@@ -1023,6 +1050,27 @@ export function DriverTrackingPage() {
             )}
           </div>
 
+          {/* Переключатель отправителей (если на поездке несколько) */}
+          {acceptedOffers.length > 1 && (
+            <div style={{ display:'flex', gap:8, overflowX:'auto', paddingBottom:4 }}>
+              {acceptedOffers.map((o, idx) => (
+                <button
+                  key={o.offerId || idx}
+                  onClick={() => setSelectedOfferIdx(idx)}
+                  style={{
+                    flexShrink:0, padding:'6px 12px', borderRadius:999, fontSize:12, fontWeight:700,
+                    border:'1px solid', cursor:'pointer', fontFamily:'inherit', transition:'all .15s',
+                    background: idx === selectedOfferIdx ? '#5ba3f526' : '#ffffff08',
+                    borderColor: idx === selectedOfferIdx ? '#5ba3f566' : '#ffffff14',
+                    color: idx === selectedOfferIdx ? '#5ba3f5' : '#4a6580',
+                  }}
+                >
+                  {o.senderName || `Отправитель ${idx + 1}`}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Contact (sender) card */}
           <div className="dtp-s3 dtp-card overflow-hidden">
             <div style={{ padding:'16px 18px', display:'flex', alignItems:'center', gap:12 }}>
@@ -1044,7 +1092,7 @@ export function DriverTrackingPage() {
                   <p style={{ fontSize:15, fontWeight:900, color:'#fff' }}>{effectiveTrip ? contactPerson.name : '—'}</p>
                   {effectiveTrip && <span style={{ fontSize:9, fontWeight:800, padding:'2px 7px', borderRadius:6, background:'#10b98118', color:'#10b981', textTransform:'uppercase' }}>Верифицирован</span>}
                 </div>
-                {effectiveTrip?.senderPhone && <p style={{ fontSize:12, color:'#4a6580', marginTop:2 }}>{effectiveTrip.senderPhone}</p>}
+                {effectiveTrip && contactPerson.phone && <p style={{ fontSize:12, color:'#4a6580', marginTop:2 }}>{contactPerson.phone}</p>}
               </div>
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', borderTop:'1px solid #0e1e32' }}>
