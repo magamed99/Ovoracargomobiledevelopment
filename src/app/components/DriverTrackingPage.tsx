@@ -17,7 +17,7 @@ import {
   uploadPODPhoto, getPublicTrackingLink, getActiveShipment,
   type ShipmentStatus,
 } from '../api/trackingApi';
-import { updateTrip } from '../api/dataApi';
+import { updateTrip, getOffersForTrip } from '../api/dataApi';
 import { cleanAddress } from '../utils/addressUtils';
 import { calculateDistance } from '@/utils/geolocation';
 import { useTrips } from '../contexts/TripsContext';
@@ -79,6 +79,8 @@ export function DriverTrackingPage() {
   const podTypeRef = useRef<'loading' | 'unloading'>('loading');
   // Копирование ссылки
   const [linkCopied, setLinkCopied] = useState(false);
+  // ── Принятая оферта: реальные данные груза/мест берём из неё, не из самого Trip ──
+  const [acceptedOffer, setAcceptedOffer] = useState<any | null>(null);
 
   // ✅ FIX S-1: localStorage fallback — если контекст ещё не загружен,
   // используем данные из 'ovora_active_shipment' (записывается при старте поездки)
@@ -90,6 +92,17 @@ export function DriverTrackingPage() {
     } catch {}
     return null;
   }, [activeTrip]);
+
+  // ── Подгружаем принятую оферту — в ней реальные цена/места/груз, а не в Trip ──
+  useEffect(() => {
+    if (!effectiveTrip?.id) { setAcceptedOffer(null); return; }
+    let cancelled = false;
+    getOffersForTrip(effectiveTrip.id).then(offers => {
+      if (cancelled) return;
+      setAcceptedOffer(offers.find((o: any) => o.status === 'accepted') || null);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [effectiveTrip?.id]);
 
   // Загружаем актуальный статус при монтировании
   useEffect(() => {
@@ -287,8 +300,22 @@ export function DriverTrackingPage() {
   const elapsed = `${String(Math.floor(elapsedSecs / 3600)).padStart(2, '0')}:${String(Math.floor((elapsedSecs % 3600) / 60)).padStart(2, '0')}:${String(elapsedSecs % 60).padStart(2, '0')}`;
 
   const cargoInfo = effectiveTrip
-    ? { type: effectiveTrip.cargoType || 'Груз', weight: effectiveTrip.weight, price: `${effectiveTrip.price} ${effectiveTrip.currency || 'TJS'}`, notes: effectiveTrip.notes }
-    : { type: '—', weight: '', price: '', notes: '' };
+    ? {
+        type: acceptedOffer?.cargoType || effectiveTrip.cargoType || 'Груз',
+        weight: acceptedOffer?.weight || effectiveTrip.weight,
+        price: acceptedOffer?.price ? `${acceptedOffer.price} ${acceptedOffer.currency || 'TJS'}` : '',
+        notes: acceptedOffer?.notes || effectiveTrip.notes,
+        seats: acceptedOffer?.requestedSeats || 0,
+        children: acceptedOffer?.requestedChildren || 0,
+        cargoKg: acceptedOffer?.requestedCargo || 0,
+      }
+    : { type: '—', weight: '', price: '', notes: '', seats: 0, children: 0, cargoKg: 0 };
+
+  const capacityStr = [
+    cargoInfo.seats > 0 ? `${cargoInfo.seats} взр.` : '',
+    cargoInfo.children > 0 ? `${cargoInfo.children} дет.` : '',
+    cargoInfo.cargoKg > 0 ? `${cargoInfo.cargoKg} кг груза` : '',
+  ].filter(Boolean).join(' + ');
 
   const contactPerson = effectiveTrip
     ? { name: effectiveTrip.contactName || effectiveTrip.senderName || 'Отправитель', phone: effectiveTrip.senderPhone || effectiveTrip.contactPhone || '', avatar: effectiveTrip.contactAvatar || '' }
@@ -766,11 +793,11 @@ export function DriverTrackingPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-[14px] font-extrabold text-white">
-                    {cargoInfo.type}{cargoInfo.weight ? ` · ${cargoInfo.weight} кг` : ''}
+                    {capacityStr || cargoInfo.type}{!capacityStr && cargoInfo.weight ? ` · ${cargoInfo.weight} кг` : ''}
                   </p>
                   {cargoInfo.notes && <p className="text-[11px] text-[#607080] mt-0.5">{cargoInfo.notes}</p>}
                 </div>
-                {cargoInfo.price && cargoInfo.price !== 'undefined undefined' && (
+                {cargoInfo.price && (
                   <div className="shrink-0 px-2.5 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/20">
                     <p className="text-[13px] font-black text-emerald-400">{cargoInfo.price}</p>
                   </div>
@@ -1051,10 +1078,10 @@ export function DriverTrackingPage() {
                   <Truck style={{ width:20, height:20, color:'#f59e0b' }} />
                 </div>
                 <div style={{ flex:1 }}>
-                  <p style={{ fontSize:15, fontWeight:900, color:'#fff' }}>{cargoInfo.type}{cargoInfo.weight ? ` · ${cargoInfo.weight} кг` : ''}</p>
+                  <p style={{ fontSize:15, fontWeight:900, color:'#fff' }}>{capacityStr || cargoInfo.type}{!capacityStr && cargoInfo.weight ? ` · ${cargoInfo.weight} кг` : ''}</p>
                   {cargoInfo.notes && <p style={{ fontSize:12, color:'#4a6580', marginTop:3 }}>{cargoInfo.notes}</p>}
                 </div>
-                {cargoInfo.price && cargoInfo.price !== 'undefined undefined' && (
+                {cargoInfo.price && (
                   <div style={{ flexShrink:0, padding:'7px 12px', borderRadius:12, background:'#10b98115', border:'1px solid #10b98125' }}>
                     <p style={{ fontSize:13, fontWeight:900, color:'#10b981' }}>{cargoInfo.price}</p>
                   </div>
