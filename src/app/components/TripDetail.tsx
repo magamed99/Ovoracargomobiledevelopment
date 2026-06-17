@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { useUser } from '../contexts/UserContext';
 import { AVATARS } from '../constants/avatars';
@@ -59,76 +59,29 @@ function CompletedTripDetail({ trip, isDark }: { trip: any; isDark: boolean }) {
     : null;
   const displayDistance = realDistance || trip.distance || '~ км';
 
-  // Фикс 5: string[] — корректное сравнение при любых типах id
-  const [reviewedTrips, setReviewedTrips] = useState<string[]>([]);
-  const [formRating, setFormRating] = useState(0);
-  const [formComment, setFormComment] = useState('');
-  const [formCats, setFormCats] = useState({ punctuality: 0, reliability: 0, communication: 0, packaging: 0 });
-
+  // Поездка может иметь несколько принятых офферов от разных отправителей
+  // (несколько мест/грузов на одном рейсе) — водитель должен оценить каждого.
+  const [tripOffers, setTripOffers] = useState<any[]>([]);
   useEffect(() => {
-    setReviewedTrips(JSON.parse(localStorage.getItem(REVIEWED_TRIPS_KEY) || '[]').map(String));
-  }, []);
+    if (userRole !== 'driver') return;
+    getOffersForTrip(String(trip.id)).then(setTripOffers).catch(() => setTripOffers([]));
+  }, [trip.id, userRole]);
 
-  const alreadyReviewed = reviewedTrips.includes(String(trip.id));
-
-  // Фикс 1: отзыв уходит на сервер + localStorage как резерв
-  const submitReview = async () => {
-    if (!formRating) { toast.error('Укажите оценку'); return; }
-    if (!formComment.trim()) { toast.error('Напишите комментарий'); return; }
-    const authorName = currentUser?.fullName ||
-      `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim() ||
-      (userRole === 'driver' ? 'Водитель' : 'Отправитель');
-    const targetEmail = userRole === 'driver'
-      ? (trip.senderEmail || trip.acceptedSenderEmail || '')
-      : (driver.email || trip.driverEmail || '');
-    try {
-      await submitReviewApi({
-        authorEmail: currentUser?.email || '',
-        authorName,
-        targetEmail,
-        tripId: trip.id,
-        rating: formRating,
-        comment: formComment.trim(),
-        tripRoute: `${trip.from} → ${trip.to}`,
-        categories: {
-          punctuality: formCats.punctuality || formRating,
-          reliability: formCats.reliability || formRating,
-          communication: formCats.communication || formRating,
-          packaging: formCats.packaging || formRating,
-        },
-        type: 'given',
-        verified: true,
-      });
-    } catch (err: any) {
-      if (err?.message === 'DUPLICATE_REVIEW') {
-        toast.error('Вы уже оставляли отзыв на эту поездку');
-        const reviewed = [...reviewedTrips, String(trip.id)];
-        setReviewedTrips(reviewed);
-        localStorage.setItem(REVIEWED_TRIPS_KEY, JSON.stringify(reviewed));
-        return;
+  const reviewTargets = useMemo(() => {
+    if (userRole === 'driver') {
+      const accepted = tripOffers.filter((o: any) => o && o.status === 'accepted' && o.senderEmail);
+      const seen = new Map<string, string>();
+      for (const o of accepted) {
+        if (!seen.has(o.senderEmail)) seen.set(o.senderEmail, o.senderName || o.senderEmail);
       }
-      // Если сервер недоступен — только локальное сохранение, UX не блокируем
+      if (seen.size > 0) return Array.from(seen.entries()).map(([email, name]) => ({ email, name }));
+      // Резерв для старых поездок без отдельных офферов
+      const fallbackEmail = trip.senderEmail || trip.acceptedSenderEmail || '';
+      return fallbackEmail ? [{ email: fallbackEmail, name: trip.senderName || 'Отправитель' }] : [];
     }
-    const newReview = {
-      id: Date.now(), author: authorName, initials: authorName.slice(0, 2).toUpperCase(),
-      color: 'bg-blue-500', rating: formRating,
-      date: new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }),
-      trip: `${trip.from} → ${trip.to}`, comment: formComment.trim(),
-      helpful: 0, helpedBy: [], verified: true, type: 'given',
-      categories: {
-        punctuality: formCats.punctuality || formRating,
-        reliability: formCats.reliability || formRating,
-        communication: formCats.communication || formRating,
-        packaging: formCats.packaging || formRating,
-      },
-    };
-    const existing = JSON.parse(localStorage.getItem(REVIEWS_KEY) || '[]');
-    localStorage.setItem(REVIEWS_KEY, JSON.stringify([newReview, ...existing]));
-    const reviewed = [...reviewedTrips, String(trip.id)];
-    setReviewedTrips(reviewed);
-    localStorage.setItem(REVIEWED_TRIPS_KEY, JSON.stringify(reviewed));
-    toast.success('Отзыв опубликован! Спасибо 🙏');
-  };
+    const driverEmail = driver.email || trip.driverEmail || '';
+    return driverEmail ? [{ email: driverEmail, name: driver.name || 'Водитель' }] : [];
+  }, [userRole, tripOffers, trip, driver]);
 
   return (
     <div className="min-h-screen flex flex-col font-['Sora'] bg-[#0E1621] text-white">
@@ -218,51 +171,147 @@ function CompletedTripDetail({ trip, isDark }: { trip: any; isDark: boolean }) {
         </div>
       </div>
 
-      {/* Review */}
-      <div className="px-4 mt-4 mb-8">
-        <p className={`text-[11px] font-bold uppercase tracking-wider mb-2 ${isDark ? 'text-[#475569]' : 'text-[#94a3b8]'}`}>
-          {userRole === 'driver' ? 'Оцените отправителя' : 'Оцените водителя'}
-        </p>
-        <div className={`rounded-3xl border overflow-hidden ${isDark ? 'bg-[#1a2736] border-[#1e2d3a]' : 'bg-white border-[#e2e8f0]'}`}>
-          {alreadyReviewed ? (
-            <div className="flex flex-col items-center gap-3 py-8 px-4 text-center">
-              <div className={`w-14 h-14 rounded-full flex items-center justify-center ${isDark ? 'bg-emerald-500/15' : 'bg-emerald-50'}`}>
-                <ThumbsUp className="w-7 h-7 text-emerald-500" />
-              </div>
-              <p className={`font-extrabold text-base ${isDark ? 'text-white' : 'text-[#0f172a]'}`}>Отзыв оставлен!</p>
-              <button onClick={() => navigate('/reviews')} className={`px-5 py-2.5 rounded-xl text-sm font-bold ${isDark ? 'bg-[#1e2d3a] text-[#94a3b8]' : 'bg-[#f1f5f9] text-[#475569]'}`}>Посмотреть отзывы</button>
+      {/* Review — отдельная карточка на каждого отправителя/водителя поездки */}
+      <div className="mb-8">
+        {reviewTargets.map(target => (
+          <ReviewCard
+            key={target.email}
+            trip={trip}
+            targetEmail={target.email}
+            targetName={target.name}
+            showName={reviewTargets.length > 1}
+            userRole={userRole}
+            currentUser={currentUser}
+            isDark={isDark}
+            navigate={navigate}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REVIEW CARD — оценка одного конкретного участника поездки (водитель/отправитель)
+// ─────────────────────────────────────────────────────────────────────────────
+function ReviewCard({ trip, targetEmail, targetName, showName, userRole, currentUser, isDark, navigate }: {
+  trip: any; targetEmail: string; targetName: string; showName: boolean;
+  userRole: string; currentUser: any; isDark: boolean; navigate: (path: string) => void;
+}) {
+  const reviewKey = `${trip.id}:${targetEmail}`;
+  const [reviewed, setReviewed] = useState(false);
+  const [formRating, setFormRating] = useState(0);
+  const [formComment, setFormComment] = useState('');
+  const [formCats, setFormCats] = useState({ punctuality: 0, reliability: 0, communication: 0, packaging: 0 });
+
+  useEffect(() => {
+    const keys: string[] = JSON.parse(localStorage.getItem(REVIEWED_TRIPS_KEY) || '[]').map(String);
+    // Старый формат ключа — просто tripId (одна оценка на поездку) — тоже считаем оценённым
+    setReviewed(keys.includes(String(trip.id)) || keys.includes(reviewKey));
+  }, [reviewKey, trip.id]);
+
+  const markReviewed = () => {
+    const keys: string[] = JSON.parse(localStorage.getItem(REVIEWED_TRIPS_KEY) || '[]');
+    localStorage.setItem(REVIEWED_TRIPS_KEY, JSON.stringify([...keys, reviewKey]));
+    setReviewed(true);
+  };
+
+  // Фикс 1: отзыв уходит на сервер + localStorage как резерв
+  const submitReview = async () => {
+    if (!formRating) { toast.error('Укажите оценку'); return; }
+    if (!formComment.trim()) { toast.error('Напишите комментарий'); return; }
+    const authorName = currentUser?.fullName ||
+      `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim() ||
+      (userRole === 'driver' ? 'Водитель' : 'Отправитель');
+    try {
+      await submitReviewApi({
+        authorEmail: currentUser?.email || '',
+        authorName,
+        targetEmail,
+        tripId: trip.id,
+        rating: formRating,
+        comment: formComment.trim(),
+        tripRoute: `${trip.from} → ${trip.to}`,
+        categories: {
+          punctuality: formCats.punctuality || formRating,
+          reliability: formCats.reliability || formRating,
+          communication: formCats.communication || formRating,
+          packaging: formCats.packaging || formRating,
+        },
+        type: 'given',
+        verified: true,
+      });
+    } catch (err: any) {
+      if (err?.message === 'DUPLICATE_REVIEW') {
+        toast.error('Вы уже оставляли отзыв на эту поездку');
+        markReviewed();
+        return;
+      }
+      // Если сервер недоступен — только локальное сохранение, UX не блокируем
+    }
+    const newReview = {
+      id: Date.now(), author: authorName, initials: authorName.slice(0, 2).toUpperCase(),
+      color: 'bg-blue-500', rating: formRating,
+      date: new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }),
+      trip: `${trip.from} → ${trip.to}`, comment: formComment.trim(),
+      helpful: 0, helpedBy: [], verified: true, type: 'given',
+      categories: {
+        punctuality: formCats.punctuality || formRating,
+        reliability: formCats.reliability || formRating,
+        communication: formCats.communication || formRating,
+        packaging: formCats.packaging || formRating,
+      },
+    };
+    const existing = JSON.parse(localStorage.getItem(REVIEWS_KEY) || '[]');
+    localStorage.setItem(REVIEWS_KEY, JSON.stringify([newReview, ...existing]));
+    markReviewed();
+    toast.success('Отзыв опубликован! Спасибо 🙏');
+  };
+
+  return (
+    <div className="px-4 mt-4">
+      <p className={`text-[11px] font-bold uppercase tracking-wider mb-2 ${isDark ? 'text-[#475569]' : 'text-[#94a3b8]'}`}>
+        {userRole === 'driver' ? 'Оцените отправителя' : 'Оцените водителя'}{showName && targetName ? `: ${targetName}` : ''}
+      </p>
+      <div className={`rounded-3xl border overflow-hidden ${isDark ? 'bg-[#1a2736] border-[#1e2d3a]' : 'bg-white border-[#e2e8f0]'}`}>
+        {reviewed ? (
+          <div className="flex flex-col items-center gap-3 py-8 px-4 text-center">
+            <div className={`w-14 h-14 rounded-full flex items-center justify-center ${isDark ? 'bg-emerald-500/15' : 'bg-emerald-50'}`}>
+              <ThumbsUp className="w-7 h-7 text-emerald-500" />
             </div>
-          ) : (
-            <div className="p-5 flex flex-col gap-4">
-              <div className="flex flex-col items-center gap-2">
-                <StarRow value={formRating} onChange={setFormRating} size="lg" />
-                <span className={`text-xs font-semibold ${isDark ? 'text-[#475569]' : 'text-[#94a3b8]'}`}>
-                  {formRating === 5 ? '😍 Отлично!' : formRating === 4 ? '👍 Хорошо' : formRating === 3 ? '😐 Нейтрально' : formRating === 2 ? '😕 Плохо' : formRating === 1 ? '😤 Ужасно' : 'Нажмите на звезду'}
-                </span>
-              </div>
-              <div className={`rounded-2xl p-4 border ${isDark ? 'bg-[#0e1621]/60 border-[#1e2d3a]' : 'bg-[#f8fafc] border-[#e9eef5]'}`}>
-                <div className="space-y-3">
-                  {Object.entries(CATEGORY_LABELS).map(([key, label]) => {
-                    const Icon = CATEGORY_ICONS[key];
-                    return (
-                      <div key={key} className="flex items-center gap-3">
-                        <Icon className={`w-4 h-4 shrink-0 ${isDark ? 'text-[#475569]' : 'text-[#94a3b8]'}`} />
-                        <span className={`text-xs w-28 shrink-0 ${isDark ? 'text-[#94a3b8]' : 'text-[#475569]'}`}>{label}</span>
-                        <StarRow value={formCats[key as keyof typeof formCats]} onChange={v => setFormCats(p => ({ ...p, [key]: v }))} size="sm" />
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-              <textarea rows={3} placeholder="Расскажите о своём опыте..." value={formComment} onChange={e => setFormComment(e.target.value)}
-                className={`w-full px-4 py-3 rounded-2xl border text-sm outline-none focus:border-[#1978e5] resize-none transition-colors ${isDark ? 'bg-[#0e1621] border-[#1e2d3a] text-white placeholder-[#475569]' : 'bg-[#f8fafc] border-[#e2e8f0] text-[#0f172a] placeholder-[#94a3b8]'}`}
-              />
-              <button onClick={submitReview} className="w-full flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold rounded-2xl shadow-lg shadow-emerald-500/25 active:scale-[0.98] transition-all">
-                <Heart className="w-4 h-4" />Опубликовать отзыв
-              </button>
+            <p className={`font-extrabold text-base ${isDark ? 'text-white' : 'text-[#0f172a]'}`}>Отзыв оставлен!</p>
+            <button onClick={() => navigate('/reviews')} className={`px-5 py-2.5 rounded-xl text-sm font-bold ${isDark ? 'bg-[#1e2d3a] text-[#94a3b8]' : 'bg-[#f1f5f9] text-[#475569]'}`}>Посмотреть отзывы</button>
+          </div>
+        ) : (
+          <div className="p-5 flex flex-col gap-4">
+            <div className="flex flex-col items-center gap-2">
+              <StarRow value={formRating} onChange={setFormRating} size="lg" />
+              <span className={`text-xs font-semibold ${isDark ? 'text-[#475569]' : 'text-[#94a3b8]'}`}>
+                {formRating === 5 ? '😍 Отлично!' : formRating === 4 ? '👍 Хорошо' : formRating === 3 ? '😐 Нейтрально' : formRating === 2 ? '😕 Плохо' : formRating === 1 ? '😤 Ужасно' : 'Нажмите на звезду'}
+              </span>
             </div>
-          )}
-        </div>
+            <div className={`rounded-2xl p-4 border ${isDark ? 'bg-[#0e1621]/60 border-[#1e2d3a]' : 'bg-[#f8fafc] border-[#e9eef5]'}`}>
+              <div className="space-y-3">
+                {Object.entries(CATEGORY_LABELS).map(([key, label]) => {
+                  const Icon = CATEGORY_ICONS[key];
+                  return (
+                    <div key={key} className="flex items-center gap-3">
+                      <Icon className={`w-4 h-4 shrink-0 ${isDark ? 'text-[#475569]' : 'text-[#94a3b8]'}`} />
+                      <span className={`text-xs w-28 shrink-0 ${isDark ? 'text-[#94a3b8]' : 'text-[#475569]'}`}>{label}</span>
+                      <StarRow value={formCats[key as keyof typeof formCats]} onChange={v => setFormCats(p => ({ ...p, [key]: v }))} size="sm" />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <textarea rows={3} placeholder="Расскажите о своём опыте..." value={formComment} onChange={e => setFormComment(e.target.value)}
+              className={`w-full px-4 py-3 rounded-2xl border text-sm outline-none focus:border-[#1978e5] resize-none transition-colors ${isDark ? 'bg-[#0e1621] border-[#1e2d3a] text-white placeholder-[#475569]' : 'bg-[#f8fafc] border-[#e2e8f0] text-[#0f172a] placeholder-[#94a3b8]'}`}
+            />
+            <button onClick={submitReview} className="w-full flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold rounded-2xl shadow-lg shadow-emerald-500/25 active:scale-[0.98] transition-all">
+              <Heart className="w-4 h-4" />Опубликовать отзыв
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
