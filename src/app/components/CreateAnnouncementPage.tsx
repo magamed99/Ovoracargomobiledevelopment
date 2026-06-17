@@ -361,7 +361,7 @@ export function CreateAnnouncementPage() {
                 <div className="w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-emerald-400/30" />
                 <p className="text-[9px] font-black uppercase tracking-widest text-[#4a6278]">Куда</p>
               </div>
-              <AddressPicker value={toAddress} onChange={setToAddress} placeholder="Выберите город назначения" label="" />
+              <AddressPicker value={toAddress} onChange={setToAddress} placeholder="Выберите город назначения" label="" showCurrentLocation={false} />
             </div>
           </div>
           {fromAddress && toAddress && fromAddress.lat && toAddress.lat && (
@@ -455,7 +455,7 @@ export function CreateAnnouncementPage() {
                     <div className="w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-emerald-400/30" />
                     <p className="text-[9px] font-black uppercase tracking-widest text-[#4a6278]">Куда</p>
                   </div>
-                  <AddressPicker value={toAddress} onChange={setToAddress} placeholder="Выберите город назначения" label="" />
+                  <AddressPicker value={toAddress} onChange={setToAddress} placeholder="Выберите город назначения" label="" showCurrentLocation={false} />
                 </div>
               </div>
 

@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, MapPin, X, Navigation, Loader } from 'lucide-react';
-import { YMaps, Map, Placemark } from 'react-yandex-maps';
 import { YANDEX_MAPS_CONFIG } from '../config/yandex';
-import { useTheme } from '../context/ThemeContext';
 
 interface AddressPickerProps {
   value: { address: string; lat: number; lng: number; } | null;
@@ -14,7 +12,6 @@ interface AddressPickerProps {
 
 interface SearchResult {
   name: string;
-  description: string;
   lat: number;
   lng: number;
 }
@@ -45,7 +42,7 @@ async function yandexSearch(query: string, apiKey: string): Promise<SearchResult
     const [lngStr, latStr] = geo.Point.pos.split(' ');
     const name = extractCity(geo.metaDataProperty?.GeocoderMetaData?.Address?.Components ?? []) || geo.name;
     if (name && !out.find(r => r.name === name)) {
-      out.push({ name, description: name, lat: parseFloat(latStr), lng: parseFloat(lngStr) });
+      out.push({ name, lat: parseFloat(latStr), lng: parseFloat(lngStr) });
     }
   }
   return out;
@@ -64,7 +61,7 @@ async function yandexReverse(lat: number, lng: number, apiKey: string): Promise<
   return name;
 }
 
-// ── Nominatim fallback (free, no API key) ────────────────────────────────────
+// ── Nominatim fallback ────────────────────────────────────────────────────────
 
 const NOM_HDR = { 'User-Agent': 'OvoraCargo/1.0 contact@ovora.tj' };
 
@@ -80,7 +77,7 @@ async function nominatimSearch(query: string): Promise<SearchResult[]> {
     const a = item.address ?? {};
     const name = a.city || a.town || a.village || a.municipality || a.county || item.display_name.split(',')[0].trim();
     if (name && !out.find(r => r.name === name)) {
-      out.push({ name, description: name, lat: parseFloat(item.lat), lng: parseFloat(item.lon) });
+      out.push({ name, lat: parseFloat(item.lat), lng: parseFloat(item.lon) });
     }
   }
   return out;
@@ -97,7 +94,7 @@ async function nominatimReverse(lat: number, lng: number): Promise<string> {
   return a.city || a.town || a.village || a.municipality || a.county || a.state || '';
 }
 
-// ── Unified geocoding (Yandex first, Nominatim fallback) ─────────────────────
+// ── Unified geocoding ─────────────────────────────────────────────────────────
 
 async function geocodeSearch(query: string): Promise<SearchResult[]> {
   const key = YANDEX_MAPS_CONFIG.apiKey;
@@ -113,9 +110,7 @@ async function geocodeSearch(query: string): Promise<SearchResult[]> {
 async function geocodeReverse(lat: number, lng: number): Promise<string> {
   const key = YANDEX_MAPS_CONFIG.apiKey;
   if (key) {
-    try {
-      return await yandexReverse(lat, lng, key);
-    } catch { /* fall through */ }
+    try { return await yandexReverse(lat, lng, key); } catch { /* fall through */ }
   }
   const name = await nominatimReverse(lat, lng);
   return name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
@@ -126,238 +121,171 @@ async function geocodeReverse(lat: number, lng: number): Promise<string> {
 export function AddressPicker({
   value,
   onChange,
-  placeholder = 'Введите адрес',
+  placeholder = 'Введите город',
   label,
   showCurrentLocation = true,
 }: AddressPickerProps) {
-  const { theme } = useTheme();
-  const [searchQuery, setSearchQuery] = useState(value?.address || '');
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [query, setQuery] = useState(value?.address || '');
+  const [results, setResults] = useState<SearchResult[]>([]);
   const [showResults, setShowResults] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [searching, setSearching] = useState(false);
   const [locating, setLocating] = useState(false);
-  const [showMap, setShowMap] = useState(false);
-  const [mapCenter, setMapCenter] = useState<[number, number]>([38.5598, 68.7738]);
-  const [mapZoom, setMapZoom] = useState(12);
-  const searchTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const ymapsRef = useRef<any>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Debounced city search
+  // Close dropdown on outside click
   useEffect(() => {
-    if (searchTimeout.current) clearTimeout(searchTimeout.current);
-    searchTimeout.current = setTimeout(async () => {
-      if (searchQuery.length >= 3) {
-        setLoading(true);
-        try {
-          const results = await geocodeSearch(searchQuery);
-          setSearchResults(results);
-          setShowResults(results.length > 0);
-        } catch {
-          setSearchResults([]);
-          setShowResults(false);
-        } finally {
-          setLoading(false);
-        }
-      } else {
-        setSearchResults([]);
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setShowResults(false);
       }
-    }, 800);
-    return () => { if (searchTimeout.current) clearTimeout(searchTimeout.current); };
-  }, [searchQuery]);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
-  const selectAddress = (result: SearchResult) => {
-    setShowResults(false);
-    setShowMap(false);
-    setMapCenter([result.lat, result.lng]);
-    setMapZoom(15);
-    setSearchQuery(result.name);
-    onChange({ address: result.name, lat: result.lat, lng: result.lng });
-  };
-
-  const handleMapClick = async (e: any) => {
-    const [lat, lng] = e.get('coords') as [number, number];
-    setLoading(true);
-    try {
-      const address = await geocodeReverse(lat, lng);
-      setSearchQuery(address);
-      onChange({ address, lat, lng });
-    } finally {
-      setLoading(false);
+  // Sync input when value changes externally
+  useEffect(() => {
+    if (value?.address && value.address !== query) {
+      setQuery(value.address);
     }
+  }, [value?.address]);
+
+  // Debounced search — 400ms
+  useEffect(() => {
+    if (timer.current) clearTimeout(timer.current);
+    if (query.length < 2) {
+      setResults([]);
+      setShowResults(false);
+      return;
+    }
+    timer.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const res = await geocodeSearch(query);
+        setResults(res);
+        setShowResults(res.length > 0);
+      } catch {
+        setResults([]);
+        setShowResults(false);
+      } finally {
+        setSearching(false);
+      }
+    }, 400);
+    return () => { if (timer.current) clearTimeout(timer.current); };
+  }, [query]);
+
+  const selectResult = (r: SearchResult) => {
+    setQuery(r.name);
+    setShowResults(false);
+    onChange({ address: r.name, lat: r.lat, lng: r.lng });
   };
 
-  const detectCurrentLocation = () => {
+  const clear = () => {
+    setQuery('');
+    setResults([]);
+    setShowResults(false);
+    onChange({ address: '', lat: 0, lng: 0 });
+  };
+
+  const detectLocation = () => {
     if (!('geolocation' in navigator)) {
       alert('Геолокация не поддерживается вашим браузером');
       return;
     }
+    setLocating(true);
     navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const lat = position.coords.latitude;
-        const lng = position.coords.longitude;
-        setMapCenter([lat, lng]);
-        setMapZoom(15);
-        setLocating(true);
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
         try {
           const address = await geocodeReverse(lat, lng);
-          setSearchQuery(address);
+          setQuery(address);
           onChange({ address, lat, lng });
         } finally {
           setLocating(false);
         }
       },
-      (error) => {
+      (err) => {
+        setLocating(false);
         const msgs: Record<number, string> = {
           1: 'Доступ к геолокации запрещён. Разрешите доступ в настройках браузера.',
           2: 'Информация о местоположении недоступна',
-          3: 'Превышено время ожидания определения местоположения',
+          3: 'Превышено время ожидания',
         };
-        alert(msgs[error.code] ?? 'Не удалось определить местоположение');
+        alert(msgs[err.code] ?? 'Не удалось определить местоположение');
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   };
 
   return (
-    <div className="space-y-3">
+    <div ref={containerRef} className="relative space-y-2">
       {label && (
-        <label className={`block text-sm font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>
-          {label}
-        </label>
+        <p className="text-[9px] font-black uppercase tracking-widest text-[#4a6278]">{label}</p>
       )}
 
       {/* Search input */}
-      <div className="relative">
-        <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`} />
+      <div className="relative flex items-center">
+        {searching
+          ? <Loader className="absolute left-3 w-4 h-4 text-[#5ba3f5] animate-spin" />
+          : <Search className="absolute left-3 w-4 h-4 text-[#4a6278]" />
+        }
         <input
           type="text"
-          value={searchQuery}
-          onChange={(e) => {
-            setSearchQuery(e.target.value);
+          value={query}
+          onChange={e => {
+            setQuery(e.target.value);
             setShowResults(true);
           }}
+          onFocus={() => { if (results.length > 0) setShowResults(true); }}
           placeholder={placeholder}
-          className={`w-full pl-10 pr-24 py-3 rounded-xl border ${
-            theme === 'dark'
-              ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500'
-              : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
-          } focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+          className="w-full pl-9 pr-8 py-2.5 rounded-xl bg-[#0c1520] border border-white/[0.08] text-white text-[13px] font-medium placeholder-[#2a3f52] outline-none focus:border-[#5ba3f5]/50 transition-colors"
         />
-        {searchQuery && (
-          <button
-            onClick={() => {
-              setSearchQuery('');
-              setSearchResults([]);
-              onChange({ address: '', lat: 0, lng: 0 });
-            }}
-            className="absolute right-14 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"
-          >
-            <X className="w-4 h-4" />
+        {query && (
+          <button onClick={clear} className="absolute right-2.5 p-0.5 text-[#4a6278] hover:text-white transition-colors">
+            <X className="w-3.5 h-3.5" />
           </button>
         )}
-        <button
-          onClick={() => setShowMap(!showMap)}
-          className={`absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 py-1.5 rounded-xl text-[11px] font-bold transition-all active:scale-95 ${
-            showMap ? 'bg-[#5ba3f5] text-white shadow-lg' : 'bg-[#1e2d3d] text-[#5ba3f5] border border-[#5ba3f5]/30'
-          } m-[0px] px-[4px] py-[6px]`}
-        >
-          <MapPin className="w-3.5 h-3.5" />
-          {showMap ? 'Скрыть' : 'Карта'}
-        </button>
       </div>
 
-      {/* My location button — only for ОТКУДА */}
-      {showCurrentLocation && (
-        <button
-          onClick={detectCurrentLocation}
-          disabled={locating}
-          className={`w-full flex items-center justify-center gap-2 py-2 px-4 rounded-lg border ${
-            theme === 'dark'
-              ? 'border-gray-700 text-blue-400 hover:bg-gray-800'
-              : 'border-gray-300 text-blue-600 hover:bg-gray-50'
-          } transition-colors disabled:opacity-60`}
-        >
-          {locating
-            ? <Loader className="w-4 h-4 animate-spin" />
-            : <Navigation className="w-4 h-4" />
-          }
-          <span className="text-sm font-medium">
-            {locating ? 'Определяем...' : 'Моё местоположение'}
-          </span>
-        </button>
-      )}
-
-      {/* Search loading */}
-      {loading && (
-        <div className="flex items-center justify-center py-2">
-          <Loader className="w-5 h-5 animate-spin text-blue-500" />
-          <span className="ml-2 text-sm text-gray-500">Поиск...</span>
-        </div>
-      )}
-
-      {/* Search results dropdown */}
-      {showResults && searchResults.length > 0 && (
-        <div className={`border rounded-xl overflow-hidden ${
-          theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-        } shadow-lg max-h-64 overflow-y-auto`}>
-          {searchResults.map((result, idx) => (
+      {/* Results dropdown */}
+      {showResults && results.length > 0 && (
+        <div className="absolute left-0 right-0 z-50 mt-1 rounded-xl border border-white/[0.10] bg-[#111c28] shadow-2xl overflow-hidden">
+          {results.map((r, i) => (
             <button
-              key={idx}
-              onClick={() => selectAddress(result)}
-              className={`w-full text-left px-4 py-3 hover:bg-blue-500 hover:bg-opacity-10 transition-colors border-b ${
-                theme === 'dark' ? 'border-gray-700' : 'border-gray-100'
-              } last:border-b-0`}
+              key={i}
+              onMouseDown={() => selectResult(r)}
+              className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-[#5ba3f5]/10 transition-colors border-b border-white/[0.05] last:border-0 text-left"
             >
-              <div className="flex items-center gap-3">
-                <MapPin className="w-5 h-5 text-blue-500 shrink-0" />
-                <p className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                  {result.name}
-                </p>
-              </div>
+              <MapPin className="w-3.5 h-3.5 text-[#5ba3f5] flex-shrink-0" />
+              <span className="text-[13px] font-medium text-white truncate">{r.name}</span>
             </button>
           ))}
         </div>
       )}
 
-      {/* Selected Address Display */}
-      {value && value.address && (
-        <div className={`p-3 rounded-lg border ${
-          theme === 'dark'
-            ? 'bg-blue-500/10 border-blue-500/30 text-blue-400'
-            : 'bg-blue-50 border-blue-200 text-blue-700'
-        }`}>
-          <div className="flex items-start gap-2">
-            <MapPin className="w-4 h-4 shrink-0 mt-0.5" />
-            <p className="text-sm font-medium">{value.address}</p>
-          </div>
+      {/* Selected address chip */}
+      {value?.address && !showResults && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#5ba3f5]/10 border border-[#5ba3f5]/20">
+          <MapPin className="w-3.5 h-3.5 text-[#5ba3f5] flex-shrink-0" />
+          <span className="text-[12px] font-semibold text-[#5ba3f5] truncate">{value.address}</span>
         </div>
       )}
 
-      {/* Map */}
-      {showMap && (
-        <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
-          <YMaps query={{ apikey: YANDEX_MAPS_CONFIG.apiKey, lang: 'ru_RU' }}>
-            <Map
-              defaultState={{ center: mapCenter, zoom: mapZoom }}
-              width="100%"
-              height="300px"
-              onClick={handleMapClick}
-              instanceRef={ymapsRef as any}
-              modules={['geocode']}
-            >
-              {value && value.lat && value.lng && (
-                <Placemark
-                  geometry={[value.lat, value.lng]}
-                  options={{ preset: 'islands#redDotIcon' }}
-                />
-              )}
-            </Map>
-          </YMaps>
-          <div className={`px-3 py-2 text-xs ${theme === 'dark' ? 'bg-gray-800 text-gray-400' : 'bg-gray-50 text-gray-600'}`}>
-            💡 Нажмите на карту чтобы выбрать точку
-          </div>
-        </div>
+      {/* My location button — ОТКУДА only */}
+      {showCurrentLocation && (
+        <button
+          onClick={detectLocation}
+          disabled={locating}
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-[#5ba3f5]/25 text-[#5ba3f5] text-[12px] font-bold hover:bg-[#5ba3f5]/10 active:scale-[0.98] transition-all disabled:opacity-50"
+        >
+          {locating
+            ? <Loader className="w-3.5 h-3.5 animate-spin" />
+            : <Navigation className="w-3.5 h-3.5" />
+          }
+          {locating ? 'Определяем...' : 'Моё местоположение'}
+        </button>
       )}
     </div>
   );
