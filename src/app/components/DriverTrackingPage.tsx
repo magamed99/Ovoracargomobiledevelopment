@@ -320,7 +320,7 @@ export function DriverTrackingPage() {
     <div className="font-['Sora'] bg-[#0e1621] text-white min-h-screen">
 
     {/* ════════ MOBILE (не трогаем) ════════ */}
-    <div className="md:hidden relative h-screen w-full flex flex-col overflow-hidden">
+    <div className="md:hidden relative h-dvh w-full flex flex-col overflow-hidden">
 
       {/* ── MAP ── */}
       <div className="absolute inset-0 z-0">
@@ -464,7 +464,7 @@ export function DriverTrackingPage() {
         style={{
           transform: `translateY(calc(${sheetTranslate} + ${dragY}px))`,
           transition: isDragging.current ? 'none' : 'transform 0.4s cubic-bezier(0.32,0.72,0,1)',
-          maxHeight: '88vh',
+          maxHeight: '88dvh',
         }}
       >
         <div
@@ -481,7 +481,7 @@ export function DriverTrackingPage() {
         </div>
 
         <div className="overflow-y-auto overscroll-contain px-4 pb-8 flex flex-col gap-3"
-          style={{ maxHeight: 'calc(88vh - 48px)' }}>
+          style={{ maxHeight: 'calc(88dvh - 48px)' }}>
 
           {/* ── Route progress card ── */}
           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-4">
