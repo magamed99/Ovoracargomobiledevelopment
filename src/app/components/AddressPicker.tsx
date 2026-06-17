@@ -28,8 +28,19 @@ function extractCity(components: { kind: string; name: string }[]): string {
   return city || district || province;
 }
 
+// Бывают веб-вью, где запрос, заблокированный CSP, не реджектится — виснет навечно
+async function fetchWithTimeout(url: string, init?: RequestInit, timeoutMs = 8000): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function yandexSearch(query: string, apiKey: string): Promise<SearchResult[]> {
-  const resp = await fetch(
+  const resp = await fetchWithTimeout(
     `https://geocode-maps.yandex.ru/1.x/?apikey=${apiKey}&geocode=${encodeURIComponent(query)}&format=json&results=10&lang=ru_RU`
   );
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -49,7 +60,7 @@ async function yandexSearch(query: string, apiKey: string): Promise<SearchResult
 }
 
 async function yandexReverse(lat: number, lng: number, apiKey: string): Promise<string> {
-  const resp = await fetch(
+  const resp = await fetchWithTimeout(
     `https://geocode-maps.yandex.ru/1.x/?apikey=${apiKey}&geocode=${lng},${lat}&format=json&lang=ru_RU`
   );
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -66,7 +77,7 @@ async function yandexReverse(lat: number, lng: number, apiKey: string): Promise<
 const NOM_HDR = { 'User-Agent': 'OvoraCargo/1.0 contact@ovora.tj' };
 
 async function nominatimSearch(query: string): Promise<SearchResult[]> {
-  const resp = await fetch(
+  const resp = await fetchWithTimeout(
     `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=7&accept-language=ru&addressdetails=1`,
     { headers: NOM_HDR }
   );
@@ -84,7 +95,7 @@ async function nominatimSearch(query: string): Promise<SearchResult[]> {
 }
 
 async function nominatimReverse(lat: number, lng: number): Promise<string> {
-  const resp = await fetch(
+  const resp = await fetchWithTimeout(
     `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=ru&addressdetails=1`,
     { headers: NOM_HDR }
   );
@@ -112,8 +123,12 @@ async function geocodeReverse(lat: number, lng: number): Promise<string> {
   if (key) {
     try { return await yandexReverse(lat, lng, key); } catch { /* fall through */ }
   }
-  const name = await nominatimReverse(lat, lng);
-  return name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+  try {
+    const name = await nominatimReverse(lat, lng);
+    return name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+  } catch {
+    return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+  }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
