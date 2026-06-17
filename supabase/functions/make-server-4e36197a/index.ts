@@ -21,6 +21,18 @@ import {
 const app = new Hono();
 app.use('*', logger(console.log));
 
+// ── Chat pair-id helper (mirrors src/app/api/chatUtils.ts generatePairChatId) ──
+function generateEmailHash(email: string): string {
+  const hash = (email || '')
+    .split('')
+    .reduce((acc, char) => ((acc << 5) - acc + char.charCodeAt(0)) | 0, 0);
+  return Math.abs(hash).toString(36).slice(0, 8);
+}
+function generatePairChatId(emailA: string, emailB: string): string {
+  const sorted = [emailA || 'guest', emailB || 'guest'].sort();
+  return `pair_${generateEmailHash(sorted[0])}_${generateEmailHash(sorted[1])}`;
+}
+
 // ── Input sanitization helper ──────────────────────────────────────────────
 function clampStr(s: unknown, max: number): string {
   if (typeof s !== 'string') return '';
@@ -1462,6 +1474,44 @@ app.put("/make-server-4e36197a/offers/:tripId/:offerId", async (c) => {
       }
       if (existing.senderEmail) {
         await kv.set(`ovora:senderoffers:${existing.senderEmail}:${offerId}`, { tripId, offerId }).catch(() => {});
+      }
+    }
+
+    // ✅ Sync chat proposal card when driver accepts/declines from the Trip page
+    // (not from the chat itself) — otherwise the proposal bubble stays "На рассмотрении"
+    // forever even though the offer was accepted/declined. Mirrors the reverse sync
+    // already done in PUT /chat/:chatId/proposal/:proposalId.
+    if (
+      (updated.status === 'accepted' || updated.status === 'declined' || updated.status === 'rejected') &&
+      existing.senderEmail && existing.driverEmail
+    ) {
+      try {
+        const chatId = generatePairChatId(existing.driverEmail, existing.senderEmail);
+        const chatMessages: any[] = await kv.getByPrefix(`ovora:chat:${chatId}:`);
+        const proposalMsg = chatMessages.find(m =>
+          m && m.type === 'proposal' &&
+          m.proposal?.status === 'pending' &&
+          String(m.proposal?.tripId) === String(tripId) &&
+          m.proposal?.senderEmail === existing.senderEmail
+        );
+        if (proposalMsg) {
+          const proposalStatus = updated.status === 'accepted' ? 'accepted' : 'rejected';
+          await kv.set(`ovora:chat:${chatId}:${proposalMsg.msgId}`, {
+            ...proposalMsg,
+            proposal: { ...proposalMsg.proposal, status: proposalStatus },
+          });
+          const chatMetaKey = `ovora:chatmeta:${chatId}`;
+          const chatMeta: any = await kv.get(chatMetaKey) || {};
+          await kv.set(chatMetaKey, {
+            ...chatMeta,
+            proposalStatus,
+            lastMessage: proposalStatus === 'accepted' ? 'Оферта принята' : 'Оферта отклонена',
+            lastMessageAt: new Date().toISOString(),
+          });
+          console.log(`[PUT /offers] Synced chat proposal ${proposalMsg.proposal?.id} in chat ${chatId} -> ${proposalStatus}`);
+        }
+      } catch (syncErr) {
+        console.log('[PUT /offers] Error syncing chat proposal status:', syncErr);
       }
     }
 

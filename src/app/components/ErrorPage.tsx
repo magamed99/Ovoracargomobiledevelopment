@@ -1,6 +1,11 @@
 import { useRouteError, isRouteErrorResponse, useNavigate } from 'react-router';
 import { AlertTriangle, Home, RefreshCw } from 'lucide-react';
+import { useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
+
+// After a new deploy, an already-open tab may still reference an old
+// content-hashed chunk filename that no longer exists on the server.
+const CHUNK_RELOAD_KEY = 'ovora_chunk_reload_ts';
 
 export function ErrorPage() {
   const error = useRouteError();
@@ -14,6 +19,20 @@ export function ErrorPage() {
   } else if (error instanceof Error) {
     message = error.message;
   }
+
+  const isStaleChunk = /dynamically imported module/i.test(message);
+
+  // Auto-recover once: reload to fetch the fresh app shell instead of
+  // stranding the user on this screen. Guarded by a timestamp so a
+  // genuinely broken deploy can't trigger a reload loop.
+  useEffect(() => {
+    if (!isStaleChunk) return;
+    const lastReload = Number(sessionStorage.getItem(CHUNK_RELOAD_KEY) || 0);
+    if (Date.now() - lastReload > 10_000) {
+      sessionStorage.setItem(CHUNK_RELOAD_KEY, String(Date.now()));
+      window.location.reload();
+    }
+  }, [isStaleChunk]);
 
   return (
     <div
