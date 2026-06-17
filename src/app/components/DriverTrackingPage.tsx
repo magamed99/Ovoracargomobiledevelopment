@@ -45,7 +45,7 @@ function getStatusConfig(status: ShipmentStatus) {
 
 export function DriverTrackingPage() {
   const navigate = useNavigate();
-  const [sheetState, setSheetState] = useState<'peek' | 'expanded' | 'hidden'>('peek');
+  const [sheetState, setSheetState] = useState<'peek' | 'expanded' | 'hidden'>('expanded');
   const [elapsedSecs, setElapsedSecs] = useState(0);
   const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [geoError, setGeoError] = useState<'denied' | 'unavailable' | null>(null);
