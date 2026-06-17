@@ -332,7 +332,7 @@ export async function fetchMessages(chatId: string): Promise<ChatMessage[]> {
   const myRole  = sessionStorage.getItem('userRole') || 'sender';
 
   try {
-    const serverMsgs = await apiGetMessages(chatId);
+    const serverMsgs = await apiGetMessages(chatId, myEmail);
     if (serverMsgs && serverMsgs.length > 0) {
       const mapped = serverMsgs.map((m: any) => _mapServerMsg(m, myRole, myEmail));
 
@@ -575,7 +575,8 @@ export async function deleteMessage(chatId: string, messageId: string): Promise<
 
   // 2. API: Delete from database
   try {
-    await deleteMessageFromDb(chatId, messageId);
+    const callerEmail = getCachedUser()?.email || 'guest';
+    await deleteMessageFromDb(chatId, messageId, callerEmail);
   } catch (err) {
     console.error(`[chatStore] Failed to delete message from DB:`, err);
     // Rollback on failure

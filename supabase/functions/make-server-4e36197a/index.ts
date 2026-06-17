@@ -75,40 +75,46 @@ app.use("/*", cors({
 }));
 
 // ── Admin Middleware — защита всех /admin/* и /kv/* маршрутов ─────────────────
+// Authorization всегда содержит anon key (требование Supabase gateway), поэтому
+// его нельзя использовать как сигнал "это JWT-логин". X-Admin-Code — основной
+// проверяемый признак; JWT в Authorization — fallback для клиентов, которые его
+// не отправляют (X-Admin-Code не задан).
 async function requireAdmin(c: any, next: any) {
-  // ── Primary: signed JWT (Authorization: Bearer <token>) ──────────────────
+  // ── Primary: X-Admin-Code plaintext ───────────────────────────────────────
+  const adminCode = (c.req.header('X-Admin-Code') || '').trim();
+  if (adminCode) {
+    const envCode = (Deno.env.get('ADMIN_ACCESS_CODE') || '').trim();
+    if (!envCode) {
+      console.error('[requireAdmin] ADMIN_ACCESS_CODE not configured in environment');
+      return c.json({ error: 'Server configuration error: Admin access code not set' }, 500);
+    }
+    if (adminCode !== envCode) {
+      console.warn('[requireAdmin] Unauthorized access attempt:', c.req.path);
+      return c.json({ error: 'Unauthorized: Admin access required' }, 401);
+    }
+    console.log('[requireAdmin] X-Admin-Code access granted for:', c.req.path);
+    return await next();
+  }
+
+  // ── Fallback: signed JWT (Authorization: Bearer <token>) ──────────────────
   const authHeader = (c.req.header('Authorization') || '').trim();
   if (authHeader.startsWith('Bearer ')) {
     const token = authHeader.slice(7);
     const jwtSecret = (Deno.env.get('ADMIN_JWT_SECRET') || '').trim();
-    if (!jwtSecret) {
-      console.error('[requireAdmin] ADMIN_JWT_SECRET not configured — JWT auth disabled');
-      return c.json({ error: 'Server configuration error: ADMIN_JWT_SECRET not set' }, 500);
-    }
-    try {
-      const secret = new TextEncoder().encode(jwtSecret);
-      await jwtVerify(token, secret);
-      console.log('[requireAdmin] JWT admin access granted for:', c.req.path);
-      return await next();
-    } catch (err) {
-      console.warn('[requireAdmin] Invalid/expired JWT for:', c.req.path, err);
-      return c.json({ error: 'Unauthorized: invalid or expired admin token' }, 401);
+    if (jwtSecret) {
+      try {
+        const secret = new TextEncoder().encode(jwtSecret);
+        await jwtVerify(token, secret);
+        console.log('[requireAdmin] JWT admin access granted for:', c.req.path);
+        return await next();
+      } catch (err) {
+        console.warn('[requireAdmin] Invalid/expired JWT for:', c.req.path, err);
+      }
     }
   }
 
-  // ── Legacy fallback: X-Admin-Code plaintext (deprecated — migrate to JWT) ─
-  const adminCode = (c.req.header('X-Admin-Code') || '').trim();
-  const envCode = (Deno.env.get('ADMIN_ACCESS_CODE') || '').trim();
-  if (!envCode) {
-    console.error('[requireAdmin] ADMIN_ACCESS_CODE not configured in environment');
-    return c.json({ error: 'Server configuration error: Admin access code not set' }, 500);
-  }
-  if (!adminCode || adminCode !== envCode) {
-    console.warn('[requireAdmin] Unauthorized access attempt:', c.req.path, '| code provided:', adminCode ? 'yes' : 'no');
-    return c.json({ error: 'Unauthorized: Admin access required' }, 401);
-  }
-  console.log('[requireAdmin] Legacy X-Admin-Code access granted for:', c.req.path);
-  return await next();
+  console.warn('[requireAdmin] No valid admin credentials for:', c.req.path);
+  return c.json({ error: 'Unauthorized: Admin access required' }, 401);
 }
 
 // Применяем middleware ко всем /admin/* и /kv/* маршрутам (КРОМЕ /admin/auth)
@@ -2087,6 +2093,7 @@ app.put("/make-server-4e36197a/chat/:chatId/proposal/:proposalId", async (c) => 
     const proposalId = c.req.param("proposalId");
     const { status, senderId } = await c.req.json();
     if (!status) return c.json({ error: "status required" }, 400);
+    if (!senderId) return c.json({ error: "senderId required" }, 400);
 
     console.log(`[proposal] Updating proposal status:`, {
       chatId,
@@ -2095,6 +2102,14 @@ app.put("/make-server-4e36197a/chat/:chatId/proposal/:proposalId", async (c) => 
       senderId,
     });
 
+    // Update chat metadata
+    const metaKey = `ovora:chatmeta:${chatId}`;
+    const meta: any = await kv.get(metaKey) || {};
+    if (meta?.participants?.length > 0 && !meta.participants.includes(senderId)) {
+      console.warn(`[proposal] IDOR attempt: ${senderId} tried to update proposal in chat ${chatId}`);
+      return c.json({ error: "Forbidden: you are not a participant of this chat" }, 403);
+    }
+
     // Find the message containing this proposal
     const messages: any[] = await kv.getByPrefix(`ovora:chat:${chatId}:`);
     const msg = messages.find(m => m && m.proposal?.id === proposalId);
@@ -2102,10 +2117,6 @@ app.put("/make-server-4e36197a/chat/:chatId/proposal/:proposalId", async (c) => 
 
     const updatedMsg = { ...msg, proposal: { ...msg.proposal, status } };
     await kv.set(`ovora:chat:${chatId}:${msg.msgId}`, updatedMsg);
-
-    // Update chat metadata
-    const metaKey = `ovora:chatmeta:${chatId}`;
-    const meta: any = await kv.get(metaKey) || {};
     const preview = status === 'accepted' 
       ? 'Оферта принята' 
       : status === 'declined'
