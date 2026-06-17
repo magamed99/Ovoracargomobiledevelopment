@@ -374,8 +374,8 @@ export async function sendMessage(msg: {
   return data.message;
 }
 
-export async function getChatMessages(chatId: string): Promise<any[]> {
-  const data = await req('GET', `/chat/${chatId}/messages`);
+export async function getChatMessages(chatId: string, callerEmail: string): Promise<any[]> {
+  const data = await req('GET', `/chat/${chatId}/messages?callerEmail=${encodeURIComponent(callerEmail)}`);
   return data.messages;
 }
 
@@ -401,8 +401,8 @@ export async function deleteChatFromDb(chatId: string, callerEmail: string): Pro
   await req('DELETE', `/chat/${chatId}?callerEmail=${encodeURIComponent(callerEmail)}`);
 }
 
-export async function deleteMessageFromDb(chatId: string, msgId: string): Promise<void> {
-  await req('DELETE', `/chat/${chatId}/message/${msgId}`);
+export async function deleteMessageFromDb(chatId: string, msgId: string, callerEmail: string): Promise<void> {
+  await req('DELETE', `/chat/${chatId}/message/${msgId}?callerEmail=${encodeURIComponent(callerEmail)}`);
 }
 
 // ══════════════════════════════════════════════════════════════════
