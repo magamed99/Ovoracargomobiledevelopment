@@ -80,10 +80,6 @@ export default function App() {
     }
   }, []);
 
-  // RouterProvider handles its own Suspense internally via startTransition.
-  // Do NOT wrap it in <Suspense> — that causes "suspended during synchronous input" errors
-  // because the outer boundary intercepts suspensions before React Router's transition fires.
-  // Note: fallbackElement was removed in React Router v7; RouterProvider handles loading internally.
   return (
     <ThemeProvider>
       <LanguageProvider>

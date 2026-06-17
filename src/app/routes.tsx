@@ -104,7 +104,7 @@ export const router = createBrowserRouter([
     HydrateFallback,
     children: [
 
-      // ── Welcome & Auth ────────────────────────────────────────────────
+      // ── Welcome & Auth ─────────────────────────────────────────────────────────
       { path: "/",        Component: Welcome },
       { path: "/welcome", Component: Welcome },
       {
@@ -116,7 +116,7 @@ export const router = createBrowserRouter([
         lazy: () => import("./components/EmailAuth").then(m => ({ Component: m.EmailAuth })),
       },
 
-      // ── Registration Forms (Lazy) ─────────────────────────────────────
+      // ── Registration Forms (Lazy) ───────────────────────────────────────────
       {
         path: "/driver-registration-form",
         lazy: () => import("./components/DriverRegistrationForm")
@@ -128,7 +128,7 @@ export const router = createBrowserRouter([
           .then(m => ({ Component: m.SenderRegistrationForm })),
       },
 
-      // ── AVIA Module ───────────────────────────────────────────────────
+      // ── AVIA Module ─────────────────────────────────────────────────────────────
       {
         path: "/avia",
         lazy: () => import("./components/avia/AviaAuth")
@@ -171,7 +171,7 @@ export const router = createBrowserRouter([
         ],
       },
 
-      // ── Client Mobile App (MobileLayout is Eager) ─────────────────────
+      // ── Client Mobile App (MobileLayout is Eager) ─────────────────────────
       {
         Component: MobileLayout,
         loader: requireAuth,
@@ -325,7 +325,7 @@ export const router = createBrowserRouter([
         ],
       },
 
-      // ── Admin Panel ───────────────────────────────────────────────────
+      // ── Admin Panel ─────────────────────────────────────────────────────────────
       {
         path: "/admin",
         lazy: () => import("./components/admin/AdminLayout")
@@ -401,7 +401,7 @@ export const router = createBrowserRouter([
         ],
       },
 
-      // ── Standalone pages ──────────────────────────────────────────────────
+      // ── Standalone pages ───────────────────────────────────────────────────────
       {
         path: "/competitor-analysis",
         lazy: () => import("./components/CompetitorAnalysisPage")
@@ -413,7 +413,7 @@ export const router = createBrowserRouter([
           .then(m => ({ Component: m.PublicTrackingPage })),
       },
 
-      // ── Catch-all redirects ───────────────────────────────────────────
+      // ── Catch-all redirects ───────────────────────────────────────────────
       { path: "map-test", loader: () => redirect("/home") },
       { path: "database", loader: () => redirect("/home") },
       { path: "health",   loader: () => redirect("/home") },

@@ -4,7 +4,6 @@ const STATIC_CACHE  = `ovora-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `ovora-dynamic-${CACHE_VERSION}`;
 const BASE_PATH     = '/Ovoracargomobiledevelopment/';
 
-// Статика — файлы с хешем в имени, никогда не меняются
 function isImmutableAsset(url) {
   return (
     url.pathname.includes('/assets/') ||
@@ -12,12 +11,10 @@ function isImmutableAsset(url) {
   );
 }
 
-// Изображения
 function isImage(url) {
   return /\.(png|jpg|jpeg|webp|svg|ico|gif|avif)$/.test(url.pathname);
 }
 
-// Установка
 self.addEventListener('install', event => {
   self.skipWaiting();
   event.waitUntil(
@@ -27,7 +24,6 @@ self.addEventListener('install', event => {
   );
 });
 
-// Активация — удаляем старые кеши
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(names =>
@@ -41,18 +37,14 @@ self.addEventListener('activate', event => {
   return self.clients.claim();
 });
 
-// Fetch — разные стратегии для разных ресурсов
 self.addEventListener('fetch', event => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Только GET-запросы к нашему домену
   if (request.method !== 'GET' || url.origin !== location.origin) return;
-  // Не кешируем Supabase
   if (url.origin.includes('supabase.co')) return;
 
   if (isImmutableAsset(url) || isImage(url)) {
-    // Cache First: статика с хешем — служим из кеша мгновенно
     event.respondWith(
       caches.match(request).then(cached => {
         if (cached) return cached;
@@ -66,7 +58,6 @@ self.addEventListener('fetch', event => {
       })
     );
   } else {
-    // Network First: HTML и манифест — проверяем обновления
     event.respondWith(
       fetch(request)
         .then(response => {
@@ -83,7 +74,6 @@ self.addEventListener('fetch', event => {
   }
 });
 
-// Push уведомления
 self.addEventListener('push', event => {
   let data = {
     title: 'Ovora Cargo',

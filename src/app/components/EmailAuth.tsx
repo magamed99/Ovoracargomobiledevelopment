@@ -289,7 +289,6 @@ export function EmailAuth() {
   const codeRefs    = useRef<(HTMLInputElement | null)[]>([]);
   const confirmRefs = useRef<(HTMLInputElement | null)[]>([]);
   const emailRef    = useRef<HTMLInputElement>(null);
-  // Tracks current step so async callbacks can detect if user navigated away
   const stepRef     = useRef<Step>(step);
   useEffect(() => { stepRef.current = step; }, [step]);
 
@@ -337,9 +336,9 @@ export function EmailAuth() {
     const calledFromStep = stepRef.current;
     try {
       await setUserCode(email.trim(), codeStr);
-      if (stepRef.current !== calledFromStep) return; // user pressed back
+      if (stepRef.current !== calledFromStep) return;
       const found = await findUserByEmail(email.trim());
-      if (stepRef.current !== calledFromStep) return; // user pressed back
+      if (stepRef.current !== calledFromStep) return;
       if (!found) { setStep('register'); }
       else if (found.role === role) { setExistingUser(found); setStep('login_found'); }
       else { setExistingUser(found); setConflictRole(found.role); setStep('role_conflict'); }
@@ -355,9 +354,9 @@ export function EmailAuth() {
     const calledFromStep = stepRef.current;
     try {
       await verifyPermCode(email.trim(), codeStr);
-      if (stepRef.current !== calledFromStep) return; // user pressed back
+      if (stepRef.current !== calledFromStep) return;
       const found = await findUserByEmail(email.trim());
-      if (stepRef.current !== calledFromStep) return; // user pressed back
+      if (stepRef.current !== calledFromStep) return;
       if (!found) { setStep('register'); }
       else if (found.role === role) { setExistingUser(found); setStep('login_found'); }
       else { setExistingUser(found); setConflictRole(found.role); setStep('role_conflict'); }
