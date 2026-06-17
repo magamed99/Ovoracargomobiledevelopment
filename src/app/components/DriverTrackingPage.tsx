@@ -17,6 +17,7 @@ import {
   uploadPODPhoto, getPublicTrackingLink, getActiveShipment,
   type ShipmentStatus,
 } from '../api/trackingApi';
+import { updateTrip } from '../api/dataApi';
 import { cleanAddress } from '../utils/addressUtils';
 import { calculateDistance } from '@/utils/geolocation';
 import { useTrips } from '../contexts/TripsContext';
@@ -310,6 +311,11 @@ export function DriverTrackingPage() {
     if (effectiveTrip?.id) {
       try {
         await completeShipment(effectiveTrip.id);
+      } catch {
+      }
+      try {
+        await updateTrip(effectiveTrip.id, { status: 'completed' });
+        window.dispatchEvent(new Event('ovora_trip_update'));
       } catch {
       }
     }
