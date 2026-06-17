@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Star, MessageSquare, Search, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
+import { Star, MessageSquare, Search, RefreshCw, ChevronDown, ChevronUp, Layers, Trash2, Route } from 'lucide-react';
 import { toast } from 'sonner';
-import { getAdminReviews } from '../../api/dataApi';
+import { getAdminReviews, deleteAdminReview } from '../../api/dataApi';
 import { AdminPageHeader, HeaderBtn, FilterChips, SkeletonList } from './AdminPageHeader';
 import { StarRow } from '../ui/StarRow';
 
@@ -23,12 +23,135 @@ const RATING_COLOR: Record<number, { bg: string; text: string; border: string }>
   1: { bg: '#fef2f2', text: '#dc2626', border: '#fecaca' },
 };
 
+function ReviewCard({
+  review,
+  isExpanded,
+  onToggleExpand,
+  onDelete,
+  deleting,
+}: {
+  review: any;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+  onDelete: () => void;
+  deleting: boolean;
+}) {
+  const rating = review.rating || 0;
+  const authorName = review.authorName || review.authorEmail || '—';
+  const targetName = review.targetName || review.targetEmail || '—';
+  const comment = review.text || review.comment || review.message || '';
+  const initials = (authorName[0] || '?').toUpperCase();
+  const colors = RATING_COLOR[rating] || RATING_COLOR[3];
+
+  return (
+    <div
+      className="bg-white rounded-2xl overflow-hidden transition-shadow hover:shadow-md"
+      style={{ border: `1px solid ${colors.border}` }}
+    >
+      <div className="p-4">
+        <div className="flex items-start gap-3">
+          {/* Rating circle */}
+          <div
+            className="w-11 h-11 rounded-xl flex flex-col items-center justify-center flex-shrink-0"
+            style={{ background: colors.bg }}
+          >
+            <span className="text-sm font-black" style={{ color: colors.text }}>{rating}</span>
+            <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+          </div>
+
+          {/* Author avatar */}
+          <div
+            className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
+            style={{
+              background: rating >= 4
+                ? 'linear-gradient(135deg,#059669,#10b981)'
+                : rating === 3
+                ? 'linear-gradient(135deg,#d97706,#f59e0b)'
+                : 'linear-gradient(135deg,#dc2626,#ef4444)',
+            }}
+          >
+            {initials}
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap mb-1">
+              <StarRow value={rating} />
+              <span className="text-xs text-gray-400">
+                <RelTime iso={review.createdAt} />
+              </span>
+              {review.role && (
+                <span
+                  className="px-2 py-0.5 rounded-full text-[11px] font-semibold"
+                  style={{ background: '#f1f5f9', color: '#64748b' }}
+                >
+                  {review.role === 'driver' ? '🚛 Водитель' : '📦 Отправитель'}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 text-sm flex-wrap">
+              <span className="font-semibold text-gray-900">{authorName}</span>
+              <span className="text-gray-300">→</span>
+              <span className="text-gray-500">{targetName}</span>
+            </div>
+            {comment ? (
+              <p className={`text-sm text-gray-600 mt-2 leading-relaxed ${!isExpanded && comment.length > 160 ? 'line-clamp-2' : ''}`}>
+                "{comment}"
+              </p>
+            ) : (
+              <p className="text-xs text-gray-400 italic mt-2">Без комментария</p>
+            )}
+          </div>
+
+          {comment && comment.length > 160 && (
+            <button
+              onClick={onToggleExpand}
+              className="p-1.5 hover:bg-gray-100 rounded-xl text-gray-400 transition-colors flex-shrink-0 self-start"
+            >
+              {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+          )}
+        </div>
+
+        {isExpanded && (
+          <div className="mt-3 pt-3 grid grid-cols-2 md:grid-cols-3 gap-3" style={{ borderTop: '1px solid #f0f4f8' }}>
+            {[
+              { label: 'Email автора', value: review.authorEmail || '—' },
+              { label: 'Email получателя', value: review.targetEmail || '—' },
+              { label: 'ID отзыва', value: review.reviewId?.slice(0, 16) + '...' || '—' },
+              review.tripId && { label: 'ID поездки', value: review.tripId?.slice(0, 16) + '...' },
+            ].filter(Boolean).map((f: any) => (
+              <div key={f.label}>
+                <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1">{f.label}</p>
+                <p className="text-xs text-gray-700 font-mono break-all">{f.value}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-3 pt-3 flex justify-end" style={{ borderTop: '1px solid #f8fafc' }}>
+          <button
+            onClick={e => { e.stopPropagation(); onDelete(); }}
+            disabled={deleting}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-red-700 bg-red-50 border border-red-200 hover:bg-red-100 transition-colors disabled:opacity-50"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            {deleting ? 'Удаление...' : 'Удалить отзыв'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function Reviews() {
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [ratingFilter, setRatingFilter] = useState('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [groupByTrip, setGroupByTrip] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -44,6 +167,21 @@ export function Reviews() {
 
   useEffect(() => { load(); }, [load]);
 
+  const handleDelete = async (review: any) => {
+    if (!review.reviewId) return;
+    if (!confirm(`Удалить отзыв от ${review.authorName || review.authorEmail || 'пользователя'}? Это действие для модерации/разрешения спора.`)) return;
+    setDeletingId(review.reviewId);
+    try {
+      await deleteAdminReview(review.reviewId);
+      setReviews(prev => prev.filter(r => r.reviewId !== review.reviewId));
+      toast.success('Отзыв удалён');
+    } catch {
+      toast.error('Ошибка при удалении отзыва');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const filtered = reviews
     .filter(r => {
       if (!r) return false;
@@ -51,7 +189,8 @@ export function Reviews() {
       const matchSearch = !q
         || (r.authorName || r.authorEmail || '').toLowerCase().includes(q)
         || (r.targetName || r.targetEmail || '').toLowerCase().includes(q)
-        || (r.text || r.comment || '').toLowerCase().includes(q);
+        || (r.text || r.comment || '').toLowerCase().includes(q)
+        || (r.tripId || '').toLowerCase().includes(q);
       const rating = r.rating || 0;
       const matchRating = ratingFilter === 'all'
         || (ratingFilter === '5' && rating === 5)
@@ -75,6 +214,16 @@ export function Reviews() {
     ? Math.round((reviews.filter(r => (r?.rating || 0) >= 4).length / reviews.length) * 100)
     : 0;
 
+  const tripGroups = groupByTrip
+    ? Object.entries(
+        filtered.reduce((acc: Record<string, any[]>, r) => {
+          const key = r.tripId || 'без поездки';
+          (acc[key] = acc[key] || []).push(r);
+          return acc;
+        }, {})
+      ).sort((a, b) => new Date(b[1][0]?.createdAt || 0).getTime() - new Date(a[1][0]?.createdAt || 0).getTime())
+    : [];
+
   return (
     <div className="space-y-5">
       <AdminPageHeader
@@ -89,7 +238,12 @@ export function Reviews() {
           { label: 'Отличных', value: `${excellentPct}%` },
         ]}
         actions={
-          <HeaderBtn icon={RefreshCw} onClick={load}>Обновить</HeaderBtn>
+          <>
+            <HeaderBtn icon={Layers} onClick={() => setGroupByTrip(g => !g)}>
+              {groupByTrip ? 'Список' : 'По поездкам'}
+            </HeaderBtn>
+            <HeaderBtn icon={RefreshCw} onClick={load}>Обновить</HeaderBtn>
+          </>
         }
       />
 
@@ -193,107 +347,46 @@ export function Reviews() {
             <p className="text-gray-400 text-sm mt-1">Отзывы появятся после завершения первых поездок</p>
           )}
         </div>
+      ) : groupByTrip ? (
+        <div className="space-y-5">
+          {tripGroups.map(([tripId, groupReviews]) => (
+            <div key={tripId} className="space-y-2">
+              <div className="flex items-center gap-2 px-1">
+                <Route className="w-4 h-4 text-gray-400" />
+                <p className="text-xs font-bold uppercase tracking-wide text-gray-500">
+                  {tripId === 'без поездки' ? 'Без привязки к поездке' : `Поездка #${tripId.slice(0, 12)}...`}
+                </p>
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: '#f1f5f9', color: '#64748b' }}>
+                  {groupReviews.length}
+                </span>
+              </div>
+              <div className="space-y-3">
+                {groupReviews.map(review => (
+                  <ReviewCard
+                    key={review.reviewId}
+                    review={review}
+                    isExpanded={expandedId === review.reviewId}
+                    onToggleExpand={() => setExpandedId(expandedId === review.reviewId ? null : review.reviewId)}
+                    onDelete={() => handleDelete(review)}
+                    deleting={deletingId === review.reviewId}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       ) : (
         <div className="space-y-3">
-          {filtered.map(review => {
-            const isExpanded = expandedId === review.reviewId;
-            const rating = review.rating || 0;
-            const authorName = review.authorName || review.authorEmail || '—';
-            const targetName = review.targetName || review.targetEmail || '—';
-            const comment = review.text || review.comment || review.message || '';
-            const initials = (authorName[0] || '?').toUpperCase();
-            const colors = RATING_COLOR[rating] || RATING_COLOR[3];
-
-            return (
-              <div
-                key={review.reviewId}
-                className="bg-white rounded-2xl overflow-hidden transition-shadow hover:shadow-md"
-                style={{ border: `1px solid ${colors.border}` }}
-              >
-                <div className="p-4">
-                  <div className="flex items-start gap-3">
-                    {/* Rating circle */}
-                    <div
-                      className="w-11 h-11 rounded-xl flex flex-col items-center justify-center flex-shrink-0"
-                      style={{ background: colors.bg }}
-                    >
-                      <span className="text-sm font-black" style={{ color: colors.text }}>{rating}</span>
-                      <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                    </div>
-
-                    {/* Author avatar */}
-                    <div
-                      className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
-                      style={{
-                        background: rating >= 4
-                          ? 'linear-gradient(135deg,#059669,#10b981)'
-                          : rating === 3
-                          ? 'linear-gradient(135deg,#d97706,#f59e0b)'
-                          : 'linear-gradient(135deg,#dc2626,#ef4444)',
-                      }}
-                    >
-                      {initials}
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <StarRow value={rating} />
-                        <span className="text-xs text-gray-400">
-                          <RelTime iso={review.createdAt} />
-                        </span>
-                        {review.role && (
-                          <span
-                            className="px-2 py-0.5 rounded-full text-[11px] font-semibold"
-                            style={{ background: '#f1f5f9', color: '#64748b' }}
-                          >
-                            {review.role === 'driver' ? '🚛 Водитель' : '📦 Отправитель'}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1.5 text-sm flex-wrap">
-                        <span className="font-semibold text-gray-900">{authorName}</span>
-                        <span className="text-gray-300">→</span>
-                        <span className="text-gray-500">{targetName}</span>
-                      </div>
-                      {comment ? (
-                        <p className={`text-sm text-gray-600 mt-2 leading-relaxed ${!isExpanded && comment.length > 160 ? 'line-clamp-2' : ''}`}>
-                          "{comment}"
-                        </p>
-                      ) : (
-                        <p className="text-xs text-gray-400 italic mt-2">Без комментария</p>
-                      )}
-                    </div>
-
-                    {comment && comment.length > 160 && (
-                      <button
-                        onClick={() => setExpandedId(isExpanded ? null : review.reviewId)}
-                        className="p-1.5 hover:bg-gray-100 rounded-xl text-gray-400 transition-colors flex-shrink-0 self-start"
-                      >
-                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                      </button>
-                    )}
-                  </div>
-
-                  {isExpanded && (
-                    <div className="mt-3 pt-3 grid grid-cols-2 md:grid-cols-3 gap-3" style={{ borderTop: '1px solid #f0f4f8' }}>
-                      {[
-                        { label: 'Email автора', value: review.authorEmail || '—' },
-                        { label: 'Email получателя', value: review.targetEmail || '—' },
-                        { label: 'ID отзыва', value: review.reviewId?.slice(0, 16) + '...' || '—' },
-                        review.tripId && { label: 'ID поездки', value: review.tripId?.slice(0, 16) + '...' },
-                      ].filter(Boolean).map((f: any) => (
-                        <div key={f.label}>
-                          <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1">{f.label}</p>
-                          <p className="text-xs text-gray-700 font-mono break-all">{f.value}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+          {filtered.map(review => (
+            <ReviewCard
+              key={review.reviewId}
+              review={review}
+              isExpanded={expandedId === review.reviewId}
+              onToggleExpand={() => setExpandedId(expandedId === review.reviewId ? null : review.reviewId)}
+              onDelete={() => handleDelete(review)}
+              deleting={deletingId === review.reviewId}
+            />
+          ))}
         </div>
       )}
 

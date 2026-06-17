@@ -4305,6 +4305,99 @@ app.get("/make-server-4e36197a/admin/reviews", async (c) => {
   }
 });
 
+// ✅ Admin: список грузов отправителей (для управления/модерации)
+app.get("/make-server-4e36197a/admin/cargos", async (c) => {
+  try {
+    const cargos: any[] = await kv.getByPrefix("ovora:cargo:");
+    return c.json({ cargos: cargos.filter(cg => cg && !cg.deletedAt) });
+  } catch (err) {
+    console.log("Error GET /admin/cargos:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ✅ Admin: force soft-delete груза (модерация, без проверки владельца — уже под requireAdmin)
+app.delete("/make-server-4e36197a/admin/cargos/:id", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const existing: any = await kv.get(`ovora:cargo:${id}`);
+    if (!existing) return c.json({ error: "Cargo not found" }, 404);
+    await kv.set(`ovora:cargo:${id}`, { ...existing, deletedAt: new Date().toISOString(), status: 'cancelled' });
+    if (existing.senderEmail) {
+      await kv.del(`ovora:sendercargos:${existing.senderEmail}:${id}`).catch(() => {});
+    }
+    console.log(`[DELETE /admin/cargos] Admin removed cargo ${id}`);
+    return c.json({ success: true });
+  } catch (err) {
+    console.log("Error DELETE /admin/cargos/:id:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ✅ Admin: разрешение спора между водителем и отправителем — смена статуса оферты.
+// Если отменяется ранее принятая оферта — возвращаем списанную вместимость поездке.
+app.put("/make-server-4e36197a/admin/offers/:tripId/:offerId/status", async (c) => {
+  try {
+    const tripId = c.req.param("tripId");
+    const offerId = c.req.param("offerId");
+    const { status } = await c.req.json();
+    if (!status) return c.json({ error: "status required" }, 400);
+
+    const key = `ovora:offer:${tripId}:${offerId}`;
+    const existing: any = await kv.get(key);
+    if (!existing) return c.json({ error: "Offer not found" }, 404);
+
+    const updated = { ...existing, status, updatedAt: new Date().toISOString() };
+    await kv.set(key, updated);
+
+    const isFinalStatus = ['cancelled', 'declined', 'deleted', 'rejected'].includes(status);
+    if (isFinalStatus) {
+      if (existing.driverEmail) await kv.del(`ovora:driveroffers:${existing.driverEmail}:${offerId}`).catch(() => {});
+      if (existing.senderEmail) await kv.del(`ovora:senderoffers:${existing.senderEmail}:${offerId}`).catch(() => {});
+
+      // Возвращаем вместимость поездке, если отменяем ранее принятую оферту
+      if (existing.status === 'accepted') {
+        const trip: any = await kv.get(`ovora:trip:${tripId}`);
+        if (trip) {
+          await kv.set(`ovora:trip:${tripId}`, {
+            ...trip,
+            availableSeats: (trip.availableSeats || 0) + (existing.requestedSeats || 0),
+            childSeats: (trip.childSeats || 0) + (existing.requestedChildren || 0),
+            cargoCapacity: (trip.cargoCapacity || 0) + (existing.requestedCargo || 0),
+          });
+          console.log(`[PUT /admin/offers] Restored capacity on trip ${tripId} after admin override`);
+        }
+      }
+    }
+
+    console.log(`[PUT /admin/offers] Admin set offer ${tripId}:${offerId} status to ${status}`);
+    return c.json({ success: true, offer: updated });
+  } catch (err) {
+    console.log("Error PUT /admin/offers/:tripId/:offerId/status:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ✅ Admin: удаление отзыва (модерация/спор) + чистка вторичных индексов
+app.delete("/make-server-4e36197a/admin/reviews/:reviewId", async (c) => {
+  try {
+    const reviewId = c.req.param("reviewId");
+    const key = `ovora:review:${reviewId}`;
+    const existing: any = await kv.get(key);
+    if (!existing) return c.json({ error: "Review not found" }, 404);
+
+    await kv.del(key);
+    if (existing.targetEmail) await kv.del(`ovora:userreviews:target:${existing.targetEmail}:${reviewId}`).catch(() => {});
+    if (existing.authorEmail) await kv.del(`ovora:userreviews:author:${existing.authorEmail}:${reviewId}`).catch(() => {});
+
+    console.log(`[DELETE /admin/reviews] Admin removed review ${reviewId}`);
+    return c.json({ success: true });
+  } catch (err) {
+    console.log("Error DELETE /admin/reviews/:reviewId:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
 // ✅ Admin: get ALL documents across all users with signed URLs
 app.get("/make-server-4e36197a/admin/documents", async (c) => {
   try {

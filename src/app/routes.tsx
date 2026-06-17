@@ -379,6 +379,11 @@ export const router = createBrowserRouter([
               .then(m => ({ Component: m.OffersManagement })),
           },
           {
+            path: "cargos",
+            lazy: () => import("./components/admin/CargosManagement")
+              .then(m => ({ Component: m.CargosManagement })),
+          },
+          {
             path: "ads",
             lazy: () => import("./components/admin/AdsManagement")
               .then(m => ({ Component: m.AdsManagement })),
