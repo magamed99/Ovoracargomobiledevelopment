@@ -397,8 +397,8 @@ export async function getUserChats(email: string): Promise<any[]> {
   return data.chats;
 }
 
-export async function deleteChatFromDb(chatId: string): Promise<void> {
-  await req('DELETE', `/chat/${chatId}`);
+export async function deleteChatFromDb(chatId: string, callerEmail: string): Promise<void> {
+  await req('DELETE', `/chat/${chatId}?callerEmail=${encodeURIComponent(callerEmail)}`);
 }
 
 export async function deleteMessageFromDb(chatId: string, msgId: string): Promise<void> {

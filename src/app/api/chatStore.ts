@@ -538,7 +538,8 @@ export async function deleteChat(chatId: string): Promise<void> {
 
   // 2. API: Delete from database (hard delete!)
   try {
-    await deleteChatFromDb(chatId);
+    const callerEmail = getCachedUser()?.email || 'guest';
+    await deleteChatFromDb(chatId, callerEmail);
   } catch (err) {
     console.error(`[chatStore] Failed to delete chat from DB:`, err);
     // Rollback: restore original chats array
