@@ -120,7 +120,7 @@ async function requireAdmin(c: any, next: any) {
 // ── Non-blocking admin check — для эндпоинтов с двойным режимом
 // (владелец ресурса ИЛИ админ-оверрайд), где requireAdmin как middleware
 // не подходит, потому что обычные пользователи тоже должны иметь доступ.
-// Проверяет и legacy X-Admin-Code, и новый JWT (Bearer), как requireAdmin.
+// Проверяет и X-Admin-Code, и JWT (Bearer), как requireAdmin.
 async function isAdminCaller(c: any): Promise<boolean> {
   const adminCode = (c.req.header('X-Admin-Code') || '').trim();
   if (adminCode) {
