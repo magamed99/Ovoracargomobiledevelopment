@@ -640,7 +640,8 @@ export function MobileLayout() {
 
   const hideNav = location.pathname.startsWith('/chat/')
     || location.pathname.startsWith('/trip/')
-    || location.pathname === '/radio';
+    || location.pathname === '/radio'
+    || location.pathname === '/tracking';
 
   const SIDEBAR_HIDDEN_PATHS = [
     '/home', '/dashboard', '/create-trip', '/trips', '/profile', '/profile/edit',
