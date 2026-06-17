@@ -465,6 +465,24 @@ export async function getAdminReviews() {
   return data.reviews;
 }
 
+export async function deleteAdminReview(reviewId: string) {
+  return req('DELETE', `/admin/reviews/${encodeURIComponent(reviewId)}`);
+}
+
+export async function updateAdminOfferStatus(tripId: string, offerId: string, status: string) {
+  const data = await req('PUT', `/admin/offers/${encodeURIComponent(tripId)}/${encodeURIComponent(offerId)}/status`, { status });
+  return data.offer;
+}
+
+export async function getAdminCargos() {
+  const data = await req('GET', '/admin/cargos');
+  return data.cargos;
+}
+
+export async function deleteAdminCargo(cargoId: string) {
+  return req('DELETE', `/admin/cargos/${encodeURIComponent(cargoId)}`);
+}
+
 // ── Admin documents ────────────────────────────────────────────────
 export async function getAdminDocuments() {
   const data = await req('GET', '/admin/documents');

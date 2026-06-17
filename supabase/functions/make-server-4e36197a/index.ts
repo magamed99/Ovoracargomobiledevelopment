@@ -117,6 +117,31 @@ async function requireAdmin(c: any, next: any) {
   return c.json({ error: 'Unauthorized: Admin access required' }, 401);
 }
 
+// ── Non-blocking admin check — для эндпоинтов с двойным режимом
+// (владелец ресурса ИЛИ админ-оверрайд), где requireAdmin как middleware
+// не подходит, потому что обычные пользователи тоже должны иметь доступ.
+// Проверяет и X-Admin-Code, и JWT (Bearer), как requireAdmin.
+async function isAdminCaller(c: any): Promise<boolean> {
+  const adminCode = (c.req.header('X-Admin-Code') || '').trim();
+  if (adminCode) {
+    const envCode = (Deno.env.get('ADMIN_ACCESS_CODE') || '').trim();
+    if (envCode && adminCode === envCode) return true;
+  }
+  const authHeader = (c.req.header('Authorization') || '').trim();
+  if (authHeader.startsWith('Bearer ')) {
+    const token = authHeader.slice(7);
+    const jwtSecret = (Deno.env.get('ADMIN_JWT_SECRET') || '').trim();
+    if (jwtSecret) {
+      try {
+        const secret = new TextEncoder().encode(jwtSecret);
+        await jwtVerify(token, secret);
+        return true;
+      } catch { /* not a valid admin JWT — fall through */ }
+    }
+  }
+  return false;
+}
+
 // Применяем middleware ко всем /admin/* и /kv/* маршрутам (КРОМЕ /admin/auth)
 app.use('/make-server-4e36197a/admin/*', async (c, next) => {
   // Пропускаем /admin/auth — он нужен для получения токена
@@ -686,8 +711,8 @@ app.get("/make-server-4e36197a/auth/user/:email", async (c) => {
     const email = decodeURIComponent(c.req.param("email"));
     const user: any = await kv.get(`ovora:user:email:${email.toLowerCase().trim()}`);
     if (!user) return c.json({ found: false });
-    // ✅ FIX N-1: скрываем чувствительные поля в публичном профиле
-    const { phone: _ph, birthDate: _bd, ...safeUser } = user;
+    // ✅ FIX N-1 + PII: скрываем чувствительные поля в публичном профиле
+    const { phone: _ph, birthDate: _bd, codeHash: _ch, passportNumber: _pn, passportData: _pd, ...safeUser } = user;
     return c.json({ found: true, user: safeUser });
   } catch (err) {
     console.log("Error GET /auth/user:", err);
@@ -914,10 +939,8 @@ app.put("/make-server-4e36197a/trips/:id", async (c) => {
     const existing: any = await kv.get(`ovora:trip:${id}`);
     if (!existing) return c.json({ error: "Trip not found" }, 404);
 
-    // ✅ FIX C-2: проверка владельца (пропускаем для admin-запросов с X-Admin-Code)
-    const adminCode = (c.req.header('X-Admin-Code') || '').trim();
-    const envCode   = (Deno.env.get('ADMIN_ACCESS_CODE') || '').trim();
-    const isAdmin   = envCode && adminCode === envCode;
+    // ✅ FIX C-2: проверка владельца (пропускаем для admin-оверрайда — X-Admin-Code или JWT)
+    const isAdmin = await isAdminCaller(c);
     if (!isAdmin) {
       const { callerEmail } = body;
       if (!callerEmail) {
@@ -1000,10 +1023,8 @@ app.delete("/make-server-4e36197a/trips/:id", async (c) => {
     const existing: any = await kv.get(`ovora:trip:${id}`);
     if (!existing) return c.json({ error: "Trip not found" }, 404);
 
-    // ✅ FIX C-2: проверка владельца (пропускаем для admin-запросов с X-Admin-Code)
-    const adminCode = (c.req.header('X-Admin-Code') || '').trim();
-    const envCode   = (Deno.env.get('ADMIN_ACCESS_CODE') || '').trim();
-    const isAdmin   = envCode && adminCode === envCode;
+    // ✅ FIX C-2: проверка владельца (пропускаем для admin-оверрайда — X-Admin-Code или JWT)
+    const isAdmin = await isAdminCaller(c);
     if (!isAdmin) {
       let callerEmail = '';
       try { callerEmail = (await c.req.json()).callerEmail || ''; } catch { /* тело может отсутствовать */ }
@@ -1162,8 +1183,16 @@ app.put("/make-server-4e36197a/cargos/:id", async (c) => {
 app.delete("/make-server-4e36197a/cargos/:id", async (c) => {
   try {
     const id = c.req.param("id");
+    const body = await c.req.json().catch(() => ({}));
+    const callerEmail: string | undefined = (body as any).callerEmail;
     const existing: any = await kv.get(`ovora:cargo:${id}`);
     if (!existing) return c.json({ error: "Cargo not found" }, 404);
+
+    if (!callerEmail) return c.json({ error: "callerEmail is required" }, 400);
+    if (existing.senderEmail && existing.senderEmail !== callerEmail) {
+      console.warn(`[DELETE /cargos] IDOR attempt: ${callerEmail} tried to delete cargo ${id} owned by ${existing.senderEmail}`);
+      return c.json({ error: "Forbidden: you are not the owner of this cargo" }, 403);
+    }
 
     await kv.set(`ovora:cargo:${id}`, { ...existing, deletedAt: new Date().toISOString(), status: 'cancelled' });
     if (existing.senderEmail) {
@@ -1464,6 +1493,28 @@ app.put("/make-server-4e36197a/offers/:tripId/:offerId", async (c) => {
     const updated = { ...existing, ...safeBody, tripId, offerId, updatedAt: new Date().toISOString() };
     await kv.set(key, updated);
 
+    // ── Reduce trip capacity when this route is the one accepting the offer ──
+    // (mirrors the capacity reduction in PUT /chat/:chatId/proposal/:proposalId,
+    // needed when the offer is accepted directly from the offers/trip page
+    // instead of via the chat proposal card — otherwise capacity never shrinks)
+    if (updated.status === 'accepted' && existing.status !== 'accepted') {
+      try {
+        const trip: any = await kv.get(`ovora:trip:${tripId}`);
+        if (trip) {
+          const updatedTrip = {
+            ...trip,
+            availableSeats: Math.max(0, (trip.availableSeats || 0) - (existing.requestedSeats || 0)),
+            childSeats: Math.max(0, (trip.childSeats || 0) - (existing.requestedChildren || 0)),
+            cargoCapacity: Math.max(0, (trip.cargoCapacity || 0) - (existing.requestedCargo || 0)),
+          };
+          await kv.set(`ovora:trip:${tripId}`, updatedTrip);
+          console.log(`[PUT /offers] Trip ${tripId} capacity reduced on accept via offers route`);
+        }
+      } catch (capErr) {
+        console.log('[PUT /offers] Error reducing trip capacity:', capErr);
+      }
+    }
+
     // ✅ FIX #6: При cancelled/declined/deleted — удаляем индексы, иначе обновляем
     const isFinalStatus = ['cancelled', 'declined', 'deleted', 'rejected'].includes(updated.status);
     if (isFinalStatus) {
@@ -1718,6 +1769,15 @@ app.put("/make-server-4e36197a/cargo-offers/:cargoId/:offerId", async (c) => {
     const existing: any = await kv.get(key);
     if (!existing) return c.json({ error: "Offer not found" }, 404);
 
+    const callerEmail: string | undefined = (body as any).callerEmail;
+    const isDriver = !!callerEmail && existing.driverEmail === callerEmail;
+    const isSender = !!callerEmail && existing.senderEmail === callerEmail;
+    if (!callerEmail) return c.json({ error: "callerEmail is required" }, 400);
+    if (!isDriver && !isSender) {
+      console.warn(`[PUT /cargo-offers] IDOR attempt: ${callerEmail} tried to update cargo-offer ${cargoId}/${offerId}`);
+      return c.json({ error: "Forbidden: you are not a participant of this offer" }, 403);
+    }
+
     const { callerEmail: _drop, ...safeBody } = body;
     const updated = { ...existing, ...safeBody, cargoId, offerId, updatedAt: new Date().toISOString() };
     await kv.set(key, updated);
@@ -1792,6 +1852,37 @@ app.post("/make-server-4e36197a/reviews", async (c) => {
     }
     if (review.authorEmail) {
       await kv.set(`ovora:userreviews:author:${review.authorEmail}:${reviewId}`, { reviewId }).catch(() => {});
+    }
+
+    // ✅ Обновляем снепшот driverRating на всех поездках водителя — иначе
+    // рейтинг, показанный в карточке поездки, замораживается на момент её
+    // создания и никогда не обновляется новыми отзывами.
+    if (review.targetEmail) {
+      try {
+        const targetIndex: any[] = await kv.getByPrefix(`ovora:userreviews:target:${review.targetEmail}:`);
+        const reviewIds = [...new Set(targetIndex.filter(e => e?.reviewId).map((e: any) => e.reviewId))];
+        const targetReviews: any[] = reviewIds.length > 0
+          ? await kv.mget(reviewIds.map(id => `ovora:review:${id}`))
+          : [];
+        const validReviews = targetReviews.filter(r => r != null);
+        if (validReviews.length > 0) {
+          const avgRating = Math.round(
+            (validReviews.reduce((sum, r) => sum + (Number(r.rating) || 0), 0) / validReviews.length) * 10
+          ) / 10;
+          const allTrips: any[] = await kv.getByPrefix(`ovora:trip:`);
+          const driverTrips = allTrips.filter(t => t && !t.deletedAt && t.driverEmail === review.targetEmail);
+          for (const trip of driverTrips) {
+            await kv.set(`ovora:trip:${trip.id}`, { ...trip, driverRating: avgRating });
+          }
+          const targetUserKey = `ovora:user:email:${String(review.targetEmail).toLowerCase().trim()}`;
+          const targetUser: any = await kv.get(targetUserKey);
+          if (targetUser) {
+            await kv.set(targetUserKey, { ...targetUser, rating: avgRating });
+          }
+        }
+      } catch (e) {
+        console.log("[POST /reviews] Failed to refresh driverRating snapshot:", e);
+      }
     }
 
     return c.json({ success: true, review });
@@ -2499,15 +2590,16 @@ app.put("/make-server-4e36197a/users/:email/sync-trips", async (c) => {
     const userOffers = allOffers.filter(o => o && o.senderEmail === email);
 
     for (const offer of userOffers) {
-      if (!offer.id) continue;
+      if (!offer.tripId || !offer.offerId) continue;
       const updatedOffer = {
         ...offer,
         senderName: displayName,
+        ...(avatarUrl ? { senderAvatar: avatarUrl } : {}),
         updatedAt: new Date().toISOString(),
       };
-      await kv.set(`ovora:offer:${offer.id}`, updatedOffer);
+      await kv.set(`ovora:offer:${offer.tripId}:${offer.offerId}`, updatedOffer);
       updatedOffers++;
-      console.log(`[sync-trips] Updated offer ${offer.id}`);
+      console.log(`[sync-trips] Updated offer ${offer.tripId}:${offer.offerId}`);
     }
 
     console.log(`[sync-trips] Updated ${updatedTrips} trips and ${updatedOffers} offers for user ${email}`);
@@ -4213,6 +4305,99 @@ app.get("/make-server-4e36197a/admin/reviews", async (c) => {
   }
 });
 
+// ✅ Admin: список грузов отправителей (для управления/модерации)
+app.get("/make-server-4e36197a/admin/cargos", async (c) => {
+  try {
+    const cargos: any[] = await kv.getByPrefix("ovora:cargo:");
+    return c.json({ cargos: cargos.filter(cg => cg && !cg.deletedAt) });
+  } catch (err) {
+    console.log("Error GET /admin/cargos:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ✅ Admin: force soft-delete груза (модерация, без проверки владельца — уже под requireAdmin)
+app.delete("/make-server-4e36197a/admin/cargos/:id", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const existing: any = await kv.get(`ovora:cargo:${id}`);
+    if (!existing) return c.json({ error: "Cargo not found" }, 404);
+    await kv.set(`ovora:cargo:${id}`, { ...existing, deletedAt: new Date().toISOString(), status: 'cancelled' });
+    if (existing.senderEmail) {
+      await kv.del(`ovora:sendercargos:${existing.senderEmail}:${id}`).catch(() => {});
+    }
+    console.log(`[DELETE /admin/cargos] Admin removed cargo ${id}`);
+    return c.json({ success: true });
+  } catch (err) {
+    console.log("Error DELETE /admin/cargos/:id:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ✅ Admin: разрешение спора между водителем и отправителем — смена статуса оферты.
+// Если отменяется ранее принятая оферта — возвращаем списанную вместимость поездке.
+app.put("/make-server-4e36197a/admin/offers/:tripId/:offerId/status", async (c) => {
+  try {
+    const tripId = c.req.param("tripId");
+    const offerId = c.req.param("offerId");
+    const { status } = await c.req.json();
+    if (!status) return c.json({ error: "status required" }, 400);
+
+    const key = `ovora:offer:${tripId}:${offerId}`;
+    const existing: any = await kv.get(key);
+    if (!existing) return c.json({ error: "Offer not found" }, 404);
+
+    const updated = { ...existing, status, updatedAt: new Date().toISOString() };
+    await kv.set(key, updated);
+
+    const isFinalStatus = ['cancelled', 'declined', 'deleted', 'rejected'].includes(status);
+    if (isFinalStatus) {
+      if (existing.driverEmail) await kv.del(`ovora:driveroffers:${existing.driverEmail}:${offerId}`).catch(() => {});
+      if (existing.senderEmail) await kv.del(`ovora:senderoffers:${existing.senderEmail}:${offerId}`).catch(() => {});
+
+      // Возвращаем вместимость поездке, если отменяем ранее принятую оферту
+      if (existing.status === 'accepted') {
+        const trip: any = await kv.get(`ovora:trip:${tripId}`);
+        if (trip) {
+          await kv.set(`ovora:trip:${tripId}`, {
+            ...trip,
+            availableSeats: (trip.availableSeats || 0) + (existing.requestedSeats || 0),
+            childSeats: (trip.childSeats || 0) + (existing.requestedChildren || 0),
+            cargoCapacity: (trip.cargoCapacity || 0) + (existing.requestedCargo || 0),
+          });
+          console.log(`[PUT /admin/offers] Restored capacity on trip ${tripId} after admin override`);
+        }
+      }
+    }
+
+    console.log(`[PUT /admin/offers] Admin set offer ${tripId}:${offerId} status to ${status}`);
+    return c.json({ success: true, offer: updated });
+  } catch (err) {
+    console.log("Error PUT /admin/offers/:tripId/:offerId/status:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ✅ Admin: удаление отзыва (модерация/спор) + чистка вторичных индексов
+app.delete("/make-server-4e36197a/admin/reviews/:reviewId", async (c) => {
+  try {
+    const reviewId = c.req.param("reviewId");
+    const key = `ovora:review:${reviewId}`;
+    const existing: any = await kv.get(key);
+    if (!existing) return c.json({ error: "Review not found" }, 404);
+
+    await kv.del(key);
+    if (existing.targetEmail) await kv.del(`ovora:userreviews:target:${existing.targetEmail}:${reviewId}`).catch(() => {});
+    if (existing.authorEmail) await kv.del(`ovora:userreviews:author:${existing.authorEmail}:${reviewId}`).catch(() => {});
+
+    console.log(`[DELETE /admin/reviews] Admin removed review ${reviewId}`);
+    return c.json({ success: true });
+  } catch (err) {
+    console.log("Error DELETE /admin/reviews/:reviewId:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
 // ✅ Admin: get ALL documents across all users with signed URLs
 app.get("/make-server-4e36197a/admin/documents", async (c) => {
   try {
@@ -4830,9 +5015,9 @@ app.get("/make-server-4e36197a/users/:email", async (c) => {
       console.log(`[users/get] User not found: ${email}`);
       return c.json({ error: "User not found" }, 404);
     }
-    
-    console.log(`[users/get] User found:`, user);
-    return c.json({ success: true, user });
+
+    const { codeHash: _ch, passportNumber: _pn, passportData: _pd, ...safeUser } = user as any;
+    return c.json({ success: true, user: safeUser });
   } catch (err) {
     console.log("Error GET /users/:email:", err);
     return c.json({ error: `${err}` }, 500);
@@ -4845,28 +5030,39 @@ app.get("/make-server-4e36197a/users/:email", async (c) => {
 app.put("/make-server-4e36197a/users/:email", async (c) => {
   try {
     const email = decodeURIComponent(c.req.param("email"));
-    const updates = await c.req.json();
-    console.log(`[users/update] Updating user: ${email}`, updates);
-    
+    const body = await c.req.json();
+    const { callerEmail, ...rawUpdates } = body as any;
+    if (!callerEmail) return c.json({ error: "callerEmail is required" }, 400);
+    if (callerEmail.toLowerCase().trim() !== email.toLowerCase().trim()) {
+      console.warn(`[users/update] IDOR attempt: ${callerEmail} tried to update ${email}`);
+      return c.json({ error: "Forbidden: you can only update your own profile" }, 403);
+    }
+
     const userKey = `ovora:user:email:${email.toLowerCase().trim()}`;
-    const existingUser = await kv.get(userKey);
-    
+    const existingUser: any = await kv.get(userKey);
+
     if (!existingUser) {
       console.log(`[users/update] User not found: ${email}`);
       return c.json({ error: "User not found" }, 404);
     }
-    
+
+    // Strip protected fields — prevents privilege escalation
+    const updates: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(rawUpdates)) {
+      if (!USER_PROTECTED_FIELDS.has(k)) updates[k] = v;
+    }
+
     const updatedUser = {
       ...existingUser,
       ...updates,
-      email, // Email не меняется
+      email: existingUser.email,
       updatedAt: new Date().toISOString(),
     };
-    
+
     await kv.set(userKey, updatedUser);
-    console.log(`[users/update] User updated:`, updatedUser);
-    
-    return c.json({ success: true, user: updatedUser });
+
+    const { codeHash: _ch, passportNumber: _pn, passportData: _pd, ...safeUser } = updatedUser;
+    return c.json({ success: true, user: safeUser });
   } catch (err) {
     console.log("Error PUT /users/:email:", err);
     return c.json({ error: `${err}` }, 500);

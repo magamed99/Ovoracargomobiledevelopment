@@ -108,8 +108,11 @@ export function SearchResults() {
 
     // Тип перевозки (в cargo-mode данные уже отфильтрованы по типу через getCargos)
     if (!isCargoMode) {
-      if (typeFilter === 'trip')  trips = trips.filter(t => t.tripType !== 'cargo' && (t.availableSeats ?? 0) > 0);
-      if (typeFilter === 'cargo') trips = trips.filter(t => t.tripType === 'cargo' || (t.cargoCapacity ?? 0) > 0);
+      if (typeFilter === 'trip')       trips = trips.filter(t => t.tripType !== 'cargo' && (t.availableSeats ?? 0) > 0);
+      else if (typeFilter === 'cargo') trips = trips.filter(t => t.tripType === 'cargo' || (t.cargoCapacity ?? 0) > 0);
+      // ✅ FIX: при typeFilter === 'all' раньше не было проверки на занятость —
+      // полностью забронированные поездки (0 мест и 0 кг) показывались как доступные
+      else trips = trips.filter(t => (t.availableSeats ?? 0) > 0 || (t.cargoCapacity ?? 0) > 0);
     }
 
     if (sort === 'price') {

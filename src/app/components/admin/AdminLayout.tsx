@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Car, Package, FileCheck, BarChart3,
   MessageSquare, Bell, Search,
   Menu, X, ChevronRight, Truck, ClipboardList, Megaphone,
-  LogOut, Clock, TrendingUp, Database, Crown, Globe,
+  LogOut, Clock, TrendingUp, Database, Crown, Globe, Boxes,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { YandexMetrikaTracker } from '../YandexMetrika';
@@ -26,6 +26,7 @@ const navGroups = [
       { name: 'Водители', href: '/admin/drivers', icon: Car },
       { name: 'Пользователи', href: '/admin/users', icon: Users },
       { name: 'Поездки', href: '/admin/trips', icon: Package },
+      { name: 'Грузы', href: '/admin/cargos', icon: Boxes },
       { name: 'Оферты', href: '/admin/offers', icon: ClipboardList },
       { name: 'Реклама', href: '/admin/ads', icon: Megaphone },
       { name: 'Верификация', href: '/admin/verification', icon: FileCheck },

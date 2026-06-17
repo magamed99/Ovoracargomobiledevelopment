@@ -46,7 +46,8 @@ export function DriverTripsPage() {
   const isMountedRef = useIsMounted();
   const [activeTab, setActiveTab] = useState<'active' | 'completed' | 'cancelled'>('active');
 
-  const [reviewModal, setReviewModal] = useState<{ tripId: string; route: string; counterpart: string; senderEmail: string } | null>(null);
+  const [reviewModal, setReviewModal] = useState<{ tripId: string; route: string; counterpart: string; senderEmail: string; senderName?: string } | null>(null);
+  const [reviewQueue, setReviewQueue] = useState<{ senderEmail: string; senderName?: string }[]>([]);
   const [reviewedTrips, setReviewedTrips] = useState<string[]>([]);
   const [formRating, setFormRating] = useState(0);
   const [formComment, setFormComment] = useState('');
@@ -221,30 +222,70 @@ export function DriverTripsPage() {
   const activeCount = driverTrips.filter(t => ['planned', 'inProgress', 'frozen'].includes(t.status)).length;
 
   // ── Actions ──────────────────────────────────────────────────────────────────
+  // На поездке может быть несколько отправителей (разные accepted-офферы) —
+  // собираем уникальный список, чтобы можно было оценить каждого отдельно.
+  const getTripSenders = (trip: any): { senderEmail: string; senderName?: string }[] => {
+    const offers = trip.incomingOffers || [];
+    const accepted = offers.filter((o: any) => (o.status === 'accepted' || o.status === 'completed') && (o.senderEmail || o.userEmail));
+    const seen = new Map<string, string | undefined>();
+    for (const o of accepted) {
+      const email = o.senderEmail || o.userEmail;
+      if (!seen.has(email)) seen.set(email, o.senderName);
+    }
+    if (seen.size === 0) {
+      const fallback = offers.find((o: any) => o.senderEmail || o.userEmail);
+      if (fallback) seen.set(fallback.senderEmail || fallback.userEmail, fallback.senderName);
+    }
+    return Array.from(seen.entries()).map(([senderEmail, senderName]) => ({ senderEmail, senderName }));
+  };
+
+  const isSenderReviewed = (tripId: string, senderEmail: string) =>
+    reviewedTrips.includes(String(tripId)) || reviewedTrips.includes(`${tripId}:${senderEmail}`);
+
+  const isTripFullyReviewed = (trip: any) => {
+    const senders = getTripSenders(trip);
+    if (senders.length === 0) return reviewedTrips.includes(String(trip.id));
+    return senders.every(s => isSenderReviewed(String(trip.id), s.senderEmail));
+  };
+
   const openReview = (e: React.MouseEvent, trip: any) => {
     e.stopPropagation();
-    const acceptedOffer = trip.incomingOffers?.find(
-      (o: any) => o.status === 'accepted' || o.status === 'completed'
-    ) || trip.incomingOffers?.find((o: any) => o.senderEmail || o.userEmail);
-    const senderEmail = acceptedOffer?.senderEmail || acceptedOffer?.userEmail || '';
-    if (!senderEmail) {
+    const tripId = String(trip.id);
+    const pending = getTripSenders(trip).filter(s => !isSenderReviewed(tripId, s.senderEmail));
+    if (pending.length === 0) {
       toast.error('Нет данных об отправителе для этой поездки');
       return;
     }
+    const [first, ...rest] = pending;
+    setReviewQueue(rest);
     setReviewModal({
-      tripId: String(trip.id),
+      tripId,
       route: `${trip.from} → ${trip.to}`,
-      counterpart: 'Отправитель',
-      senderEmail,
+      counterpart: first.senderName || 'Отправитель',
+      senderEmail: first.senderEmail,
+      senderName: first.senderName,
     });
     setFormRating(0); setFormComment('');
     setFormCats({ punctuality: 0, reliability: 0, communication: 0, packaging: 0 });
+  };
+
+  const advanceReviewQueue = () => {
+    if (reviewQueue.length > 0) {
+      const [next, ...rest] = reviewQueue;
+      setReviewQueue(rest);
+      setReviewModal(prev => prev ? { ...prev, senderEmail: next.senderEmail, senderName: next.senderName, counterpart: next.senderName || 'Отправитель' } : prev);
+      setFormRating(0); setFormComment('');
+      setFormCats({ punctuality: 0, reliability: 0, communication: 0, packaging: 0 });
+    } else {
+      setReviewModal(null);
+    }
   };
 
   const submitReview = async () => {
     if (!formRating) { toast.error('Укажите оценку'); return; }
     if (!formComment.trim()) { toast.error('Напишите комментарий'); return; }
     const authorName = currentUser?.fullName || currentUser?.firstName || 'Водитель';
+    const reviewKey = `${reviewModal!.tripId}:${reviewModal!.senderEmail}`;
     try {
       await submitReviewApi({
         authorEmail: currentUser?.email || '',
@@ -262,19 +303,19 @@ export function DriverTripsPage() {
         },
         type: 'given', verified: true,
       });
-      const reviewed = [...reviewedTrips, String(reviewModal!.tripId)];
+      const reviewed = [...reviewedTrips, reviewKey];
       setReviewedTrips(reviewed);
       localStorage.setItem(REVIEWED_TRIPS_KEY, JSON.stringify(reviewed));
-      setReviewModal(null);
       toast.success('Отзыв опубликован! Спасибо');
+      advanceReviewQueue();
     } catch (err: any) {
       if (err?.message === 'DUPLICATE_REVIEW') {
         toast.error('Вы уже оставляли отзыв на эту поездку');
         // Помечаем как reviewed чтобы скрыть кнопку
-        const reviewed = [...reviewedTrips, String(reviewModal!.tripId)];
+        const reviewed = [...reviewedTrips, reviewKey];
         setReviewedTrips(reviewed);
         localStorage.setItem(REVIEWED_TRIPS_KEY, JSON.stringify(reviewed));
-        setReviewModal(null);
+        advanceReviewQueue();
       } else {
         toast.error('Не удалось отправить отзыв');
       }
@@ -410,30 +451,44 @@ export function DriverTripsPage() {
   };
 
   // ── Open chat with sender (trip-specific) ────────────────────────────────
-  const openSenderChat = (e: React.MouseEvent, trip: any) => {
-    e.stopPropagation();
-    const acceptedOffer = trip.incomingOffers?.find(
-      (o: any) => o.status === 'accepted'
-    ) || trip.incomingOffers?.find(
-      (o: any) => o.senderEmail || o.userEmail
-    );
-    const senderEmail = acceptedOffer?.senderEmail || acceptedOffer?.userEmail || '';
-    const senderName  = acceptedOffer?.senderName  || 'Отправитель';
-    const senderPhone = acceptedOffer?.senderPhone  || '';
-    if (!senderEmail) {
-      navigate('/messages');
-      return;
-    }
+  // Если на поездке несколько отправителей — показываем выбор, а не открываем
+  // чат только с первым найденным.
+  const [chatPicker, setChatPicker] = useState<{ trip: any; senders: { senderEmail: string; senderName?: string; senderPhone?: string }[] } | null>(null);
+
+  const goToSenderChat = (trip: any, senderEmail: string, senderName?: string, senderPhone?: string) => {
     const chatId = generatePairChatId(senderEmail, currentUser?.email || 'guest');
     initChatRoom(
       chatId,
-      { id: senderEmail, name: senderName, avatar: '', role: 'sender', sub: 'Отправитель',
-        phone: senderPhone, online: true, verified: true },
+      { id: senderEmail, name: senderName || 'Отправитель', avatar: '', role: 'sender', sub: 'Отправитель',
+        phone: senderPhone || '', online: true, verified: true },
       String(trip.tripId ?? trip.id),
       `${trip.from} → ${trip.to}`,
       trip,
     );
     navigate(`/chat/${chatId}`);
+  };
+
+  const openSenderChat = (e: React.MouseEvent, trip: any) => {
+    e.stopPropagation();
+    const offers = trip.incomingOffers || [];
+    const accepted = offers.filter((o: any) => o.status === 'accepted' && (o.senderEmail || o.userEmail));
+    const candidates = accepted.length > 0 ? accepted : offers.filter((o: any) => o.senderEmail || o.userEmail);
+    const seen = new Map<string, any>();
+    for (const o of candidates) {
+      const email = o.senderEmail || o.userEmail;
+      if (!seen.has(email)) seen.set(email, o);
+    }
+    const senders = Array.from(seen.values()).map((o: any) => ({
+      senderEmail: o.senderEmail || o.userEmail,
+      senderName: o.senderName,
+      senderPhone: o.senderPhone,
+    }));
+    if (senders.length === 0) { navigate('/messages'); return; }
+    if (senders.length === 1) {
+      goToSenderChat(trip, senders[0].senderEmail, senders[0].senderName, senders[0].senderPhone);
+      return;
+    }
+    setChatPicker({ trip, senders });
   };
 
   // ── Inline offer accept/decline from TripCard ─────────────────────────────
@@ -570,7 +625,7 @@ export function DriverTripsPage() {
                   trip={trip}
                   mode="driver"
                   weather={weatherData[trip.id]}
-                  alreadyReviewed={reviewedTrips.includes(String(trip.id))}
+                  alreadyReviewed={isTripFullyReviewed(trip)}
                   unreadMessages={getUnread(trip)}
                   onStart={e => startTrip(e, trip)}
                   onFreeze={e => handleFreezeTrip(e, trip)}
@@ -700,7 +755,7 @@ export function DriverTripsPage() {
                     trip={trip}
                     mode="driver"
                     weather={weatherData[trip.id]}
-                    alreadyReviewed={reviewedTrips.includes(String(trip.id))}
+                    alreadyReviewed={isTripFullyReviewed(trip)}
                     unreadMessages={getUnread(trip)}
                     onStart={e => startTrip(e, trip)}
                     onFreeze={e => handleFreezeTrip(e, trip)}
@@ -734,11 +789,13 @@ export function DriverTripsPage() {
                   <h2 className="text-lg font-bold text-white">Оставить отзыв</h2>
                   <p className="text-xs mt-0.5 text-[#475569]">{reviewModal.route}</p>
                 </div>
-                <button onClick={() => setReviewModal(null)} className="w-8 h-8 flex items-center justify-center text-[#475569] hover:text-white">
+                <button onClick={() => { setReviewModal(null); setReviewQueue([]); }} className="w-8 h-8 flex items-center justify-center text-[#475569] hover:text-white">
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <p className="text-[10px] uppercase tracking-wider font-medium mb-1 text-[#475569]">Оцените отправителя</p>
+              <p className="text-[10px] uppercase tracking-wider font-medium mb-1 text-[#475569]">
+                Оцените отправителя{reviewQueue.length > 0 ? ` (1 из ${reviewQueue.length + 1})` : ''}
+              </p>
               <p className="text-sm font-bold mb-4 text-white">{reviewModal.counterpart}</p>
               <div className="flex justify-center mb-4"><StarRow value={formRating} onChange={setFormRating} size="lg" /></div>
               {Object.entries(CATEGORY_LABELS).map(([key, label]) => {
@@ -760,6 +817,46 @@ export function DriverTripsPage() {
                 className="mt-4 w-full py-3.5 bg-[#1978e5] hover:bg-[#1565cc] text-white font-bold rounded-2xl text-sm active:scale-[0.98] transition-all">
                 Опубликовать отзыв
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Chat Sender Picker (несколько отправителей на одной поездке) ──────── */}
+      {chatPicker && (
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center" onClick={() => setChatPicker(null)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="relative w-full max-w-md rounded-t-3xl md:rounded-3xl shadow-2xl overflow-y-auto max-h-[92vh] bg-[#162030]"
+            onClick={e => e.stopPropagation()}>
+            <div className="w-10 h-1 rounded-full mx-auto mt-4 mb-2 bg-white/10 md:hidden" />
+            <div className="px-6 pb-8 pt-4">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-lg font-bold text-white">Выберите отправителя</h2>
+                  <p className="text-xs mt-0.5 text-[#475569]">На этой поездке несколько отправителей</p>
+                </div>
+                <button onClick={() => setChatPicker(null)} className="w-8 h-8 flex items-center justify-center text-[#475569] hover:text-white">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="space-y-2">
+                {chatPicker.senders.map(s => (
+                  <button
+                    key={s.senderEmail}
+                    onClick={() => { goToSenderChat(chatPicker.trip, s.senderEmail, s.senderName, s.senderPhone); setChatPicker(null); }}
+                    className="w-full flex items-center gap-3 p-3 rounded-2xl bg-[#1a2736] hover:bg-[#1e2f42] border border-white/[0.06] transition-all active:scale-[0.98]"
+                  >
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center bg-[#1978e5]/15 text-[#5ba3f5] font-bold text-sm flex-shrink-0">
+                      {(s.senderName || s.senderEmail).charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 text-left">
+                      <p className="text-sm font-semibold text-white">{s.senderName || s.senderEmail}</p>
+                      {s.senderPhone && <p className="text-xs text-[#475569]">{s.senderPhone}</p>}
+                    </div>
+                    <MessageSquare className="w-4 h-4 text-[#475569]" />
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
