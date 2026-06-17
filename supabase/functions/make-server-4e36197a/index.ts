@@ -1833,6 +1833,37 @@ app.post("/make-server-4e36197a/reviews", async (c) => {
       await kv.set(`ovora:userreviews:author:${review.authorEmail}:${reviewId}`, { reviewId }).catch(() => {});
     }
 
+    // ✅ Обновляем снепшот driverRating на всех поездках водителя — иначе
+    // рейтинг, показанный в карточке поездки, замораживается на момент её
+    // создания и никогда не обновляется новыми отзывами.
+    if (review.targetEmail) {
+      try {
+        const targetIndex: any[] = await kv.getByPrefix(`ovora:userreviews:target:${review.targetEmail}:`);
+        const reviewIds = [...new Set(targetIndex.filter(e => e?.reviewId).map((e: any) => e.reviewId))];
+        const targetReviews: any[] = reviewIds.length > 0
+          ? await kv.mget(reviewIds.map(id => `ovora:review:${id}`))
+          : [];
+        const validReviews = targetReviews.filter(r => r != null);
+        if (validReviews.length > 0) {
+          const avgRating = Math.round(
+            (validReviews.reduce((sum, r) => sum + (Number(r.rating) || 0), 0) / validReviews.length) * 10
+          ) / 10;
+          const allTrips: any[] = await kv.getByPrefix(`ovora:trip:`);
+          const driverTrips = allTrips.filter(t => t && !t.deletedAt && t.driverEmail === review.targetEmail);
+          for (const trip of driverTrips) {
+            await kv.set(`ovora:trip:${trip.id}`, { ...trip, driverRating: avgRating });
+          }
+          const targetUserKey = `ovora:user:email:${String(review.targetEmail).toLowerCase().trim()}`;
+          const targetUser: any = await kv.get(targetUserKey);
+          if (targetUser) {
+            await kv.set(targetUserKey, { ...targetUser, rating: avgRating });
+          }
+        }
+      } catch (e) {
+        console.log("[POST /reviews] Failed to refresh driverRating snapshot:", e);
+      }
+    }
+
     return c.json({ success: true, review });
   } catch (err) {
     console.log("Error POST /reviews:", err);
@@ -2538,15 +2569,16 @@ app.put("/make-server-4e36197a/users/:email/sync-trips", async (c) => {
     const userOffers = allOffers.filter(o => o && o.senderEmail === email);
 
     for (const offer of userOffers) {
-      if (!offer.id) continue;
+      if (!offer.tripId || !offer.offerId) continue;
       const updatedOffer = {
         ...offer,
         senderName: displayName,
+        ...(avatarUrl ? { senderAvatar: avatarUrl } : {}),
         updatedAt: new Date().toISOString(),
       };
-      await kv.set(`ovora:offer:${offer.id}`, updatedOffer);
+      await kv.set(`ovora:offer:${offer.tripId}:${offer.offerId}`, updatedOffer);
       updatedOffers++;
-      console.log(`[sync-trips] Updated offer ${offer.id}`);
+      console.log(`[sync-trips] Updated offer ${offer.tripId}:${offer.offerId}`);
     }
 
     console.log(`[sync-trips] Updated ${updatedTrips} trips and ${updatedOffers} offers for user ${email}`);
