@@ -348,7 +348,7 @@ export function CreateAnnouncementPage() {
 
         <div className="px-4 mb-5">
           <SectionLabel title="Маршрут" icon={<Navigation className="w-3 h-3 text-[#5ba3f5]" />} />
-          <div className="rounded-2xl overflow-hidden border border-white/[0.07] bg-[#111c28]">
+          <div className="rounded-2xl border border-white/[0.07] bg-[#111c28]">
             <div className="px-4 pt-4 pb-3 border-b border-white/[0.07]">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-2 h-2 rounded-full bg-[#5ba3f5] ring-2 ring-[#5ba3f5]/30" />
@@ -438,7 +438,7 @@ export function CreateAnnouncementPage() {
 
             <div className="space-y-5">
 
-              <div className="rounded-3xl border border-white/[0.07] bg-[#111c28] overflow-hidden">
+              <div className="rounded-3xl border border-white/[0.07] bg-[#111c28]">
                 <div className="px-5 py-3 border-b border-white/[0.06] flex items-center gap-2">
                   <Navigation className="w-3.5 h-3.5 text-[#5ba3f5]" />
                   <p className="text-[10px] font-black uppercase tracking-widest text-[#5ba3f5]">Маршрут</p>
