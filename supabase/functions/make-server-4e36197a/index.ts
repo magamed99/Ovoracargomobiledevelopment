@@ -117,6 +117,31 @@ async function requireAdmin(c: any, next: any) {
   return c.json({ error: 'Unauthorized: Admin access required' }, 401);
 }
 
+// ── Non-blocking admin check — для эндпоинтов с двойным режимом
+// (владелец ресурса ИЛИ админ-оверрайд), где requireAdmin как middleware
+// не подходит, потому что обычные пользователи тоже должны иметь доступ.
+// Проверяет и legacy X-Admin-Code, и новый JWT (Bearer), как requireAdmin.
+async function isAdminCaller(c: any): Promise<boolean> {
+  const adminCode = (c.req.header('X-Admin-Code') || '').trim();
+  if (adminCode) {
+    const envCode = (Deno.env.get('ADMIN_ACCESS_CODE') || '').trim();
+    if (envCode && adminCode === envCode) return true;
+  }
+  const authHeader = (c.req.header('Authorization') || '').trim();
+  if (authHeader.startsWith('Bearer ')) {
+    const token = authHeader.slice(7);
+    const jwtSecret = (Deno.env.get('ADMIN_JWT_SECRET') || '').trim();
+    if (jwtSecret) {
+      try {
+        const secret = new TextEncoder().encode(jwtSecret);
+        await jwtVerify(token, secret);
+        return true;
+      } catch { /* not a valid admin JWT — fall through */ }
+    }
+  }
+  return false;
+}
+
 // Применяем middleware ко всем /admin/* и /kv/* маршрутам (КРОМЕ /admin/auth)
 app.use('/make-server-4e36197a/admin/*', async (c, next) => {
   // Пропускаем /admin/auth — он нужен для получения токена
@@ -914,10 +939,8 @@ app.put("/make-server-4e36197a/trips/:id", async (c) => {
     const existing: any = await kv.get(`ovora:trip:${id}`);
     if (!existing) return c.json({ error: "Trip not found" }, 404);
 
-    // ✅ FIX C-2: проверка владельца (пропускаем для admin-запросов с X-Admin-Code)
-    const adminCode = (c.req.header('X-Admin-Code') || '').trim();
-    const envCode   = (Deno.env.get('ADMIN_ACCESS_CODE') || '').trim();
-    const isAdmin   = envCode && adminCode === envCode;
+    // ✅ FIX C-2: проверка владельца (пропускаем для admin-оверрайда — X-Admin-Code или JWT)
+    const isAdmin = await isAdminCaller(c);
     if (!isAdmin) {
       const { callerEmail } = body;
       if (!callerEmail) {
@@ -1000,10 +1023,8 @@ app.delete("/make-server-4e36197a/trips/:id", async (c) => {
     const existing: any = await kv.get(`ovora:trip:${id}`);
     if (!existing) return c.json({ error: "Trip not found" }, 404);
 
-    // ✅ FIX C-2: проверка владельца (пропускаем для admin-запросов с X-Admin-Code)
-    const adminCode = (c.req.header('X-Admin-Code') || '').trim();
-    const envCode   = (Deno.env.get('ADMIN_ACCESS_CODE') || '').trim();
-    const isAdmin   = envCode && adminCode === envCode;
+    // ✅ FIX C-2: проверка владельца (пропускаем для admin-оверрайда — X-Admin-Code или JWT)
+    const isAdmin = await isAdminCaller(c);
     if (!isAdmin) {
       let callerEmail = '';
       try { callerEmail = (await c.req.json()).callerEmail || ''; } catch { /* тело может отсутствовать */ }
