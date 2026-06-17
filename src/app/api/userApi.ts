@@ -47,7 +47,7 @@ export async function updateUser(email: string, updates: Partial<User>): Promise
   const res = await fetch(`${BASE}/users/${encodeURIComponent(email)}`, {
     method: 'PUT',
     headers: HEADERS,
-    body: JSON.stringify(updates),
+    body: JSON.stringify({ ...updates, callerEmail: email }),
   });
 
   if (!res.ok) {

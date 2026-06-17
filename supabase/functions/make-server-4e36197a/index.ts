@@ -686,8 +686,8 @@ app.get("/make-server-4e36197a/auth/user/:email", async (c) => {
     const email = decodeURIComponent(c.req.param("email"));
     const user: any = await kv.get(`ovora:user:email:${email.toLowerCase().trim()}`);
     if (!user) return c.json({ found: false });
-    // ✅ FIX N-1: скрываем чувствительные поля в публичном профиле
-    const { phone: _ph, birthDate: _bd, ...safeUser } = user;
+    // ✅ FIX N-1 + PII: скрываем чувствительные поля в публичном профиле
+    const { phone: _ph, birthDate: _bd, codeHash: _ch, passportNumber: _pn, passportData: _pd, ...safeUser } = user;
     return c.json({ found: true, user: safeUser });
   } catch (err) {
     console.log("Error GET /auth/user:", err);
@@ -1162,8 +1162,16 @@ app.put("/make-server-4e36197a/cargos/:id", async (c) => {
 app.delete("/make-server-4e36197a/cargos/:id", async (c) => {
   try {
     const id = c.req.param("id");
+    const body = await c.req.json().catch(() => ({}));
+    const callerEmail: string | undefined = (body as any).callerEmail;
     const existing: any = await kv.get(`ovora:cargo:${id}`);
     if (!existing) return c.json({ error: "Cargo not found" }, 404);
+
+    if (!callerEmail) return c.json({ error: "callerEmail is required" }, 400);
+    if (existing.senderEmail && existing.senderEmail !== callerEmail) {
+      console.warn(`[DELETE /cargos] IDOR attempt: ${callerEmail} tried to delete cargo ${id} owned by ${existing.senderEmail}`);
+      return c.json({ error: "Forbidden: you are not the owner of this cargo" }, 403);
+    }
 
     await kv.set(`ovora:cargo:${id}`, { ...existing, deletedAt: new Date().toISOString(), status: 'cancelled' });
     if (existing.senderEmail) {
@@ -1464,6 +1472,28 @@ app.put("/make-server-4e36197a/offers/:tripId/:offerId", async (c) => {
     const updated = { ...existing, ...safeBody, tripId, offerId, updatedAt: new Date().toISOString() };
     await kv.set(key, updated);
 
+    // ── Reduce trip capacity when this route is the one accepting the offer ──
+    // (mirrors the capacity reduction in PUT /chat/:chatId/proposal/:proposalId,
+    // needed when the offer is accepted directly from the offers/trip page
+    // instead of via the chat proposal card — otherwise capacity never shrinks)
+    if (updated.status === 'accepted' && existing.status !== 'accepted') {
+      try {
+        const trip: any = await kv.get(`ovora:trip:${tripId}`);
+        if (trip) {
+          const updatedTrip = {
+            ...trip,
+            availableSeats: Math.max(0, (trip.availableSeats || 0) - (existing.requestedSeats || 0)),
+            childSeats: Math.max(0, (trip.childSeats || 0) - (existing.requestedChildren || 0)),
+            cargoCapacity: Math.max(0, (trip.cargoCapacity || 0) - (existing.requestedCargo || 0)),
+          };
+          await kv.set(`ovora:trip:${tripId}`, updatedTrip);
+          console.log(`[PUT /offers] Trip ${tripId} capacity reduced on accept via offers route`);
+        }
+      } catch (capErr) {
+        console.log('[PUT /offers] Error reducing trip capacity:', capErr);
+      }
+    }
+
     // ✅ FIX #6: При cancelled/declined/deleted — удаляем индексы, иначе обновляем
     const isFinalStatus = ['cancelled', 'declined', 'deleted', 'rejected'].includes(updated.status);
     if (isFinalStatus) {
@@ -1717,6 +1747,15 @@ app.put("/make-server-4e36197a/cargo-offers/:cargoId/:offerId", async (c) => {
     const key = `ovora:cargo-offer:${cargoId}:${offerId}`;
     const existing: any = await kv.get(key);
     if (!existing) return c.json({ error: "Offer not found" }, 404);
+
+    const callerEmail: string | undefined = (body as any).callerEmail;
+    const isDriver = !!callerEmail && existing.driverEmail === callerEmail;
+    const isSender = !!callerEmail && existing.senderEmail === callerEmail;
+    if (!callerEmail) return c.json({ error: "callerEmail is required" }, 400);
+    if (!isDriver && !isSender) {
+      console.warn(`[PUT /cargo-offers] IDOR attempt: ${callerEmail} tried to update cargo-offer ${cargoId}/${offerId}`);
+      return c.json({ error: "Forbidden: you are not a participant of this offer" }, 403);
+    }
 
     const { callerEmail: _drop, ...safeBody } = body;
     const updated = { ...existing, ...safeBody, cargoId, offerId, updatedAt: new Date().toISOString() };
@@ -4830,9 +4869,9 @@ app.get("/make-server-4e36197a/users/:email", async (c) => {
       console.log(`[users/get] User not found: ${email}`);
       return c.json({ error: "User not found" }, 404);
     }
-    
-    console.log(`[users/get] User found:`, user);
-    return c.json({ success: true, user });
+
+    const { codeHash: _ch, passportNumber: _pn, passportData: _pd, ...safeUser } = user as any;
+    return c.json({ success: true, user: safeUser });
   } catch (err) {
     console.log("Error GET /users/:email:", err);
     return c.json({ error: `${err}` }, 500);
@@ -4845,28 +4884,39 @@ app.get("/make-server-4e36197a/users/:email", async (c) => {
 app.put("/make-server-4e36197a/users/:email", async (c) => {
   try {
     const email = decodeURIComponent(c.req.param("email"));
-    const updates = await c.req.json();
-    console.log(`[users/update] Updating user: ${email}`, updates);
-    
+    const body = await c.req.json();
+    const { callerEmail, ...rawUpdates } = body as any;
+    if (!callerEmail) return c.json({ error: "callerEmail is required" }, 400);
+    if (callerEmail.toLowerCase().trim() !== email.toLowerCase().trim()) {
+      console.warn(`[users/update] IDOR attempt: ${callerEmail} tried to update ${email}`);
+      return c.json({ error: "Forbidden: you can only update your own profile" }, 403);
+    }
+
     const userKey = `ovora:user:email:${email.toLowerCase().trim()}`;
-    const existingUser = await kv.get(userKey);
-    
+    const existingUser: any = await kv.get(userKey);
+
     if (!existingUser) {
       console.log(`[users/update] User not found: ${email}`);
       return c.json({ error: "User not found" }, 404);
     }
-    
+
+    // Strip protected fields — prevents privilege escalation
+    const updates: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(rawUpdates)) {
+      if (!USER_PROTECTED_FIELDS.has(k)) updates[k] = v;
+    }
+
     const updatedUser = {
       ...existingUser,
       ...updates,
-      email, // Email не меняется
+      email: existingUser.email,
       updatedAt: new Date().toISOString(),
     };
-    
+
     await kv.set(userKey, updatedUser);
-    console.log(`[users/update] User updated:`, updatedUser);
-    
-    return c.json({ success: true, user: updatedUser });
+
+    const { codeHash: _ch, passportNumber: _pn, passportData: _pd, ...safeUser } = updatedUser;
+    return c.json({ success: true, user: safeUser });
   } catch (err) {
     console.log("Error PUT /users/:email:", err);
     return c.json({ error: `${err}` }, 500);
