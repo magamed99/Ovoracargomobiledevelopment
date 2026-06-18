@@ -67,9 +67,12 @@ function CompletedTripDetail({ trip, isDark }: { trip: any; isDark: boolean }) {
     getOffersForTrip(String(trip.id)).then(setTripOffers).catch(() => setTripOffers([]));
   }, [trip.id, userRole]);
 
+  // ✅ FIX: блокируем самооценку — тестовые/демо-офферы иногда создаются
+  // тем же аккаунтом, что и контрагент поездки.
+  const myEmail = (currentUser?.email || '').toLowerCase().trim();
   const reviewTargets = useMemo(() => {
     if (userRole === 'driver') {
-      const accepted = tripOffers.filter((o: any) => o && o.status === 'accepted' && o.senderEmail);
+      const accepted = tripOffers.filter((o: any) => o && o.status === 'accepted' && o.senderEmail && o.senderEmail.toLowerCase().trim() !== myEmail);
       const seen = new Map<string, string>();
       for (const o of accepted) {
         if (!seen.has(o.senderEmail)) seen.set(o.senderEmail, o.senderName || o.senderEmail);
@@ -77,11 +80,13 @@ function CompletedTripDetail({ trip, isDark }: { trip: any; isDark: boolean }) {
       if (seen.size > 0) return Array.from(seen.entries()).map(([email, name]) => ({ email, name }));
       // Резерв для старых поездок без отдельных офферов
       const fallbackEmail = trip.senderEmail || trip.acceptedSenderEmail || '';
-      return fallbackEmail ? [{ email: fallbackEmail, name: trip.senderName || 'Отправитель' }] : [];
+      return fallbackEmail && fallbackEmail.toLowerCase().trim() !== myEmail
+        ? [{ email: fallbackEmail, name: trip.senderName || 'Отправитель' }] : [];
     }
     const driverEmail = driver.email || trip.driverEmail || '';
-    return driverEmail ? [{ email: driverEmail, name: driver.name || 'Водитель' }] : [];
-  }, [userRole, tripOffers, trip, driver]);
+    return driverEmail && driverEmail.toLowerCase().trim() !== myEmail
+      ? [{ email: driverEmail, name: driver.name || 'Водитель' }] : [];
+  }, [userRole, tripOffers, trip, driver, myEmail]);
 
   return (
     <div className="min-h-screen flex flex-col font-['Sora'] bg-[#0E1621] text-white">
