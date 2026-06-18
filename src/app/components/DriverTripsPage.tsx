@@ -780,10 +780,13 @@ export function DriverTripsPage() {
       {reviewModal && (
         <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center" onClick={() => setReviewModal(null)}>
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-          <div className="relative w-full max-w-md rounded-t-3xl md:rounded-3xl shadow-2xl overflow-y-auto max-h-[92vh] bg-[#162030]"
+          <div className="relative w-full max-w-md rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col max-h-[88vh] bg-[#162030]"
             onClick={e => e.stopPropagation()}>
-            <div className="w-10 h-1 rounded-full mx-auto mt-4 mb-2 bg-white/10 md:hidden" />
-            <div className="px-6 pb-10 pt-4">
+            <div className="w-10 h-1 rounded-full mx-auto mt-4 mb-2 bg-white/10 md:hidden flex-shrink-0" />
+            {/* ✅ FIX: кнопка вынесена из скролл-зоны в закреплённый футер —
+                раньше при длинном контенте (5 категорий + textarea) она уходила
+                за пределы видимой области под нижней моб. навигацией. */}
+            <div className="px-6 pt-4 overflow-y-auto flex-1 min-h-0">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="text-lg font-bold text-white">Оставить отзыв</h2>
@@ -813,8 +816,10 @@ export function DriverTripsPage() {
               <textarea placeholder="Комментарий..." value={formComment} onChange={e => setFormComment(e.target.value)}
                 className="w-full mt-4 p-3 text-sm rounded-xl border resize-none outline-none bg-[#1a2736] border-white/[0.08] text-white placeholder-[#475569]"
                 rows={3} />
+            </div>
+            <div className="px-6 pb-6 pt-3 flex-shrink-0 border-t border-white/[0.06]">
               <button onClick={submitReview}
-                className="mt-4 w-full py-3.5 bg-[#1978e5] hover:bg-[#1565cc] text-white font-bold rounded-2xl text-sm active:scale-[0.98] transition-all">
+                className="w-full py-3.5 bg-[#1978e5] hover:bg-[#1565cc] text-white font-bold rounded-2xl text-sm active:scale-[0.98] transition-all">
                 Опубликовать отзыв
               </button>
             </div>
