@@ -312,6 +312,12 @@ export function SenderTripsPage() {
 
   const openReview = (e: React.MouseEvent, trip: any) => {
     e.stopPropagation();
+    // ✅ FIX: блокируем самооценку — тестовые/демо-бронирования иногда
+    // создаются тем же аккаунтом, что и водитель поездки.
+    if ((trip.driverEmail || '').toLowerCase().trim() === (currentUser?.email || '').toLowerCase().trim()) {
+      toast.error('Нельзя оставить отзыв самому себе');
+      return;
+    }
     setReviewRatings({});
     setReviewText('');
     setReviewModal({

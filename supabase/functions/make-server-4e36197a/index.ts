@@ -1904,6 +1904,13 @@ app.post("/make-server-4e36197a/reviews", async (c) => {
   try {
     const body = await c.req.json();
 
+    // ✅ FIX: запрет отзыва самому себе (тестовые/демо-аккаунты иногда
+    // являются одновременно водителем и отправителем на одной поездке)
+    if (body.authorEmail && body.targetEmail &&
+        String(body.authorEmail).toLowerCase().trim() === String(body.targetEmail).toLowerCase().trim()) {
+      return c.json({ error: 'Нельзя оставить отзыв самому себе' }, 400);
+    }
+
     // ✅ FIX #3: Защита от дублирования отзывов (authorEmail + targetEmail + tripId)
     if (body.authorEmail && body.targetEmail && body.tripId) {
       const authorIndex: any[] = await kv.getByPrefix(`ovora:userreviews:author:${body.authorEmail}:`);

@@ -225,15 +225,20 @@ export function DriverTripsPage() {
   // На поездке может быть несколько отправителей (разные accepted-офферы) —
   // собираем уникальный список, чтобы можно было оценить каждого отдельно.
   const getTripSenders = (trip: any): { senderEmail: string; senderName?: string }[] => {
+    const myEmail = (currentUser?.email || '').toLowerCase().trim();
     const offers = trip.incomingOffers || [];
     const accepted = offers.filter((o: any) => (o.status === 'accepted' || o.status === 'completed') && (o.senderEmail || o.userEmail));
     const seen = new Map<string, string | undefined>();
     for (const o of accepted) {
       const email = o.senderEmail || o.userEmail;
+      // ✅ FIX: блокируем самооценку — тестовые/демо-офферы иногда создаются
+      // тем же аккаунтом, что и водитель, и без этой проверки попадали в
+      // список «оцените отправителя» как обычный контрагент.
+      if (String(email).toLowerCase().trim() === myEmail) continue;
       if (!seen.has(email)) seen.set(email, o.senderName);
     }
     if (seen.size === 0) {
-      const fallback = offers.find((o: any) => o.senderEmail || o.userEmail);
+      const fallback = offers.find((o: any) => (o.senderEmail || o.userEmail) && String(o.senderEmail || o.userEmail).toLowerCase().trim() !== myEmail);
       if (fallback) seen.set(fallback.senderEmail || fallback.userEmail, fallback.senderName);
     }
     return Array.from(seen.entries()).map(([senderEmail, senderName]) => ({ senderEmail, senderName }));
