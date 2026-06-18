@@ -234,12 +234,22 @@ export function SenderTripsPage() {
         if (!isMountedRef.current) return;
         const merged = acceptedOffers.map((offer: any) => {
           const trip = trips.find((t: any) => t.id === offer.tripId);
+          // ✅ FIX: реальный груз/цена живут в оферте, а не в Trip — без этого
+          // спайда трекинг отправителя показывал "undefined" вместо веса/цены.
           return trip ? {
             ...trip,
-            offerId:      offer.id,
-            offerStatus:  offer.status,
-            senderEmail:  offer.senderEmail,
-            inProgress:   offer.inProgress ?? false,
+            offerId:           offer.offerId,
+            offerStatus:       offer.status,
+            senderEmail:       offer.senderEmail,
+            inProgress:        offer.inProgress ?? false,
+            cargoType:         offer.cargoType,
+            weight:            offer.weight,
+            price:             offer.price,
+            currency:          offer.currency,
+            notes:             offer.notes,
+            requestedSeats:    offer.requestedSeats,
+            requestedChildren: offer.requestedChildren,
+            requestedCargo:    offer.requestedCargo,
           } : null;
         }).filter(Boolean);
         setSenderTrips(merged);
@@ -501,12 +511,10 @@ export function SenderTripsPage() {
                       onChat={e => openDriverChat(e, trip)}
                       onTrack={e => {
                         e.stopPropagation();
-                        localStorage.setItem('ovora_sender_tracking_trip', JSON.stringify({
-                          tripId: trip.tripId, from: trip.from, to: trip.to,
-                          driverName: trip.driverName, driverAvatar: trip.driverAvatar,
-                          driverPhone: trip.driverPhone, driverEmail: trip.driverEmail,
-                          vehicle: trip.vehicle, date: trip.date, time: trip.time,
-                        }));
+                        // ✅ FIX: сохраняем ВЕСЬ объект (id, координаты, груз/цена из оферты) —
+                        // раньше тут писалась урезанная копия без id/координат/цены, из-за
+                        // чего страница трекинга отправителя не находила shipment и показывала demo-данные.
+                        localStorage.setItem('ovora_sender_tracking_trip', JSON.stringify(trip));
                         navigate('/tracking');
                       }}
                       onReview={e => openReview(e, trip)}
@@ -628,12 +636,8 @@ export function SenderTripsPage() {
                         onChat={e => openDriverChat(e, trip)}
                         onTrack={e => {
                           e.stopPropagation();
-                          localStorage.setItem('ovora_sender_tracking_trip', JSON.stringify({
-                            tripId: trip.tripId, from: trip.from, to: trip.to,
-                            driverName: trip.driverName, driverAvatar: trip.driverAvatar,
-                            driverPhone: trip.driverPhone, driverEmail: trip.driverEmail,
-                            vehicle: trip.vehicle, date: trip.date, time: trip.time,
-                          }));
+                          // ✅ FIX: см. mobile-версию выше — сохраняем полный объект поездки.
+                          localStorage.setItem('ovora_sender_tracking_trip', JSON.stringify(trip));
                           navigate('/tracking');
                         }}
                         onReview={e => openReview(e, trip)}
@@ -649,7 +653,7 @@ export function SenderTripsPage() {
 
       {/* ── Review Modal ─────────────────────────────────────────────────────── */}
       {reviewModal && (
-        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center" onClick={() => setReviewModal(null)}>
+        <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center" onClick={() => setReviewModal(null)}>
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
           <div className="relative w-full max-w-md rounded-t-3xl md:rounded-3xl shadow-2xl overflow-y-auto max-h-[92vh] bg-[#162030]"
             onClick={e => e.stopPropagation()}>
@@ -705,7 +709,7 @@ export function SenderTripsPage() {
 
       {/* ── Confirm Modal ─────────────────────────────────────────────────────── */}
       {confirmModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={() => setConfirmModal(null)}>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center" onClick={() => setConfirmModal(null)}>
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
           <div className="relative w-full max-w-sm mx-4 rounded-3xl shadow-2xl bg-[#162030] overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="px-6 pt-6 pb-2">

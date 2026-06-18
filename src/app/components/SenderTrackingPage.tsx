@@ -140,9 +140,12 @@ export function SenderTrackingPage() {
     }).catch(() => {});
   }, [activeTrip?.id, activeTrip?.tripId]);
 
+  // ✅ FIX: убран фиктивный фолбэк 4500 км — раньше он маскировал отсутствие
+  // реальных координат и показывал расстояние, не совпадающее с водителем.
+  // При totalDistanceKm === 0 UI ниже сам показывает «—».
   const totalDistanceKm = activeTrip
-    ? calculateDistance(activeTrip.fromLat, activeTrip.fromLng, activeTrip.toLat, activeTrip.toLng) || 4500
-    : 4500;
+    ? calculateDistance(activeTrip.fromLat, activeTrip.fromLng, activeTrip.toLat, activeTrip.toLng)
+    : 0;
 
   const routeFrom = cleanAddress(activeTrip?.from || 'Душанбе');
   const routeTo = cleanAddress(activeTrip?.to || 'Москва');
@@ -156,8 +159,14 @@ export function SenderTrackingPage() {
   const remainingKm = Math.round(totalDistanceKm * (1 - displayProgress));
   const elapsed = `${String(Math.floor(elapsedSecs / 3600)).padStart(2,'0')}:${String(Math.floor((elapsedSecs % 3600) / 60)).padStart(2,'0')}:${String(elapsedSecs % 60).padStart(2,'0')}`;
 
+  // ✅ FIX: раньше при отсутствующей цене получалась буквальная строка "undefined TJS"
   const cargoInfo = activeTrip
-    ? { type: activeTrip.cargoType || 'Груз', weight: activeTrip.weight, price: `${activeTrip.price} ${activeTrip.currency || 'TJS'}`, notes: activeTrip.notes }
+    ? {
+        type: activeTrip.cargoType || 'Груз',
+        weight: activeTrip.weight,
+        price: activeTrip.price ? `${activeTrip.price} ${activeTrip.currency || 'TJS'}` : '',
+        notes: activeTrip.notes,
+      }
     : { type: 'Электроника', weight: '850', price: '7 504 TJS', notes: 'Хрупкий груз' };
 
   const driver = activeTrip
