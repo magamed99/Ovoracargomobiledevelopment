@@ -2264,6 +2264,54 @@ app.put("/make-server-4e36197a/chat/:chatId/proposal/:proposalId", async (c) => 
             }
           }
 
+          // Pass 3: self-heal — no backend Offer record exists at all (e.g. the
+          // original POST /offers call failed silently or this chat predates it).
+          // Reconstruct one from the chat proposal itself so accepting in chat
+          // always produces a record the sender's trip list can find.
+          if (!matchingOffer) {
+            console.log(`[accept] No pending offer found for tripId=${tripId}, senderEmail=${senderEmail} — reconstructing offer from proposal`);
+            const proposalData: any = msg.proposal || {};
+            const weightStr: string = proposalData.weight || '';
+            const requestedSeats = parseInt(weightStr.match(/(\d+)\s*взр/)?.[1] || '0', 10);
+            const requestedChildren = parseInt(weightStr.match(/(\d+)\s*дет/)?.[1] || '0', 10);
+            const requestedCargo = parseInt(weightStr.match(/(\d+)\s*кг/)?.[1] || '0', 10);
+            const newOfferId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+            const nowIso = new Date().toISOString();
+            matchingOffer = {
+              offerId: newOfferId,
+              tripId: String(tripId),
+              senderEmail: senderEmail || proposalData.senderEmail || 'unknown',
+              senderName: proposalData.senderName || senderEmail || 'Отправитель',
+              senderPhone: proposalData.senderPhone,
+              type: requestedSeats > 0 && requestedCargo > 0 ? 'both' : requestedCargo > 0 ? 'cargo' : 'seats',
+              cargoType: proposalData.cargoType,
+              weight: weightStr,
+              volume: proposalData.volume,
+              price: proposalData.price,
+              currency: proposalData.currency || 'TJS',
+              notes: proposalData.notes,
+              from: proposalData.from,
+              to: proposalData.to,
+              date: proposalData.date,
+              vehicleType: proposalData.vehicleType,
+              driverEmail: senderId,
+              requestedSeats,
+              requestedChildren,
+              requestedCargo,
+              status: 'pending',
+              createdAt: nowIso,
+              updatedAt: nowIso,
+            };
+            await kv.set(`ovora:offer:${tripId}:${newOfferId}`, matchingOffer);
+            if (matchingOffer.driverEmail) {
+              await kv.set(`ovora:driveroffers:${matchingOffer.driverEmail}:${newOfferId}`, { tripId, offerId: newOfferId }).catch(() => {});
+            }
+            if (matchingOffer.senderEmail) {
+              await kv.set(`ovora:senderoffers:${matchingOffer.senderEmail}:${newOfferId}`, { tripId, offerId: newOfferId }).catch(() => {});
+            }
+            console.log(`[accept] Self-healed offer ${newOfferId} for tripId=${tripId}`);
+          }
+
           if (matchingOffer) {
             // 1. Mark offer as accepted
             const offerKey = `ovora:offer:${matchingOffer.tripId}:${matchingOffer.offerId}`;
@@ -2321,8 +2369,6 @@ app.put("/make-server-4e36197a/chat/:chatId/proposal/:proposalId", async (c) => 
             } else {
               console.log(`[accept] Trip ${tripId} not found in KV — capacity not reduced`);
             }
-          } else {
-            console.log(`[accept] No pending offer found for tripId=${tripId}, senderEmail=${senderEmail}`);
           }
         }
       } catch (err) {
