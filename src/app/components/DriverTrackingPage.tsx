@@ -341,8 +341,25 @@ export function DriverTrackingPage() {
 
   const sheetTranslate = sheetState === 'hidden' ? '100%' : sheetState === 'expanded' ? '0%' : '52%';
 
+  // ✅ FIX: «Завершить поездку» закрывала рейс независимо от того, прошёл ли
+  // груз таможню и есть ли фото загрузки/выгрузки — кнопка была активна сразу
+  // со старта поездки. Теперь требуем полное прохождение этапов (до статуса
+  // 'delivered', который достижим только последовательно через таможню) и оба
+  // фото-подтверждения.
+  const missingCompletionSteps = useMemo(() => {
+    const missing: string[] = [];
+    if (currentStatus !== 'delivered') missing.push('пройти все этапы доставки (включая таможню)');
+    if (!podPhotos.some(p => p.type === 'loading')) missing.push('фото загрузки');
+    if (!podPhotos.some(p => p.type === 'unloading')) missing.push('фото выгрузки');
+    return missing;
+  }, [currentStatus, podPhotos]);
+
   // ── Завершить поездку: закрыть shipment на сервере, затем перейти ─────────
   const handleCompleteTrip = async () => {
+    if (missingCompletionSteps.length > 0) {
+      toast.error(`Перед завершением поездки нужно: ${missingCompletionSteps.join(', ')}`);
+      return;
+    }
     if (effectiveTrip?.id) {
       try {
         await completeShipment(effectiveTrip.id);
@@ -843,9 +860,15 @@ export function DriverTrackingPage() {
           {/* ── Complete trip ── */}
           <button
             onClick={handleCompleteTrip}
-            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-emerald-500 text-white text-[14px] font-extrabold active:scale-[0.98] transition-all shadow-lg shadow-emerald-500/20">
+            disabled={missingCompletionSteps.length > 0}
+            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-emerald-500 text-white text-[14px] font-extrabold active:scale-[0.98] transition-all shadow-lg shadow-emerald-500/20 disabled:opacity-40 disabled:active:scale-100">
             <CheckCircle2 className="w-5 h-5" /> Завершить поездку
           </button>
+          {missingCompletionSteps.length > 0 && (
+            <p className="text-[11px] text-center text-[#607080] -mt-1">
+              Сначала: {missingCompletionSteps.join(', ')}
+            </p>
+          )}
 
           <div style={{ height: 'env(safe-area-inset-bottom, 8px)' }} />
         </div>
@@ -1145,9 +1168,15 @@ export function DriverTrackingPage() {
               <AlertTriangle style={{ width:16, height:16 }} /> Сообщить о проблеме
             </button>
             <button className="dtp-action" onClick={handleCompleteTrip}
-              style={{ background:'linear-gradient(135deg,#059669,#10b981)', boxShadow:'0 8px 24px #10b98140' }}>
+              disabled={missingCompletionSteps.length > 0}
+              style={{ background:'linear-gradient(135deg,#059669,#10b981)', boxShadow:'0 8px 24px #10b98140', opacity: missingCompletionSteps.length > 0 ? 0.4 : 1, cursor: missingCompletionSteps.length > 0 ? 'not-allowed' : 'pointer' }}>
               <CheckCircle2 style={{ width:16, height:16 }} /> Завершить поездку
             </button>
+            {missingCompletionSteps.length > 0 && (
+              <p style={{ fontSize:11, textAlign:'center', color:'#607080', margin:0 }}>
+                Сначала: {missingCompletionSteps.join(', ')}
+              </p>
+            )}
           </div>
 
         </div>

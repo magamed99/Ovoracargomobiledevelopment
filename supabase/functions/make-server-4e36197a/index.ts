@@ -4810,6 +4810,21 @@ app.post("/make-server-4e36197a/tracking/:tripId/status", async (c) => {
     const existing: any = await kv.get(key);
     if (!existing) return c.json({ error: 'Shipment not found' }, 404);
 
+    // ✅ FIX: «Завершить поездку» закрывала рейс без таможни и фото — кнопка
+    // на фронте была активна с самого начала поездки. Дублируем проверку на
+    // бэкенде (defense in depth), чтобы прямой вызов API тоже не мог обойти
+    // обязательные этапы.
+    if (status === 'delivered') {
+      const podPhotos = existing.podPhotos || [];
+      const hasLoading = podPhotos.some((p: any) => p.type === 'loading');
+      const hasUnloading = podPhotos.some((p: any) => p.type === 'unloading');
+      const passedCustoms = existing.status === 'customs' || existing.status === 'arrived' || existing.status === 'delivered'
+        || (existing.statusHistory || []).some((h: any) => h.status === 'customs');
+      if (!hasLoading || !hasUnloading || !passedCustoms) {
+        return c.json({ error: 'INCOMPLETE_SHIPMENT', message: 'Нельзя завершить поездку: требуется таможенный контроль и фото загрузки/выгрузки' }, 400);
+      }
+    }
+
     const now = new Date().toISOString();
     const historyEntry = { status, timestamp: now, driverEmail: driverEmail || existing.driverEmail };
     const statusHistory = [...(existing.statusHistory || []), historyEntry];

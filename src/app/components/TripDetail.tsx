@@ -4,7 +4,8 @@ import { motion } from 'motion/react';
 import { useUser } from '../contexts/UserContext';
 import { AVATARS } from '../constants/avatars';
 import { getTripById, getCargoById, submitOffer as submitOfferApi, getOffersForUser, getOffersForTrip, updateOffer, submitReview as submitReviewApi, submitCargoOffer, getCargoOffersForCargo, updateCargoOffer } from '../api/dataApi';
-import { Star, Users, Calendar, MessageSquare, Shield, ArrowLeft, Share2, CheckCircle2, Truck, Phone, Plus, Minus, X, CheckCircle, Clock, Route, Banknote, ThumbsUp, Award, Zap, Heart, Navigation, FileText, AlertCircle, Package, UserCheck, XCircle } from 'lucide-react';
+import { getActiveShipment, SHIPMENT_STATUS_LABELS, SHIPMENT_STATUS_ICONS, type ActiveShipment } from '../api/trackingApi';
+import { Star, Users, Calendar, MessageSquare, Shield, ArrowLeft, Share2, CheckCircle2, Truck, Phone, Plus, Minus, X, CheckCircle, Clock, Route, Banknote, ThumbsUp, Award, Zap, Heart, Navigation, FileText, AlertCircle, Package, UserCheck, XCircle, Camera } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { toast } from 'sonner';
 import { useFavorites } from '../hooks/useFavorites';
@@ -66,6 +67,14 @@ function CompletedTripDetail({ trip, isDark }: { trip: any; isDark: boolean }) {
     if (userRole !== 'driver') return;
     getOffersForTrip(String(trip.id)).then(setTripOffers).catch(() => setTripOffers([]));
   }, [trip.id, userRole]);
+
+  // ✅ Архив поездки не показывал, прошла ли таможня, когда был
+  // загружен/выгружен груз и фото-подтверждения — данные о доставке хранятся
+  // отдельно от Trip (в shipment-трекинге), подгружаем их явно.
+  const [shipment, setShipment] = useState<ActiveShipment | null>(null);
+  useEffect(() => {
+    getActiveShipment(String(trip.id)).then(setShipment).catch(() => setShipment(null));
+  }, [trip.id]);
 
   // ✅ FIX: блокируем самооценку — тестовые/демо-офферы иногда создаются
   // тем же аккаунтом, что и контрагент поездки.
@@ -141,6 +150,50 @@ function CompletedTripDetail({ trip, isDark }: { trip: any; isDark: boolean }) {
           </div>
         </div>
       </div>
+
+      {/* Этапы доставки — таможня, загрузка/выгрузка, фото-подтверждение */}
+      {shipment && (
+        <div className="px-4 mt-4">
+          <p className={`text-[11px] font-bold uppercase tracking-wider mb-2 ${isDark ? 'text-[#475569]' : 'text-[#94a3b8]'}`}>Этапы доставки</p>
+          <div className={`rounded-2xl border p-4 space-y-2.5 ${isDark ? 'bg-[#1a2736] border-[#1e2d3a]' : 'bg-white border-[#e2e8f0]'}`}>
+            {(['pending', 'loaded', 'inProgress', 'customs', 'arrived', 'delivered'] as const).map(key => {
+              const entry = shipment.statusHistory?.find(h => h.status === key);
+              const done = !!entry;
+              return (
+                <div key={key} className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">{SHIPMENT_STATUS_ICONS[key]}</span>
+                    <span className={`text-xs font-semibold ${done ? (isDark ? 'text-white' : 'text-[#0f172a]') : (isDark ? 'text-[#475569]' : 'text-[#94a3b8]')}`}>
+                      {SHIPMENT_STATUS_LABELS[key]}
+                    </span>
+                  </div>
+                  <span className={`text-[11px] ${isDark ? 'text-[#64748b]' : 'text-[#94a3b8]'}`}>
+                    {entry ? new Date(entry.timestamp).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          {!!shipment.podPhotos?.length && (
+            <div className={`mt-2.5 rounded-2xl border p-4 ${isDark ? 'bg-[#1a2736] border-[#1e2d3a]' : 'bg-white border-[#e2e8f0]'}`}>
+              <div className="flex items-center gap-1.5 mb-2.5">
+                <Camera className={`w-3.5 h-3.5 ${isDark ? 'text-[#64748b]' : 'text-[#94a3b8]'}`} />
+                <span className={`text-[11px] font-bold uppercase tracking-wider ${isDark ? 'text-[#475569]' : 'text-[#94a3b8]'}`}>Фото-подтверждение</span>
+              </div>
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {shipment.podPhotos.map((p, i) => (
+                  <a key={i} href={p.url} target="_blank" rel="noopener noreferrer" className="relative shrink-0 w-20 h-20 rounded-xl overflow-hidden border border-white/[0.08]">
+                    <img src={p.url} alt={p.type} className="w-full h-full object-cover" />
+                    <span className="absolute bottom-1 left-1 text-[9px] font-black px-1.5 py-0.5 rounded bg-black/60 text-white">
+                      {p.type === 'loading' ? '📦 Загрузка' : '✅ Выгрузка'}
+                    </span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Driver */}
       <div className="px-4 mt-4">
