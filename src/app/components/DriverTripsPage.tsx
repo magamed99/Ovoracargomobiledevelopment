@@ -3,14 +3,14 @@
  * Карточки рейсов — единый компонент TripCard (mode='driver').
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Plus, Truck, X, MessageSquare, Shield, Zap, Award, ArrowLeft, RefreshCw, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Plus, Truck, X, MessageSquare, ArrowLeft, RefreshCw, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../contexts/UserContext';
 import { useIsMounted } from '../hooks/useIsMounted';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { toast } from 'sonner';
-import { getMyTrips, getOffersForDriver, deleteTrip, updateTrip, submitReview as submitReviewApi, cleanupOrphanedOffers, updateOffer } from '../api/dataApi';
+import { getMyTrips, getOffersForDriver, deleteTrip, updateTrip, cleanupOrphanedOffers, updateOffer } from '../api/dataApi';
 import { getChats, initChatRoom } from '../api/chatStore';
 import { generatePairChatId } from '../api/chatUtils';
 import { saveActiveShipment } from '../api/trackingApi';
@@ -20,22 +20,8 @@ import { TripCardSkeleton } from './SkeletonCard';
 import { PullIndicator } from './PullIndicator';
 import { TripCard } from './TripCard';
 import { SwipeableCard } from './SwipeableCard';
-import { StarRow } from './ui/StarRow';
 
 const REVIEWED_TRIPS_KEY = 'ovora_reviewed_trips';
-
-const CATEGORY_LABELS: Record<string, string> = {
-  punctuality: 'Пунктуальность',
-  reliability: 'Надёжность',
-  communication: 'Коммуникация',
-  packaging: 'Упаковка',
-};
-const CATEGORY_ICONS: Record<string, any> = {
-  punctuality: Zap,
-  reliability: Shield,
-  communication: MessageSquare,
-  packaging: Award,
-};
 
 // ── Основной компонент ───────────────────────────────────────────────────────
 export function DriverTripsPage() {
@@ -46,12 +32,7 @@ export function DriverTripsPage() {
   const isMountedRef = useIsMounted();
   const [activeTab, setActiveTab] = useState<'active' | 'completed' | 'cancelled'>('active');
 
-  const [reviewModal, setReviewModal] = useState<{ tripId: string; route: string; counterpart: string; senderEmail: string; senderName?: string } | null>(null);
-  const [reviewQueue, setReviewQueue] = useState<{ senderEmail: string; senderName?: string }[]>([]);
   const [reviewedTrips, setReviewedTrips] = useState<string[]>([]);
-  const [formRating, setFormRating] = useState(0);
-  const [formComment, setFormComment] = useState('');
-  const [formCats, setFormCats] = useState({ punctuality: 0, reliability: 0, communication: 0, packaging: 0 });
   const [publishedTrips, setPublishedTrips] = useState<any[]>([]);
   const [offers, setOffers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -253,78 +234,14 @@ export function DriverTripsPage() {
     return senders.every(s => isSenderReviewed(String(trip.id), s.senderEmail));
   };
 
+  // ✅ Единственный канонический способ оставить отзыв — страница «Архив
+  // поездки» (TripDetail.tsx, ReviewCard). Раньше тут был ещё один полный
+  // дубль формы отзыва в модалке — два разных места с разными багами и
+  // путаницей у пользователя, какое из них «настоящее». Кнопка на карточке
+  // теперь просто открывает архив поездки, как и тап по самой карточке.
   const openReview = (e: React.MouseEvent, trip: any) => {
     e.stopPropagation();
-    const tripId = String(trip.id);
-    const pending = getTripSenders(trip).filter(s => !isSenderReviewed(tripId, s.senderEmail));
-    if (pending.length === 0) {
-      toast.error('Нет данных об отправителе для этой поездки');
-      return;
-    }
-    const [first, ...rest] = pending;
-    setReviewQueue(rest);
-    setReviewModal({
-      tripId,
-      route: `${trip.from} → ${trip.to}`,
-      counterpart: first.senderName || 'Отправитель',
-      senderEmail: first.senderEmail,
-      senderName: first.senderName,
-    });
-    setFormRating(0); setFormComment('');
-    setFormCats({ punctuality: 0, reliability: 0, communication: 0, packaging: 0 });
-  };
-
-  const advanceReviewQueue = () => {
-    if (reviewQueue.length > 0) {
-      const [next, ...rest] = reviewQueue;
-      setReviewQueue(rest);
-      setReviewModal(prev => prev ? { ...prev, senderEmail: next.senderEmail, senderName: next.senderName, counterpart: next.senderName || 'Отправитель' } : prev);
-      setFormRating(0); setFormComment('');
-      setFormCats({ punctuality: 0, reliability: 0, communication: 0, packaging: 0 });
-    } else {
-      setReviewModal(null);
-    }
-  };
-
-  const submitReview = async () => {
-    if (!formRating) { toast.error('Укажите оценку'); return; }
-    if (!formComment.trim()) { toast.error('Напишите комментарий'); return; }
-    const authorName = currentUser?.fullName || currentUser?.firstName || 'Водитель';
-    const reviewKey = `${reviewModal!.tripId}:${reviewModal!.senderEmail}`;
-    try {
-      await submitReviewApi({
-        authorEmail: currentUser?.email || '',
-        authorName,
-        targetEmail: (reviewModal as any)?.senderEmail || '',
-        tripId: reviewModal!.tripId,
-        rating: formRating,
-        comment: formComment.trim(),
-        tripRoute: reviewModal!.route,
-        categories: {
-          punctuality: formCats.punctuality || formRating,
-          reliability: formCats.reliability || formRating,
-          communication: formCats.communication || formRating,
-          packaging: formCats.packaging || formRating,
-        },
-        type: 'given', verified: true,
-      });
-      const reviewed = [...reviewedTrips, reviewKey];
-      setReviewedTrips(reviewed);
-      localStorage.setItem(REVIEWED_TRIPS_KEY, JSON.stringify(reviewed));
-      toast.success('Отзыв опубликован! Спасибо');
-      advanceReviewQueue();
-    } catch (err: any) {
-      if (err?.message === 'DUPLICATE_REVIEW') {
-        toast.error('Вы уже оставляли отзыв на эту поездку');
-        // Помечаем как reviewed чтобы скрыть кнопку
-        const reviewed = [...reviewedTrips, reviewKey];
-        setReviewedTrips(reviewed);
-        localStorage.setItem(REVIEWED_TRIPS_KEY, JSON.stringify(reviewed));
-        advanceReviewQueue();
-      } else {
-        toast.error('Не удалось отправить отзыв');
-      }
-    }
+    navigate(`/trip/${trip.id}`);
   };
 
   const startTrip = async (e: React.MouseEvent, trip: any) => {
@@ -780,57 +697,6 @@ export function DriverTripsPage() {
           </div>
         </div>
       </div>
-
-      {/* ── Review Modal ────────────────────────────────────────────────────── */}
-      {reviewModal && (
-        <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center" onClick={() => setReviewModal(null)}>
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-          <div className="relative w-full max-w-md rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col max-h-[88vh] bg-[#162030]"
-            onClick={e => e.stopPropagation()}>
-            <div className="w-10 h-1 rounded-full mx-auto mt-4 mb-2 bg-white/10 md:hidden flex-shrink-0" />
-            {/* ✅ FIX: кнопка вынесена из скролл-зоны в закреплённый футер —
-                раньше при длинном контенте (5 категорий + textarea) она уходила
-                за пределы видимой области под нижней моб. навигацией. */}
-            <div className="px-6 pt-4 overflow-y-auto flex-1 min-h-0">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="text-lg font-bold text-white">Оставить отзыв</h2>
-                  <p className="text-xs mt-0.5 text-[#475569]">{reviewModal.route}</p>
-                </div>
-                <button onClick={() => { setReviewModal(null); setReviewQueue([]); }} className="w-8 h-8 flex items-center justify-center text-[#475569] hover:text-white">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <p className="text-[10px] uppercase tracking-wider font-medium mb-1 text-[#475569]">
-                Оцените отправителя{reviewQueue.length > 0 ? ` (1 из ${reviewQueue.length + 1})` : ''}
-              </p>
-              <p className="text-sm font-bold mb-4 text-white">{reviewModal.counterpart}</p>
-              <div className="flex justify-center mb-4"><StarRow value={formRating} onChange={setFormRating} size="lg" /></div>
-              {Object.entries(CATEGORY_LABELS).map(([key, label]) => {
-                const Icon = CATEGORY_ICONS[key];
-                return (
-                  <div key={key} className="flex items-center justify-between py-2.5 border-b border-white/[0.06]">
-                    <div className="flex items-center gap-2">
-                      <Icon className="w-3.5 h-3.5 text-[#475569]" />
-                      <span className="text-sm text-[#94a3b8]">{label}</span>
-                    </div>
-                    <StarRow value={formCats[key as keyof typeof formCats]} onChange={v => setFormCats(p => ({ ...p, [key]: v }))} size="sm" />
-                  </div>
-                );
-              })}
-              <textarea placeholder="Комментарий..." value={formComment} onChange={e => setFormComment(e.target.value)}
-                className="w-full mt-4 p-3 text-sm rounded-xl border resize-none outline-none bg-[#1a2736] border-white/[0.08] text-white placeholder-[#475569]"
-                rows={3} />
-            </div>
-            <div className="px-6 pb-6 pt-3 flex-shrink-0 border-t border-white/[0.06]">
-              <button onClick={submitReview}
-                className="w-full py-3.5 bg-[#1978e5] hover:bg-[#1565cc] text-white font-bold rounded-2xl text-sm active:scale-[0.98] transition-all">
-                Опубликовать отзыв
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ── Chat Sender Picker (несколько отправителей на одной поездке) ──────── */}
       {chatPicker && (
