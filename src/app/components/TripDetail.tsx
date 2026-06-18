@@ -90,7 +90,14 @@ function CompletedTripDetail({ trip, isDark }: { trip: any; isDark: boolean }) {
           <ArrowLeft className="w-5 h-5" />
         </button>
         <span className={`text-sm font-bold ${isDark ? 'text-[#64748b]' : 'text-[#94a3b8]'}`}>Архив поездки</span>
-        <button className={`flex size-10 items-center justify-center rounded-full transition-colors ${isDark ? 'hover:bg-[#1e2d3a]' : 'hover:bg-[#e2e8f0]'}`}>
+        <button
+          onClick={async () => {
+            const url = `${window.location.origin}/trip/${trip.id}`;
+            const text = `${trip.from} → ${trip.to} · ${trip.date} | Ovora Cargo`;
+            if (navigator.share) { try { await navigator.share({ title: 'Архив поездки Ovora Cargo', text, url }); } catch {} }
+            else { await navigator.clipboard.writeText(`${text}\n${url}`); toast.success('Ссылка скопирована!'); }
+          }}
+          className={`flex size-10 items-center justify-center rounded-full transition-colors ${isDark ? 'hover:bg-[#1e2d3a]' : 'hover:bg-[#e2e8f0]'}`}>
           <Share2 className="w-5 h-5" />
         </button>
       </header>

@@ -750,6 +750,86 @@ function cleanAddress(address: string): string {
   return filtered[0] || address;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// АВТОУДАЛЕНИЕ АРХИВА ПОЕЗДОК — через 30 дней после завершения поездки
+// (даёт водителю/отправителю месяц на обращение в поддержку при споре).
+// Отзывы (ovora:review:*) НЕ удаляются — они хранят свою копию данных
+// (tripRoute и т.п.) и должны переживать поездку навсегда.
+// ─────────────────────────────────────────────────────────────────────────────
+const TRIP_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+const TRIP_PURGE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
+let tripPurgeInFlight = false;
+
+async function purgeExpiredTrips(): Promise<number> {
+  const cutoff = Date.now() - TRIP_RETENTION_MS;
+  const trips: any[] = await kv.getByPrefix('ovora:trip:');
+  const expired = trips.filter((t: any) =>
+    t && t.status === 'completed' && t.completedAt && new Date(t.completedAt).getTime() < cutoff
+  );
+  if (expired.length === 0) return 0;
+
+  for (const trip of expired) {
+    const tripId = trip.id;
+    try {
+      // 1. Офферы этой поездки + их вторичные индексы
+      const offers: any[] = await kv.getByPrefix(`ovora:offer:${tripId}:`);
+      for (const offer of offers) {
+        if (!offer?.offerId) continue;
+        await kv.del(`ovora:offer:${tripId}:${offer.offerId}`).catch(() => {});
+        if (offer.driverEmail) await kv.del(`ovora:driveroffers:${offer.driverEmail}:${offer.offerId}`).catch(() => {});
+        if (offer.senderEmail) await kv.del(`ovora:senderoffers:${offer.senderEmail}:${offer.offerId}`).catch(() => {});
+      }
+
+      // 2. Чаты, привязанные к этой поездке (по chatmeta.tripId)
+      const allMeta: any[] = await kv.getByPrefix('ovora:chatmeta:');
+      const linkedMeta = allMeta.filter((m: any) => m && String(m.tripId) === String(tripId));
+      for (const meta of linkedMeta) {
+        if (!meta.chatId) continue;
+        const msgs: any[] = await kv.getByPrefix(`ovora:chat:${meta.chatId}:`);
+        for (const msg of msgs) {
+          if (msg?.msgId) await kv.del(`ovora:chat:${meta.chatId}:${msg.msgId}`).catch(() => {});
+        }
+        await kv.del(`ovora:chatmeta:${meta.chatId}`).catch(() => {});
+      }
+
+      // 3. Данные трекинга/POD-фото
+      await kv.del(`ovora:shipment:${tripId}`).catch(() => {});
+
+      // 4. Индекс поездок водителя
+      if (trip.driverEmail) await kv.del(`ovora:drivertrips:${trip.driverEmail}:${tripId}`).catch(() => {});
+
+      // 5. Сама поездка — последней, чтобы частичный сбой выше не оставил "осиротевшую" запись
+      await kv.del(`ovora:trip:${tripId}`);
+
+      console.log(`[purge] Поездка ${tripId} удалена (завершена ${trip.completedAt}), отзывы сохранены`);
+    } catch (err) {
+      console.log(`[purge] Не удалось удалить поездку ${tripId}:`, err);
+    }
+  }
+  return expired.length;
+}
+
+// Throttled fire-and-forget trigger — вызывается из часто запрашиваемых эндпоинтов,
+// без cron-инфраструктуры. Не блокирует ответ и не чаще раза в сутки.
+function maybeTriggerTripPurge(): void {
+  if (tripPurgeInFlight) return;
+  tripPurgeInFlight = true;
+  (async () => {
+    try {
+      const last = await kv.get('ovora:meta:lastTripPurge');
+      const lastTs = last ? new Date(last).getTime() : 0;
+      if (Date.now() - lastTs < TRIP_PURGE_CHECK_INTERVAL_MS) return;
+      await kv.set('ovora:meta:lastTripPurge', new Date().toISOString());
+      const purged = await purgeExpiredTrips();
+      if (purged > 0) console.log(`[purge] Автоудаление: очищено ${purged} поездок старше 30 дней`);
+    } catch (err) {
+      console.log('[purge] Ошибка проверки автоудаления:', err);
+    } finally {
+      tripPurgeInFlight = false;
+    }
+  })();
+}
+
 app.post("/make-server-4e36197a/trips", async (c) => {
   try {
     const body = await c.req.json();
@@ -806,6 +886,7 @@ app.post("/make-server-4e36197a/trips", async (c) => {
 
 app.get("/make-server-4e36197a/trips", async (c) => {
   try {
+    maybeTriggerTripPurge();
     const trips: any[] = await kv.getByPrefix("ovora:trip:");
     const sorted = trips
       .filter(t => t && !t.deletedAt && t.status !== 'cancelled' && t.status !== 'completed' && t.status !== 'deleted')
