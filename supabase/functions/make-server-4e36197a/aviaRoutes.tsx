@@ -34,6 +34,7 @@ interface AviaDeps {
   supabase           : any;
   AVIA_PASSPORT_BUCKET: string;
   AVATAR_BUCKET      : string;
+  POD_BUCKET         : string;
   extractDocumentData: (base64: string, type: string) => Promise<any>;
   sendPushToUser     : (email: string, payload: any) => Promise<void>;
 }
@@ -43,7 +44,7 @@ interface AviaDeps {
 // ══════════════════════════════════════════════════════════════════════════════
 
 export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
-  const { supabase, AVIA_PASSPORT_BUCKET, AVATAR_BUCKET, extractDocumentData, sendPushToUser } = deps;
+  const { supabase, AVIA_PASSPORT_BUCKET, AVATAR_BUCKET, POD_BUCKET, extractDocumentData, sendPushToUser } = deps;
 
   const P = '/make-server-4e36197a/avia'; // prefix
 
@@ -1417,6 +1418,55 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ success: true, deal: updated });
     } catch (err) {
       console.log('Error PATCH /avia/deals/:id/complete:', err);
+      return c.json({ error: `${err}` }, 500);
+    }
+  });
+
+  // ── POD (Proof of Delivery) — фото подтверждения доставки ───────────────────
+  // Storage: make-4e36197a-pod/avia-deals/{dealId}/{ts}.jpg
+  app.post(`${P}/deals/:id/pod`, async (c) => {
+    try {
+      const id = c.req.param('id');
+      const { base64, callerPhone } = await c.req.json();
+      const clean = aviaClean(callerPhone || '');
+      if (!clean) return c.json({ error: 'callerPhone is required' }, 400);
+      if (!base64) return c.json({ error: 'base64 required' }, 400);
+
+      const deal = await Deals.get(id);
+      if (!deal) return c.json({ error: 'Deal not found' }, 404);
+      if (deal.courierId !== clean) {
+        console.warn(`[AVIA Deals] IDOR attempt: ${clean} tried to upload POD photo for deal ${id} owned by courier ${deal.courierId}`);
+        return c.json({ error: 'Forbidden: only the courier can upload proof of delivery' }, 403);
+      }
+      if (deal.status !== 'completed') return c.json({ error: 'Deal must be completed before uploading proof of delivery' }, 400);
+      if ((deal.podPhotos || []).length >= 6) return c.json({ error: 'Достигнут лимит фото (6)' }, 400);
+
+      const base64Data = base64.replace(/^data:image\/[a-z]+;base64,/, '');
+      const binaryStr = atob(base64Data);
+      const bytes = new Uint8Array(binaryStr.length);
+      for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+
+      const now = new Date().toISOString();
+      const fileName = `avia-deals/${id}/${Date.now()}.jpg`;
+
+      const { error: uploadError } = await supabase.storage
+        .from(POD_BUCKET)
+        .upload(fileName, bytes, { contentType: 'image/jpeg', upsert: true });
+      if (uploadError) throw uploadError;
+
+      const { data: signedData } = await supabase.storage
+        .from(POD_BUCKET)
+        .createSignedUrl(fileName, 7 * 24 * 3600);
+
+      const photo = { url: signedData?.signedUrl || '', path: fileName, timestamp: now, uploadedBy: clean };
+      const podPhotos = [...(deal.podPhotos || []), photo];
+      const updated = { ...deal, podPhotos, updatedAt: now };
+      await Deals.set(id, updated);
+
+      console.log(`[AVIA Deals] POD photo uploaded for deal ${id} by ${clean}`);
+      return c.json({ success: true, photo, deal: updated });
+    } catch (err) {
+      console.log('Error POST /avia/deals/:id/pod:', err);
       return c.json({ error: `${err}` }, 500);
     }
   });

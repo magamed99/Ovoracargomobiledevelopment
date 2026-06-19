@@ -162,6 +162,14 @@ export interface AviaDeal {
   rejectReason   ?: string;
   cancelReason   ?: string;
   deletedAt      ?: string;
+  podPhotos      ?: AviaPODPhoto[];
+}
+
+export interface AviaPODPhoto {
+  url      : string;
+  path     : string;
+  timestamp: string;
+  uploadedBy: string;
 }
 
 export interface AviaChatMeta {
