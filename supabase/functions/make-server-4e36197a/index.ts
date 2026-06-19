@@ -6032,6 +6032,7 @@ setupAviaRoutes(app, {
   supabase,
   AVIA_PASSPORT_BUCKET,
   AVATAR_BUCKET,
+  POD_BUCKET,
   extractDocumentData,
   sendPushToUser,
 });

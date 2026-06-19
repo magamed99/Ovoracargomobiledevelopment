@@ -93,6 +93,7 @@ export interface AviaFlight {
   currency      : string;
   status        : string;
   isDeleted     ?: boolean;
+  startedAt     ?: string;
   closedAt      ?: string;
   completedAt   ?: string;
   createdAt     : string;
@@ -161,6 +162,14 @@ export interface AviaDeal {
   rejectReason   ?: string;
   cancelReason   ?: string;
   deletedAt      ?: string;
+  podPhotos      ?: AviaPODPhoto[];
+}
+
+export interface AviaPODPhoto {
+  url      : string;
+  path     : string;
+  timestamp: string;
+  uploadedBy: string;
 }
 
 export interface AviaChatMeta {
@@ -285,7 +294,14 @@ export const Flights = {
 
     const all = await kv.getByPrefix('ovora:air-flight:') as AviaFlight[];
     const result = all
-      .filter(f => f && typeof f === 'object' && !f.isDeleted && f.status !== 'closed' && f.status !== 'completed')
+      .filter(f => {
+        if (!f || typeof f !== 'object' || f.isDeleted) return false;
+        // in_progress — поездка уже начата, скрываем от публичного поиска, чтобы не приходили новые заявки
+        if (f.status === 'closed' || f.status === 'completed' || f.status === 'in_progress') return false;
+        // Грузовая ёмкость выбрана и полностью занята, документы не предлагаются — скрываем
+        if (f.cargoEnabled && !f.docsEnabled && (f.freeKg || 0) - (f.reservedKg || 0) <= 0) return false;
+        return true;
+      })
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     aviaCache.set(CK.flightsList(), result, TTL.FLIGHTS_LIST);

@@ -34,6 +34,7 @@ interface AviaDeps {
   supabase           : any;
   AVIA_PASSPORT_BUCKET: string;
   AVATAR_BUCKET      : string;
+  POD_BUCKET         : string;
   extractDocumentData: (base64: string, type: string) => Promise<any>;
   sendPushToUser     : (email: string, payload: any) => Promise<void>;
 }
@@ -43,7 +44,7 @@ interface AviaDeps {
 // ══════════════════════════════════════════════════════════════════════════════
 
 export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
-  const { supabase, AVIA_PASSPORT_BUCKET, AVATAR_BUCKET, extractDocumentData, sendPushToUser } = deps;
+  const { supabase, AVIA_PASSPORT_BUCKET, AVATAR_BUCKET, POD_BUCKET, extractDocumentData, sendPushToUser } = deps;
 
   const P = '/make-server-4e36197a/avia'; // prefix
 
@@ -454,6 +455,27 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
     }
   });
 
+  // Получить один рейс по id (включая in_progress/closed/completed — но только владельцу,
+  // т.к. Flights.listActive() их скрывает из публичного списка)
+  app.get(`${P}/flights/:id`, async (c) => {
+    try {
+      const id     = c.req.param('id');
+      const flight = await Flights.get(id);
+      if (!flight || flight.isDeleted) return c.json({ error: 'Flight not found' }, 404);
+      if (flight.status !== 'active') {
+        const callerPhone = aviaClean(c.req.query('callerPhone') || '');
+        if (!callerPhone || callerPhone !== flight.courierId) {
+          console.warn(`[AVIA Flights] IDOR attempt: ${callerPhone || '(none)'} tried to view non-active flight ${id} owned by ${flight.courierId}`);
+          return c.json({ error: 'Forbidden' }, 403);
+        }
+      }
+      return c.json({ flight });
+    } catch (err) {
+      console.log('Error GET /avia/flights/:id:', err);
+      return c.json({ error: `${err}` }, 500);
+    }
+  });
+
   app.post(`${P}/flights`, rlPhone(RL.GENERAL_WRITE), async (c) => {
     try {
       const body = await c.req.json();
@@ -505,8 +527,14 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
   app.delete(`${P}/flights/:id`, async (c) => {
     try {
       const id     = c.req.param('id');
+      const callerPhone = aviaClean(c.req.query('callerPhone') || '');
+      if (!callerPhone) return c.json({ error: 'callerPhone is required' }, 400);
       const flight = await Flights.get(id);
       if (!flight) return c.json({ error: 'Flight not found' }, 404);
+      if (flight.courierId !== callerPhone) {
+        console.warn(`[AVIA Flights] IDOR attempt: ${callerPhone} tried to delete flight ${id} owned by ${flight.courierId}`);
+        return c.json({ error: 'Forbidden: not the owner' }, 403);
+      }
       await Flights.set(id, { ...flight, isDeleted: true, updatedAt: new Date().toISOString() });
       return c.json({ success: true });
     } catch (err) {
@@ -515,11 +543,69 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
     }
   });
 
+  app.patch(`${P}/flights/:id/start`, async (c) => {
+    try {
+      const id     = c.req.param('id');
+      const { callerPhone } = await c.req.json().catch(() => ({ callerPhone: '' }));
+      const clean  = aviaClean(callerPhone || '');
+      if (!clean) return c.json({ error: 'callerPhone is required' }, 400);
+      const flight = await Flights.get(id);
+      if (!flight) return c.json({ error: 'Flight not found' }, 404);
+      if (flight.courierId !== clean) {
+        console.warn(`[AVIA Flights] IDOR attempt: ${clean} tried to start flight ${id} owned by ${flight.courierId}`);
+        return c.json({ error: 'Forbidden: not the owner' }, 403);
+      }
+      if (flight.isDeleted) return c.json({ error: 'Flight deleted' }, 400);
+      if (flight.status !== 'active') return c.json({ error: `Cannot start flight with status: ${flight.status}` }, 400);
+      const now     = new Date().toISOString();
+      const updated = { ...flight, status: 'in_progress', startedAt: now, updatedAt: now };
+      await Flights.set(id, updated);
+
+      // Уведомляем отправителей с принятыми сделками, что поездка началась (fire-and-forget)
+      ;(async () => {
+        try {
+          const userDeals = await Deals.listByUser(flight.courierId);
+          for (const deal of userDeals) {
+            if (deal.adId !== id || deal.status !== 'accepted') continue;
+
+            const chatId = aviaChatId(deal.initiatorPhone, deal.recipientPhone);
+            const meta   = await Chats.getMeta(chatId);
+            if (meta) {
+              const msgId = aviaId('deal_update');
+              await Chats.addMessage(chatId, { id: msgId, chatId, senderPhone: 'system', text: 'Поездка начата', type: 'deal_update', meta: { dealId: deal.id, status: 'started' }, createdAt: now });
+              await Chats.setMeta(chatId, { ...meta, lastMessage: '✈ Поездка начата', lastMessageAt: now, lastSenderPhone: 'system' });
+            }
+
+            await Notifs.push(deal.senderId, {
+              id: aviaId('flight_started'), phone: deal.senderId, type: 'system',
+              iconName: 'Plane', iconBg: 'bg-sky-500/10 text-sky-400',
+              title: '✈ Поездка началась!',
+              description: `Курьер ${flight.courierName || flight.courierId} начал поездку · ${flight.from} → ${flight.to}`,
+              isUnread: true, createdAt: now, meta: { dealId: deal.id, flightId: id },
+            });
+          }
+        } catch (e) { console.warn('[AVIA] Start flight side-effects error:', e); }
+      })();
+
+      return c.json({ success: true, flight: updated });
+    } catch (err) {
+      console.log('Error PATCH /avia/flights/start:', err);
+      return c.json({ error: `${err}` }, 500);
+    }
+  });
+
   app.patch(`${P}/flights/:id/close`, async (c) => {
     try {
       const id     = c.req.param('id');
+      const { callerPhone } = await c.req.json().catch(() => ({ callerPhone: '' }));
+      const clean  = aviaClean(callerPhone || '');
+      if (!clean) return c.json({ error: 'callerPhone is required' }, 400);
       const flight = await Flights.get(id);
       if (!flight) return c.json({ error: 'Flight not found' }, 404);
+      if (flight.courierId !== clean) {
+        console.warn(`[AVIA Flights] IDOR attempt: ${clean} tried to close flight ${id} owned by ${flight.courierId}`);
+        return c.json({ error: 'Forbidden: not the owner' }, 403);
+      }
       if (flight.isDeleted)       return c.json({ error: 'Flight already deleted' }, 400);
       if (flight.status === 'closed') return c.json({ error: 'Flight already closed' }, 400);
       const now     = new Date().toISOString();
@@ -535,8 +621,15 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
   app.patch(`${P}/flights/:id/complete`, async (c) => {
     try {
       const id     = c.req.param('id');
+      const { callerPhone } = await c.req.json().catch(() => ({ callerPhone: '' }));
+      const clean  = aviaClean(callerPhone || '');
+      if (!clean) return c.json({ error: 'callerPhone is required' }, 400);
       const flight = await Flights.get(id);
       if (!flight) return c.json({ error: 'Flight not found' }, 404);
+      if (flight.courierId !== clean) {
+        console.warn(`[AVIA Flights] IDOR attempt: ${clean} tried to complete flight ${id} owned by ${flight.courierId}`);
+        return c.json({ error: 'Forbidden: not the owner' }, 403);
+      }
       if (flight.isDeleted)           return c.json({ error: 'Flight deleted' }, 400);
       if (flight.status === 'completed') return c.json({ error: 'Flight already completed' }, 400);
 
@@ -655,8 +748,14 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
   app.delete(`${P}/requests/:id`, async (c) => {
     try {
       const id  = c.req.param('id');
+      const callerPhone = aviaClean(c.req.query('callerPhone') || '');
+      if (!callerPhone) return c.json({ error: 'callerPhone is required' }, 400);
       const req = await Requests.get(id);
       if (!req) return c.json({ error: 'Request not found' }, 404);
+      if (req.senderId !== callerPhone) {
+        console.warn(`[AVIA Requests] IDOR attempt: ${callerPhone} tried to delete request ${id} owned by ${req.senderId}`);
+        return c.json({ error: 'Forbidden: not the owner' }, 403);
+      }
       await Requests.set(id, { ...req, isDeleted: true, updatedAt: new Date().toISOString() });
       return c.json({ success: true });
     } catch (err) {
@@ -668,8 +767,15 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
   app.patch(`${P}/requests/:id/close`, async (c) => {
     try {
       const id  = c.req.param('id');
+      const { callerPhone } = await c.req.json().catch(() => ({ callerPhone: '' }));
+      const clean = aviaClean(callerPhone || '');
+      if (!clean) return c.json({ error: 'callerPhone is required' }, 400);
       const req = await Requests.get(id);
       if (!req) return c.json({ error: 'Request not found' }, 404);
+      if (req.senderId !== clean) {
+        console.warn(`[AVIA Requests] IDOR attempt: ${clean} tried to close request ${id} owned by ${req.senderId}`);
+        return c.json({ error: 'Forbidden: not the owner' }, 403);
+      }
       if (req.isDeleted)         return c.json({ error: 'Request already deleted' }, 400);
       if (req.status === 'closed') return c.json({ error: 'Request already closed' }, 400);
       const now     = new Date().toISOString();
@@ -1118,8 +1224,14 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
   app.get(`${P}/deals/:id`, async (c) => {
     try {
       const id   = c.req.param('id');
+      const callerPhone = aviaClean(c.req.query('callerPhone') || '');
+      if (!callerPhone) return c.json({ error: 'callerPhone is required' }, 400);
       const deal = await Deals.get(id);
       if (!deal) return c.json({ error: 'Deal not found' }, 404);
+      if (deal.initiatorPhone !== callerPhone && deal.recipientPhone !== callerPhone) {
+        console.warn(`[AVIA Deals] IDOR attempt: ${callerPhone} tried to read deal ${id}`);
+        return c.json({ error: 'Forbidden: not a participant' }, 403);
+      }
       return c.json({ deal });
     } catch (err) {
       console.log('Error GET /avia/deals/:id:', err);
@@ -1131,6 +1243,12 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
     try {
       const phone = aviaClean(decodeURIComponent(c.req.param('phone')));
       if (!phone) return c.json({ error: 'phone required' }, 400);
+      const callerPhone = aviaClean(c.req.query('callerPhone') || '');
+      if (!callerPhone) return c.json({ error: 'callerPhone is required' }, 400);
+      if (callerPhone !== phone) {
+        console.warn(`[AVIA Deals] IDOR attempt: ${callerPhone} tried to list deals of ${phone}`);
+        return c.json({ error: 'Forbidden' }, 403);
+      }
       const deals = await Deals.listByUser(phone);
       return c.json({ deals });
     } catch (err) {
@@ -1304,6 +1422,55 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
     }
   });
 
+  // ── POD (Proof of Delivery) — фото подтверждения доставки ───────────────────
+  // Storage: make-4e36197a-pod/avia-deals/{dealId}/{ts}.jpg
+  app.post(`${P}/deals/:id/pod`, async (c) => {
+    try {
+      const id = c.req.param('id');
+      const { base64, callerPhone } = await c.req.json();
+      const clean = aviaClean(callerPhone || '');
+      if (!clean) return c.json({ error: 'callerPhone is required' }, 400);
+      if (!base64) return c.json({ error: 'base64 required' }, 400);
+
+      const deal = await Deals.get(id);
+      if (!deal) return c.json({ error: 'Deal not found' }, 404);
+      if (deal.courierId !== clean) {
+        console.warn(`[AVIA Deals] IDOR attempt: ${clean} tried to upload POD photo for deal ${id} owned by courier ${deal.courierId}`);
+        return c.json({ error: 'Forbidden: only the courier can upload proof of delivery' }, 403);
+      }
+      if (deal.status !== 'completed') return c.json({ error: 'Deal must be completed before uploading proof of delivery' }, 400);
+      if ((deal.podPhotos || []).length >= 6) return c.json({ error: 'Достигнут лимит фото (6)' }, 400);
+
+      const base64Data = base64.replace(/^data:image\/[a-z]+;base64,/, '');
+      const binaryStr = atob(base64Data);
+      const bytes = new Uint8Array(binaryStr.length);
+      for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+
+      const now = new Date().toISOString();
+      const fileName = `avia-deals/${id}/${Date.now()}.jpg`;
+
+      const { error: uploadError } = await supabase.storage
+        .from(POD_BUCKET)
+        .upload(fileName, bytes, { contentType: 'image/jpeg', upsert: true });
+      if (uploadError) throw uploadError;
+
+      const { data: signedData } = await supabase.storage
+        .from(POD_BUCKET)
+        .createSignedUrl(fileName, 7 * 24 * 3600);
+
+      const photo = { url: signedData?.signedUrl || '', path: fileName, timestamp: now, uploadedBy: clean };
+      const podPhotos = [...(deal.podPhotos || []), photo];
+      const updated = { ...deal, podPhotos, updatedAt: now };
+      await Deals.set(id, updated);
+
+      console.log(`[AVIA Deals] POD photo uploaded for deal ${id} by ${clean}`);
+      return c.json({ success: true, photo, deal: updated });
+    } catch (err) {
+      console.log('Error POST /avia/deals/:id/pod:', err);
+      return c.json({ error: `${err}` }, 500);
+    }
+  });
+
   // ══════════════════════════════════════════════════════════════════════════
   //  STATS & PUBLIC PROFILE
   // ══════════════════════════════════════════════════════════════════════════
@@ -1358,7 +1525,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
 
       const deal = await Deals.get(dealId);
       if (!deal) return c.json({ error: 'Deal not found' }, 404);
-      if (!['completed', 'accepted', 'cancelled', 'rejected'].includes(deal.status)) return c.json({ error: 'Отзыв можно оставить только по завершённой сделке' }, 403);
+      if (deal.status !== 'completed') return c.json({ error: 'Отзыв можно оставить только по завершённой сделке' }, 403);
 
       const cleanAuthor = aviaClean(authorPhone);
       const isInitiator = deal.initiatorPhone === cleanAuthor;

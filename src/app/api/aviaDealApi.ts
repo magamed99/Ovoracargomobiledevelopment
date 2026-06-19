@@ -46,6 +46,14 @@ export interface AviaDeal {
   cancelledAt?: string;
   rejectedAt?: string;
   rejectReason?: string;
+  podPhotos?: AviaPODPhoto[];
+}
+
+export interface AviaPODPhoto {
+  url: string;
+  path: string;
+  timestamp: string;
+  uploadedBy: string;
 }
 
 export interface AviaStats {
@@ -205,6 +213,27 @@ export async function completeAviaDeal(
     return { success: true, deal: data.deal };
   } catch (err: any) {
     console.error('[aviaDealApi] completeAviaDeal error:', err);
+    return { success: false, error: err.message };
+  }
+}
+
+/** Загрузить фото подтверждения доставки (только курьер, только после completed) */
+export async function uploadAviaDealPOD(
+  dealId: string,
+  base64: string,
+  callerPhone: string,
+): Promise<{ success: boolean; photo?: AviaPODPhoto; error?: string }> {
+  try {
+    const res = await fetch(`${BASE}/avia/deals/${encodeURIComponent(dealId)}/pod`, {
+      method: 'POST',
+      headers: HEADERS,
+      body: JSON.stringify({ base64, callerPhone: callerPhone.replace(/\D/g, '') }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) return { success: false, error: data.error || 'Ошибка загрузки фото' };
+    return { success: true, photo: data.photo };
+  } catch (err: any) {
+    console.error('[aviaDealApi] uploadAviaDealPOD error:', err);
     return { success: false, error: err.message };
   }
 }

@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ArrowLeft, Handshake, Plane, Package, ArrowRight,
   CheckCircle2, XCircle, Clock, ThumbsUp, RefreshCw,
   Loader2, MessageCircle, Scale, DollarSign,
-  ChevronRight, Bell,
+  ChevronRight, Bell, Camera,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAvia } from './AviaContext';
@@ -15,6 +15,7 @@ import {
   rejectAviaDeal,
   cancelAviaDeal,
   completeAviaDeal,
+  uploadAviaDealPOD,
 } from '../../api/aviaDealApi';
 import type { AviaDeal, AviaDealStatus } from '../../api/aviaDealApi';
 import { makeAviaChatId } from '../../api/aviaChatApi';
@@ -57,7 +58,7 @@ function maskPhone(phone: string) {
 function DealCard({
   deal,
   myPhone,
-  onAccept, onReject, onCancel, onComplete, onOpenChat, onReview,
+  onAccept, onReject, onCancel, onComplete, onOpenChat, onReview, onPODUploaded,
   alreadyReviewed,
 }: {
   deal: AviaDeal;
@@ -68,17 +69,21 @@ function DealCard({
   onComplete: (id: string) => void;
   onOpenChat: (otherPhone: string) => void;
   onReview: (deal: AviaDeal) => void;
+  onPODUploaded: (dealId: string, photo: { url: string; path: string; timestamp: string; uploadedBy: string }) => void;
   alreadyReviewed: boolean;
 }) {
   // Suppress unused var warnings — actions now happen in chat for pending deals
   void onAccept; void onReject; void onCancel;
   const [acting, setActing] = useState<string | null>(null);
+  const [uploadingPOD, setUploadingPOD] = useState(false);
+  const podInputRef = useRef<HTMLInputElement>(null);
   const statusMeta = STATUS_META[deal.status];
   const StatusIcon = statusMeta.icon;
 
   const cleanMyPhone   = myPhone.replace(/\D/g, '');
   const isInitiator    = deal.initiatorPhone === cleanMyPhone;
   const isRecipient    = deal.recipientPhone === cleanMyPhone;
+  const isCourier       = deal.courierId === cleanMyPhone;
   const adIsFlightType = deal.adType === 'flight';
   const AdIcon         = adIsFlightType ? Plane : Package;
   const adColor        = adIsFlightType ? '#0ea5e9' : '#a78bfa';
@@ -91,6 +96,29 @@ function DealCard({
       await fn();
     } finally {
       setActing(null);
+    }
+  };
+
+  const handlePODFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setUploadingPOD(true);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const res = await uploadAviaDealPOD(deal.id, base64, myPhone);
+      if (!res.success || !res.photo) { toast.error(res.error || 'Не удалось загрузить фото'); return; }
+      onPODUploaded(deal.id, res.photo);
+      toast.success('Фото подтверждения добавлено');
+    } catch {
+      toast.error('Не удалось загрузить фото');
+    } finally {
+      setUploadingPOD(false);
     }
   };
 
@@ -133,10 +161,10 @@ function DealCard({
         }}>
           <AdIcon style={{ width: 14, height: 14, color: adColor }} />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 14, fontWeight: 800, color: '#fff' }}>{deal.adFrom}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', minWidth: 0 }}>
+          <span style={{ fontSize: 14, fontWeight: 800, color: '#fff', overflowWrap: 'anywhere' }}>{deal.adFrom}</span>
           <ArrowRight style={{ width: 12, height: 12, color: '#4a6080', flexShrink: 0 }} />
-          <span style={{ fontSize: 14, fontWeight: 800, color: '#fff' }}>{deal.adTo}</span>
+          <span style={{ fontSize: 14, fontWeight: 800, color: '#fff', overflowWrap: 'anywhere' }}>{deal.adTo}</span>
         </div>
       </div>
 
@@ -175,20 +203,59 @@ function DealCard({
         </p>
       )}
 
+      {/* Фото подтверждения доставки — только курьер, только после завершения */}
+      {deal.status === 'completed' && isCourier && (
+        <div style={{ marginBottom: 10 }}>
+          {!!(deal.podPhotos?.length) && (
+            <div style={{ display: 'flex', gap: 6, overflowX: 'auto', marginBottom: 6 }}>
+              {deal.podPhotos!.map((p, i) => (
+                <a key={p.path || i} href={p.url} target="_blank" rel="noreferrer">
+                  <img src={p.url} alt="POD" style={{
+                    width: 48, height: 48, borderRadius: 8, objectFit: 'cover',
+                    border: '1px solid #ffffff14', flexShrink: 0,
+                  }} />
+                </a>
+              ))}
+            </div>
+          )}
+          <input ref={podInputRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={handlePODFile} />
+          <button
+            onClick={() => podInputRef.current?.click()}
+            disabled={uploadingPOD || (deal.podPhotos?.length || 0) >= 6}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              padding: '5px 11px', borderRadius: 8, cursor: 'pointer',
+              border: '1px solid #34d39928', background: '#34d39910',
+              color: '#34d399', fontSize: 11, fontWeight: 700,
+              opacity: uploadingPOD ? 0.6 : 1,
+            }}
+          >
+            {uploadingPOD
+              ? <Loader2 style={{ width: 11, height: 11, animation: 'spin 1s linear infinite' }} />
+              : <Camera style={{ width: 11, height: 11 }} />}
+            {deal.podPhotos?.length ? 'Добавить ещё фото' : 'Фото подтверждения доставки'}
+          </button>
+        </div>
+      )}
+
       {/* Parties */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         paddingTop: 10, borderTop: '1px solid #ffffff08',
+        gap: 8, flexWrap: 'wrap',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
           <div style={{
-            width: 22, height: 22, borderRadius: 7,
+            width: 22, height: 22, borderRadius: 7, flexShrink: 0,
             background: '#ffffff0a',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             <ChevronRight style={{ width: 10, height: 10, color: '#4a6080' }} />
           </div>
-          <span style={{ fontSize: 11, color: '#4a6080', fontWeight: 600 }}>
+          <span style={{
+            fontSize: 11, color: '#4a6080', fontWeight: 600,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
             {isInitiator ? 'Вы' : (deal.initiatorName || maskPhone(deal.initiatorPhone))}
             {' → '}
             {isRecipient ? 'Вам' : (deal.recipientName || maskPhone(deal.recipientPhone))}
@@ -196,7 +263,7 @@ function DealCard({
         </div>
 
         {/* Actions */}
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           {/* Pending deals: go to chat where Accept/Reject/Cancel buttons live */}
           {deal.status === 'pending' && (
             <motion.button
@@ -256,8 +323,8 @@ function DealCard({
             </motion.button>
           )}
 
-          {/* Completed/Accepted/Cancelled/Rejected — leave review button */}
-          {(['completed', 'accepted', 'cancelled', 'rejected'].includes(deal.status)) && !alreadyReviewed && (
+          {/* Только для завершённых сделок — кнопка отзыва */}
+          {deal.status === 'completed' && !alreadyReviewed && (
             <motion.button
               whileTap={{ scale: 0.93 }}
               onClick={() => onReview(deal)}
@@ -275,7 +342,7 @@ function DealCard({
           )}
 
           {/* Already reviewed badge */}
-          {(['completed', 'accepted', 'cancelled', 'rejected'].includes(deal.status)) && alreadyReviewed && (
+          {deal.status === 'completed' && alreadyReviewed && (
             <span style={{
               display: 'flex', alignItems: 'center', gap: 4,
               padding: '5px 10px', borderRadius: 8,
@@ -319,8 +386,8 @@ export function AviaDealsPage() {
     try {
       const data = await getAviaDeals(myPhone);
       setDeals(data);
-      // загружаем статусы отзывов для принятых, завершённых, отменённых и отклонённых сделок
-      const completed = data.filter(d => ['completed', 'accepted', 'cancelled', 'rejected'].includes(d.status));
+      // загружаем статусы отзывов только для завершённых сделок
+      const completed = data.filter(d => d.status === 'completed');
       const statuses: Record<string, boolean> = {};
       await Promise.all(completed.map(async d => {
         try {
@@ -395,6 +462,10 @@ export function AviaDealsPage() {
   };
 
   const handleReview = (deal: AviaDeal) => setReviewDeal(deal);
+
+  const handlePODUploaded = (dealId: string, photo: { url: string; path: string; timestamp: string; uploadedBy: string }) => {
+    setDeals(prev => prev.map(d => d.id === dealId ? { ...d, podPhotos: [...(d.podPhotos || []), photo] } : d));
+  };
 
   const handleReviewed = (dealId: string) => {
     setReviewedDeals(prev => ({ ...prev, [dealId]: true }));
@@ -572,6 +643,7 @@ export function AviaDealsPage() {
                 onComplete={handleComplete}
                 onOpenChat={handleOpenChat}
                 onReview={handleReview}
+                onPODUploaded={handlePODUploaded}
                 alreadyReviewed={!!reviewedDeals[deal.id]}
               />
             ))}

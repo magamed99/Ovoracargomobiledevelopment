@@ -148,14 +148,14 @@ export function AviaFlightDetailPage() {
   const load = useCallback(() => {
     if (!id) return;
     setLoading(true);
-    getAviaFlight(id)
+    getAviaFlight(id, user?.phone)
       .then((f: AviaFlight | null) => {
         if (!f) setError('Рейс не найден');
         else setFlight(f);
       })
       .catch(() => setError('Ошибка загрузки'))
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, user?.phone]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -164,10 +164,10 @@ export function AviaFlightDetailPage() {
   const canChat  = !isMine && !!user;
 
   const handleDelete = async () => {
-    if (!flight || !confirm('Удалить этот рейс?')) return;
+    if (!flight || !user?.phone || !confirm('Удалить этот рейс?')) return;
     setDeleting(true);
     try {
-      await deleteAviaFlight(flight.id);
+      await deleteAviaFlight(flight.id, user.phone);
       toast.success('Рейс удалён');
       navigate('/avia/dashboard');
     } catch { toast.error('Не удалось удалить'); }
@@ -175,9 +175,9 @@ export function AviaFlightDetailPage() {
   };
 
   const handleClose = async () => {
-    if (!flight || !confirm('Закрыть рейс? Он исчезнет из публичного списка.')) return;
+    if (!flight || !user?.phone || !confirm('Закрыть рейс? Он исчезнет из публичного списка.')) return;
     try {
-      await closeAviaFlight(flight.id);
+      await closeAviaFlight(flight.id, user.phone);
       setFlight(prev => prev ? { ...prev, status: 'closed' } : prev);
       toast.success('Рейс закрыт');
     } catch { toast.error('Не удалось закрыть'); }
@@ -544,10 +544,10 @@ export function AviaRequestDetailPage() {
   const canChat  = !isMine && !!user;
 
   const handleDelete = async () => {
-    if (!request || !confirm('Удалить эту заявку?')) return;
+    if (!request || !user?.phone || !confirm('Удалить эту заявку?')) return;
     setDeleting(true);
     try {
-      await deleteAviaRequest(request.id);
+      await deleteAviaRequest(request.id, user.phone);
       toast.success('Заявка удалена');
       navigate('/avia/dashboard');
     } catch { toast.error('Не удалось удалить'); }
@@ -555,9 +555,9 @@ export function AviaRequestDetailPage() {
   };
 
   const handleClose = async () => {
-    if (!request || !confirm('Закрыть заявку?')) return;
+    if (!request || !user?.phone || !confirm('Закрыть заявку?')) return;
     try {
-      await closeAviaRequest(request.id);
+      await closeAviaRequest(request.id, user.phone);
       setRequest(prev => prev ? { ...prev, status: 'closed' } : prev);
       toast.success('Заявка закрыта');
     } catch { toast.error('Не удалось закрыть'); }

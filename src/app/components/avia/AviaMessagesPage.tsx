@@ -16,7 +16,7 @@ import {
   ArrowLeft, MessageCircle, Send, User,
   Plane, Package, MessagesSquare, Clock,
   CheckCircle2, XCircle, AlertCircle,
-  ArrowRight, Scale, DollarSign, Loader2, Ban, Star, Trash2, ThumbsUp,
+  ArrowRight, Scale, DollarSign, Loader2, Ban, Star, Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { AviaChatMessage, AviaChat, AviaChatAdRef } from '../../api/aviaChatApi';
@@ -26,8 +26,6 @@ import {
 } from '../../api/aviaChatApi';
 import { getAviaDeal, acceptAviaDeal, rejectAviaDeal, cancelAviaDeal } from '../../api/aviaDealApi';
 import type { AviaDeal } from '../../api/aviaDealApi';
-import { getAviaDealReviewStatus } from '../../api/aviaReviewApi';
-import { AviaReviewModal } from './AviaReviewModal';
 import { useAvia } from './AviaContext';
 import { getAviaProfile } from '../../api/aviaApi';
 
@@ -108,9 +106,6 @@ function DealOfferBubble({ msg, myPhone, refreshTick }: { msg: AviaChatMessage; 
   const [acting, setActing]           = useState<'accept' | 'reject' | 'cancel' | null>(null);
   const [showReject, setShowReject]   = useState(false);
   const [rejectReason, setRejectReason] = useState('');
-  const [showReviewModal, setShowReviewModal] = useState(false);
-  const [alreadyReviewed, setAlreadyReviewed] = useState(false);
-  const [reviewChecked, setReviewChecked]     = useState(false);
 
   const cleanMyPhone = myPhone.replace(/\D/g, '');
   const isMine       = msg.senderPhone.replace(/\D/g, '') === cleanMyPhone;
@@ -122,18 +117,6 @@ function DealOfferBubble({ msg, myPhone, refreshTick }: { msg: AviaChatMessage; 
     if (!meta?.dealId) { setLoading(false); return; }
     getAviaDeal(meta.dealId, myPhone).then(d => { setDeal(d); setLoading(false); });
   }, [meta?.dealId]);
-
-  useEffect(() => {
-    if (!meta?.dealId || !deal) return;
-    if (!['accepted', 'completed', 'cancelled', 'rejected'].includes(deal.status ?? '')) return;
-    if (reviewChecked) return;
-    getAviaDealReviewStatus(meta.dealId).then(st => {
-      const cleanMy = myPhone.replace(/\D/g, '');
-      const isInit  = deal.initiatorPhone === cleanMy;
-      setAlreadyReviewed(isInit ? !!st.byInitiator : !!st.byRecipient);
-      setReviewChecked(true);
-    });
-  }, [meta?.dealId, deal?.status, reviewChecked]);
 
   useEffect(() => {
     if (!meta?.dealId || !deal || deal.status !== 'pending') return;
@@ -286,27 +269,9 @@ function DealOfferBubble({ msg, myPhone, refreshTick }: { msg: AviaChatMessage; 
               </motion.div>
             )}
           </div>
-          {!loading && deal && ['accepted', 'completed', 'cancelled', 'rejected'].includes(deal.status ?? '') && reviewChecked && (
-            <div style={{ padding: '0 13px 10px' }}>
-              {alreadyReviewed ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 10, background: '#34d39910', border: '1px solid #34d39925' }}>
-                  <CheckCircle2 style={{ width: 11, height: 11, color: '#34d399' }} />
-                  <span style={{ fontSize: 11, fontWeight: 600, color: '#34d399' }}>Отзыв оставлен</span>
-                </div>
-              ) : (
-                <motion.button whileTap={{ scale: 0.96 }} onClick={e => { e.stopPropagation(); setShowReviewModal(true); }} style={{ width: '100%', padding: '8px 12px', borderRadius: 10, background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)', color: '#fbbf24', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxSizing: 'border-box' }}>
-                  <ThumbsUp style={{ width: 13, height: 13 }} />
-                  Оставить отзыв
-                </motion.button>
-              )}
-            </div>
-          )}
           <div style={{ padding: '0 13px 8px', fontSize: 9, color: '#2a3d50', fontWeight: 500, textAlign: 'right' }}>{fmtTime(msg.createdAt)}</div>
         </div>
       </motion.div>
-      {showReviewModal && deal && (
-        <AviaReviewModal deal={deal} myPhone={myPhone} onClose={() => setShowReviewModal(false)} onReviewed={() => { setAlreadyReviewed(true); setShowReviewModal(false); }} />
-      )}
     </>
   );
 }

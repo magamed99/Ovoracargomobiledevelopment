@@ -7,6 +7,7 @@ import {
   deleteAviaFlight, deleteAviaRequest,
   closeAviaFlight, closeAviaRequest,
 } from '../../api/aviaApi';
+import { useAvia } from './AviaContext';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -153,12 +154,13 @@ export function FlightDetailModal({
   const [deleting, setDeleting] = useState(false);
   const [closing, setClosing] = useState(false);
   const isFlightClosed = flight.status === 'closed';
+  const { user: aviaUser } = useAvia();
 
   const handleDelete = async () => {
-    if (!confirm('Удалить этот рейс навсегда?')) return;
+    if (!aviaUser?.phone || !confirm('Удалить этот рейс навсегда?')) return;
     setDeleting(true);
     try {
-      await deleteAviaFlight(flight.id);
+      await deleteAviaFlight(flight.id, aviaUser.phone);
       onDeleted(flight.id);
       onClose();
       toast.success('Рейс удалён');
@@ -167,10 +169,10 @@ export function FlightDetailModal({
   };
 
   const handleCloseAd = async () => {
-    if (!confirm('Закрыть рейс? Он исчезнет из общего списка.')) return;
+    if (!aviaUser?.phone || !confirm('Закрыть рейс? Он исчезнет из общего списка.')) return;
     setClosing(true);
     try {
-      await closeAviaFlight(flight.id);
+      await closeAviaFlight(flight.id, aviaUser.phone);
       onClosed(flight.id);
       onClose();
       toast.success('Рейс закрыт');
@@ -371,12 +373,13 @@ export function RequestDetailModal({
   const [deleting, setDeleting] = useState(false);
   const [closing, setClosing] = useState(false);
   const isReqClosed = request.status === 'closed';
+  const { user: aviaUser } = useAvia();
 
   const handleDelete = async () => {
-    if (!confirm('Удалить эту заявку навсегда?')) return;
+    if (!aviaUser?.phone || !confirm('Удалить эту заявку навсегда?')) return;
     setDeleting(true);
     try {
-      await deleteAviaRequest(request.id);
+      await deleteAviaRequest(request.id, aviaUser.phone);
       onDeleted(request.id);
       onClose();
       toast.success('Заявка удалена');
@@ -385,10 +388,10 @@ export function RequestDetailModal({
   };
 
   const handleCloseAd = async () => {
-    if (!confirm('Закрыть заявку?')) return;
+    if (!aviaUser?.phone || !confirm('Закрыть заявку?')) return;
     setClosing(true);
     try {
-      await closeAviaRequest(request.id);
+      await closeAviaRequest(request.id, aviaUser.phone);
       onClosed(request.id);
       onClose();
       toast.success('Заявка закрыта');
