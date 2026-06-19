@@ -763,9 +763,23 @@ let tripPurgeInFlight = false;
 async function purgeExpiredTrips(): Promise<number> {
   const cutoff = Date.now() - TRIP_RETENTION_MS;
   const trips: any[] = await kv.getByPrefix('ovora:trip:');
-  const expired = trips.filter((t: any) =>
-    t && t.status === 'completed' && t.completedAt && new Date(t.completedAt).getTime() < cutoff
-  );
+  // ✅ Отменённые поездки раньше не попадали в авто-очистку вообще: фильтр учитывал
+  // только status==='completed'. После удаления ручной кнопки «Удалить» у водителя
+  // (PR #40) это означало бы, что отменённые поездки накапливаются навечно.
+  // Водитель отменяет поездку через PUT /trips/:id { status: 'cancelled' } —
+  // он не пишет deletedAt, поэтому используем updatedAt как момент отмены
+  // (deletedAt остаётся как приоритетное поле для старого DELETE-флоу).
+  const expired = trips.filter((t: any) => {
+    if (!t) return false;
+    if (t.status === 'completed' && t.completedAt) {
+      return new Date(t.completedAt).getTime() < cutoff;
+    }
+    if (t.status === 'cancelled') {
+      const cancelledAt = t.deletedAt || t.updatedAt;
+      return cancelledAt && new Date(cancelledAt).getTime() < cutoff;
+    }
+    return false;
+  });
   if (expired.length === 0) return 0;
 
   for (const trip of expired) {
@@ -1904,34 +1918,65 @@ app.post("/make-server-4e36197a/reviews", async (c) => {
   try {
     const body = await c.req.json();
 
+    const callerEmail = String(body.callerEmail || '').toLowerCase().trim();
+    const authorEmail = String(body.authorEmail || '').toLowerCase().trim();
+    const targetEmail = String(body.targetEmail || '').toLowerCase().trim();
+    const tripId = body.tripId ? String(body.tripId) : '';
+
+    if (!callerEmail) return c.json({ error: 'callerEmail is required' }, 400);
+    if (!authorEmail || !targetEmail) return c.json({ error: 'authorEmail and targetEmail are required' }, 400);
+    if (callerEmail !== authorEmail) {
+      console.warn(`[POST /reviews] IDOR attempt: caller=${callerEmail} tried to post review as ${authorEmail}`);
+      return c.json({ error: 'Forbidden: callerEmail must match authorEmail' }, 403);
+    }
+    if (!tripId) return c.json({ error: 'tripId is required' }, 400);
+
     // ✅ FIX: запрет отзыва самому себе (тестовые/демо-аккаунты иногда
     // являются одновременно водителем и отправителем на одной поездке)
-    if (body.authorEmail && body.targetEmail &&
-        String(body.authorEmail).toLowerCase().trim() === String(body.targetEmail).toLowerCase().trim()) {
+    if (authorEmail === targetEmail) {
       return c.json({ error: 'Нельзя оставить отзыв самому себе' }, 400);
     }
 
+    // ✅ Проверка, что автор и адресат отзыва реально были участниками
+    // ОДНОЙ завершённой поездки — иначе можно было оставить отзыв о
+    // несуществующей/чужой поездке (никакой валидации tripId/участников не было).
+    const trip: any = await kv.get(`ovora:trip:${tripId}`);
+    if (!trip) return c.json({ error: 'Trip not found' }, 404);
+    if (trip.status !== 'completed') {
+      return c.json({ error: 'Можно оценивать только завершённые поездки' }, 400);
+    }
+    const tripDriver = String(trip.driverEmail || '').toLowerCase().trim();
+    let validPair = false;
+    if (tripDriver && (tripDriver === authorEmail || tripDriver === targetEmail)) {
+      const otherEmail = tripDriver === authorEmail ? targetEmail : authorEmail;
+      const offers: any[] = await kv.getByPrefix(`ovora:offer:${tripId}:`);
+      validPair = offers.some(o => o && o.status === 'accepted' && String(o.senderEmail || '').toLowerCase().trim() === otherEmail);
+    }
+    if (!validPair) {
+      console.warn(`[POST /reviews] Rejected: ${authorEmail} <-> ${targetEmail} have no completed trip ${tripId} together`);
+      return c.json({ error: 'Вы можете оценивать только своих попутчиков по завершённым поездкам' }, 403);
+    }
+
     // ✅ FIX #3: Защита от дублирования отзывов (authorEmail + targetEmail + tripId)
-    if (body.authorEmail && body.targetEmail && body.tripId) {
-      const authorIndex: any[] = await kv.getByPrefix(`ovora:userreviews:author:${body.authorEmail}:`);
-      if (authorIndex.length > 0) {
-        const existingKeys = authorIndex.filter(e => e?.reviewId).map(e => `ovora:review:${e.reviewId}`);
-        if (existingKeys.length > 0) {
-          const existingReviews: any[] = await kv.mget(existingKeys);
-          const duplicate = existingReviews.find(r =>
-            r && r.targetEmail === body.targetEmail && r.tripId === body.tripId
-          );
-          if (duplicate) {
-            console.log(`[POST /reviews] Duplicate blocked: author=${body.authorEmail}, target=${body.targetEmail}, trip=${body.tripId}`);
-            return c.json({ error: 'Вы уже оставили отзыв на эту поездку', duplicate: true }, 409);
-          }
+    const authorIndex: any[] = await kv.getByPrefix(`ovora:userreviews:author:${authorEmail}:`);
+    if (authorIndex.length > 0) {
+      const existingKeys = authorIndex.filter(e => e?.reviewId).map(e => `ovora:review:${e.reviewId}`);
+      if (existingKeys.length > 0) {
+        const existingReviews: any[] = await kv.mget(existingKeys);
+        const duplicate = existingReviews.find(r =>
+          r && String(r.targetEmail || '').toLowerCase().trim() === targetEmail && String(r.tripId || '') === tripId
+        );
+        if (duplicate) {
+          console.log(`[POST /reviews] Duplicate blocked: author=${authorEmail}, target=${targetEmail}, trip=${tripId}`);
+          return c.json({ error: 'Вы уже оставили отзыв на эту поездку', duplicate: true }, 409);
         }
       }
     }
 
+    const { callerEmail: _ignored, ...cleanedBody } = body as any;
     const reviewId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const now = new Date().toISOString();
-    const review = { ...body, reviewId, createdAt: now };
+    const review = { ...cleanedBody, authorEmail, targetEmail, tripId, reviewId, createdAt: now };
     await kv.set(`ovora:review:${reviewId}`, review);
 
     // ✅ Вторичные индексы — быстрый поиск без full-scan
@@ -4737,32 +4782,67 @@ app.get("/make-server-4e36197a/tracking/user/:email", async (c) => {
   }
 });
 
-// GET shipment by tripId
+// GET shipment by tripId — только водитель или отправитель этой поставки
 app.get("/make-server-4e36197a/tracking/:tripId", async (c) => {
   try {
     const tripId = c.req.param("tripId");
-    const value = await kv.get(`ovora:shipment:${tripId}`);
-    return c.json({ value: value || null });
+    const callerEmail = (c.req.query("callerEmail") || "").toLowerCase().trim();
+    if (!callerEmail) return c.json({ error: "callerEmail is required" }, 400);
+
+    const value: any = await kv.get(`ovora:shipment:${tripId}`);
+    if (!value) return c.json({ value: null });
+
+    const driverEmail = (value.driverEmail || "").toLowerCase().trim();
+    const senderEmail = (value.senderEmail || "").toLowerCase().trim();
+    if ((driverEmail && driverEmail !== callerEmail) && (senderEmail && senderEmail !== callerEmail)) {
+      console.warn(`[GET /tracking] IDOR attempt: ${callerEmail} tried to read shipment ${tripId}`);
+      return c.json({ error: "Forbidden" }, 403);
+    }
+
+    return c.json({ value });
   } catch (err) {
     console.log("Error GET /tracking/:tripId:", err);
     return c.json({ error: `${err}` }, 500);
   }
 });
 
-// PUT (save/update) shipment — merges with existing data
+// PUT (save/update) shipment — merges with existing data; только участники поставки
 app.put("/make-server-4e36197a/tracking/:tripId", async (c) => {
   try {
     const tripId = c.req.param("tripId");
     const body = await c.req.json();
+    const callerEmail = String((body as any).callerEmail || "").toLowerCase().trim();
+    if (!callerEmail) return c.json({ error: "callerEmail is required" }, 400);
+
     const now = new Date().toISOString();
     const key = `ovora:shipment:${tripId}`;
     const existing: any = await kv.get(key) || {};
+
+    // Если поставка уже существует — звонящий должен быть её водителем или отправителем.
+    // Если поставка создаётся впервые — звонящий должен быть тем, кем себя называет в теле запроса.
+    const existingDriver = (existing.driverEmail || "").toLowerCase().trim();
+    const existingSender = (existing.senderEmail || "").toLowerCase().trim();
+    if (existingDriver || existingSender) {
+      if (existingDriver !== callerEmail && existingSender !== callerEmail) {
+        console.warn(`[PUT /tracking] IDOR attempt: ${callerEmail} tried to update shipment ${tripId}`);
+        return c.json({ error: "Forbidden" }, 403);
+      }
+    } else {
+      const bodyDriver = String((body as any).driverEmail || "").toLowerCase().trim();
+      const bodySender = String((body as any).senderEmail || "").toLowerCase().trim();
+      if (bodyDriver !== callerEmail && bodySender !== callerEmail) {
+        console.warn(`[PUT /tracking] IDOR attempt: ${callerEmail} tried to create shipment ${tripId} for another user`);
+        return c.json({ error: "Forbidden" }, 403);
+      }
+    }
+
+    const { callerEmail: _ignored, ...cleanedBody } = body as any;
     const value = {
       ...existing,
-      ...body,
+      ...cleanedBody,
       tripId,
       updatedAt: now,
-      createdAt: existing.createdAt || body.createdAt || now,
+      createdAt: existing.createdAt || cleanedBody.createdAt || now,
     };
     await kv.set(key, value);
     return c.json({ success: true, value });
@@ -4772,8 +4852,8 @@ app.put("/make-server-4e36197a/tracking/:tripId", async (c) => {
   }
 });
 
-// DELETE shipment (hard delete from KV)
-app.delete("/make-server-4e36197a/tracking/:tripId", async (c) => {
+// DELETE shipment (hard delete from KV) — не используется клиентом, только админ
+app.delete("/make-server-4e36197a/tracking/:tripId", requireAdmin, async (c) => {
   try {
     const tripId = c.req.param("tripId");
     await kv.del(`ovora:shipment:${tripId}`);
@@ -4805,10 +4885,17 @@ app.post("/make-server-4e36197a/tracking/:tripId/status", async (c) => {
     const tripId = c.req.param("tripId");
     const { status, driverEmail } = await c.req.json();
     if (!status) return c.json({ error: 'status required' }, 400);
+    if (!driverEmail) return c.json({ error: 'driverEmail is required' }, 400);
 
     const key = `ovora:shipment:${tripId}`;
     const existing: any = await kv.get(key);
     if (!existing) return c.json({ error: 'Shipment not found' }, 404);
+
+    // IDOR guard — менять статус может только назначенный водитель этой поставки
+    if (existing.driverEmail && String(existing.driverEmail).toLowerCase().trim() !== String(driverEmail).toLowerCase().trim()) {
+      console.warn(`[POST /tracking/status] IDOR attempt: ${driverEmail} tried to update shipment ${tripId} owned by ${existing.driverEmail}`);
+      return c.json({ error: 'Forbidden: you are not the driver of this shipment' }, 403);
+    }
 
     // ✅ FIX: «Завершить поездку» закрывала рейс без таможни и фото — кнопка
     // на фронте была активна с самого начала поездки. Дублируем проверку на
@@ -4862,10 +4949,17 @@ app.post("/make-server-4e36197a/tracking/:tripId/pod", async (c) => {
     const { base64, type, driverEmail } = await c.req.json();
     if (!base64 || !type) return c.json({ error: 'base64 and type required' }, 400);
     if (!['loading', 'unloading'].includes(type)) return c.json({ error: 'type must be loading or unloading' }, 400);
+    if (!driverEmail) return c.json({ error: 'driverEmail is required' }, 400);
 
     const key = `ovora:shipment:${tripId}`;
     const existing: any = await kv.get(key);
     if (!existing) return c.json({ error: 'Shipment not found' }, 404);
+
+    // IDOR guard — загружать POD-фото может только назначенный водитель этой поставки
+    if (existing.driverEmail && String(existing.driverEmail).toLowerCase().trim() !== String(driverEmail).toLowerCase().trim()) {
+      console.warn(`[POST /tracking/pod] IDOR attempt: ${driverEmail} tried to upload POD for shipment ${tripId} owned by ${existing.driverEmail}`);
+      return c.json({ error: 'Forbidden: you are not the driver of this shipment' }, 403);
+    }
 
     // base64 → binary
     const base64Data = base64.replace(/^data:image\/[a-z]+;base64,/, '');
@@ -4946,8 +5040,11 @@ app.get("/make-server-4e36197a/tracking/:tripId/pod", async (c) => {
 //  Используется на /track/:tripId (публичная ссылка)
 // ══════════════════════════════════════════════════════════════════════════════
 
-app.get("/make-server-4e36197a/public/tracking/:tripId", async (c) => {
-  try {
+app.get(
+  "/make-server-4e36197a/public/tracking/:tripId",
+  rateLimitMiddleware(RL.GENERAL_READ, (c) => `pub-track:${c.req.header('x-forwarded-for') || 'unknown'}`),
+  async (c) => {
+    try {
     const tripId = c.req.param("tripId");
     const shipment: any = await kv.get(`ovora:shipment:${tripId}`);
     if (!shipment) return c.json({ found: false }, 404);

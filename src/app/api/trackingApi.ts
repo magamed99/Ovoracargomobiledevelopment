@@ -113,11 +113,16 @@ export interface ActiveShipment {
 }
 
 // ── Save or update an active shipment ─────────────────────────────────────────
-export async function saveActiveShipment(shipment: Partial<ActiveShipment> & { tripId: string }): Promise<ActiveShipment> {
+// callerEmail обязателен — backend проверяет, что звонящий это водитель или
+// отправитель данной поставки (либо тот, кем он себя называет при создании).
+export async function saveActiveShipment(
+  shipment: Partial<ActiveShipment> & { tripId: string },
+  callerEmail: string,
+): Promise<ActiveShipment> {
   const res = await fetch(`${BASE}/tracking/${encodeURIComponent(shipment.tripId)}`, {
     method: 'PUT',
     headers: HEADERS,
-    body: JSON.stringify(shipment),
+    body: JSON.stringify({ ...shipment, callerEmail }),
   });
 
   if (!res.ok) {
@@ -130,9 +135,11 @@ export async function saveActiveShipment(shipment: Partial<ActiveShipment> & { t
 }
 
 // ── Get active shipment by trip ID ───────────────────────────────────────────
-export async function getActiveShipment(tripId: string): Promise<ActiveShipment | null> {
+// callerEmail обязателен — backend отдаёт данные только водителю/отправителю поставки.
+export async function getActiveShipment(tripId: string, callerEmail: string): Promise<ActiveShipment | null> {
   try {
-    const res = await fetch(`${BASE}/tracking/${encodeURIComponent(tripId)}`, {
+    if (!callerEmail) return null;
+    const res = await fetch(`${BASE}/tracking/${encodeURIComponent(tripId)}?callerEmail=${encodeURIComponent(callerEmail)}`, {
       method: 'GET',
       headers: HEADERS,
     });
@@ -164,10 +171,11 @@ export async function updateDriverLocation(
   tripId: string,
   lat: number,
   lng: number,
+  driverEmail: string,
   accuracy?: number,
 ): Promise<void> {
   try {
-    const shipment = await getActiveShipment(tripId);
+    const shipment = await getActiveShipment(tripId, driverEmail);
     if (!shipment) {
       return;
     }
@@ -177,7 +185,7 @@ export async function updateDriverLocation(
       driverLng: lng,
       locationAccuracy: accuracy,
       lastLocationUpdate: new Date().toISOString(),
-    });
+    }, driverEmail);
   } catch (error) {
     console.error('[trackingApi] Error updating location:', error);
   }
@@ -267,29 +275,29 @@ export async function getPublicTracking(tripId: string): Promise<ActiveShipment 
 }
 
 // ── Mark shipment as completed ────────────────────────────────────────────────
-export async function completeShipment(tripId: string): Promise<void> {
-  await updateShipmentStatus(tripId, 'delivered');
-  const shipment = await getActiveShipment(tripId);
+export async function completeShipment(tripId: string, driverEmail: string): Promise<void> {
+  await updateShipmentStatus(tripId, 'delivered', driverEmail);
+  const shipment = await getActiveShipment(tripId, driverEmail);
   if (shipment) {
     await saveActiveShipment({
       ...shipment,
       status: 'delivered',
       completedAt: new Date().toISOString(),
-    });
+    }, driverEmail);
   }
   localStorage.removeItem('ovora_active_shipment');
 }
 
 // ── Cancel shipment ───────────────────────────────────────────────────────────
-export async function cancelShipment(tripId: string, reason?: string): Promise<void> {
-  const shipment = await getActiveShipment(tripId);
+export async function cancelShipment(tripId: string, driverEmail: string, reason?: string): Promise<void> {
+  const shipment = await getActiveShipment(tripId, driverEmail);
   if (!shipment) throw new Error('Shipment not found');
-  await updateShipmentStatus(tripId, 'cancelled');
+  await updateShipmentStatus(tripId, 'cancelled', driverEmail);
   await saveActiveShipment({
     ...shipment,
     status: 'cancelled',
     notes: reason ? `${shipment.notes || ''}\nОтменено: ${reason}` : shipment.notes,
-  });
+  }, driverEmail);
   localStorage.removeItem('ovora_active_shipment');
 }
 

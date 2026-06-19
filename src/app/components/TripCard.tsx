@@ -20,7 +20,7 @@
 import { useNavigate } from 'react-router';
 import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Play, Navigation, Snowflake, CheckCircle2, Trash2, MessageSquare, Star, Users, Package, Weight, Truck, FileText, Calendar, ArrowRight, Map as MapIcon, CheckCircle, Clock, Shield, Baby, XCircle, Info, ChevronDown, PhoneCall, Share2, Route } from 'lucide-react';
+import { Play, Navigation, Snowflake, CheckCircle2, MessageSquare, Star, Users, Package, Weight, Truck, FileText, Calendar, ArrowRight, Map as MapIcon, CheckCircle, Clock, Shield, Baby, XCircle, Info, ChevronDown, PhoneCall, Share2, Route } from 'lucide-react';
 import { WeatherAnimation } from './WeatherAnimation';
 import type { WeatherData } from '../api/weatherApi';
 import { cleanAddress } from '../utils/addressUtils';
@@ -94,7 +94,6 @@ interface TripCardProps {
   onFreeze?: (e: React.MouseEvent) => void;
   onComplete?: (e: React.MouseEvent) => void;
   onCancel?: (e: React.MouseEvent) => void;
-  onDelete?: (e: React.MouseEvent) => void;
   onMessages?: (e: React.MouseEvent) => void;
   onReview?: (e: React.MouseEvent) => void;
   onAcceptOffer?: (offer: any) => void;
@@ -288,7 +287,7 @@ function ConfirmDialog({ open, title, message, confirmLabel, confirmColor = 'ros
 export function TripCard({
   trip, mode, weather,
   alreadyReviewed = false,
-  onStart, onFreeze, onComplete, onCancel, onDelete, onMessages, onReview,
+  onStart, onFreeze, onComplete, onCancel, onMessages, onReview,
   onAcceptOffer, onDeclineOffer,
   onChat, onTrack, onCancelBooking,
   unreadMessages = 0,
@@ -603,19 +602,6 @@ export function TripCard({
             </div>
           )}
 
-          {/* #1 — DRIVER mode: Delete with confirmation */}
-          {mode === 'driver' && isInactive && onDelete && (
-            <div onClick={e => e.stopPropagation()}>
-              <button
-                onClick={e => showConfirm(e, 'Удалить поездку?', 'Это действие нельзя отменить. Поездка будет удалена навсегда.', 'Удалить', onDelete)}
-                title="Удалить поездку"
-                aria-label="Удалить поездку"
-                className="w-full h-9 flex items-center justify-center gap-2 rounded-xl bg-rose-500/[0.08] border border-rose-500/15 text-rose-400/70 hover:bg-rose-500/15 hover:text-rose-400 transition-all active:scale-95 text-[11px] font-semibold"
-              >
-                <Trash2 className="w-3.5 h-3.5" /> Удалить
-              </button>
-            </div>
-          )}
 
           {/* ═══════════ ACTION BUTTONS ═══════════ */}
 

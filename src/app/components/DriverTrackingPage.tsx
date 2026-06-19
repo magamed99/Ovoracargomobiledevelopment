@@ -68,6 +68,7 @@ export function DriverTrackingPage() {
 
   const { activeTrip } = useTrips();
   const { user } = useUser();
+  const driverEmail = user?.email || sessionStorage.getItem('ovora_user_email') || '';
 
   // Статус груза и статус-апдейт
   const [currentStatus, setCurrentStatus] = useState<ShipmentStatus>('pending');
@@ -110,19 +111,18 @@ export function DriverTrackingPage() {
 
   // Загружаем актуальный статус при монтировании
   useEffect(() => {
-    if (!effectiveTrip?.id) return;
-    getActiveShipment(effectiveTrip.id).then(s => {
+    if (!effectiveTrip?.id || !driverEmail) return;
+    getActiveShipment(effectiveTrip.id, driverEmail).then(s => {
       if (s?.status) setCurrentStatus(s.status as ShipmentStatus);
       if (s?.podPhotos?.length) setPodPhotos(s.podPhotos as any);
     }).catch(() => {});
-  }, [effectiveTrip?.id]);
+  }, [effectiveTrip?.id, driverEmail]);
 
   // Смена статуса груза
   const handleStatusUpdate = useCallback(async (nextStatus: ShipmentStatus) => {
     if (!effectiveTrip?.id || statusUpdating) return;
     setStatusUpdating(true);
     try {
-      const driverEmail = user?.email || sessionStorage.getItem('ovora_user_email') || '';
       const updated = await updateShipmentStatus(effectiveTrip.id, nextStatus, driverEmail);
       if (updated) {
         setCurrentStatus(nextStatus);
@@ -154,7 +154,6 @@ export function DriverTrackingPage() {
       const reader = new FileReader();
       reader.onloadend = async () => {
         const base64 = reader.result as string;
-        const driverEmail = user?.email || sessionStorage.getItem('ovora_user_email') || '';
         const photo = await uploadPODPhoto(effectiveTrip.id, base64, type, driverEmail);
         if (photo) {
           setPodPhotos(prev => [...prev, photo as any]);
@@ -208,8 +207,8 @@ export function DriverTrackingPage() {
         // ✅ FIX N-4: обновляем timestamp последнего GPS-сигнала
         lastGpsTsRef.current = Date.now();
         setGpsLost(false);
-        if (effectiveTrip?.id) {
-          updateDriverLocation(effectiveTrip.id, latitude, longitude, accuracy).catch(() => {});
+        if (effectiveTrip?.id && driverEmail) {
+          updateDriverLocation(effectiveTrip.id, latitude, longitude, driverEmail, accuracy).catch(() => {});
         }
       },
       (err) => {
@@ -222,7 +221,7 @@ export function DriverTrackingPage() {
     return () => {
       if (geoWatchId.current !== null) navigator.geolocation.clearWatch(geoWatchId.current);
     };
-  }, [effectiveTrip?.id]);
+  }, [effectiveTrip?.id, driverEmail]);
 
   // ── Retry: повторный запрос геолокации ────────────────────────────────────
   const retryGeo = () => {
@@ -233,7 +232,7 @@ export function DriverTrackingPage() {
         const { latitude, longitude, accuracy } = position.coords;
         setDriverLocation({ lat: latitude, lng: longitude });
         setGeoError(null);
-        if (effectiveTrip?.id) updateDriverLocation(effectiveTrip.id, latitude, longitude, accuracy).catch(() => {});
+        if (effectiveTrip?.id && driverEmail) updateDriverLocation(effectiveTrip.id, latitude, longitude, driverEmail, accuracy).catch(() => {});
       },
       (err) => {
         // ✅ FIX S-4: обрабатываем все типы ошибок GPS
@@ -362,7 +361,7 @@ export function DriverTrackingPage() {
     }
     if (effectiveTrip?.id) {
       try {
-        await completeShipment(effectiveTrip.id);
+        await completeShipment(effectiveTrip.id, driverEmail);
       } catch {
       }
       try {

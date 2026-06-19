@@ -73,8 +73,9 @@ function CompletedTripDetail({ trip, isDark }: { trip: any; isDark: boolean }) {
   // отдельно от Trip (в shipment-трекинге), подгружаем их явно.
   const [shipment, setShipment] = useState<ActiveShipment | null>(null);
   useEffect(() => {
-    getActiveShipment(String(trip.id)).then(setShipment).catch(() => setShipment(null));
-  }, [trip.id]);
+    if (!currentUser?.email) return;
+    getActiveShipment(String(trip.id), currentUser.email).then(setShipment).catch(() => setShipment(null));
+  }, [trip.id, currentUser?.email]);
 
   // ✅ FIX: блокируем самооценку — тестовые/демо-офферы иногда создаются
   // тем же аккаунтом, что и контрагент поездки.

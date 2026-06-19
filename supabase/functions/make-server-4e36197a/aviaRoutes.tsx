@@ -825,13 +825,20 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
 
   app.get(`${P}/chat/:chatId/messages`, async (c) => {
     try {
-      const chatId = c.req.param('chatId');
+      const chatId      = c.req.param('chatId');
+      const callerPhone = aviaClean(c.req.query('callerPhone') || '');
       if (!chatId) return c.json({ error: 'chatId required' }, 400);
-      const [messages, meta] = await Promise.all([
-        Chats.getMessages(chatId),
-        Chats.getMeta(chatId),
-      ]);
-      return c.json({ messages, meta: meta || {} });
+      if (!callerPhone) return c.json({ error: 'callerPhone is required' }, 400);
+
+      const meta = await Chats.getMeta(chatId);
+      if (!meta) return c.json({ messages: [], meta: {} });
+      if (!(meta.participants || []).includes(callerPhone)) {
+        console.warn(`[AVIA Chat] IDOR attempt: ${callerPhone} tried to read messages of chat ${chatId}`);
+        return c.json({ error: 'Forbidden: not a participant' }, 403);
+      }
+
+      const messages = await Chats.getMessages(chatId);
+      return c.json({ messages, meta });
     } catch (err) {
       console.log('Error GET /avia/chat/:chatId/messages:', err);
       return c.json({ error: `${err}` }, 500);
@@ -851,13 +858,20 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
         return c.json({ error: 'chatId, senderPhone and text required' }, 400);
       }
 
+      const existingMeta = await Chats.getMeta(chatId);
+      if (!existingMeta) return c.json({ error: 'Chat not found' }, 404);
+      if (!(existingMeta.participants || []).includes(clean)) {
+        console.warn(`[AVIA Chat] IDOR attempt: ${clean} tried to post into chat ${chatId} without being a participant`);
+        return c.json({ error: 'Forbidden: not a participant' }, 403);
+      }
+
       const id  = aviaId();
       const now = new Date().toISOString();
       const message: AviaMessage = { id, chatId, senderPhone: clean, text, createdAt: now, type };
       if (msgMeta) message.meta = msgMeta;
       await Chats.addMessage(chatId, message);
 
-      const meta: AviaChatMeta    = (await Chats.getMeta(chatId)) || { chatId, participants: [clean], createdAt: now, lastMessage: null, lastMessageAt: null, lastSenderPhone: null, unreadBy: {} };
+      const meta: AviaChatMeta    = existingMeta;
       const participants: string[] = meta.participants || [clean];
       const recipient              = participants.find(p => p !== clean) || '';
 
@@ -920,8 +934,14 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
 
   app.get(`${P}/chats/user/:phone`, async (c) => {
     try {
-      const phone = aviaClean(decodeURIComponent(c.req.param('phone')));
+      const phone       = aviaClean(decodeURIComponent(c.req.param('phone')));
+      const callerPhone = aviaClean(c.req.query('callerPhone') || '');
       if (!phone) return c.json({ error: 'phone required' }, 400);
+      if (!callerPhone) return c.json({ error: 'callerPhone is required' }, 400);
+      if (callerPhone !== phone) {
+        console.warn(`[AVIA Chat] IDOR attempt: ${callerPhone} tried to list chats of ${phone}`);
+        return c.json({ error: 'Forbidden' }, 403);
+      }
       const chats = await Chats.listByUser(phone);
       return c.json({ chats });
     } catch (err) {
@@ -1024,15 +1044,26 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       const duplicate = await Deals.findActiveByInitiatorAndAd(p1, adId, adType, p2);
       if (duplicate) return c.json({ error: 'Вы уже отправили предложение по этому объявлению', dealId: duplicate.id }, 409);
 
-      // Резервирование ёмкости (грузовые сделки по рейсу)
+      // Резервирование ёмкости (грузовые сделки по рейсу).
+      // ✅ KV-хранилище не даёт атомарного CAS, поэтому защищаемся optimistic-lock'ом:
+      // после записи перечитываем рейс и проверяем, что именно НАША запись там лежит —
+      // если кто-то успел вмешаться между чтением и записью, повторяем попытку с
+      // актуальными цифрами (иначе два параллельных запроса могли оба пройти проверку
+      // available и забронировать больше места, чем есть на рейсе).
       if (resolvedDealType === 'cargo' && adType === 'flight') {
-        const flight = await Flights.get(adId);
-        if (flight?.cargoEnabled) {
+        const requested = Number(weightKg) || 0;
+        let reserved = false;
+        for (let attempt = 0; attempt < 5 && !reserved; attempt++) {
+          const flight = await Flights.get(adId);
+          if (!flight?.cargoEnabled) { reserved = true; break; }
           const available = (flight.freeKg || 0) - (flight.reservedKg || 0);
-          const requested = Number(weightKg) || 0;
           if (requested > available) return c.json({ error: `Недостаточно места: доступно ${available} кг, запрошено ${requested} кг` }, 400);
-          await Flights.set(adId, { ...flight, reservedKg: (flight.reservedKg || 0) + requested, updatedAt: new Date().toISOString() });
+          const writeTs = new Date().toISOString();
+          await Flights.set(adId, { ...flight, reservedKg: (flight.reservedKg || 0) + requested, updatedAt: writeTs });
+          const verify = await Flights.get(adId);
+          if (verify?.updatedAt === writeTs) reserved = true;
         }
+        if (!reserved) return c.json({ error: 'Не удалось зарезервировать место на рейсе, попробуйте ещё раз' }, 409);
       }
 
       const id  = aviaId('aviadeal');

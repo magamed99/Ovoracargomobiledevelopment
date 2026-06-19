@@ -205,7 +205,7 @@ export async function deleteAviaChat(
 export async function getAviaUserChats(phone: string): Promise<AviaChat[]> {
   try {
     const clean = phone.replace(/\D/g, '');
-    const res   = await fetch(`${BASE}/avia/chats/user/${encodeURIComponent(clean)}`, {
+    const res   = await fetch(`${BASE}/avia/chats/user/${encodeURIComponent(clean)}?callerPhone=${encodeURIComponent(clean)}`, {
       headers: HEADERS,
       signal:  withTimeout(),
     });

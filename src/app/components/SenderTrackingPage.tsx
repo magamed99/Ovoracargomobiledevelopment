@@ -52,7 +52,8 @@ export function SenderTrackingPage() {
   const [ymapsApi, setYmapsApi] = useState<any>(null);
 
   const { activeTrip: ctxTrip } = useTrips();
-  const { user: _user } = useUser();
+  const { user } = useUser();
+  const senderEmail = user?.email || sessionStorage.getItem('ovora_user_email') || '';
   const [currentStatus, setCurrentStatus] = useState<ShipmentStatus>('pending');
   const [statusHistory, setStatusHistory] = useState<{ status: ShipmentStatus; timestamp: string }[]>([]);
   const [podPhotos, setPodPhotos] = useState<{ type: string; url: string; timestamp: string }[]>([]);
@@ -105,9 +106,9 @@ export function SenderTrackingPage() {
   // ── Polling реальной позиции водителя + статуса каждые 5 с ───────────────
   useEffect(() => {
     const resolvedId = activeTrip?.id || activeTrip?.tripId;
-    if (!resolvedId) return;
+    if (!resolvedId || !senderEmail) return;
     const poll = async () => {
-      const shipment = await getActiveShipment(resolvedId);
+      const shipment = await getActiveShipment(resolvedId, senderEmail);
       if (!shipment) return;
       if (shipment.driverLat && shipment.driverLng) {
         setDriverLocation({ lat: shipment.driverLat, lng: shipment.driverLng });
@@ -119,7 +120,7 @@ export function SenderTrackingPage() {
     poll();
     const pollId = setInterval(poll, 5000);
     return () => clearInterval(pollId);
-  }, [activeTrip?.id, activeTrip?.tripId]);
+  }, [activeTrip?.id, activeTrip?.tripId, senderEmail]);
 
   // POD фото
   useEffect(() => {

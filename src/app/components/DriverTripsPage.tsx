@@ -10,7 +10,7 @@ import { useUser } from '../contexts/UserContext';
 import { useIsMounted } from '../hooks/useIsMounted';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { toast } from 'sonner';
-import { getMyTrips, getOffersForDriver, deleteTrip, updateTrip, cleanupOrphanedOffers, updateOffer } from '../api/dataApi';
+import { getMyTrips, getOffersForDriver, updateTrip, cleanupOrphanedOffers, updateOffer } from '../api/dataApi';
 import { getChats, initChatRoom } from '../api/chatStore';
 import { generatePairChatId } from '../api/chatUtils';
 import { saveActiveShipment } from '../api/trackingApi';
@@ -19,7 +19,6 @@ import { cleanAddress } from '../utils/addressUtils';
 import { TripCardSkeleton } from './SkeletonCard';
 import { PullIndicator } from './PullIndicator';
 import { TripCard } from './TripCard';
-import { SwipeableCard } from './SwipeableCard';
 
 const REVIEWED_TRIPS_KEY = 'ovora_reviewed_trips';
 
@@ -282,7 +281,7 @@ export function DriverTripsPage() {
             status: 'inProgress' as const,
           };
           localStorage.setItem('ovora_active_shipment', JSON.stringify(shipmentData));
-          try { await saveActiveShipment(shipmentData); } catch {}
+          try { await saveActiveShipment(shipmentData, currentUser?.email || ''); } catch {}
           await updateTrip(String(trip.id), { status: 'inProgress' });
           setPublishedTrips(prev => prev.map(t => t.id === trip.id ? { ...t, status: 'inProgress' } : t));
           toast.success('Поездка начата!', {
@@ -310,23 +309,6 @@ export function DriverTripsPage() {
           });
         } catch { toast.error('Ошибка при завершении'); }
       }
-    );
-  };
-
-  const handleDeleteTrip = async (e: React.MouseEvent, trip: any) => {
-    e.stopPropagation();
-    showConfirm(
-      'Удалить поездку?',
-      `${cleanAddress(trip.from)} → ${cleanAddress(trip.to)} · Это действие необратимо.`,
-      'Удалить',
-      async () => {
-        try {
-          await deleteTrip(String(trip.id));
-          setPublishedTrips(prev => prev.filter(t => t.id !== trip.id));
-          toast.success('Поездка удалена');
-        } catch { toast.error('Ошибка удаления'); }
-      },
-      true // danger
     );
   };
 
@@ -539,29 +521,23 @@ export function DriverTripsPage() {
           )}
           {!loading && filteredTrips.map(trip => (
             <div key={trip.id} className="px-4 py-2">
-              <SwipeableCard
-                enabled={(trip.status === 'completed' || trip.status === 'cancelled')}
-                onSwipeDismiss={() => handleDeleteTrip({ stopPropagation: () => {} } as any, trip)}
-              >
-                <TripCard
-                  trip={trip}
-                  mode="driver"
-                  weather={weatherData[trip.id]}
-                  alreadyReviewed={isTripFullyReviewed(trip)}
-                  unreadMessages={getUnread(trip)}
-                  onStart={e => startTrip(e, trip)}
-                  onFreeze={e => handleFreezeTrip(e, trip)}
-                  onComplete={e => completeTrip(e, trip)}
-                  onCancel={e => handleCancelTrip(e, trip)}
-                  onDelete={e => handleDeleteTrip(e, trip)}
-                  onMessages={e => openSenderChat(e, trip)}
-                  onTrack={e => navigateToTracking(e, trip)}
-                  onReview={e => openReview(e, trip)}
-                  onAcceptOffer={handleAcceptOffer}
-                  onDeclineOffer={handleDeclineOffer}
-                  offerActionId={offerActionId}
-                />
-              </SwipeableCard>
+              <TripCard
+                trip={trip}
+                mode="driver"
+                weather={weatherData[trip.id]}
+                alreadyReviewed={isTripFullyReviewed(trip)}
+                unreadMessages={getUnread(trip)}
+                onStart={e => startTrip(e, trip)}
+                onFreeze={e => handleFreezeTrip(e, trip)}
+                onComplete={e => completeTrip(e, trip)}
+                onCancel={e => handleCancelTrip(e, trip)}
+                onMessages={e => openSenderChat(e, trip)}
+                onTrack={e => navigateToTracking(e, trip)}
+                onReview={e => openReview(e, trip)}
+                onAcceptOffer={handleAcceptOffer}
+                onDeclineOffer={handleDeclineOffer}
+                offerActionId={offerActionId}
+              />
             </div>
           ))}
           <div style={{ height: 'env(safe-area-inset-bottom, 16px)', minHeight: 80 }} />
@@ -683,7 +659,6 @@ export function DriverTripsPage() {
                     onFreeze={e => handleFreezeTrip(e, trip)}
                     onComplete={e => completeTrip(e, trip)}
                     onCancel={e => handleCancelTrip(e, trip)}
-                    onDelete={e => handleDeleteTrip(e, trip)}
                     onMessages={e => openSenderChat(e, trip)}
                     onTrack={e => navigateToTracking(e, trip)}
                     onReview={e => openReview(e, trip)}
