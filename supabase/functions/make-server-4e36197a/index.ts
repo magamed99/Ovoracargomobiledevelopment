@@ -763,9 +763,23 @@ let tripPurgeInFlight = false;
 async function purgeExpiredTrips(): Promise<number> {
   const cutoff = Date.now() - TRIP_RETENTION_MS;
   const trips: any[] = await kv.getByPrefix('ovora:trip:');
-  const expired = trips.filter((t: any) =>
-    t && t.status === 'completed' && t.completedAt && new Date(t.completedAt).getTime() < cutoff
-  );
+  // ✅ Отменённые поездки раньше не попадали в авто-очистку вообще: фильтр учитывал
+  // только status==='completed'. После удаления ручной кнопки «Удалить» у водителя
+  // (PR #40) это означало бы, что отменённые поездки накапливаются навечно.
+  // Водитель отменяет поездку через PUT /trips/:id { status: 'cancelled' } —
+  // он не пишет deletedAt, поэтому используем updatedAt как момент отмены
+  // (deletedAt остаётся как приоритетное поле для старого DELETE-флоу).
+  const expired = trips.filter((t: any) => {
+    if (!t) return false;
+    if (t.status === 'completed' && t.completedAt) {
+      return new Date(t.completedAt).getTime() < cutoff;
+    }
+    if (t.status === 'cancelled') {
+      const cancelledAt = t.deletedAt || t.updatedAt;
+      return cancelledAt && new Date(cancelledAt).getTime() < cutoff;
+    }
+    return false;
+  });
   if (expired.length === 0) return 0;
 
   for (const trip of expired) {
