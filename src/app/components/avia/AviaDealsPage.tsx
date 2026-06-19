@@ -32,13 +32,12 @@ const STATUS_META: Record<AviaDealStatus, { label: string; color: string; bg: st
   completed: { label: 'Завершена', color: '#a78bfa', bg: '#a78bfa14', icon: CheckCircle2 },
 };
 
-type TabId = 'incoming' | 'outgoing' | 'active' | 'all';
+type TabId = 'active' | 'completed' | 'cancelled';
 
 const TABS: { id: TabId; label: string; color: string }[] = [
-  { id: 'incoming', label: 'Входящие',  color: '#34d399' },
-  { id: 'outgoing', label: 'Исходящие', color: '#0ea5e9' },
-  { id: 'active',   label: 'Активные',  color: '#a78bfa' },
-  { id: 'all',      label: 'Все',       color: '#6b8299' },
+  { id: 'active',    label: 'Активные',    color: '#34d399' },
+  { id: 'completed', label: 'Завершённые', color: '#a78bfa' },
+  { id: 'cancelled', label: 'Отменённые',  color: '#6b8299' },
 ];
 
 function fmtDate(iso: string) {
@@ -368,7 +367,7 @@ export function AviaDealsPage() {
   const [deals, setDeals] = useState<AviaDeal[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabId>('incoming');
+  const [activeTab, setActiveTab] = useState<TabId>('active');
 
   // Чат перенесён на /avia/messages
 
@@ -415,16 +414,16 @@ export function AviaDealsPage() {
   // ── Фильтрация ────────────────────────────────────────────────────────────
   const filtered = deals.filter(d => {
     switch (activeTab) {
-      case 'incoming': return d.recipientPhone === myPhone && d.status === 'pending';
-      case 'outgoing': return d.initiatorPhone === myPhone;
-      case 'active':   return d.status === 'accepted';
-      case 'all':      return true;
+      case 'active':    return d.status === 'pending' || d.status === 'accepted';
+      case 'completed': return d.status === 'completed';
+      case 'cancelled': return d.status === 'cancelled' || d.status === 'rejected';
     }
   });
 
   // ── Badges ────────────────────────────────────────────────────────────────
-  const incomingCount = deals.filter(d => d.recipientPhone === myPhone && d.status === 'pending').length;
-  const activeCount   = deals.filter(d => d.status === 'accepted').length;
+  const activeCount    = deals.filter(d => d.status === 'pending' || d.status === 'accepted').length;
+  const completedCount = deals.filter(d => d.status === 'completed').length;
+  const cancelledCount = deals.filter(d => d.status === 'cancelled' || d.status === 'rejected').length;
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleAccept = async (id: string) => {
@@ -569,7 +568,7 @@ export function AviaDealsPage() {
         <div style={{ display: 'flex', gap: 6, minWidth: 'max-content' }}>
           {TABS.map(tab => {
             const isActive = activeTab === tab.id;
-            const badge = tab.id === 'incoming' ? incomingCount : tab.id === 'active' ? activeCount : 0;
+            const badge = tab.id === 'active' ? activeCount : tab.id === 'completed' ? completedCount : cancelledCount;
             return (
               <button
                 key={tab.id}
@@ -621,13 +620,11 @@ export function AviaDealsPage() {
           >
             <Handshake style={{ width: 36, height: 36, color: '#34d399', margin: '0 auto 12px', opacity: 0.3 }} />
             <p style={{ fontSize: 13, color: '#4a6080', margin: 0, lineHeight: 1.6 }}>
-              {activeTab === 'incoming'
-                ? 'Входящих предложений нет.\nКогда кто-то отправит вам предложение, оно появится здесь.'
-                : activeTab === 'outgoing'
-                ? 'Вы ещё не отправляли предложений.\nНажмите «Предложить» на рейсе или заявке.'
-                : activeTab === 'active'
-                ? 'Активных сделок нет.\nПринимайте входящие предложения или ждите принятия исходящих.'
-                : 'Сделок пока нет.'}
+              {activeTab === 'active'
+                ? 'Активных сделок нет.\nПредложите сделку на рейсе или заявке — она появится здесь.'
+                : activeTab === 'completed'
+                ? 'Завершённых сделок пока нет.'
+                : 'Отменённых и отклонённых сделок нет.'}
             </p>
           </motion.div>
         ) : (

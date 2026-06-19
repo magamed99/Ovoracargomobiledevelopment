@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   ArrowLeft, Plane, RefreshCw, AlertTriangle, ArrowRight,
   Clock, CheckCircle2, XCircle, ClipboardList, MessageCircle,
-  User, Weight, DollarSign, ShieldAlert,
+  User, Weight, DollarSign, ShieldAlert, ThumbsUp,
 } from 'lucide-react';
 import { useAvia } from './AviaContext';
 import { getAviaFlight } from '../../api/aviaApi';
@@ -12,6 +12,8 @@ import type { AviaFlight } from '../../api/aviaApi';
 import { getAviaDeals } from '../../api/aviaDealApi';
 import type { AviaDeal, AviaDealStatus } from '../../api/aviaDealApi';
 import { makeAviaChatId } from '../../api/aviaChatApi';
+import { getAviaDealReviewStatus } from '../../api/aviaReviewApi';
+import { AviaReviewModal } from './AviaReviewModal';
 
 function fmtDate(iso: string): string {
   try {
@@ -33,7 +35,14 @@ const STATUS_META: Record<AviaDealStatus, { label: string; color: string; bg: st
   completed: { label: 'Завершена', color: '#a78bfa', bg: '#a78bfa14', icon: CheckCircle2 },
 };
 
-function ManifestRow({ deal, onOpenChat }: { deal: AviaDeal; onOpenChat: (phone: string) => void }) {
+function ManifestRow({
+  deal, onOpenChat, reviewed, onReview,
+}: {
+  deal: AviaDeal;
+  onOpenChat: (phone: string) => void;
+  reviewed: boolean;
+  onReview: (deal: AviaDeal) => void;
+}) {
   const statusMeta = STATUS_META[deal.status];
   const StatusIcon = statusMeta.icon;
   return (
@@ -86,18 +95,47 @@ function ManifestRow({ deal, onOpenChat }: { deal: AviaDeal; onOpenChat: (phone:
         )}
       </div>
 
-      <button
-        onClick={() => onOpenChat(deal.senderId)}
-        style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-          padding: '8px', borderRadius: 10, alignSelf: 'flex-start',
-          border: '1px solid rgba(14,165,233,0.18)', background: 'rgba(14,165,233,0.08)',
-          color: '#38bdf8', fontSize: 11, fontWeight: 600, cursor: 'pointer',
-        }}
-      >
-        <MessageCircle style={{ width: 12, height: 12 }} />
-        Написать
-      </button>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <button
+          onClick={() => onOpenChat(deal.senderId)}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            padding: '8px 12px', borderRadius: 10,
+            border: '1px solid rgba(14,165,233,0.18)', background: 'rgba(14,165,233,0.08)',
+            color: '#38bdf8', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+          }}
+        >
+          <MessageCircle style={{ width: 12, height: 12 }} />
+          Написать
+        </button>
+
+        {deal.status === 'completed' && (
+          reviewed ? (
+            <span style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '8px 12px', borderRadius: 10,
+              border: '1px solid rgba(52,211,153,0.18)', background: 'rgba(52,211,153,0.08)',
+              color: '#34d399', fontSize: 11, fontWeight: 600,
+            }}>
+              <CheckCircle2 style={{ width: 12, height: 12 }} />
+              Отзыв оставлен
+            </span>
+          ) : (
+            <button
+              onClick={() => onReview(deal)}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                padding: '8px 12px', borderRadius: 10,
+                border: '1px solid rgba(167,139,250,0.22)', background: 'rgba(167,139,250,0.08)',
+                color: '#a78bfa', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+              }}
+            >
+              <ThumbsUp style={{ width: 12, height: 12 }} />
+              Оценить отправителя
+            </button>
+          )
+        )}
+      </div>
     </motion.div>
   );
 }
@@ -110,6 +148,8 @@ export function AviaFlightManifestPage() {
   const [deals, setDeals]   = useState<AviaDeal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState('');
+  const [reviewedDeals, setReviewedDeals] = useState<Record<string, boolean>>({});
+  const [reviewDeal, setReviewDeal] = useState<AviaDeal | null>(null);
 
   const load = useCallback(() => {
     if (!id || !user?.phone) return;
@@ -119,11 +159,25 @@ export function AviaFlightManifestPage() {
       getAviaFlight(id, user.phone),
       getAviaDeals(user.phone),
     ])
-      .then(([f, allDeals]) => {
+      .then(async ([f, allDeals]) => {
         if (!f) { setError('Рейс не найден'); return; }
         if (f.courierId !== user.phone) { setError('Доступ запрещён: вы не владелец этого рейса'); return; }
         setFlight(f);
-        setDeals(allDeals.filter(d => d.adType === 'flight' && d.adId === id));
+        const flightDeals = allDeals.filter(d => d.adType === 'flight' && d.adId === id);
+        setDeals(flightDeals);
+
+        const completed = flightDeals.filter(d => d.status === 'completed');
+        const statuses: Record<string, boolean> = {};
+        await Promise.all(completed.map(async d => {
+          try {
+            const s = await getAviaDealReviewStatus(d.id);
+            const isInit = d.initiatorPhone === user.phone;
+            statuses[d.id] = isInit ? !!s.byInitiator : !!s.byRecipient;
+          } catch {
+            statuses[d.id] = false;
+          }
+        }));
+        setReviewedDeals(statuses);
       })
       .catch(() => setError('Ошибка загрузки'))
       .finally(() => setLoading(false));
@@ -257,13 +311,28 @@ export function AviaFlightManifestPage() {
                   .slice()
                   .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
                   .map(d => (
-                    <ManifestRow key={d.id} deal={d} onOpenChat={handleOpenChat} />
+                    <ManifestRow
+                      key={d.id}
+                      deal={d}
+                      onOpenChat={handleOpenChat}
+                      reviewed={!!reviewedDeals[d.id]}
+                      onReview={setReviewDeal}
+                    />
                   ))}
               </AnimatePresence>
             )}
           </>
         )}
       </div>
+
+      {reviewDeal && user && (
+        <AviaReviewModal
+          deal={reviewDeal}
+          myPhone={user.phone}
+          onClose={() => setReviewDeal(null)}
+          onReviewed={(dealId) => setReviewedDeals(prev => ({ ...prev, [dealId]: true }))}
+        />
+      )}
     </div>
   );
 }

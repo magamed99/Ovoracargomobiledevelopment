@@ -352,7 +352,7 @@ function FlightCard({
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
             <Package style={{ width: 11, height: 11, color: isDone ? '#4a6080' : '#0ea5e9', flexShrink: 0 }} />
             <span style={{ fontSize: 12, color: isDone ? '#4a6080' : '#c8dae8', fontWeight: 600 }}>
-              {isDone ? `${flight.freeKg} кг` : `${Math.max(0, displayFreeKg)} кг свободн��`}
+              {isDone ? `${flight.freeKg} кг` : `${Math.max(0, displayFreeKg)} кг свободно`}
             </span>
             {!isDone && hasReserved && (
               <span style={{
@@ -403,14 +403,18 @@ function FlightCard({
         </div>
 
         {isMine ? (
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <div className="avia-card-actions-row" style={{
+            display: 'flex', gap: 6, flexWrap: 'nowrap',
+            overflowX: 'auto', justifyContent: 'flex-end',
+            width: '100%', WebkitOverflowScrolling: 'touch',
+          }}>
             <button
               onClick={() => navigate(`/avia/flight/${flight.id}/manifest`)}
               style={{
-                display: 'flex', alignItems: 'center', gap: 5,
+                display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0,
                 padding: '5px 10px', borderRadius: 8, cursor: 'pointer',
                 border: '1px solid #a78bfa20', background: '#a78bfa08',
-                color: '#a78bfa', fontSize: 11, fontWeight: 600,
+                color: '#a78bfa', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap',
               }}
             >
               <ClipboardList style={{ width: 12, height: 12 }} />
@@ -422,10 +426,10 @@ function FlightCard({
                   onClick={handleStart}
                   disabled={starting}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: 5,
+                    display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0,
                     padding: '5px 10px', borderRadius: 8, cursor: 'pointer',
                     border: '1px solid #38bdf820', background: '#38bdf808',
-                    color: '#38bdf8', fontSize: 11, fontWeight: 600,
+                    color: '#38bdf8', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap',
                     opacity: starting ? 0.5 : 1, transition: 'opacity 0.2s',
                   }}
                 >
@@ -436,10 +440,10 @@ function FlightCard({
                   onClick={handleClose}
                   disabled={closing}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: 5,
+                    display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0,
                     padding: '5px 10px', borderRadius: 8, cursor: 'pointer',
                     border: '1px solid #f59e0b20', background: '#f59e0b08',
-                    color: '#fbbf24', fontSize: 11, fontWeight: 600,
+                    color: '#fbbf24', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap',
                     opacity: closing ? 0.5 : 1, transition: 'opacity 0.2s',
                   }}
                 >
@@ -453,10 +457,10 @@ function FlightCard({
                 onClick={handleComplete}
                 disabled={completing}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: 5,
+                  display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0,
                   padding: '5px 10px', borderRadius: 8, cursor: 'pointer',
                   border: '1px solid #34d39920', background: '#34d39908',
-                  color: '#34d399', fontSize: 11, fontWeight: 600,
+                  color: '#34d399', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap',
                   opacity: completing ? 0.5 : 1, transition: 'opacity 0.2s',
                 }}
               >
@@ -468,10 +472,10 @@ function FlightCard({
               onClick={handleDelete}
               disabled={deleting}
               style={{
-                display: 'flex', alignItems: 'center', gap: 5,
+                display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0,
                 padding: '5px 10px', borderRadius: 8, cursor: 'pointer',
                 border: '1px solid #ef444420', background: '#ef444408',
-                color: '#f87171', fontSize: 11, fontWeight: 600,
+                color: '#f87171', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap',
                 opacity: deleting ? 0.5 : 1, transition: 'opacity 0.2s',
               }}
             >
@@ -1834,6 +1838,8 @@ export function AviaDashboard() {
                           onStart={(id) => {
                             setFlights(prev => prev.filter(x => x.id !== id));
                             setMyFlights(prev => prev.map(x => x.id === id ? { ...x, status: 'in_progress' } : x));
+                            toast.message('Рейс перенесён во вкладку «Мои» — он активен до завершения поездки', { duration: 3500 });
+                            setActiveTab('my');
                           }}
                           onComplete={(id) => {
                             setFlights(prev => prev.map(x => x.id === id ? { ...x, status: 'completed' } : x));

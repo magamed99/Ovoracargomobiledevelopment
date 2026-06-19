@@ -126,7 +126,7 @@ export function AirportAutocomplete({
     border: `1.5px solid ${open ? accentColor + '40' : '#ffffff12'}`,
     background: '#ffffff08',
     color: '#fff',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: 500,
     outline: 'none',
     boxSizing: 'border-box' as const,
@@ -230,31 +230,22 @@ export function AirportAutocomplete({
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{
                       fontSize: 13, fontWeight: 700, color: '#fff',
-                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                      display: 'flex', alignItems: 'center', gap: 5,
+                      overflowWrap: 'anywhere',
                     }}>
-                      {airport.city}
+                      <span>{airport.city}</span>
+                      {flag && <span style={{ fontSize: 12, flexShrink: 0 }}>{flag}</span>}
                     </div>
                     <div style={{
                       fontSize: 10, color: '#4a6080', fontWeight: 500,
                       display: 'flex', alignItems: 'center', gap: 4, marginTop: 1,
                     }}>
                       <Plane style={{ width: 9, height: 9, flexShrink: 0 }} />
-                      <span style={{
-                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                      }}>
-                        {airport.name}
+                      <span style={{ overflowWrap: 'anywhere' }}>
+                        {airport.name}{airport.country ? ` · ${airport.country}` : ''}
                       </span>
                     </div>
                   </div>
-
-                  {/* Country */}
-                  <span style={{
-                    fontSize: 10, color: '#3d5268', fontWeight: 600,
-                    flexShrink: 0, display: 'flex', alignItems: 'center', gap: 3,
-                  }}>
-                    {flag && <span style={{ fontSize: 12 }}>{flag}</span>}
-                    {airport.country}
-                  </span>
                 </button>
               );
             })}
