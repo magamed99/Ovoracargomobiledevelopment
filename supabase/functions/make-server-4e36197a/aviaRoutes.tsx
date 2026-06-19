@@ -1044,15 +1044,26 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       const duplicate = await Deals.findActiveByInitiatorAndAd(p1, adId, adType, p2);
       if (duplicate) return c.json({ error: 'Вы уже отправили предложение по этому объявлению', dealId: duplicate.id }, 409);
 
-      // Резервирование ёмкости (грузовые сделки по рейсу)
+      // Резервирование ёмкости (грузовые сделки по рейсу).
+      // ✅ KV-хранилище не даёт атомарного CAS, поэтому защищаемся optimistic-lock'ом:
+      // после записи перечитываем рейс и проверяем, что именно НАША запись там лежит —
+      // если кто-то успел вмешаться между чтением и записью, повторяем попытку с
+      // актуальными цифрами (иначе два параллельных запроса могли оба пройти проверку
+      // available и забронировать больше места, чем есть на рейсе).
       if (resolvedDealType === 'cargo' && adType === 'flight') {
-        const flight = await Flights.get(adId);
-        if (flight?.cargoEnabled) {
+        const requested = Number(weightKg) || 0;
+        let reserved = false;
+        for (let attempt = 0; attempt < 5 && !reserved; attempt++) {
+          const flight = await Flights.get(adId);
+          if (!flight?.cargoEnabled) { reserved = true; break; }
           const available = (flight.freeKg || 0) - (flight.reservedKg || 0);
-          const requested = Number(weightKg) || 0;
           if (requested > available) return c.json({ error: `Недостаточно места: доступно ${available} кг, запрошено ${requested} кг` }, 400);
-          await Flights.set(adId, { ...flight, reservedKg: (flight.reservedKg || 0) + requested, updatedAt: new Date().toISOString() });
+          const writeTs = new Date().toISOString();
+          await Flights.set(adId, { ...flight, reservedKg: (flight.reservedKg || 0) + requested, updatedAt: writeTs });
+          const verify = await Flights.get(adId);
+          if (verify?.updatedAt === writeTs) reserved = true;
         }
+        if (!reserved) return c.json({ error: 'Не удалось зарезервировать место на рейсе, попробуйте ещё раз' }, 409);
       }
 
       const id  = aviaId('aviadeal');
