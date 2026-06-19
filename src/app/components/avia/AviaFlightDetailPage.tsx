@@ -148,14 +148,14 @@ export function AviaFlightDetailPage() {
   const load = useCallback(() => {
     if (!id) return;
     setLoading(true);
-    getAviaFlight(id)
+    getAviaFlight(id, user?.phone)
       .then((f: AviaFlight | null) => {
         if (!f) setError('Рейс не найден');
         else setFlight(f);
       })
       .catch(() => setError('Ошибка загрузки'))
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, user?.phone]);
 
   useEffect(() => { load(); }, [load]);
 

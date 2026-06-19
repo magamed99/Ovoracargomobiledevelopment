@@ -454,6 +454,27 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
     }
   });
 
+  // Получить один рейс по id (включая in_progress/closed/completed — но только владельцу,
+  // т.к. Flights.listActive() их скрывает из публичного списка)
+  app.get(`${P}/flights/:id`, async (c) => {
+    try {
+      const id     = c.req.param('id');
+      const flight = await Flights.get(id);
+      if (!flight || flight.isDeleted) return c.json({ error: 'Flight not found' }, 404);
+      if (flight.status !== 'active') {
+        const callerPhone = aviaClean(c.req.query('callerPhone') || '');
+        if (!callerPhone || callerPhone !== flight.courierId) {
+          console.warn(`[AVIA Flights] IDOR attempt: ${callerPhone || '(none)'} tried to view non-active flight ${id} owned by ${flight.courierId}`);
+          return c.json({ error: 'Forbidden' }, 403);
+        }
+      }
+      return c.json({ flight });
+    } catch (err) {
+      console.log('Error GET /avia/flights/:id:', err);
+      return c.json({ error: `${err}` }, 500);
+    }
+  });
+
   app.post(`${P}/flights`, rlPhone(RL.GENERAL_WRITE), async (c) => {
     try {
       const body = await c.req.json();

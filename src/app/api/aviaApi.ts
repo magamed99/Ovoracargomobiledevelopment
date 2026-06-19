@@ -390,9 +390,12 @@ export async function getAviaFlights(filters?: AviaFilters): Promise<AviaFlight[
   return data.flights || [];
 }
 
-export async function getAviaFlight(id: string): Promise<AviaFlight | null> {
-  const flights = await getAviaFlights();
-  return flights.find(f => f.id === id) ?? null;
+export async function getAviaFlight(id: string, callerPhone?: string): Promise<AviaFlight | null> {
+  const qs = callerPhone ? `?callerPhone=${encodeURIComponent(callerPhone.replace(/\D/g, ''))}` : '';
+  const res = await fetchWithRetry(`${BASE}/avia/flights/${encodeURIComponent(id)}${qs}`, { headers: HEADERS });
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.flight || null;
 }
 
 export async function createAviaFlight(flightData: Partial<AviaFlight>): Promise<{ success: boolean; flight?: AviaFlight; error?: string }> {

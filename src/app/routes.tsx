@@ -168,6 +168,11 @@ export const router = createBrowserRouter([
             lazy: () => import("./components/avia/AviaPublicProfile")
               .then(m => ({ Component: m.AviaPublicProfile })),
           },
+          {
+            path: "/avia/flight/:id/manifest",
+            lazy: () => import("./components/avia/AviaFlightManifestPage")
+              .then(m => ({ Component: m.AviaFlightManifestPage })),
+          },
         ],
       },
 

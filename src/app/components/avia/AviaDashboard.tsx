@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router';
-import { Plane, User, Package, Send, Repeat, ShieldAlert, ShieldX, ShieldCheck, Calendar, Trash2, Plus, RefreshCw, ArrowRight, AlertTriangle, Phone, Copy, Check, XCircle, Bookmark, SlidersHorizontal, X, Search, ArrowDown, Bell, MessageCircle, Handshake, FileText, Flag, PlayCircle } from 'lucide-react';
+import { Plane, User, Package, Send, Repeat, ShieldAlert, ShieldX, ShieldCheck, Calendar, Trash2, Plus, RefreshCw, ArrowRight, AlertTriangle, Phone, Copy, Check, XCircle, Bookmark, SlidersHorizontal, X, Search, ArrowDown, Bell, MessageCircle, Handshake, FileText, Flag, PlayCircle, ClipboardList } from 'lucide-react';
 import { NotificationCenter } from './NotificationCenter';
 import { AviaConfirmSheet } from './AviaConfirmSheet';
 import { fmtDate, maskPhone } from '../../utils/aviaUtils';
@@ -185,6 +185,7 @@ function FlightCard({
   const isCompleted = flight.status === 'completed';
   const isInProgress = flight.status === 'in_progress';
   const { user: aviaUser } = useAvia();
+  const navigate = useNavigate();
 
   // ── AviaConfirmSheet state ──────────────────────────────────────────────────
   type ConfirmCfg = { title: string; description: string; variant: 'danger' | 'warning' | 'complete'; label: string; action: () => Promise<void> };
@@ -403,6 +404,18 @@ function FlightCard({
 
         {isMine ? (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <button
+              onClick={() => navigate(`/avia/flight/${flight.id}/manifest`)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                padding: '5px 10px', borderRadius: 8, cursor: 'pointer',
+                border: '1px solid #a78bfa20', background: '#a78bfa08',
+                color: '#a78bfa', fontSize: 11, fontWeight: 600,
+              }}
+            >
+              <ClipboardList style={{ width: 12, height: 12 }} />
+              Манифест
+            </button>
             {!isDone && !isInProgress && (
               <>
                 <button
