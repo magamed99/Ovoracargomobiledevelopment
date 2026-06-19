@@ -20,7 +20,7 @@ const inputStyle: React.CSSProperties = {
   border: '1.5px solid #ffffff12',
   background: '#ffffff08',
   color: '#fff',
-  fontSize: 14,
+  fontSize: 16,
   fontWeight: 500,
   outline: 'none',
   boxSizing: 'border-box',
