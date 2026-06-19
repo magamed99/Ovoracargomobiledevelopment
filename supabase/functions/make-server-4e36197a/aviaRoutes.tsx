@@ -521,6 +521,57 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
     }
   });
 
+  app.patch(`${P}/flights/:id/start`, async (c) => {
+    try {
+      const id     = c.req.param('id');
+      const { callerPhone } = await c.req.json().catch(() => ({ callerPhone: '' }));
+      const clean  = aviaClean(callerPhone || '');
+      if (!clean) return c.json({ error: 'callerPhone is required' }, 400);
+      const flight = await Flights.get(id);
+      if (!flight) return c.json({ error: 'Flight not found' }, 404);
+      if (flight.courierId !== clean) {
+        console.warn(`[AVIA Flights] IDOR attempt: ${clean} tried to start flight ${id} owned by ${flight.courierId}`);
+        return c.json({ error: 'Forbidden: not the owner' }, 403);
+      }
+      if (flight.isDeleted) return c.json({ error: 'Flight deleted' }, 400);
+      if (flight.status !== 'active') return c.json({ error: `Cannot start flight with status: ${flight.status}` }, 400);
+      const now     = new Date().toISOString();
+      const updated = { ...flight, status: 'in_progress', startedAt: now, updatedAt: now };
+      await Flights.set(id, updated);
+
+      // Уведомляем отправителей с принятыми сделками, что поездка началась (fire-and-forget)
+      ;(async () => {
+        try {
+          const userDeals = await Deals.listByUser(flight.courierId);
+          for (const deal of userDeals) {
+            if (deal.adId !== id || deal.status !== 'accepted') continue;
+
+            const chatId = aviaChatId(deal.initiatorPhone, deal.recipientPhone);
+            const meta   = await Chats.getMeta(chatId);
+            if (meta) {
+              const msgId = aviaId('deal_update');
+              await Chats.addMessage(chatId, { id: msgId, chatId, senderPhone: 'system', text: 'Поездка начата', type: 'deal_update', meta: { dealId: deal.id, status: 'started' }, createdAt: now });
+              await Chats.setMeta(chatId, { ...meta, lastMessage: '✈ Поездка начата', lastMessageAt: now, lastSenderPhone: 'system' });
+            }
+
+            await Notifs.push(deal.senderId, {
+              id: aviaId('flight_started'), phone: deal.senderId, type: 'system',
+              iconName: 'Plane', iconBg: 'bg-sky-500/10 text-sky-400',
+              title: '✈ Поездка началась!',
+              description: `Курьер ${flight.courierName || flight.courierId} начал поездку · ${flight.from} → ${flight.to}`,
+              isUnread: true, createdAt: now, meta: { dealId: deal.id, flightId: id },
+            });
+          }
+        } catch (e) { console.warn('[AVIA] Start flight side-effects error:', e); }
+      })();
+
+      return c.json({ success: true, flight: updated });
+    } catch (err) {
+      console.log('Error PATCH /avia/flights/start:', err);
+      return c.json({ error: `${err}` }, 500);
+    }
+  });
+
   app.patch(`${P}/flights/:id/close`, async (c) => {
     try {
       const id     = c.req.param('id');

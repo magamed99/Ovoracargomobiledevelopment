@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router';
-import { Plane, User, Package, Send, Repeat, ShieldAlert, ShieldX, ShieldCheck, Calendar, Trash2, Plus, RefreshCw, ArrowRight, AlertTriangle, Phone, Copy, Check, XCircle, Bookmark, SlidersHorizontal, X, Search, ArrowDown, Bell, MessageCircle, Handshake, FileText, Flag } from 'lucide-react';
+import { Plane, User, Package, Send, Repeat, ShieldAlert, ShieldX, ShieldCheck, Calendar, Trash2, Plus, RefreshCw, ArrowRight, AlertTriangle, Phone, Copy, Check, XCircle, Bookmark, SlidersHorizontal, X, Search, ArrowDown, Bell, MessageCircle, Handshake, FileText, Flag, PlayCircle } from 'lucide-react';
 import { NotificationCenter } from './NotificationCenter';
 import { AviaConfirmSheet } from './AviaConfirmSheet';
 import { fmtDate, maskPhone } from '../../utils/aviaUtils';
@@ -16,7 +16,7 @@ import {
   getAviaFlights, getAviaRequests,
   deleteAviaFlight, deleteAviaRequest,
   closeAviaFlight, closeAviaRequest,
-  completeAviaFlight,
+  completeAviaFlight, startAviaFlight,
   getMyAviaAds,
 } from '../../api/aviaApi';
 import type { AviaFlight, AviaRequest } from '../../api/aviaApi';
@@ -164,13 +164,14 @@ function ContactButton({ phone, accentColor }: { phone: string; accentColor: str
 // ── Карточка рейса ────────────────────────────────────────────────────────────
 
 function FlightCard({
-  flight, isMine, onDelete, onClose, onComplete, onDetail, onChat, onOffer, chatUnread,
+  flight, isMine, onDelete, onClose, onComplete, onStart, onDetail, onChat, onOffer, chatUnread,
 }: {
   flight: AviaFlight;
   isMine: boolean;
   onDelete: (id: string) => void;
   onClose?: (id: string) => void;
   onComplete?: (id: string) => void;
+  onStart?: (id: string) => void;
   onDetail?: (f: AviaFlight) => void;
   onChat?: (otherPhone: string, adRef: AviaChatAdRef) => void;
   onOffer?: (flight: AviaFlight) => void;
@@ -179,8 +180,10 @@ function FlightCard({
   const [deleting, setDeleting] = useState(false);
   const [closing, setClosing] = useState(false);
   const [completing, setCompleting] = useState(false);
+  const [starting, setStarting] = useState(false);
   const isClosed = flight.status === 'closed';
   const isCompleted = flight.status === 'completed';
+  const isInProgress = flight.status === 'in_progress';
   const { user: aviaUser } = useAvia();
 
   // ── AviaConfirmSheet state ──────────────────────────────────────────────────
@@ -224,9 +227,23 @@ function FlightCard({
     } finally { setCompleting(false); }
   };
 
+  const execStart = async () => {
+    if (!aviaUser?.phone) return;
+    setStarting(true);
+    try {
+      const result = await startAviaFlight(flight.id, aviaUser.phone);
+      if (result.error) throw new Error(result.error);
+      if (onStart) onStart(flight.id);
+      toast.success('Поездка начата! Рейс скрыт из публичного поиска', { duration: 3000 });
+    } catch {
+      toast.error('Не удалось начать поездку');
+    } finally { setStarting(false); }
+  };
+
   const handleDelete   = () => setConfirmCfg({ title: 'Удалить рейс?', description: 'Рейс будет удалён навсегда. Это действие нельзя отменить.', variant: 'danger', label: 'Удалить', action: execDelete });
   const handleClose    = () => setConfirmCfg({ title: 'Закрыть рейс?', description: 'Рейс исчезнет из общего списка. Вы сможете его удалить позже.', variant: 'warning', label: 'Закрыть', action: execClose });
-  const handleComplete = () => setConfirmCfg({ title: 'Завершить поездку?', description: 'Все принятые сделки будут отмечены как завершённые.', variant: 'complete', label: 'Завершить', action: execComplete });
+  const handleComplete = () => setConfirmCfg({ title: 'Завершить сделку?', description: 'Все принятые сделки будут отмечены как завершённые.', variant: 'complete', label: 'Завершить', action: execComplete });
+  const handleStart     = () => setConfirmCfg({ title: 'Начать поездку?', description: 'Рейс исчезнет из публичного поиска — новые заявки больше не будут приходить.', variant: 'complete', label: 'Начать', action: execStart });
 
   // Вычисляем отображаемую ёмкость
   const displayFreeKg = (flight.freeKg || 0) - (flight.reservedKg || 0);
@@ -386,21 +403,21 @@ function FlightCard({
 
         {isMine ? (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-            {!isDone && (
+            {!isDone && !isInProgress && (
               <>
                 <button
-                  onClick={handleComplete}
-                  disabled={completing}
+                  onClick={handleStart}
+                  disabled={starting}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 5,
                     padding: '5px 10px', borderRadius: 8, cursor: 'pointer',
-                    border: '1px solid #34d39920', background: '#34d39908',
-                    color: '#34d399', fontSize: 11, fontWeight: 600,
-                    opacity: completing ? 0.5 : 1, transition: 'opacity 0.2s',
+                    border: '1px solid #38bdf820', background: '#38bdf808',
+                    color: '#38bdf8', fontSize: 11, fontWeight: 600,
+                    opacity: starting ? 0.5 : 1, transition: 'opacity 0.2s',
                   }}
                 >
-                  <Flag style={{ width: 12, height: 12 }} />
-                  {completing ? '...' : 'Завершить'}
+                  <PlayCircle style={{ width: 12, height: 12 }} />
+                  {starting ? '...' : 'Начать поездку'}
                 </button>
                 <button
                   onClick={handleClose}
@@ -417,6 +434,22 @@ function FlightCard({
                   {closing ? '...' : 'Закрыть'}
                 </button>
               </>
+            )}
+            {!isDone && isInProgress && (
+              <button
+                onClick={handleComplete}
+                disabled={completing}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  padding: '5px 10px', borderRadius: 8, cursor: 'pointer',
+                  border: '1px solid #34d39920', background: '#34d39908',
+                  color: '#34d399', fontSize: 11, fontWeight: 600,
+                  opacity: completing ? 0.5 : 1, transition: 'opacity 0.2s',
+                }}
+              >
+                <Flag style={{ width: 12, height: 12 }} />
+                {completing ? '...' : 'Завершить сделку'}
+              </button>
             )}
             <button
               onClick={handleDelete}
@@ -1785,6 +1818,10 @@ export function AviaDashboard() {
                           isMine={f.courierId === myPhone}
                           onDelete={(id) => setFlights(prev => prev.filter(x => x.id !== id))}
                           onClose={handleCloseFlight}
+                          onStart={(id) => {
+                            setFlights(prev => prev.filter(x => x.id !== id));
+                            setMyFlights(prev => prev.map(x => x.id === id ? { ...x, status: 'in_progress' } : x));
+                          }}
                           onComplete={(id) => {
                             setFlights(prev => prev.map(x => x.id === id ? { ...x, status: 'completed' } : x));
                             setMyFlights(prev => prev.map(x => x.id === id ? { ...x, status: 'completed' } : x));
@@ -1921,6 +1958,10 @@ export function AviaDashboard() {
                               }}
                               onClose={(id) => {
                                 setMyFlights(prev => prev.map(x => x.id === id ? { ...x, status: 'closed' } : x));
+                                setFlights(prev => prev.filter(x => x.id !== id));
+                              }}
+                              onStart={(id) => {
+                                setMyFlights(prev => prev.map(x => x.id === id ? { ...x, status: 'in_progress' } : x));
                                 setFlights(prev => prev.filter(x => x.id !== id));
                               }}
                               onComplete={(id) => {

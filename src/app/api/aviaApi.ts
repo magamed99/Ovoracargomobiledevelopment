@@ -54,6 +54,7 @@ export interface AviaFlight {
   // Currency (backward-compat default: 'USD')
   currency?: string;
   status: string;
+  startedAt?: string;
   createdAt: string;
 }
 
@@ -439,6 +440,16 @@ export async function deleteAviaRequest(id: string, callerPhone: string): Promis
   const res = await fetch(`${BASE}/avia/requests/${encodeURIComponent(id)}?callerPhone=${encodeURIComponent(callerPhone)}`, {
     method: 'DELETE',
     headers: HEADERS,
+  });
+  return res.json();
+}
+
+/** Начать поездку (status → in_progress, рейс скрывается из публичного поиска) */
+export async function startAviaFlight(id: string, callerPhone: string): Promise<{ success: boolean; flight?: AviaFlight; error?: string }> {
+  const res = await fetch(`${BASE}/avia/flights/${encodeURIComponent(id)}/start`, {
+    method: 'PATCH',
+    headers: HEADERS,
+    body: JSON.stringify({ callerPhone }),
   });
   return res.json();
 }

@@ -93,6 +93,7 @@ export interface AviaFlight {
   currency      : string;
   status        : string;
   isDeleted     ?: boolean;
+  startedAt     ?: string;
   closedAt      ?: string;
   completedAt   ?: string;
   createdAt     : string;
@@ -287,7 +288,8 @@ export const Flights = {
     const result = all
       .filter(f => {
         if (!f || typeof f !== 'object' || f.isDeleted) return false;
-        if (f.status === 'closed' || f.status === 'completed') return false;
+        // in_progress — поездка уже начата, скрываем от публичного поиска, чтобы не приходили новые заявки
+        if (f.status === 'closed' || f.status === 'completed' || f.status === 'in_progress') return false;
         // Грузовая ёмкость выбрана и полностью занята, документы не предлагаются — скрываем
         if (f.cargoEnabled && !f.docsEnabled && (f.freeKg || 0) - (f.reservedKg || 0) <= 0) return false;
         return true;
