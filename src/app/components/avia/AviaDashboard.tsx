@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router';
-import { Plane, User, Package, Send, Repeat, ShieldAlert, ShieldX, ShieldCheck, Calendar, Trash2, Plus, RefreshCw, ArrowRight, AlertTriangle, Phone, Copy, Check, XCircle, Zap, SlidersHorizontal, X, Search, ArrowDown, Bell, MessageCircle, Handshake, FileText, Flag, PlayCircle, ClipboardList } from 'lucide-react';
+import { Plane, User, Package, Send, Repeat, ShieldAlert, ShieldX, ShieldCheck, Calendar, Trash2, Plus, RefreshCw, ArrowRight, AlertTriangle, Phone, Copy, Check, XCircle, SlidersHorizontal, X, Search, ArrowDown, Bell, MessageCircle, Handshake, FileText, Flag, PlayCircle, ClipboardList } from 'lucide-react';
 import { NotificationCenter } from './NotificationCenter';
 import { AviaConfirmSheet } from './AviaConfirmSheet';
 import { fmtDate, maskPhone } from '../../utils/aviaUtils';
@@ -866,7 +866,7 @@ export function AviaDashboard() {
   const [myRequests, setMyRequests] = useState<AviaRequest[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [loadingMy, setLoadingMy] = useState(false);
-  const [activeTab, setActiveTab] = useState<'flights' | 'requests' | 'my'>('flights');
+  const [activeTab, setActiveTab] = useState<'flights' | 'requests'>('flights');
   const [showFlightModal, setShowFlightModal] = useState(false);
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [detailFlight, setDetailFlight] = useState<AviaFlight | null>(null);
@@ -1174,16 +1174,12 @@ export function AviaDashboard() {
   // Пакет M: производные для chips + filter badge
   const activeFS      = activeTab === 'flights' ? flightFS : requestFS;
   const activeAccent  = activeTab === 'flights' ? '#0ea5e9' : '#a78bfa';
-  const activeFilterCount = activeTab !== 'my' ? countActiveFilters(activeFS) : 0;
-  const activeChips   = activeTab !== 'my' ? getFilterChips(activeFS) : [];
-
-  const myTotalCount = myFlights.length + myRequests.length;
-  const myActiveCount = myFlights.filter(f => f.status !== 'closed').length + myRequests.filter(r => r.status !== 'closed').length;
-  const myClosedCount = myTotalCount - myActiveCount;
+  const activeFilterCount = countActiveFilters(activeFS);
+  const activeChips   = getFilterChips(activeFS);
 
   const showCreateFlight  = activeTab === 'flights'  && (user.role === 'courier' || user.role === 'both');
   const showCreateRequest = activeTab === 'requests' && (user.role === 'sender'  || user.role === 'both');
-  const showCreateBtn     = (showCreateFlight || showCreateRequest) && (activeTab as string) !== 'my';
+  const showCreateBtn     = showCreateFlight || showCreateRequest;
   const createBtnDisabled = showCreateFlight ? !adCheck.allowed : !requestCheck.allowed;
 
   const handleRefresh = () => {
@@ -1201,7 +1197,7 @@ export function AviaDashboard() {
   };
 
   // Сброс счётчика при переключении на вкладку
-  const handleTabChange = (tab: 'flights' | 'requests' | 'my') => {
+  const handleTabChange = (tab: 'flights' | 'requests') => {
     if (tab === 'flights') setNewFlightsCount(0);
     if (tab === 'requests') setNewRequestsCount(0);
     setSearchQuery('');
@@ -1540,17 +1536,13 @@ export function AviaDashboard() {
             border: '1px solid rgba(255,255,255,0.07)',
             boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.02)',
           }}>
-            {(['flights', 'requests', 'my'] as const).map((tab) => {
+            {(['flights', 'requests'] as const).map((tab) => {
               const isActive = activeTab === tab;
-              const count = tab === 'flights'
-                ? displayFlights.length
-                : tab === 'requests'
-                  ? displayRequests.length
-                  : myTotalCount;
-              const tabColor = tab === 'flights' ? '#0ea5e9' : tab === 'requests' ? '#a78bfa' : '#34d399';
-              const tabLabel = tab === 'my' ? 'Активные' : tabLabels[tab];
-              const TabIcon = tab === 'flights' ? Plane : tab === 'requests' ? Package : Zap;
-              const newCount = tab === 'flights' ? newFlightsCount : tab === 'requests' ? newRequestsCount : 0;
+              const count = tab === 'flights' ? displayFlights.length : displayRequests.length;
+              const tabColor = tab === 'flights' ? '#0ea5e9' : '#a78bfa';
+              const tabLabel = tabLabels[tab];
+              const TabIcon = tab === 'flights' ? Plane : Package;
+              const newCount = tab === 'flights' ? newFlightsCount : newRequestsCount;
               return (
                 <button
                   key={tab}
@@ -1577,7 +1569,7 @@ export function AviaDashboard() {
                     padding: '1px 5px', borderRadius: 5,
                     minWidth: 16, textAlign: 'center',
                   }}>
-                    {(tab === 'my' ? loadingMy : loadingData) ? '·' : count}
+                    {loadingData ? '·' : count}
                   </span>
                   {/* New items badge */}
                   {newCount > 0 && !isActive && (
@@ -1663,7 +1655,7 @@ export function AviaDashboard() {
         </motion.div>
 
         {/* ── Пакет M: Поиск v2 + Кнопка фильтров ── */}
-        {activeTab !== 'my' && (
+        {(
           <motion.div
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1746,7 +1738,7 @@ export function AviaDashboard() {
 
         {/* ── Пакет M: Chip-теги активных фильтров ── */}
         <AnimatePresence>
-          {activeTab !== 'my' && activeChips.length > 0 && (
+          {activeChips.length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
@@ -1806,7 +1798,7 @@ export function AviaDashboard() {
         </AnimatePresence>
 
         {/* Счётчик результатов поиска */}
-        {(searchQuery || activeFilterCount > 0) && activeTab !== 'my' && (
+        {(searchQuery || activeFilterCount > 0) && (
           <div style={{
             fontSize: 11, color: '#4a6080', fontWeight: 600,
             marginBottom: 8, textAlign: 'center',
@@ -1913,118 +1905,6 @@ export function AviaDashboard() {
             </motion.div>
           )}
 
-          {activeTab === 'my' && (
-            <motion.div
-              key="my-list"
-              initial={{ opacity: 0, x: 10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -10 }}
-              transition={{ duration: 0.22 }}
-            >
-              {loadingMy ? (
-                <div className="avia-cards-grid">{[0, 1, 2, 3].map(i => <SkeletonCard key={i} />)}</div>
-              ) : myTotalCount === 0 ? (
-                <EmptyState
-                  icon={Zap}
-                  color="#34d399"
-                  text={'У вас пока нет объявлений.\nСоздайте рейс или заявку на вкладках выше.'}
-                />
-              ) : (
-                <>
-                  {/* Статистика */}
-                  <div style={{
-                    display: 'flex', gap: 8, marginBottom: 14,
-                  }}>
-                    <div style={{
-                      flex: 1, padding: '10px 12px', borderRadius: 12,
-                      background: '#34d39908', border: '1px solid #34d39918',
-                      textAlign: 'center',
-                    }}>
-                      <div style={{ fontSize: 18, fontWeight: 800, color: '#34d399' }}>{myActiveCount}</div>
-                      <div style={{ fontSize: 10, color: '#3d5268', fontWeight: 600, marginTop: 2 }}>Активных</div>
-                    </div>
-                    <div style={{
-                      flex: 1, padding: '10px 12px', borderRadius: 12,
-                      background: '#f59e0b08', border: '1px solid #f59e0b18',
-                      textAlign: 'center',
-                    }}>
-                      <div style={{ fontSize: 18, fontWeight: 800, color: '#f59e0b' }}>{myClosedCount}</div>
-                      <div style={{ fontSize: 10, color: '#3d5268', fontWeight: 600, marginTop: 2 }}>Закрытых</div>
-                    </div>
-                    <div style={{
-                      flex: 1, padding: '10px 12px', borderRadius: 12,
-                      background: '#ffffff06', border: '1px solid #ffffff10',
-                      textAlign: 'center',
-                    }}>
-                      <div style={{ fontSize: 18, fontWeight: 800, color: '#6b8299' }}>{myTotalCount}</div>
-                      <div style={{ fontSize: 10, color: '#3d5268', fontWeight: 600, marginTop: 2 }}>Всего</div>
-                    </div>
-                  </div>
-
-                  {/* Мои рейсы */}
-                  {myFlights.length > 0 && (
-                    <>
-                      <div style={{
-                        display: 'flex', alignItems: 'center', gap: 6,
-                        marginBottom: 8, padding: '0 4px',
-                      }}>
-                        <Plane style={{ width: 12, height: 12, color: '#0ea5e9' }} />
-                        <span style={{ fontSize: 11, fontWeight: 700, color: '#0ea5e9', letterSpacing: '0.04em' }}>
-                          Мои рейсы ({myFlights.length})
-                        </span>
-                      </div>
-                      <div className="avia-cards-grid">
-                        <AnimatePresence>
-                          {myFlights.map((f) => (
-                            <FlightCard
-                              key={f.id}
-                              flight={f}
-                              isMine={true}
-                              onDelete={removeFlightEverywhere}
-                              onClose={handleCloseFlight}
-                              onStart={(id) => updateFlightStatus(id, 'in_progress')}
-                              onComplete={(id) => updateFlightStatus(id, 'completed')}
-                              onDetail={setDetailFlight}
-                            />
-                          ))}
-                        </AnimatePresence>
-                      </div>
-                    </>
-                  )}
-
-                  {/* Мои заявки */}
-                  {myRequests.length > 0 && (
-                    <>
-                      <div style={{
-                        display: 'flex', alignItems: 'center', gap: 6,
-                        marginBottom: 8, marginTop: myFlights.length > 0 ? 16 : 0,
-                        padding: '0 4px',
-                      }}>
-                        <Package style={{ width: 12, height: 12, color: '#a78bfa' }} />
-                        <span style={{ fontSize: 11, fontWeight: 700, color: '#a78bfa', letterSpacing: '0.04em' }}>
-                          Мои заявки ({myRequests.length})
-                        </span>
-                      </div>
-                      <div className="avia-cards-grid">
-                        <AnimatePresence>
-                          {myRequests.map((r) => (
-                            <RequestCard
-                              key={r.id}
-                              request={r}
-                              isMine={true}
-                              onDelete={removeRequestEverywhere}
-                              onClose={handleCloseRequest}
-                              onDetail={setDetailRequest}
-                            />
-                          ))}
-                        </AnimatePresence>
-                      </div>
-                    </>
-                  )}
-                </>
-              )}
-            </motion.div>
-          )}
         </AnimatePresence>
 
         <div style={{ height: 60 }} />
