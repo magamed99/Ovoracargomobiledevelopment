@@ -161,10 +161,10 @@ function DealCard({
         }}>
           <AdIcon style={{ width: 14, height: 14, color: adColor }} />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 14, fontWeight: 800, color: '#fff' }}>{deal.adFrom}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', minWidth: 0 }}>
+          <span style={{ fontSize: 14, fontWeight: 800, color: '#fff', overflowWrap: 'anywhere' }}>{deal.adFrom}</span>
           <ArrowRight style={{ width: 12, height: 12, color: '#4a6080', flexShrink: 0 }} />
-          <span style={{ fontSize: 14, fontWeight: 800, color: '#fff' }}>{deal.adTo}</span>
+          <span style={{ fontSize: 14, fontWeight: 800, color: '#fff', overflowWrap: 'anywhere' }}>{deal.adTo}</span>
         </div>
       </div>
 
@@ -242,16 +242,20 @@ function DealCard({
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         paddingTop: 10, borderTop: '1px solid #ffffff08',
+        gap: 8, flexWrap: 'wrap',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
           <div style={{
-            width: 22, height: 22, borderRadius: 7,
+            width: 22, height: 22, borderRadius: 7, flexShrink: 0,
             background: '#ffffff0a',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             <ChevronRight style={{ width: 10, height: 10, color: '#4a6080' }} />
           </div>
-          <span style={{ fontSize: 11, color: '#4a6080', fontWeight: 600 }}>
+          <span style={{
+            fontSize: 11, color: '#4a6080', fontWeight: 600,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
             {isInitiator ? 'Вы' : (deal.initiatorName || maskPhone(deal.initiatorPhone))}
             {' → '}
             {isRecipient ? 'Вам' : (deal.recipientName || maskPhone(deal.recipientPhone))}
@@ -259,7 +263,7 @@ function DealCard({
         </div>
 
         {/* Actions */}
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           {/* Pending deals: go to chat where Accept/Reject/Cancel buttons live */}
           {deal.status === 'pending' && (
             <motion.button

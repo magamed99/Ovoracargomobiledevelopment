@@ -304,10 +304,10 @@ function FlightCard({
       )}
 
       {/* Route row */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
           <div style={{
-            width: 34, height: 34, borderRadius: 11,
+            width: 34, height: 34, borderRadius: 11, flexShrink: 0,
             background: isClosed ? 'rgba(255,255,255,0.04)' : 'rgba(14,165,233,0.1)',
             border: `1px solid ${isClosed ? 'rgba(255,255,255,0.06)' : 'rgba(14,165,233,0.18)'}`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -315,16 +315,16 @@ function FlightCard({
           }}>
             <Plane style={{ width: 15, height: 15, color: isClosed ? '#2a3d50' : '#38bdf8' }} />
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-            <span style={{ fontSize: 15, fontWeight: 800, color: isClosed ? '#3a5268' : '#e2eaf3', letterSpacing: '-0.2px' }}>{flight.from}</span>
-            <ArrowRight style={{ width: 12, height: 12, color: isClosed ? '#1a2d40' : '#1e4a6a' }} />
-            <span style={{ fontSize: 15, fontWeight: 800, color: isClosed ? '#3a5268' : '#e2eaf3', letterSpacing: '-0.2px' }}>{flight.to}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 15, fontWeight: 800, color: isClosed ? '#3a5268' : '#e2eaf3', letterSpacing: '-0.2px', overflowWrap: 'anywhere' }}>{flight.from}</span>
+            <ArrowRight style={{ width: 12, height: 12, color: isClosed ? '#1a2d40' : '#1e4a6a', flexShrink: 0 }} />
+            <span style={{ fontSize: 15, fontWeight: 800, color: isClosed ? '#3a5268' : '#e2eaf3', letterSpacing: '-0.2px', overflowWrap: 'anywhere' }}>{flight.to}</span>
           </div>
         </div>
         {isMine && !isClosed && (
           <span style={{
             fontSize: 9, fontWeight: 700, color: '#0ea5e9',
-            padding: '3px 8px', borderRadius: 6,
+            padding: '3px 8px', borderRadius: 6, flexShrink: 0,
             background: '#0ea5e912', border: '1px solid #0ea5e920',
             letterSpacing: '0.06em', textTransform: 'uppercase',
           }}>
@@ -650,10 +650,10 @@ function RequestCard({
       )}
 
       {/* Route row */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
           <div style={{
-            width: 34, height: 34, borderRadius: 11,
+            width: 34, height: 34, borderRadius: 11, flexShrink: 0,
             background: isClosed ? 'rgba(255,255,255,0.04)' : 'rgba(167,139,250,0.1)',
             border: `1px solid ${isClosed ? 'rgba(255,255,255,0.06)' : 'rgba(167,139,250,0.18)'}`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -661,16 +661,16 @@ function RequestCard({
           }}>
             <Package style={{ width: 15, height: 15, color: isClosed ? '#2a3d50' : '#c4b5fd' }} />
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-            <span style={{ fontSize: 15, fontWeight: 800, color: isClosed ? '#3a5268' : '#e2eaf3', letterSpacing: '-0.2px' }}>{request.from}</span>
-            <ArrowRight style={{ width: 12, height: 12, color: isClosed ? '#1a2d40' : '#3a2060' }} />
-            <span style={{ fontSize: 15, fontWeight: 800, color: isClosed ? '#3a5268' : '#e2eaf3', letterSpacing: '-0.2px' }}>{request.to}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 15, fontWeight: 800, color: isClosed ? '#3a5268' : '#e2eaf3', letterSpacing: '-0.2px', overflowWrap: 'anywhere' }}>{request.from}</span>
+            <ArrowRight style={{ width: 12, height: 12, color: isClosed ? '#1a2d40' : '#3a2060', flexShrink: 0 }} />
+            <span style={{ fontSize: 15, fontWeight: 800, color: isClosed ? '#3a5268' : '#e2eaf3', letterSpacing: '-0.2px', overflowWrap: 'anywhere' }}>{request.to}</span>
           </div>
         </div>
         {isMine && !isClosed && (
           <span style={{
             fontSize: 9, fontWeight: 700, color: '#a78bfa',
-            padding: '3px 8px', borderRadius: 6,
+            padding: '3px 8px', borderRadius: 6, flexShrink: 0,
             background: '#a78bfa12', border: '1px solid #a78bfa22',
             letterSpacing: '0.06em', textTransform: 'uppercase',
           }}>
