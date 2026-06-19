@@ -7,7 +7,7 @@ import {
 import { useNavigate } from 'react-router';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../contexts/UserContext';
-import { getReviewsForUser, submitReview } from '../api/dataApi';
+import { getReviewsForUser, submitReview, getMyTrips, getOffersForTrip, getOffersForUser, getTripsByIds } from '../api/dataApi';
 import { toast } from 'sonner';
 import { StarRow } from './ui/StarRow';
 
@@ -27,6 +27,16 @@ interface Review {
   verified: boolean;
   authorEmail?: string;
   targetEmail?: string;
+  tripId?: string;
+}
+
+/** Поездка + контрагент, по которым текущий пользователь ещё не оставил отзыв */
+interface ReviewableTrip {
+  key: string;
+  tripId: string;
+  route: string;
+  counterpartEmail: string;
+  counterpartName: string;
 }
 
 const COLORS = ['#5ba3f5', '#a855f7', '#10b981', '#f43f5e', '#f59e0b', '#06b6d4'];
@@ -92,10 +102,14 @@ export function ReviewsPage() {
 
   const [formRating,      setFormRating]      = useState(0);
   const [formComment,     setFormComment]     = useState('');
-  const [formTrip,        setFormTrip]        = useState('');
-  const [formAuthor,      setFormAuthor]      = useState('');
-  const [formTargetEmail, setFormTargetEmail] = useState('');
   const [formCats,        setFormCats]        = useState({ punctuality: 0, reliability: 0, communication: 0, packaging: 0 });
+
+  // ✅ Поездки/контрагенты, по которым реально можно оставить отзыв
+  // (вместо свободного ввода email — берём только проверенных попутчиков
+  // по завершённым поездкам, как требует серверная валидация POST /reviews)
+  const [reviewableTrips, setReviewableTrips] = useState<ReviewableTrip[]>([]);
+  const [loadingTrips,    setLoadingTrips]    = useState(false);
+  const [selectedKey,     setSelectedKey]     = useState('');
 
   const loadReviews = useCallback(async () => {
     if (!currentUser?.email) return;
@@ -118,6 +132,7 @@ export function ReviewsPage() {
         verified: r.verified || false,
         authorEmail: r.authorEmail,
         targetEmail: r.targetEmail,
+        tripId: r.tripId,
       }));
       setReviews(mapped);
     } catch {
@@ -132,6 +147,77 @@ export function ReviewsPage() {
     const iv = setInterval(loadReviews, 15000);
     return () => clearInterval(iv);
   }, [loadReviews]);
+
+  // ✅ Собираем реальных попутчиков по завершённым поездкам пользователя
+  // (и как водителя, и как отправителя), исключая тех, кому отзыв уже оставлен —
+  // backend теперь требует настоящий tripId + проверенного участника поездки.
+  const loadReviewableTrips = useCallback(async () => {
+    if (!currentUser?.email) return;
+    setLoadingTrips(true);
+    const myEmail = currentUser.email.toLowerCase().trim();
+    try {
+      const myTrips = await getMyTrips(currentUser.email);
+      const completedAsDriver = (myTrips || []).filter((t: any) => t && t.status === 'completed');
+
+      const asDriver: ReviewableTrip[] = [];
+      for (const trip of completedAsDriver) {
+        const offers = await getOffersForTrip(String(trip.id)).catch(() => []);
+        const seen = new Set<string>();
+        for (const o of offers) {
+          if (!o || o.status !== 'accepted' || !o.senderEmail) continue;
+          const email = String(o.senderEmail).toLowerCase().trim();
+          if (!email || email === myEmail || seen.has(email)) continue;
+          seen.add(email);
+          asDriver.push({
+            key: `${trip.id}:${email}`,
+            tripId: String(trip.id),
+            route: `${trip.from} → ${trip.to}`,
+            counterpartEmail: email,
+            counterpartName: o.senderName || email,
+          });
+        }
+      }
+
+      const myOffers = await getOffersForUser(currentUser.email).catch(() => []);
+      const acceptedOffers = (myOffers || []).filter((o: any) => o && o.status === 'accepted' && o.tripId);
+      const tripIds = Array.from(new Set(acceptedOffers.map((o: any) => String(o.tripId))));
+      const offerTrips = tripIds.length ? await getTripsByIds(tripIds).catch(() => []) : [];
+      const tripsById = new Map((offerTrips || []).map((t: any) => [String(t.id), t]));
+
+      const asSender: ReviewableTrip[] = [];
+      for (const offer of acceptedOffers) {
+        const trip = tripsById.get(String(offer.tripId));
+        if (!trip || trip.status !== 'completed') continue;
+        const driverEmail = String(trip.driverEmail || '').toLowerCase().trim();
+        if (!driverEmail || driverEmail === myEmail) continue;
+        asSender.push({
+          key: `${trip.id}:${driverEmail}`,
+          tripId: String(trip.id),
+          route: `${trip.from} → ${trip.to}`,
+          counterpartEmail: driverEmail,
+          counterpartName: trip.driverName || driverEmail,
+        });
+      }
+
+      const reviewedKeys = new Set(
+        reviews
+          .filter(r => r.type === 'given' && r.tripId && r.targetEmail)
+          .map(r => `${r.tripId}:${String(r.targetEmail).toLowerCase().trim()}`)
+      );
+
+      const combined = [...asDriver, ...asSender].filter(t => !reviewedKeys.has(`${t.tripId}:${t.counterpartEmail}`));
+      setReviewableTrips(combined);
+      setSelectedKey(prev => (combined.some(t => t.key === prev) ? prev : (combined[0]?.key || '')));
+    } catch {
+      setReviewableTrips([]);
+    } finally {
+      setLoadingTrips(false);
+    }
+  }, [currentUser?.email, reviews]);
+
+  useEffect(() => {
+    if (showModal) loadReviewableTrips();
+  }, [showModal, loadReviewableTrips]);
 
   const received = reviews.filter(r => r.type === 'received');
   const given    = reviews.filter(r => r.type === 'given');
@@ -165,23 +251,20 @@ export function ReviewsPage() {
   };
 
   const handleSubmitReview = async () => {
-    if (!formRating)                { toast.error('Укажите оценку'); return; }
-    if (!formComment.trim())        { toast.error('Напишите комментарий'); return; }
-    if (!formAuthor.trim())         { toast.error('Укажите имя'); return; }
-    if (!formTargetEmail.trim())    { toast.error('Укажите email получателя отзыва'); return; }
-    if (!currentUser?.email)        { toast.error('Войдите в аккаунт'); return; }
-    if (formTargetEmail.trim().toLowerCase() === currentUser.email.toLowerCase()) {
-      toast.error('Нельзя оставить отзыв самому себе');
-      return;
-    }
+    if (!formRating)         { toast.error('Укажите оценку'); return; }
+    if (!formComment.trim()) { toast.error('Напишите комментарий'); return; }
+    if (!currentUser?.email) { toast.error('Войдите в аккаунт'); return; }
+    const selected = reviewableTrips.find(t => t.key === selectedKey);
+    if (!selected) { toast.error('Выберите поездку, по которой хотите оставить отзыв'); return; }
     try {
       await submitReview({
         authorEmail: currentUser.email,
-        authorName:  formAuthor.trim(),
-        targetEmail: formTargetEmail.trim().toLowerCase(),
+        authorName:  currentUser.fullName || `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || 'Пользователь',
+        targetEmail: selected.counterpartEmail,
+        tripId:      selected.tripId,
         rating:      formRating,
         comment:     formComment.trim(),
-        tripRoute:   formTrip.trim() || undefined,
+        tripRoute:   selected.route,
         categories:  {
           punctuality:   formCats.punctuality   || formRating,
           reliability:   formCats.reliability   || formRating,
@@ -191,13 +274,13 @@ export function ReviewsPage() {
         type: 'given',
       });
       setShowModal(false);
-      setFormRating(0); setFormComment(''); setFormTrip(''); setFormAuthor(''); setFormTargetEmail('');
+      setFormRating(0); setFormComment(''); setSelectedKey('');
       setFormCats({ punctuality: 0, reliability: 0, communication: 0, packaging: 0 });
       setActiveTab('given');
       toast.success('Отзыв опубликован!');
       loadReviews();
-    } catch {
-      toast.error('Не удалось отправить отзыв');
+    } catch (err: any) {
+      toast.error(err?.message === 'DUPLICATE_REVIEW' ? 'Вы уже оставили отзыв по этой поездке' : 'Не удалось отправить отзыв');
     }
   };
 
@@ -384,12 +467,22 @@ export function ReviewsPage() {
                     );
                   })}
                 </div>
-                <input type="text"  placeholder="Ваше имя *" value={formAuthor} onChange={e => setFormAuthor(e.target.value)} className={inpCls} />
-                <input type="email" placeholder="Email получателя отзыва *" value={formTargetEmail} onChange={e => setFormTargetEmail(e.target.value)} className={inpCls} />
-                <input type="text"  placeholder="Маршрут (например: Душанбе → Москва)" value={formTrip} onChange={e => setFormTrip(e.target.value)} className={inpCls} />
+                {loadingTrips ? (
+                  <div className="flex items-center justify-center py-4">
+                    <div className="animate-spin w-5 h-5 border-2 border-t-[#1978e5] rounded-full border-white/10" />
+                  </div>
+                ) : reviewableTrips.length === 0 ? (
+                  <p className={`text-[13px] text-center py-3 ${sub}`}>Нет завершённых поездок, по которым можно оставить отзыв</p>
+                ) : (
+                  <select value={selectedKey} onChange={e => setSelectedKey(e.target.value)} className={inpCls}>
+                    {reviewableTrips.map(t => (
+                      <option key={t.key} value={t.key}>{t.route} · {t.counterpartName}</option>
+                    ))}
+                  </select>
+                )}
                 <textarea rows={3} placeholder="Напишите ваш отзыв... *" value={formComment} onChange={e => setFormComment(e.target.value)} className={`${inpCls} resize-none`} />
-                <button onClick={handleSubmitReview}
-                  className="w-full h-12 bg-[#1978e5] hover:bg-[#1565c0] text-white font-bold transition-all active:scale-[0.98] flex items-center justify-center gap-2">
+                <button onClick={handleSubmitReview} disabled={!reviewableTrips.length}
+                  className="w-full h-12 bg-[#1978e5] hover:bg-[#1565c0] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold transition-all active:scale-[0.98] flex items-center justify-center gap-2">
                   <Heart className="w-4 h-4" />
                   Опубликовать отзыв
                 </button>
@@ -789,15 +882,24 @@ export function ReviewsPage() {
                   </div>
                 </div>
 
-                <input type="text" placeholder="Ваше имя *" value={formAuthor}
-                  onChange={e => setFormAuthor(e.target.value)} className="rv-modal-inp" />
-                <input type="text" placeholder="Маршрут (например: Душанбе → Москва)" value={formTrip}
-                  onChange={e => setFormTrip(e.target.value)} className="rv-modal-inp" />
+                {loadingTrips ? (
+                  <div style={{ display:'flex', justifyContent:'center', padding:'12px 0' }}>
+                    <div className="animate-spin" style={{ width:20, height:20, borderRadius:'50%', borderWidth:2, borderStyle:'solid', borderColor:'#ffffff20', borderTopColor:'#5ba3f5' }} />
+                  </div>
+                ) : reviewableTrips.length === 0 ? (
+                  <p style={{ fontSize:13, textAlign:'center', padding:'12px 0', color:'#4a6580' }}>Нет завершённых поездок, по которым можно оставить отзыв</p>
+                ) : (
+                  <select value={selectedKey} onChange={e => setSelectedKey(e.target.value)} className="rv-modal-inp">
+                    {reviewableTrips.map(t => (
+                      <option key={t.key} value={t.key}>{t.route} · {t.counterpartName}</option>
+                    ))}
+                  </select>
+                )}
                 <textarea rows={4} placeholder="Напишите ваш отзыв... *" value={formComment}
                   onChange={e => setFormComment(e.target.value)}
                   className="rv-modal-inp" style={{ resize:'none' }} />
 
-                <button onClick={handleSubmitReview} className="rv-write-btn">
+                <button onClick={handleSubmitReview} disabled={!reviewableTrips.length} className="rv-write-btn" style={!reviewableTrips.length ? { opacity:0.5, cursor:'not-allowed' } : undefined}>
                   <Heart style={{ width:16, height:16 }} />
                   Опубликовать отзыв
                 </button>

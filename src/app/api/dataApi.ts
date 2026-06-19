@@ -319,7 +319,7 @@ function _mirrorOffers(offer: any, action: 'add' | 'update') {
 
 export async function submitReview(review: any) {
   try {
-    const data = await req('POST', '/reviews', review);
+    const data = await req('POST', '/reviews', { ...review, callerEmail: review.authorEmail });
     // Сбрасываем кэш статистики для обоих участников
     if (review.targetEmail) cacheClear(`stats:${review.targetEmail}`);
     if (review.authorEmail) cacheClear(`stats:${review.authorEmail}`);

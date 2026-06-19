@@ -281,7 +281,7 @@ export function DriverTripsPage() {
             status: 'inProgress' as const,
           };
           localStorage.setItem('ovora_active_shipment', JSON.stringify(shipmentData));
-          try { await saveActiveShipment(shipmentData); } catch {}
+          try { await saveActiveShipment(shipmentData, currentUser?.email || ''); } catch {}
           await updateTrip(String(trip.id), { status: 'inProgress' });
           setPublishedTrips(prev => prev.map(t => t.id === trip.id ? { ...t, status: 'inProgress' } : t));
           toast.success('Поездка начата!', {
