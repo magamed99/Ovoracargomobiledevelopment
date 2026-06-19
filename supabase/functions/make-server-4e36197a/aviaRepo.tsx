@@ -285,7 +285,13 @@ export const Flights = {
 
     const all = await kv.getByPrefix('ovora:air-flight:') as AviaFlight[];
     const result = all
-      .filter(f => f && typeof f === 'object' && !f.isDeleted && f.status !== 'closed' && f.status !== 'completed')
+      .filter(f => {
+        if (!f || typeof f !== 'object' || f.isDeleted) return false;
+        if (f.status === 'closed' || f.status === 'completed') return false;
+        // Грузовая ёмкость выбрана и полностью занята, документы не предлагаются — скрываем
+        if (f.cargoEnabled && !f.docsEnabled && (f.freeKg || 0) - (f.reservedKg || 0) <= 0) return false;
+        return true;
+      })
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     aviaCache.set(CK.flightsList(), result, TTL.FLIGHTS_LIST);

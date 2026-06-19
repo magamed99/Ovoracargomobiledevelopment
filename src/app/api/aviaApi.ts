@@ -426,8 +426,8 @@ export async function createAviaRequest(requestData: Partial<AviaRequest>): Prom
 }
 
 /** Удалить рейс (мягкое удаление) */
-export async function deleteAviaFlight(id: string): Promise<{ success: boolean; error?: string }> {
-  const res = await fetch(`${BASE}/avia/flights/${encodeURIComponent(id)}`, {
+export async function deleteAviaFlight(id: string, callerPhone: string): Promise<{ success: boolean; error?: string }> {
+  const res = await fetch(`${BASE}/avia/flights/${encodeURIComponent(id)}?callerPhone=${encodeURIComponent(callerPhone)}`, {
     method: 'DELETE',
     headers: HEADERS,
   });
@@ -435,8 +435,8 @@ export async function deleteAviaFlight(id: string): Promise<{ success: boolean; 
 }
 
 /** Удалить заявку (мягкое удаление) */
-export async function deleteAviaRequest(id: string): Promise<{ success: boolean; error?: string }> {
-  const res = await fetch(`${BASE}/avia/requests/${encodeURIComponent(id)}`, {
+export async function deleteAviaRequest(id: string, callerPhone: string): Promise<{ success: boolean; error?: string }> {
+  const res = await fetch(`${BASE}/avia/requests/${encodeURIComponent(id)}?callerPhone=${encodeURIComponent(callerPhone)}`, {
     method: 'DELETE',
     headers: HEADERS,
   });
@@ -444,28 +444,31 @@ export async function deleteAviaRequest(id: string): Promise<{ success: boolean;
 }
 
 /** Закрыть рейс (status → closed) */
-export async function closeAviaFlight(id: string): Promise<{ success: boolean; flight?: AviaFlight; error?: string }> {
+export async function closeAviaFlight(id: string, callerPhone: string): Promise<{ success: boolean; flight?: AviaFlight; error?: string }> {
   const res = await fetch(`${BASE}/avia/flights/${encodeURIComponent(id)}/close`, {
     method: 'PATCH',
     headers: HEADERS,
+    body: JSON.stringify({ callerPhone }),
   });
   return res.json();
 }
 
 /** Завершить поездку (status → completed, все принятые сделки → completed) */
-export async function completeAviaFlight(id: string): Promise<{ success: boolean; flight?: AviaFlight; completedDeals?: number; error?: string }> {
+export async function completeAviaFlight(id: string, callerPhone: string): Promise<{ success: boolean; flight?: AviaFlight; completedDeals?: number; error?: string }> {
   const res = await fetch(`${BASE}/avia/flights/${encodeURIComponent(id)}/complete`, {
     method: 'PATCH',
     headers: HEADERS,
+    body: JSON.stringify({ callerPhone }),
   });
   return res.json();
 }
 
 /** Закрыть заявку (status → closed) */
-export async function closeAviaRequest(id: string): Promise<{ success: boolean; request?: AviaRequest; error?: string }> {
+export async function closeAviaRequest(id: string, callerPhone: string): Promise<{ success: boolean; request?: AviaRequest; error?: string }> {
   const res = await fetch(`${BASE}/avia/requests/${encodeURIComponent(id)}/close`, {
     method: 'PATCH',
     headers: HEADERS,
+    body: JSON.stringify({ callerPhone }),
   });
   return res.json();
 }

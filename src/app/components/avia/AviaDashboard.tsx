@@ -181,15 +181,17 @@ function FlightCard({
   const [completing, setCompleting] = useState(false);
   const isClosed = flight.status === 'closed';
   const isCompleted = flight.status === 'completed';
+  const { user: aviaUser } = useAvia();
 
   // ── AviaConfirmSheet state ──────────────────────────────────────────────────
   type ConfirmCfg = { title: string; description: string; variant: 'danger' | 'warning' | 'complete'; label: string; action: () => Promise<void> };
   const [confirmCfg, setConfirmCfg] = useState<ConfirmCfg | null>(null);
 
   const execDelete = async () => {
+    if (!aviaUser?.phone) return;
     setDeleting(true);
     try {
-      await deleteAviaFlight(flight.id);
+      await deleteAviaFlight(flight.id, aviaUser.phone);
       onDelete(flight.id);
       toast.success('Рейс удалён', { duration: 2500 });
     } catch {
@@ -198,9 +200,10 @@ function FlightCard({
   };
 
   const execClose = async () => {
+    if (!aviaUser?.phone) return;
     setClosing(true);
     try {
-      await closeAviaFlight(flight.id);
+      await closeAviaFlight(flight.id, aviaUser.phone);
       if (onClose) onClose(flight.id);
       toast.success('Рейс закрыт', { duration: 2500 });
     } catch {
@@ -209,9 +212,10 @@ function FlightCard({
   };
 
   const execComplete = async () => {
+    if (!aviaUser?.phone) return;
     setCompleting(true);
     try {
-      const result = await completeAviaFlight(flight.id);
+      const result = await completeAviaFlight(flight.id, aviaUser.phone);
       if (result.error) throw new Error(result.error);
       if (onComplete) onComplete(flight.id);
       toast.success(`Поездка завершена! Завершено сделок: ${result.completedDeals ?? 0}`, { duration: 3000 });
@@ -518,15 +522,17 @@ function RequestCard({
   const [deleting, setDeleting] = useState(false);
   const [closing, setClosing] = useState(false);
   const isClosed = request.status === 'closed';
+  const { user: aviaUser } = useAvia();
 
   // ── AviaConfirmSheet state ──────────────────────────────────────────────────
   type ReqConfirmCfg = { title: string; description: string; variant: 'danger' | 'warning'; label: string; action: () => Promise<void> };
   const [confirmCfg, setConfirmCfg] = useState<ReqConfirmCfg | null>(null);
 
   const execDelete = async () => {
+    if (!aviaUser?.phone) return;
     setDeleting(true);
     try {
-      await deleteAviaRequest(request.id);
+      await deleteAviaRequest(request.id, aviaUser.phone);
       onDelete(request.id);
       toast.success('Заявка удалена', { duration: 2500 });
     } catch {
@@ -535,9 +541,10 @@ function RequestCard({
   };
 
   const execClose = async () => {
+    if (!aviaUser?.phone) return;
     setClosing(true);
     try {
-      await closeAviaRequest(request.id);
+      await closeAviaRequest(request.id, aviaUser.phone);
       if (onClose) onClose(request.id);
       toast.success('Заявка закрыта', { duration: 2500 });
     } catch {

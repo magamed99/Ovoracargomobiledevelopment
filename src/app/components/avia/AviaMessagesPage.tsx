@@ -125,7 +125,7 @@ function DealOfferBubble({ msg, myPhone, refreshTick }: { msg: AviaChatMessage; 
 
   useEffect(() => {
     if (!meta?.dealId || !deal) return;
-    if (!['accepted', 'completed', 'cancelled', 'rejected'].includes(deal.status ?? '')) return;
+    if (deal.status !== 'completed') return;
     if (reviewChecked) return;
     getAviaDealReviewStatus(meta.dealId).then(st => {
       const cleanMy = myPhone.replace(/\D/g, '');
@@ -286,7 +286,7 @@ function DealOfferBubble({ msg, myPhone, refreshTick }: { msg: AviaChatMessage; 
               </motion.div>
             )}
           </div>
-          {!loading && deal && ['accepted', 'completed', 'cancelled', 'rejected'].includes(deal.status ?? '') && reviewChecked && (
+          {!loading && deal && deal.status === 'completed' && reviewChecked && (
             <div style={{ padding: '0 13px 10px' }}>
               {alreadyReviewed ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 10, background: '#34d39910', border: '1px solid #34d39925' }}>

@@ -256,8 +256,8 @@ function DealCard({
             </motion.button>
           )}
 
-          {/* Completed/Accepted/Cancelled/Rejected — leave review button */}
-          {(['completed', 'accepted', 'cancelled', 'rejected'].includes(deal.status)) && !alreadyReviewed && (
+          {/* Только для завершённых сделок — кнопка отзыва */}
+          {deal.status === 'completed' && !alreadyReviewed && (
             <motion.button
               whileTap={{ scale: 0.93 }}
               onClick={() => onReview(deal)}
@@ -275,7 +275,7 @@ function DealCard({
           )}
 
           {/* Already reviewed badge */}
-          {(['completed', 'accepted', 'cancelled', 'rejected'].includes(deal.status)) && alreadyReviewed && (
+          {deal.status === 'completed' && alreadyReviewed && (
             <span style={{
               display: 'flex', alignItems: 'center', gap: 4,
               padding: '5px 10px', borderRadius: 8,
@@ -319,8 +319,8 @@ export function AviaDealsPage() {
     try {
       const data = await getAviaDeals(myPhone);
       setDeals(data);
-      // загружаем статусы отзывов для принятых, завершённых, отменённых и отклонённых сделок
-      const completed = data.filter(d => ['completed', 'accepted', 'cancelled', 'rejected'].includes(d.status));
+      // загружаем статусы отзывов только для завершённых сделок
+      const completed = data.filter(d => d.status === 'completed');
       const statuses: Record<string, boolean> = {};
       await Promise.all(completed.map(async d => {
         try {

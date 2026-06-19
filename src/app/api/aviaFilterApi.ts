@@ -34,14 +34,17 @@ export function applyFlightFilters(
   myPhone?: string,
 ): AviaFlight[] {
   return flights.filter(fl => {
+    const available = (fl.freeKg || 0) - (fl.reservedKg || 0);
+    // Груз полностью забронирован и документы не предлагаются — скрываем (как на бэкенде)
+    if (fl.cargoEnabled && !fl.docsEnabled && available <= 0) return false;
     if (f.from && !strMatch(fl.from, f.from)) return false;
     if (f.to   && !strMatch(fl.to,   f.to))   return false;
     if (f.date) {
       const flDate = fl.date.slice(0, 10);
       if (flDate !== f.date) return false;
     }
-    if (f.weightMin && f.weightMin > 0 && (fl.freeKg || 0) < f.weightMin) return false;
-    if (f.weightMax && f.weightMax > 0 && (fl.freeKg || 0) > f.weightMax) return false;
+    if (f.weightMin && f.weightMin > 0 && available < f.weightMin) return false;
+    if (f.weightMax && f.weightMax > 0 && available > f.weightMax) return false;
     if (f.priceMin  && f.priceMin  > 0 && (fl.pricePerKg || 0) < f.priceMin) return false;
     if (f.priceMax  && f.priceMax  > 0 && (fl.pricePerKg || 0) > f.priceMax) return false;
     if (f.onlyMine && myPhone && fl.courierId !== myPhone) return false;

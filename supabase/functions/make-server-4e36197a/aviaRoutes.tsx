@@ -505,8 +505,14 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
   app.delete(`${P}/flights/:id`, async (c) => {
     try {
       const id     = c.req.param('id');
+      const callerPhone = aviaClean(c.req.query('callerPhone') || '');
+      if (!callerPhone) return c.json({ error: 'callerPhone is required' }, 400);
       const flight = await Flights.get(id);
       if (!flight) return c.json({ error: 'Flight not found' }, 404);
+      if (flight.courierId !== callerPhone) {
+        console.warn(`[AVIA Flights] IDOR attempt: ${callerPhone} tried to delete flight ${id} owned by ${flight.courierId}`);
+        return c.json({ error: 'Forbidden: not the owner' }, 403);
+      }
       await Flights.set(id, { ...flight, isDeleted: true, updatedAt: new Date().toISOString() });
       return c.json({ success: true });
     } catch (err) {
@@ -518,8 +524,15 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
   app.patch(`${P}/flights/:id/close`, async (c) => {
     try {
       const id     = c.req.param('id');
+      const { callerPhone } = await c.req.json().catch(() => ({ callerPhone: '' }));
+      const clean  = aviaClean(callerPhone || '');
+      if (!clean) return c.json({ error: 'callerPhone is required' }, 400);
       const flight = await Flights.get(id);
       if (!flight) return c.json({ error: 'Flight not found' }, 404);
+      if (flight.courierId !== clean) {
+        console.warn(`[AVIA Flights] IDOR attempt: ${clean} tried to close flight ${id} owned by ${flight.courierId}`);
+        return c.json({ error: 'Forbidden: not the owner' }, 403);
+      }
       if (flight.isDeleted)       return c.json({ error: 'Flight already deleted' }, 400);
       if (flight.status === 'closed') return c.json({ error: 'Flight already closed' }, 400);
       const now     = new Date().toISOString();
@@ -535,8 +548,15 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
   app.patch(`${P}/flights/:id/complete`, async (c) => {
     try {
       const id     = c.req.param('id');
+      const { callerPhone } = await c.req.json().catch(() => ({ callerPhone: '' }));
+      const clean  = aviaClean(callerPhone || '');
+      if (!clean) return c.json({ error: 'callerPhone is required' }, 400);
       const flight = await Flights.get(id);
       if (!flight) return c.json({ error: 'Flight not found' }, 404);
+      if (flight.courierId !== clean) {
+        console.warn(`[AVIA Flights] IDOR attempt: ${clean} tried to complete flight ${id} owned by ${flight.courierId}`);
+        return c.json({ error: 'Forbidden: not the owner' }, 403);
+      }
       if (flight.isDeleted)           return c.json({ error: 'Flight deleted' }, 400);
       if (flight.status === 'completed') return c.json({ error: 'Flight already completed' }, 400);
 
@@ -655,8 +675,14 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
   app.delete(`${P}/requests/:id`, async (c) => {
     try {
       const id  = c.req.param('id');
+      const callerPhone = aviaClean(c.req.query('callerPhone') || '');
+      if (!callerPhone) return c.json({ error: 'callerPhone is required' }, 400);
       const req = await Requests.get(id);
       if (!req) return c.json({ error: 'Request not found' }, 404);
+      if (req.senderId !== callerPhone) {
+        console.warn(`[AVIA Requests] IDOR attempt: ${callerPhone} tried to delete request ${id} owned by ${req.senderId}`);
+        return c.json({ error: 'Forbidden: not the owner' }, 403);
+      }
       await Requests.set(id, { ...req, isDeleted: true, updatedAt: new Date().toISOString() });
       return c.json({ success: true });
     } catch (err) {
@@ -668,8 +694,15 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
   app.patch(`${P}/requests/:id/close`, async (c) => {
     try {
       const id  = c.req.param('id');
+      const { callerPhone } = await c.req.json().catch(() => ({ callerPhone: '' }));
+      const clean = aviaClean(callerPhone || '');
+      if (!clean) return c.json({ error: 'callerPhone is required' }, 400);
       const req = await Requests.get(id);
       if (!req) return c.json({ error: 'Request not found' }, 404);
+      if (req.senderId !== clean) {
+        console.warn(`[AVIA Requests] IDOR attempt: ${clean} tried to close request ${id} owned by ${req.senderId}`);
+        return c.json({ error: 'Forbidden: not the owner' }, 403);
+      }
       if (req.isDeleted)         return c.json({ error: 'Request already deleted' }, 400);
       if (req.status === 'closed') return c.json({ error: 'Request already closed' }, 400);
       const now     = new Date().toISOString();
@@ -1118,8 +1151,14 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
   app.get(`${P}/deals/:id`, async (c) => {
     try {
       const id   = c.req.param('id');
+      const callerPhone = aviaClean(c.req.query('callerPhone') || '');
+      if (!callerPhone) return c.json({ error: 'callerPhone is required' }, 400);
       const deal = await Deals.get(id);
       if (!deal) return c.json({ error: 'Deal not found' }, 404);
+      if (deal.initiatorPhone !== callerPhone && deal.recipientPhone !== callerPhone) {
+        console.warn(`[AVIA Deals] IDOR attempt: ${callerPhone} tried to read deal ${id}`);
+        return c.json({ error: 'Forbidden: not a participant' }, 403);
+      }
       return c.json({ deal });
     } catch (err) {
       console.log('Error GET /avia/deals/:id:', err);
@@ -1131,6 +1170,12 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
     try {
       const phone = aviaClean(decodeURIComponent(c.req.param('phone')));
       if (!phone) return c.json({ error: 'phone required' }, 400);
+      const callerPhone = aviaClean(c.req.query('callerPhone') || '');
+      if (!callerPhone) return c.json({ error: 'callerPhone is required' }, 400);
+      if (callerPhone !== phone) {
+        console.warn(`[AVIA Deals] IDOR attempt: ${callerPhone} tried to list deals of ${phone}`);
+        return c.json({ error: 'Forbidden' }, 403);
+      }
       const deals = await Deals.listByUser(phone);
       return c.json({ deals });
     } catch (err) {
@@ -1358,7 +1403,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
 
       const deal = await Deals.get(dealId);
       if (!deal) return c.json({ error: 'Deal not found' }, 404);
-      if (!['completed', 'accepted', 'cancelled', 'rejected'].includes(deal.status)) return c.json({ error: 'Отзыв можно оставить только по завершённой сделке' }, 403);
+      if (deal.status !== 'completed') return c.json({ error: 'Отзыв можно оставить только по завершённой сделке' }, 403);
 
       const cleanAuthor = aviaClean(authorPhone);
       const isInitiator = deal.initiatorPhone === cleanAuthor;

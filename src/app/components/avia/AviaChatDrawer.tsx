@@ -123,10 +123,10 @@ function DealOfferBubble({
     getAviaDeal(meta.dealId, myPhone).then(d => { setDeal(d); setLoading(false); });
   }, [meta?.dealId]);
 
-  // ── Загружаем статус отзыва когда сделка accepted/completed ─────────────
+  // ── Загружаем статус отзыва только когда сделка завершена ────────────────
   useEffect(() => {
     if (!meta?.dealId || !deal) return;
-    if (!['accepted', 'completed', 'cancelled', 'rejected'].includes(deal.status ?? '')) return;
+    if (deal.status !== 'completed') return;
     if (reviewChecked) return;
     getAviaDealReviewStatus(meta.dealId).then(status => {
       const cleanMy = myPhone.replace(/\D/g, '');
@@ -442,8 +442,8 @@ function DealOfferBubble({
           )}
         </div>
 
-        {/* ── Кнопка «Оставить отзыв» для accepted/completed/cancelled/rejected сделок ─── */}
-        {!loading && deal && ['accepted', 'completed', 'cancelled', 'rejected'].includes(deal.status ?? '') && reviewChecked && (
+        {/* ── Кнопка «Оставить отзыв» — только для завершённых сделок ────────────── */}
+        {!loading && deal && deal.status === 'completed' && reviewChecked && (
           <div style={{ padding: '0 13px 10px' }}>
             {alreadyReviewed ? (
               <div style={{
