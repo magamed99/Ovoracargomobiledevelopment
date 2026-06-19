@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router';
-import { Plane, User, Package, Send, Repeat, ShieldAlert, ShieldX, ShieldCheck, Calendar, Trash2, Plus, RefreshCw, ArrowRight, AlertTriangle, Phone, Copy, Check, XCircle, Bookmark, SlidersHorizontal, X, Search, ArrowDown, Bell, MessageCircle, Handshake, FileText, Flag, PlayCircle, ClipboardList } from 'lucide-react';
+import { Plane, User, Package, Send, Repeat, ShieldAlert, ShieldX, ShieldCheck, Calendar, Trash2, Plus, RefreshCw, ArrowRight, AlertTriangle, Phone, Copy, Check, XCircle, Zap, SlidersHorizontal, X, Search, ArrowDown, Bell, MessageCircle, Handshake, FileText, Flag, PlayCircle, ClipboardList } from 'lucide-react';
 import { NotificationCenter } from './NotificationCenter';
 import { AviaConfirmSheet } from './AviaConfirmSheet';
 import { fmtDate, maskPhone } from '../../utils/aviaUtils';
@@ -235,7 +235,7 @@ function FlightCard({
       const result = await startAviaFlight(flight.id, aviaUser.phone);
       if (result.error) throw new Error(result.error);
       if (onStart) onStart(flight.id);
-      toast.success('Поездка начата! Рейс скрыт из публичного поиска', { duration: 3000 });
+      toast.success('Поездка начата! Рейс скрыт из поиска у других пользователей', { duration: 3000 });
     } catch {
       toast.error('Не удалось начать поездку');
     } finally { setStarting(false); }
@@ -966,6 +966,10 @@ export function AviaDashboard() {
     fetchMainData()
       .catch(() => {})
       .finally(() => setLoadingData(false));
+    // Грузим «Активные» сразу, а не только при первом клике на вкладку —
+    // нужны для отображения собственных рейсов/заявок на вкладках выше
+    // независимо от их статуса (бэкенд публичных списков скрывает не-active).
+    fetchMyData();
   }, [user?.id]);
 
   // ── Загрузка уведомлений (polling теперь в AviaContext) ───────────────────
@@ -974,12 +978,6 @@ export function AviaDashboard() {
     if (user?.phone) refreshNotifications();
   }, [user?.phone]);
 
-  // Загружаем «Мои» при первом переключении на вкладку
-  useEffect(() => {
-    if (activeTab === 'my' && myFlights.length === 0 && myRequests.length === 0 && !loadingMy) {
-      fetchMyData();
-    }
-  }, [activeTab]);
 
   // ── Карта chatId → unread для per-card бейджей (ДО условного return!) ────
   const chatUnreadByPhone = useRef<Record<string, number>>({});
@@ -1071,8 +1069,7 @@ export function AviaDashboard() {
     if (isPulling && !isRefreshing) {
       setIsRefreshing(true);
       setPullY(50);
-      const promises: Promise<any>[] = [fetchMainData()];
-      if (activeTab === 'my') promises.push(fetchMyData());
+      const promises: Promise<any>[] = [fetchMainData(), fetchMyData()];
       Promise.all(promises)
         .then(() => {
           setNewFlightsCount(0);
@@ -1150,12 +1147,21 @@ export function AviaDashboard() {
     return sorted;
   };
 
+  // Для курьера вкладка «Мои рейсы» — это его собственные рейсы любого статуса
+  // (публичный список flights отдаёт только active, поэтому берём из myFlights,
+  // чтобы рейс не пропадал с главной после старта/закрытия поездки).
+  // Для роли «both» — то же самое, но своя карточка подмешивается к общему
+  // публичному списку (а не заменяет его), т.к. там также видны чужие рейсы.
   const preFilteredFlights = user.role === 'courier'
-    ? flights.filter(f => f.courierId === myPhone)
-    : flights;
+    ? myFlights
+    : user.role === 'both'
+      ? [...flights.filter(f => f.courierId !== myPhone), ...myFlights]
+      : flights;
   const preFilteredRequests = user.role === 'sender'
-    ? requests.filter(r => r.senderId === myPhone)
-    : requests;
+    ? myRequests
+    : user.role === 'both'
+      ? [...requests.filter(r => r.senderId !== myPhone), ...myRequests]
+      : requests;
 
   // Пакет M: клиентская фильтрация поверх role-prefilter
   const displayFlights = sortFlights(
@@ -1182,8 +1188,7 @@ export function AviaDashboard() {
 
   const handleRefresh = () => {
     setLoadingData(true);
-    const promises: Promise<any>[] = [fetchMainData()];
-    if (activeTab === 'my') promises.push(fetchMyData());
+    const promises: Promise<any>[] = [fetchMainData(), fetchMyData()];
     Promise.all(promises)
       .then(() => {
         setNewFlightsCount(0);
@@ -1206,16 +1211,28 @@ export function AviaDashboard() {
     setActiveTab(tab);
   };
 
-  // При закрытии из основного списка — убираем из flights/requests и обновляем «Мои»
-  const handleCloseFlight = (id: string) => {
+  // Изменение статуса своего рейса/заявки — обновляем оба списка на месте,
+  // не вырезая карточку, чтобы она не пропадала с «Главная» (бэкенд публичных
+  // списков отдаёт только active, поэтому live-статус держим на клиенте).
+  const updateFlightStatus = (id: string, status: AviaFlight['status']) => {
+    setFlights(prev => prev.map(f => f.id === id ? { ...f, status } : f));
+    setMyFlights(prev => prev.map(f => f.id === id ? { ...f, status } : f));
+  };
+  const removeFlightEverywhere = (id: string) => {
     setFlights(prev => prev.filter(f => f.id !== id));
-    setMyFlights(prev => prev.map(f => f.id === id ? { ...f, status: 'closed' } : f));
+    setMyFlights(prev => prev.filter(f => f.id !== id));
+  };
+  const updateRequestStatus = (id: string, status: AviaRequest['status']) => {
+    setRequests(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+    setMyRequests(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+  };
+  const removeRequestEverywhere = (id: string) => {
+    setRequests(prev => prev.filter(r => r.id !== id));
+    setMyRequests(prev => prev.filter(r => r.id !== id));
   };
 
-  const handleCloseRequest = (id: string) => {
-    setRequests(prev => prev.filter(r => r.id !== id));
-    setMyRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'closed' } : r));
-  };
+  const handleCloseFlight  = (id: string) => updateFlightStatus(id, 'closed');
+  const handleCloseRequest = (id: string) => updateRequestStatus(id, 'closed');
 
   const _handleLogout = () => {
     logout();
@@ -1531,8 +1548,8 @@ export function AviaDashboard() {
                   ? displayRequests.length
                   : myTotalCount;
               const tabColor = tab === 'flights' ? '#0ea5e9' : tab === 'requests' ? '#a78bfa' : '#34d399';
-              const tabLabel = tab === 'my' ? 'Мои' : tabLabels[tab];
-              const TabIcon = tab === 'flights' ? Plane : tab === 'requests' ? Package : Bookmark;
+              const tabLabel = tab === 'my' ? 'Активные' : tabLabels[tab];
+              const TabIcon = tab === 'flights' ? Plane : tab === 'requests' ? Package : Zap;
               const newCount = tab === 'flights' ? newFlightsCount : tab === 'requests' ? newRequestsCount : 0;
               return (
                 <button
@@ -1833,18 +1850,10 @@ export function AviaDashboard() {
                           key={f.id}
                           flight={f}
                           isMine={f.courierId === myPhone}
-                          onDelete={(id) => setFlights(prev => prev.filter(x => x.id !== id))}
+                          onDelete={removeFlightEverywhere}
                           onClose={handleCloseFlight}
-                          onStart={(id) => {
-                            setFlights(prev => prev.filter(x => x.id !== id));
-                            setMyFlights(prev => prev.map(x => x.id === id ? { ...x, status: 'in_progress' } : x));
-                            toast.message('Рейс перенесён во вкладку «Мои» — он активен до завершения поездки', { duration: 3500 });
-                            setActiveTab('my');
-                          }}
-                          onComplete={(id) => {
-                            setFlights(prev => prev.map(x => x.id === id ? { ...x, status: 'completed' } : x));
-                            setMyFlights(prev => prev.map(x => x.id === id ? { ...x, status: 'completed' } : x));
-                          }}
+                          onStart={(id) => updateFlightStatus(id, 'in_progress')}
+                          onComplete={(id) => updateFlightStatus(id, 'completed')}
                           onDetail={setDetailFlight}
                           onChat={f.courierId !== myPhone ? handleOpenChat : undefined}
                           onOffer={f.courierId !== myPhone && (user.role === 'sender' || user.role === 'both')
@@ -1889,7 +1898,7 @@ export function AviaDashboard() {
                         key={r.id}
                         request={r}
                         isMine={r.senderId === myPhone}
-                        onDelete={(id) => setRequests(prev => prev.filter(x => x.id !== id))}
+                        onDelete={removeRequestEverywhere}
                         onClose={handleCloseRequest}
                         onDetail={setDetailRequest}
                         onChat={r.senderId !== myPhone ? handleOpenChat : undefined}
@@ -1916,7 +1925,7 @@ export function AviaDashboard() {
                 <div className="avia-cards-grid">{[0, 1, 2, 3].map(i => <SkeletonCard key={i} />)}</div>
               ) : myTotalCount === 0 ? (
                 <EmptyState
-                  icon={Bookmark}
+                  icon={Zap}
                   color="#34d399"
                   text={'У вас пока нет объявлений.\nСоздайте рейс или заявку на вкладках выше.'}
                 />
@@ -1971,22 +1980,10 @@ export function AviaDashboard() {
                               key={f.id}
                               flight={f}
                               isMine={true}
-                              onDelete={(id) => {
-                                setMyFlights(prev => prev.filter(x => x.id !== id));
-                                setFlights(prev => prev.filter(x => x.id !== id));
-                              }}
-                              onClose={(id) => {
-                                setMyFlights(prev => prev.map(x => x.id === id ? { ...x, status: 'closed' } : x));
-                                setFlights(prev => prev.filter(x => x.id !== id));
-                              }}
-                              onStart={(id) => {
-                                setMyFlights(prev => prev.map(x => x.id === id ? { ...x, status: 'in_progress' } : x));
-                                setFlights(prev => prev.filter(x => x.id !== id));
-                              }}
-                              onComplete={(id) => {
-                                setMyFlights(prev => prev.map(x => x.id === id ? { ...x, status: 'completed' } : x));
-                                setFlights(prev => prev.map(x => x.id === id ? { ...x, status: 'completed' } : x));
-                              }}
+                              onDelete={removeFlightEverywhere}
+                              onClose={handleCloseFlight}
+                              onStart={(id) => updateFlightStatus(id, 'in_progress')}
+                              onComplete={(id) => updateFlightStatus(id, 'completed')}
                               onDetail={setDetailFlight}
                             />
                           ))}
@@ -2015,14 +2012,8 @@ export function AviaDashboard() {
                               key={r.id}
                               request={r}
                               isMine={true}
-                              onDelete={(id) => {
-                                setMyRequests(prev => prev.filter(x => x.id !== id));
-                                setRequests(prev => prev.filter(x => x.id !== id));
-                              }}
-                              onClose={(id) => {
-                                setMyRequests(prev => prev.map(x => x.id === id ? { ...x, status: 'closed' } : x));
-                                setRequests(prev => prev.filter(x => x.id !== id));
-                              }}
+                              onDelete={removeRequestEverywhere}
+                              onClose={handleCloseRequest}
                               onDetail={setDetailRequest}
                             />
                           ))}
