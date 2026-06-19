@@ -825,13 +825,20 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
 
   app.get(`${P}/chat/:chatId/messages`, async (c) => {
     try {
-      const chatId = c.req.param('chatId');
+      const chatId      = c.req.param('chatId');
+      const callerPhone = aviaClean(c.req.query('callerPhone') || '');
       if (!chatId) return c.json({ error: 'chatId required' }, 400);
-      const [messages, meta] = await Promise.all([
-        Chats.getMessages(chatId),
-        Chats.getMeta(chatId),
-      ]);
-      return c.json({ messages, meta: meta || {} });
+      if (!callerPhone) return c.json({ error: 'callerPhone is required' }, 400);
+
+      const meta = await Chats.getMeta(chatId);
+      if (!meta) return c.json({ messages: [], meta: {} });
+      if (!(meta.participants || []).includes(callerPhone)) {
+        console.warn(`[AVIA Chat] IDOR attempt: ${callerPhone} tried to read messages of chat ${chatId}`);
+        return c.json({ error: 'Forbidden: not a participant' }, 403);
+      }
+
+      const messages = await Chats.getMessages(chatId);
+      return c.json({ messages, meta });
     } catch (err) {
       console.log('Error GET /avia/chat/:chatId/messages:', err);
       return c.json({ error: `${err}` }, 500);
@@ -851,13 +858,20 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
         return c.json({ error: 'chatId, senderPhone and text required' }, 400);
       }
 
+      const existingMeta = await Chats.getMeta(chatId);
+      if (!existingMeta) return c.json({ error: 'Chat not found' }, 404);
+      if (!(existingMeta.participants || []).includes(clean)) {
+        console.warn(`[AVIA Chat] IDOR attempt: ${clean} tried to post into chat ${chatId} without being a participant`);
+        return c.json({ error: 'Forbidden: not a participant' }, 403);
+      }
+
       const id  = aviaId();
       const now = new Date().toISOString();
       const message: AviaMessage = { id, chatId, senderPhone: clean, text, createdAt: now, type };
       if (msgMeta) message.meta = msgMeta;
       await Chats.addMessage(chatId, message);
 
-      const meta: AviaChatMeta    = (await Chats.getMeta(chatId)) || { chatId, participants: [clean], createdAt: now, lastMessage: null, lastMessageAt: null, lastSenderPhone: null, unreadBy: {} };
+      const meta: AviaChatMeta    = existingMeta;
       const participants: string[] = meta.participants || [clean];
       const recipient              = participants.find(p => p !== clean) || '';
 
@@ -920,8 +934,14 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
 
   app.get(`${P}/chats/user/:phone`, async (c) => {
     try {
-      const phone = aviaClean(decodeURIComponent(c.req.param('phone')));
+      const phone       = aviaClean(decodeURIComponent(c.req.param('phone')));
+      const callerPhone = aviaClean(c.req.query('callerPhone') || '');
       if (!phone) return c.json({ error: 'phone required' }, 400);
+      if (!callerPhone) return c.json({ error: 'callerPhone is required' }, 400);
+      if (callerPhone !== phone) {
+        console.warn(`[AVIA Chat] IDOR attempt: ${callerPhone} tried to list chats of ${phone}`);
+        return c.json({ error: 'Forbidden' }, 403);
+      }
       const chats = await Chats.listByUser(phone);
       return c.json({ chats });
     } catch (err) {
