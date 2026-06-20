@@ -5,7 +5,7 @@ import {
   ArrowLeft, Handshake, Plane, Package, ArrowRight,
   CheckCircle2, XCircle, Clock, ThumbsUp, RefreshCw,
   Loader2, MessageCircle, Scale, DollarSign,
-  ChevronRight, ChevronDown, Bell, Camera, Info,
+  ChevronRight, ChevronDown, Bell, Camera, Info, ClipboardList,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAvia } from './AviaContext';
@@ -84,6 +84,7 @@ function DealCard({
 }) {
   // Suppress unused var warnings — actions now happen in chat for pending deals
   void onAccept; void onReject; void onCancel;
+  const navigate = useNavigate();
   const [acting, setActing] = useState<string | null>(null);
   const [uploadingPOD, setUploadingPOD] = useState<AviaPODPhotoType | null>(null);
   const [expanded, setExpanded] = useState(false);
@@ -108,6 +109,9 @@ function DealCard({
   const hasPickup       = pickupPhotos.length > 0;
   const hasDelivery     = deliveryPhotos.length > 0;
   const canComplete     = hasPickup && hasDelivery;
+  // Рейсовые сделки в работе/завершённые — вся детализация (фото, действия) переехала
+  // на страницу манифеста рейса, на карточке остаётся только переход туда
+  const useManifestButton = adIsFlightType && (deal.status === 'accepted' || deal.status === 'completed');
 
   const act = async (action: string, fn: () => void | Promise<any>) => {
     setActing(action);
@@ -222,6 +226,21 @@ function DealCard({
         </p>
       )}
 
+      {useManifestButton ? (
+        <button
+          onClick={() => navigate(`/avia/flight/${deal.adId}/manifest`)}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            width: '100%', padding: '10px 14px', borderRadius: 12,
+            border: '1px solid rgba(167,139,250,0.22)', background: 'rgba(167,139,250,0.08)',
+            color: '#a78bfa', fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
+          }}
+        >
+          <ClipboardList style={{ width: 14, height: 14 }} />
+          Манифест
+        </button>
+      ) : (
+        <>
       {/* Чекпоинты: получение от отправителя / передача получателю — видно обеим сторонам */}
       {(deal.status === 'accepted' || deal.status === 'completed') && (
         <div style={{ marginBottom: 8, display: 'flex', flexDirection: 'column', gap: 5 }}>
@@ -464,6 +483,8 @@ function DealCard({
           )}
         </div>
       </div>
+        </>
+      )}
     </motion.div>
   );
 }

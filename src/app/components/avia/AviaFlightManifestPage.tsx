@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
@@ -6,13 +6,13 @@ import {
   ArrowLeft, Plane, RefreshCw, AlertTriangle, ArrowRight,
   Clock, CheckCircle2, XCircle, ClipboardList, MessageCircle,
   User, Weight, DollarSign, ShieldAlert, ThumbsUp, Camera,
-  PlayCircle, Flag,
+  PlayCircle, Flag, Loader2,
 } from 'lucide-react';
 import { useAvia } from './AviaContext';
 import { getAviaFlight, startAviaFlight, completeAviaFlight } from '../../api/aviaApi';
 import type { AviaFlight } from '../../api/aviaApi';
-import { getAviaDeals } from '../../api/aviaDealApi';
-import type { AviaDeal, AviaDealStatus } from '../../api/aviaDealApi';
+import { getAviaDeals, uploadAviaDealPOD, completeAviaDeal } from '../../api/aviaDealApi';
+import type { AviaDeal, AviaDealStatus, AviaPODPhoto, AviaPODPhotoType } from '../../api/aviaDealApi';
 import { makeAviaChatId } from '../../api/aviaChatApi';
 import { getAviaDealReviewStatus } from '../../api/aviaReviewApi';
 import { AviaReviewModal } from './AviaReviewModal';
@@ -23,6 +23,17 @@ function fmtDate(iso: string): string {
     return new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
   } catch { return iso; }
 }
+
+function fmtDateTime(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  } catch { return iso; }
+}
+
+const POD_META: Record<AviaPODPhotoType, { shortLabel: string }> = {
+  pickup:   { shortLabel: 'Получение' },
+  delivery: { shortLabel: 'Передача'  },
+};
 
 function maskPhone(phone: string): string {
   const d = (phone || '').replace(/\D/g, '');
@@ -39,18 +50,60 @@ const STATUS_META: Record<AviaDealStatus, { label: string; color: string; bg: st
 };
 
 function ManifestRow({
-  deal, isCourierView, onOpenChat, reviewed, onReview,
+  deal, isCourierView, myPhone, onOpenChat, reviewed, onReview, onPODUploaded, onCompleteDeal,
 }: {
   deal: AviaDeal;
   isCourierView: boolean;
+  myPhone: string;
   onOpenChat: (phone: string) => void;
   reviewed: boolean;
   onReview: (deal: AviaDeal) => void;
+  onPODUploaded: (dealId: string, photo: AviaPODPhoto) => void;
+  onCompleteDeal: (dealId: string) => Promise<void>;
 }) {
   const statusMeta = STATUS_META[deal.status];
   const StatusIcon = statusMeta.icon;
   const chatPhone = isCourierView ? deal.senderId : deal.courierId;
   const podPhotos = deal.podPhotos || [];
+  const pickupPhotos = podPhotos.filter(p => p.type === 'pickup');
+  const deliveryPhotos = podPhotos.filter(p => p.type === 'delivery');
+  const hasPickup = pickupPhotos.length > 0;
+  const hasDelivery = deliveryPhotos.length > 0;
+  const canComplete = hasPickup && hasDelivery;
+
+  const [uploadingPOD, setUploadingPOD] = useState<AviaPODPhotoType | null>(null);
+  const [completing, setCompleting] = useState(false);
+  const pickupInputRef = useRef<HTMLInputElement>(null);
+  const deliveryInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePODFile = (type: AviaPODPhotoType) => async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setUploadingPOD(type);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const res = await uploadAviaDealPOD(deal.id, type, base64, myPhone);
+      if (!res.success || !res.photo) { toast.error(res.error || 'Не удалось загрузить фото'); return; }
+      onPODUploaded(deal.id, res.photo);
+      toast.success(type === 'pickup' ? 'Фото получения добавлено' : 'Фото передачи добавлено');
+    } catch {
+      toast.error('Не удалось загрузить фото');
+    } finally {
+      setUploadingPOD(null);
+    }
+  };
+
+  const handleComplete = async () => {
+    setCompleting(true);
+    try { await onCompleteDeal(deal.id); } finally { setCompleting(false); }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
@@ -103,25 +156,61 @@ function ManifestRow({
         )}
       </div>
 
-      {podPhotos.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#4a6080', fontWeight: 600 }}>
-            <Camera style={{ width: 11, height: 11 }} />
-            Фото груза
-          </div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {podPhotos.map((p, i) => (
-              <a
-                key={i}
-                href={p.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ display: 'block', width: 52, height: 52, borderRadius: 8, overflow: 'hidden', border: '1px solid #ffffff12' }}
-              >
-                <img src={p.url} alt={p.type === 'pickup' ? 'Получение' : 'Передача'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              </a>
-            ))}
-          </div>
+      {(deal.status === 'accepted' || deal.status === 'completed') && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+          {(['pickup', 'delivery'] as AviaPODPhotoType[]).map(type => {
+            const photos = type === 'pickup' ? pickupPhotos : deliveryPhotos;
+            const inputRef = type === 'pickup' ? pickupInputRef : deliveryInputRef;
+            const meta = POD_META[type];
+            const done = photos.length > 0;
+            const canUpload = isCourierView && deal.status === 'accepted';
+            return (
+              <div key={type} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <div style={{
+                  width: 18, height: 18, borderRadius: 6, flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: done ? '#34d39918' : '#ffffff08',
+                  border: `1px solid ${done ? '#34d39930' : '#ffffff10'}`,
+                }}>
+                  {done
+                    ? <CheckCircle2 style={{ width: 10, height: 10, color: '#34d399' }} />
+                    : <Clock style={{ width: 10, height: 10, color: '#4a6080' }} />}
+                </div>
+                <span style={{ fontSize: 11, color: done ? '#cfe6da' : '#6b8299', fontWeight: 600, flex: 1, minWidth: 0 }}>
+                  {meta.shortLabel}{done && ` · ${fmtDateTime(photos[0].timestamp)}`}
+                </span>
+                {photos.map((p, i) => (
+                  <a key={p.path || i} href={p.url} target="_blank" rel="noopener noreferrer">
+                    <img src={p.url} alt={meta.shortLabel} style={{
+                      width: 26, height: 26, borderRadius: 6, objectFit: 'cover',
+                      border: '1px solid #ffffff14', flexShrink: 0,
+                    }} />
+                  </a>
+                ))}
+                {canUpload && (
+                  <>
+                    <input ref={inputRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={handlePODFile(type)} />
+                    <button
+                      onClick={() => inputRef.current?.click()}
+                      disabled={!!uploadingPOD}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0,
+                        padding: '4px 9px', borderRadius: 7, cursor: 'pointer',
+                        border: '1px solid #34d39928', background: '#34d39910',
+                        color: '#34d399', fontSize: 10, fontWeight: 700,
+                        opacity: uploadingPOD ? 0.6 : 1,
+                      }}
+                    >
+                      {uploadingPOD === type
+                        ? <Loader2 style={{ width: 10, height: 10, animation: 'spin 1s linear infinite' }} />
+                        : <Camera style={{ width: 10, height: 10 }} />}
+                      {done ? 'Ещё' : 'Фото'}
+                    </button>
+                  </>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -138,6 +227,26 @@ function ManifestRow({
           <MessageCircle style={{ width: 12, height: 12 }} />
           Написать
         </button>
+
+        {isCourierView && deal.status === 'accepted' && (
+          <button
+            onClick={handleComplete}
+            disabled={completing || !canComplete}
+            title={canComplete ? undefined : 'Сначала добавьте фото получения и передачи товара'}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              padding: '8px 12px', borderRadius: 10, cursor: canComplete ? 'pointer' : 'not-allowed',
+              border: '1px solid #a78bfa28', background: '#a78bfa10',
+              color: '#a78bfa', fontSize: 11, fontWeight: 600,
+              opacity: completing ? 0.6 : (canComplete ? 1 : 0.4),
+            }}
+          >
+            {completing
+              ? <Loader2 style={{ width: 12, height: 12, animation: 'spin 1s linear infinite' }} />
+              : <CheckCircle2 style={{ width: 12, height: 12 }} />}
+            Завершить сделку
+          </button>
+        )}
 
         {deal.status === 'completed' && (
           reviewed ? (
@@ -224,6 +333,18 @@ export function AviaFlightManifestPage() {
   }, [id, user?.phone]);
 
   useEffect(() => { load(); }, [load]);
+
+  const handlePODUploaded = (dealId: string, photo: AviaPODPhoto) => {
+    setDeals(prev => prev.map(d => d.id === dealId ? { ...d, podPhotos: [...(d.podPhotos || []), photo] } : d));
+  };
+
+  const handleCompleteDeal = async (dealId: string) => {
+    if (!user?.phone) return;
+    const res = await completeAviaDeal(dealId, user.phone);
+    if (!res.success) { toast.error(res.error || 'Ошибка завершения сделки'); return; }
+    toast.success('Сделка завершена!');
+    setDeals(prev => prev.map(d => d.id === dealId ? { ...d, status: 'completed', completedAt: new Date().toISOString() } : d));
+  };
 
   const handleOpenChat = (otherPhone: string) => {
     if (!user || !flight) return;
@@ -429,9 +550,12 @@ export function AviaFlightManifestPage() {
                       key={d.id}
                       deal={d}
                       isCourierView={isCourierView}
+                      myPhone={user?.phone || ''}
                       onOpenChat={handleOpenChat}
                       reviewed={!!reviewedDeals[d.id]}
                       onReview={setReviewDeal}
+                      onPODUploaded={handlePODUploaded}
+                      onCompleteDeal={handleCompleteDeal}
                     />
                   ))}
               </AnimatePresence>
@@ -460,6 +584,10 @@ export function AviaFlightManifestPage() {
           confirmLabel={confirmCfg.label}
         />
       )}
+
+      <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   );
 }
