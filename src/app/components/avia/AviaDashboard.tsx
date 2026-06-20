@@ -41,12 +41,6 @@ type AvSortKey = 'date-desc' | 'date-asc' | 'weight-desc' | 'weight-asc' | 'pric
 
 // ── Вспомогательные ───────────────────────────────────────────────────────────
 
-const TAB_LABELS: Record<string, { flights: string; requests: string }> = {
-  courier: { flights: 'Мои рейсы', requests: 'Заявки'      },
-  sender:  { flights: 'Рейсы',     requests: 'Мои заявки'  },
-  both:    { flights: 'Рейсы',     requests: 'Заявки'       },
-};
-
 // ── Skeleton ──────────────────────────────────────────────────────────────────
 
 function SkeletonCard() {
@@ -991,8 +985,6 @@ export function AviaDashboard() {
     ]).then(([f, r]) => {
       setFlights(f);
       setRequests(r);
-      prevFlightIdsRef.current = new Set(f.map(x => x.id));
-      prevRequestIdsRef.current = new Set(r.map(x => x.id));
     });
   };
 
@@ -1038,44 +1030,22 @@ export function AviaDashboard() {
     }).catch(() => {});
   }, [user?.phone, chatUnreadCount]);
 
-  // ── Пакет D: Auto-polling + New items counter + Pull-to-refresh ─────────────
+  // ── Пакет D: Auto-polling + Pull-to-refresh ─────────────────────────────────
   const POLL_INTERVAL = 30_000; // 30 секунд
-  // Используем refs вместо state для отслеживания ID — предотвращает
-  // пересоздание silentPoll на каждом обновлении данных (бесконечный цикл).
-  const prevFlightIdsRef = useRef<Set<string>>(new Set());
-  const prevRequestIdsRef = useRef<Set<string>>(new Set());
-  const [newFlightsCount, setNewFlightsCount] = useState(0);
-  const [newRequestsCount, setNewRequestsCount] = useState(0);
   const [lastPollAt, setLastPollAt] = useState<string>('');
-  const isInitialLoad = useRef(true);
 
   // Тихий polling без setLoadingData.
-  // Зависит только от user — refs читаются напрямую без подписки на изменения.
   const silentPoll = useCallback(() => {
     if (!user) return;
     Promise.all([
       getAviaFlights(),
       getAviaRequests(),
     ]).then(([newF, newR]) => {
-      if (!isInitialLoad.current) {
-        const newFIds = new Set(newF.map(f => f.id));
-        const newRIds = new Set(newR.map(r => r.id));
-        let addedFlights = 0;
-        let addedRequests = 0;
-        newFIds.forEach(id => { if (!prevFlightIdsRef.current.has(id)) addedFlights++; });
-        newRIds.forEach(id => { if (!prevRequestIdsRef.current.has(id)) addedRequests++; });
-        if (addedFlights > 0) setNewFlightsCount(prev => prev + addedFlights);
-        if (addedRequests > 0) setNewRequestsCount(prev => prev + addedRequests);
-      }
-      // Refs обновляются без setState — нет лишних ре-рендеров
-      prevFlightIdsRef.current = new Set(newF.map(f => f.id));
-      prevRequestIdsRef.current = new Set(newR.map(r => r.id));
       setFlights(newF);
       setRequests(newR);
       setLastPollAt(new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }));
-      isInitialLoad.current = false;
     }).catch(() => {});
-  }, [user]); // только user; refs читаются без подписки на их изменения
+  }, [user]);
 
   // Авто-polling по интервалу
   useEffect(() => {
@@ -1149,8 +1119,6 @@ export function AviaDashboard() {
       const promises: Promise<any>[] = [fetchMainData(), fetchMyData()];
       Promise.all(promises)
         .then(() => {
-          setNewFlightsCount(0);
-          setNewRequestsCount(0);
           toast('Обновлено', { duration: 1200 });
         })
         .catch(() => toast.error('Ошибка обновления'))
@@ -1168,7 +1136,6 @@ export function AviaDashboard() {
   if (!isAuth || !user) return null;
 
   // ── Производные значения ──────────────────────────────────────────────────
-  const tabLabels = TAB_LABELS[user.role] || TAB_LABELS.both;
   const hasPassport = !!(user.passportPhoto || user.passportPhotoPath);
   const adCheck   = canCreateAd(user);
   const requestCheck = canCreateRequest(user);
@@ -1252,11 +1219,6 @@ export function AviaDashboard() {
   const activeFilterCount = countActiveFilters(activeFS);
   const activeChips   = getFilterChips(activeFS);
 
-  const showCreateFlight  = activeTab === 'flights'  && (user.role === 'courier' || user.role === 'both');
-  const showCreateRequest = activeTab === 'requests' && (user.role === 'sender'  || user.role === 'both');
-  const showCreateBtn     = showCreateFlight || showCreateRequest;
-  const createBtnDisabled = showCreateFlight ? !adCheck.allowed : !requestCheck.allowed;
-
   // Быстрое действие «Создать» на главном экране: для курьера — рейс, для
   // отправителя — заявка, для роли «both» — зависит от текущей вкладки.
   const quickCreateIsFlight = user.role === 'courier' || (user.role === 'both' && activeTab === 'flights');
@@ -1272,31 +1234,6 @@ export function AviaDashboard() {
     }
     if (quickCreateIsFlight) setShowFlightModal(true);
     else setShowRequestModal(true);
-  };
-
-  const handleRefresh = () => {
-    setLoadingData(true);
-    const promises: Promise<any>[] = [fetchMainData(), fetchMyData()];
-    Promise.all(promises)
-      .then(() => {
-        setNewFlightsCount(0);
-        setNewRequestsCount(0);
-        setLastPollAt(new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }));
-        toast('Обновлено', { duration: 1500 });
-      })
-      .catch(() => toast.error('Ошибка обновления'))
-      .finally(() => setLoadingData(false));
-  };
-
-  // Сброс счётчика при переключении на вкладку
-  const handleTabChange = (tab: 'flights' | 'requests') => {
-    if (tab === 'flights') setNewFlightsCount(0);
-    if (tab === 'requests') setNewRequestsCount(0);
-    setSearchQuery('');
-    setSortKey('date-desc');
-    setShowFlightFilter(false);
-    setShowRequestFilter(false);
-    setActiveTab(tab);
   };
 
   // Изменение статуса своего рейса/заявки — обновляем оба списка на месте,
@@ -1658,129 +1595,6 @@ export function AviaDashboard() {
             </div>
           </motion.div>
         )}
-
-        {/* ── Tabs + кнопки ── */}
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15, duration: 0.3 }}
-          className="avia-dash-tabs-row"
-          style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}
-        >
-          {/* Tab switcher */}
-          <div style={{
-            display: 'flex', flex: 1,
-            background: 'rgba(255,255,255,0.04)', borderRadius: 14, padding: 4,
-            border: '1px solid rgba(255,255,255,0.07)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.02)',
-          }}>
-            {(['flights', 'requests'] as const).map((tab) => {
-              const isActive = activeTab === tab;
-              const tabColor = tab === 'flights' ? '#0ea5e9' : '#a78bfa';
-              const tabLabel = tabLabels[tab];
-              const TabIcon = tab === 'flights' ? Plane : Package;
-              const newCount = tab === 'flights' ? newFlightsCount : newRequestsCount;
-              return (
-                <button
-                  key={tab}
-                  onClick={() => handleTabChange(tab)}
-                  style={{
-                    flex: 1, padding: '8px 4px',
-                    borderRadius: 10, border: `1px solid ${isActive ? tabColor + '18' : 'transparent'}`,
-                    background: isActive ? `${tabColor}10` : 'transparent',
-                    color: isActive ? tabColor : '#2a4060',
-                    fontSize: 11, fontWeight: 700,
-                    cursor: 'pointer',
-                    transition: 'background 0.2s, color 0.2s, border-color 0.2s',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
-                    position: 'relative',
-                    boxShadow: isActive ? `0 0 14px ${tabColor}12` : 'none',
-                  }}
-                >
-                  <TabIcon style={{ width: 12, height: 12 }} />
-                  {tabLabel}
-                  {/* New items badge */}
-                  {newCount > 0 && !isActive && (
-                    <span style={{
-                      position: 'absolute', top: 1, right: 6,
-                      fontSize: 8, fontWeight: 800,
-                      background: '#ef4444', color: '#fff',
-                      padding: '1px 4px', borderRadius: 6,
-                      minWidth: 14, textAlign: 'center',
-                      lineHeight: '13px',
-                      boxShadow: '0 2px 6px #ef444444',
-                      animation: 'pulse-badge 2s infinite',
-                    }}>
-                      +{newCount > 9 ? '9+' : newCount}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Refresh */}
-          <button
-            onClick={handleRefresh}
-            disabled={loadingData}
-            style={{
-              width: 34, height: 34, borderRadius: 10,
-              border: '1px solid #ffffff10', background: '#ffffff06',
-              color: '#4a6080', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              opacity: loadingData ? 0.5 : 1, transition: 'opacity 0.2s',
-            }}
-          >
-            <RefreshCw style={{
-              width: 13, height: 13,
-              animation: loadingData ? 'spin 1s linear infinite' : 'none',
-            }} />
-          </button>
-
-          {/* Create */}
-          <AnimatePresence mode="wait">
-            {showCreateBtn && (
-              <motion.button
-                key={activeTab + '-create'}
-                initial={{ opacity: 0, scale: 0.85 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.85 }}
-                transition={{ duration: 0.2 }}
-                whileTap={{ scale: 0.94 }}
-                onClick={() => {
-                  if (createBtnDisabled) {
-                    navigate('/avia/profile');
-                    const reason = showCreateFlight ? adCheck.reason : requestCheck.reason;
-                    toast(reason || 'Необходимо заполнить профиль', { icon: '🛂' });
-                    return;
-                  }
-                  if (showCreateFlight) setShowFlightModal(true);
-                  else setShowRequestModal(true);
-                }}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 5,
-                  padding: '8px 14px', borderRadius: 10, border: 'none',
-                  background: createBtnDisabled
-                    ? '#ffffff08'
-                    : activeTab === 'flights'
-                      ? 'linear-gradient(135deg, #0369a1, #0ea5e9)'
-                      : 'linear-gradient(135deg, #6d28d9, #a78bfa)',
-                  color: createBtnDisabled ? '#3d5268' : '#fff',
-                  fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                  boxShadow: createBtnDisabled ? 'none'
-                    : activeTab === 'flights'
-                      ? '0 4px 14px #0ea5e928'
-                      : '0 4px 14px #a78bfa28',
-                  whiteSpace: 'nowrap',
-                  transition: 'background 0.2s',
-                }}
-              >
-                <Plus style={{ width: 13, height: 13 }} />
-                Создать
-              </motion.button>
-            )}
-          </AnimatePresence>
-        </motion.div>
 
         {/* ── Пакет M: Поиск v2 + Кнопка фильтров ── */}
         {(
