@@ -536,6 +536,43 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
     }
   });
 
+  // Редактировать рейс — только цены, номер рейса и дату (маршрут и вес не меняем,
+  // чтобы не сломать учёт reservedKg по уже принятым сделкам)
+  app.patch(`${P}/flights/:id`, async (c) => {
+    try {
+      const id   = c.req.param('id');
+      const body = await c.req.json();
+      const { callerPhone, pricePerKg, docsPrice, currency, flightNo, date } = body;
+      const clean = aviaClean(callerPhone || '');
+      if (!clean) return c.json({ error: 'callerPhone is required' }, 400);
+
+      const flight = await Flights.get(id);
+      if (!flight || flight.isDeleted) return c.json({ error: 'Flight not found' }, 404);
+      if (flight.courierId !== clean) {
+        console.warn(`[AVIA Flights] IDOR attempt: ${clean} tried to edit flight ${id} owned by ${flight.courierId}`);
+        return c.json({ error: 'Forbidden: not the owner' }, 403);
+      }
+      if (flight.status === 'closed' || flight.status === 'completed') {
+        return c.json({ error: `Cannot edit flight with status: ${flight.status}` }, 400);
+      }
+
+      const updates: Partial<AviaFlight> = { updatedAt: new Date().toISOString() };
+      if (pricePerKg !== undefined) updates.pricePerKg = Number(pricePerKg) || 0;
+      if (docsPrice  !== undefined) updates.docsPrice  = Number(docsPrice)  || 0;
+      if (currency   !== undefined && typeof currency === 'string') updates.currency = currency.toUpperCase();
+      if (flightNo   !== undefined) updates.flightNo   = String(flightNo).trim();
+      if (date       !== undefined && date) updates.date = date;
+
+      const updated = { ...flight, ...updates };
+      await Flights.set(id, updated);
+      console.log(`[AVIA] Flight ${id} edited by ${clean}`);
+      return c.json({ success: true, flight: updated });
+    } catch (err) {
+      console.log('Error PATCH /avia/flights/:id:', err);
+      return c.json({ error: `${err}` }, 500);
+    }
+  });
+
   app.delete(`${P}/flights/:id`, async (c) => {
     try {
       const id     = c.req.param('id');
