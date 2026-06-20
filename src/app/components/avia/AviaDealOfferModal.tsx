@@ -33,12 +33,6 @@ export function AviaDealOfferModal({ me, flight, onClose, onSuccess, onOpenChat 
   const [dealType, setDealType] = useState<'cargo' | 'docs'>(initialType);
 
   const [weightKg, setWeightKg] = useState('');
-  const [price, setPrice] = useState(
-    flight.pricePerKg && dealType === 'cargo'
-      ? String(Math.round(Number(weightKg || 1) * flight.pricePerKg))
-      : '',
-  );
-  const [currency, setCurrency] = useState<string>(flight.currency || 'USD');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -66,23 +60,20 @@ export function AviaDealOfferModal({ me, flight, onClose, onSuccess, onOpenChat 
   // Доступный кг на рейсе
   const availKg = Math.max(0, (flight.freeKg || 0) - (flight.reservedKg || 0));
 
+  // Цену устанавливает курьер на рейсе — отправитель только соглашается, не предлагает свою
+  const currency = flight.currency || 'USD';
+  const price = dealType === 'cargo'
+    ? (flight.pricePerKg && weightKg ? Math.round(Number(weightKg) * flight.pricePerKg) : undefined)
+    : (flight.docsPrice || undefined);
+
   const handleWeightChange = (v: string) => {
     setWeightKg(v);
-    if (flight.pricePerKg && v && dealType === 'cargo') {
-      const kg = Number(v) || 0;
-      setPrice(String(Math.round(kg * flight.pricePerKg)));
-    }
   };
 
   const handleDealTypeChange = (t: 'cargo' | 'docs') => {
     setDealType(t);
     setError('');
-    if (t === 'docs') {
-      setWeightKg('');
-      setPrice(flight.docsPrice ? String(flight.docsPrice) : '');
-    } else {
-      setPrice(flight.pricePerKg && weightKg ? String(Math.round(Number(weightKg) * flight.pricePerKg)) : '');
-    }
+    if (t === 'docs') setWeightKg('');
   };
 
   const handleSubmit = async () => {
@@ -105,7 +96,7 @@ export function AviaDealOfferModal({ me, flight, onClose, onSuccess, onOpenChat 
       adTo,
       adDate,
       weightKg: dealType === 'cargo' ? Number(weightKg) : 0,
-      price: price ? Number(price) : undefined,
+      price,
       currency,
       message: message.trim(),
       courierId,
@@ -132,7 +123,7 @@ export function AviaDealOfferModal({ me, flight, onClose, onSuccess, onOpenChat 
         dealId:         deal.id,
         dealType,
         weightKg:       dealType === 'cargo' ? Number(weightKg) : undefined,
-        price:          price ? Number(price) : undefined,
+        price,
         currency,
         adFrom,
         adTo,
@@ -395,51 +386,34 @@ export function AviaDealOfferModal({ me, flight, onClose, onSuccess, onOpenChat 
                 </div>
               )}
 
-              {/* Price */}
+              {/* Price — фиксированная цена курьера, отправитель только соглашается */}
               <div>
                 <label style={labelStyle}>
                   <DollarSign style={{ width: 11, height: 11, display: 'inline', marginRight: 4 }} />
-                  Предлагаемая цена
+                  Цена курьера
                 </label>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input
-                    type="number"
-                    min={0}
-                    value={price}
-                    onChange={e => setPrice(e.target.value)}
-                    placeholder="Необязательно"
-                    style={{ ...inputStyle, flex: 1 }}
-                  />
-                  <select
-                    value={currency}
-                    onChange={e => setCurrency(e.target.value)}
-                    style={{
-                      padding: '12px 10px', borderRadius: 12,
-                      border: '1.5px solid #ffffff10', background: '#0a1525',
-                      color: '#fff', fontSize: 13, fontWeight: 600,
-                      outline: 'none', cursor: 'pointer',
-                    }}
-                  >
-                    <option value="USD">🇺🇸 USD</option>
-                    <option value="EUR">🇪🇺 EUR</option>
-                    <option value="RUB">🇷🇺 RUB</option>
-                    <option value="AED">🇦🇪 AED</option>
-                    <option value="TJS">🇹🇯 TJS</option>
-                    <option value="KZT">🇰🇿 KZT</option>
-                    <option value="UZS">🇺🇿 UZS</option>
-                    <option value="CNY">🇨🇳 CNY</option>
-                  </select>
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+                  padding: '12px 14px', borderRadius: 12,
+                  border: '1.5px solid #ffffff10', background: '#ffffff05',
+                }}>
+                  <span style={{ fontSize: 16, fontWeight: 800, color: '#fff' }}>
+                    {price !== undefined ? `${currency} ${price}` : 'Не указана'}
+                  </span>
+                  {dealType === 'cargo' && flight?.pricePerKg ? (
+                    <span style={{ fontSize: 11, color: '#34d399', fontWeight: 600 }}>
+                      {currency} {flight.pricePerKg}/кг
+                    </span>
+                  ) : null}
                 </div>
-                {flight?.pricePerKg && weightKg && dealType === 'cargo' && (
+                {dealType === 'cargo' && flight?.pricePerKg && weightKg && (
                   <p style={{ fontSize: 10, color: '#34d399', marginTop: 4, fontWeight: 600 }}>
-                    Расчёт: {weightKg} кг × {flight.currency ?? 'USD'} {flight.pricePerKg}/кг = {flight.currency ?? 'USD'} {Math.round(Number(weightKg) * flight.pricePerKg)}
+                    Расчёт: {weightKg} кг × {currency} {flight.pricePerKg}/кг = {currency} {price}
                   </p>
                 )}
-                {dealType === 'docs' && flight?.docsPrice && (
-                  <p style={{ fontSize: 10, color: '#a78bfa', marginTop: 4, fontWeight: 600 }}>
-                    Цена курьера за пакет: {flight.currency ?? 'USD'} {flight.docsPrice}
-                  </p>
-                )}
+                <p style={{ fontSize: 10, color: '#4a6080', marginTop: 4 }}>
+                  Цену устанавливает курьер на рейсе — её нельзя изменить в предложении
+                </p>
               </div>
 
               {/* Message */}
