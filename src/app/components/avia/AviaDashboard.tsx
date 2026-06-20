@@ -1141,8 +1141,8 @@ export function AviaDashboard() {
                 <div style={{ position: 'absolute', inset: 0, zIndex: 10, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 16 }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                     <span style={{
-                      display: 'inline-block', maxWidth: 'calc(100% - 8px)', fontSize: 9.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em',
-                      padding: '5px 12px', borderRadius: 999, background: 'rgba(0,0,0,0.4)', color: '#fff', backdropFilter: 'blur(4px)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                      display: 'inline-block', lineHeight: 1.4, fontSize: 9.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em',
+                      padding: '6px 14px', borderRadius: 999, background: 'rgba(0,0,0,0.45)', color: '#fff', whiteSpace: 'nowrap',
                     }}>
                       {currentAviaAd.badge}
                     </span>
