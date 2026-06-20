@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ArrowLeft, Handshake, Plane, Package, ArrowRight,
   CheckCircle2, XCircle, Clock, ThumbsUp, RefreshCw,
   Loader2, MessageCircle, Scale, DollarSign,
-  ChevronRight, ChevronDown, Bell, Camera, Info, ClipboardList,
+  ChevronRight, ChevronDown, Bell, Camera, Info, ClipboardList, Users,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAvia } from './AviaContext';
@@ -489,6 +489,99 @@ function DealCard({
   );
 }
 
+// ── Карточка рейса с несколькими отправителями ────────────────────────────────
+// Когда у одного рейса несколько принятых/завершённых сделок (разные отправители),
+// показываем одну карточку рейса вместо дублей — детали каждого отправителя (фото
+// получения/передачи) находятся на странице манифеста.
+function FlightGroupCard({ deals }: { deals: AviaDeal[] }) {
+  const navigate = useNavigate();
+  const first = deals[0];
+  const allCompleted = deals.every(d => d.status === 'completed');
+  const statusMeta = allCompleted ? STATUS_META.completed : STATUS_META.accepted;
+  const StatusIcon = statusMeta.icon;
+  const totalWeight = deals.reduce((sum, d) => sum + (d.weightKg || 0), 0);
+  const totalPrice = deals.reduce((sum, d) => sum + (d.price || 0), 0);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.96 }}
+      transition={{ duration: 0.25 }}
+      style={{
+        padding: '14px 16px', borderRadius: 18, marginBottom: 10,
+        background: '#ffffff07', border: '1px solid #0ea5e918',
+        position: 'relative',
+      }}
+    >
+      <div style={{
+        position: 'absolute', top: 12, right: 12,
+        display: 'flex', alignItems: 'center', gap: 4,
+        padding: '3px 9px', borderRadius: 8,
+        background: statusMeta.bg, border: `1px solid ${statusMeta.color}22`,
+      }}>
+        <StatusIcon style={{ width: 10, height: 10, color: statusMeta.color }} />
+        <span style={{ fontSize: 9, fontWeight: 800, color: statusMeta.color, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+          {statusMeta.label}
+        </span>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, paddingRight: 80 }}>
+        <div style={{
+          width: 32, height: 32, borderRadius: 10,
+          background: '#0ea5e912',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0,
+        }}>
+          <Plane style={{ width: 14, height: 14, color: '#0ea5e9' }} />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', minWidth: 0 }}>
+          <span style={{ fontSize: 14, fontWeight: 800, color: '#fff', overflowWrap: 'anywhere' }}>{first.adFrom}</span>
+          <ArrowRight style={{ width: 12, height: 12, color: '#4a6080', flexShrink: 0 }} />
+          <span style={{ fontSize: 14, fontWeight: 800, color: '#fff', overflowWrap: 'anywhere' }}>{first.adTo}</span>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <Users style={{ width: 11, height: 11, color: '#4a6080' }} />
+          <span style={{ fontSize: 12, color: '#6b8299', fontWeight: 600 }}>{deals.length} отправителя</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <Scale style={{ width: 11, height: 11, color: '#4a6080' }} />
+          <span style={{ fontSize: 12, color: '#6b8299', fontWeight: 600 }}>{totalWeight} кг</span>
+        </div>
+        {totalPrice > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <DollarSign style={{ width: 11, height: 11, color: '#4a6080' }} />
+            <span style={{ fontSize: 12, color: '#34d399', fontWeight: 700 }}>
+              {totalPrice} {first.currency || 'USD'}
+            </span>
+          </div>
+        )}
+        {first.adDate && (
+          <span style={{ fontSize: 11, color: '#4a6080', fontWeight: 600, marginLeft: 'auto' }}>
+            Рейс: {fmtDate(first.adDate)}
+          </span>
+        )}
+      </div>
+
+      <button
+        onClick={() => navigate(`/avia/flight/${first.adId}/manifest`)}
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          width: '100%', padding: '10px 14px', borderRadius: 12,
+          border: '1px solid rgba(167,139,250,0.22)', background: 'rgba(167,139,250,0.08)',
+          color: '#a78bfa', fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
+        }}
+      >
+        <ClipboardList style={{ width: 14, height: 14 }} />
+        Манифест
+      </button>
+    </motion.div>
+  );
+}
+
 // ── Главный компонент ─────────────────────────────────────────────────────────
 
 export function AviaDealsPage() {
@@ -550,6 +643,30 @@ export function AviaDealsPage() {
       case 'cancelled': return d.status === 'cancelled' || d.status === 'rejected';
     }
   });
+
+  // ── Группировка по рейсу ─────────────────────────────────────────────────
+  // У одного рейса может быть несколько принятых/завершённых сделок (разные
+  // отправители) — показываем их одной карточкой рейса, а не дублями.
+  type RenderItem = { kind: 'single'; deal: AviaDeal } | { kind: 'flightGroup'; deals: AviaDeal[] };
+  const renderItems = useMemo<RenderItem[]>(() => {
+    const items: RenderItem[] = [];
+    const handledFlightIds = new Set<string>();
+    for (const deal of filtered) {
+      const manifestEligible = deal.adType === 'flight' && (deal.status === 'accepted' || deal.status === 'completed');
+      if (!manifestEligible) {
+        items.push({ kind: 'single', deal });
+        continue;
+      }
+      if (handledFlightIds.has(deal.adId)) continue;
+      handledFlightIds.add(deal.adId);
+      const group = filtered.filter(d =>
+        d.adType === 'flight' && d.adId === deal.adId &&
+        (d.status === 'accepted' || d.status === 'completed')
+      );
+      items.push(group.length > 1 ? { kind: 'flightGroup', deals: group } : { kind: 'single', deal: group[0] });
+    }
+    return items;
+  }, [filtered]);
 
   // ── Badges ────────────────────────────────────────────────────────────────
   const activeCount    = deals.filter(d => d.status === 'pending' || d.status === 'accepted').length;
@@ -739,7 +856,7 @@ export function AviaDealsPage() {
           <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 60 }}>
             <Loader2 style={{ width: 28, height: 28, color: '#34d399', animation: 'spin 1s linear infinite' }} />
           </div>
-        ) : filtered.length === 0 ? (
+        ) : renderItems.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -760,10 +877,12 @@ export function AviaDealsPage() {
           </motion.div>
         ) : (
           <AnimatePresence>
-            {filtered.map(deal => (
+            {renderItems.map(item => item.kind === 'flightGroup' ? (
+              <FlightGroupCard key={`flight-${item.deals[0].adId}`} deals={item.deals} />
+            ) : (
               <DealCard
-                key={deal.id}
-                deal={deal}
+                key={item.deal.id}
+                deal={item.deal}
                 myPhone={myPhone}
                 onAccept={handleAccept}
                 onReject={handleReject}
@@ -772,7 +891,7 @@ export function AviaDealsPage() {
                 onOpenChat={handleOpenChat}
                 onReview={handleReview}
                 onPODUploaded={handlePODUploaded}
-                alreadyReviewed={!!reviewedDeals[deal.id]}
+                alreadyReviewed={!!reviewedDeals[item.deal.id]}
               />
             ))}
           </AnimatePresence>
