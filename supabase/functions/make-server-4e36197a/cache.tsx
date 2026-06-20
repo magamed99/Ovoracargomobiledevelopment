@@ -81,7 +81,6 @@ export const aviaCache = new LRUCache(50_000);
 export const TTL = {
   USER_PROFILE  : 5  * 60_000,  // 5 мин  — профиль пользователя
   FLIGHTS_LIST  : 30 * 1_000,   // 30 сек — список рейсов (часто меняется)
-  REQUESTS_LIST : 30 * 1_000,   // 30 сек — список заявок
   NOTIF_COUNT   : 10 * 1_000,   // 10 сек — счётчик непрочитанных
   NOTIF_LIST    : 15 * 1_000,   // 15 сек — список уведомлений
   CHAT_META     : 30 * 1_000,   // 30 сек — мета чата
@@ -95,9 +94,7 @@ export const CK = {
   user          : (phone: string)            => `avia:user:${phone}`,
   pin           : (phone: string)            => `avia:pin:${phone}`,
   flightsList   : ()                         => `avia:flights:list`,
-  requestsList  : ()                         => `avia:requests:list`,
   myFlights     : (phone: string)            => `avia:myflights:${phone}`,
-  myRequests    : (phone: string)            => `avia:myrequests:${phone}`,
   notifCount    : (phone: string)            => `avia:notif:count:${phone}`,
   notifList     : (phone: string)            => `avia:notif:list:${phone}`,
   chatMeta      : (chatId: string)           => `avia:chat:meta:${chatId}`,

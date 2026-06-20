@@ -337,10 +337,9 @@ interface QuickAction {
   badge?: number;
 }
 
-function QuickActionsCard({ role, onCreateFlight, onCreateRequest, dealsPending, chatUnread }: {
+function QuickActionsCard({ role, onCreateFlight, dealsPending, chatUnread }: {
   role: AviaRole;
   onCreateFlight: () => void;
-  onCreateRequest: () => void;
   dealsPending: number;
   chatUnread: number;
 }) {
@@ -355,7 +354,6 @@ function QuickActionsCard({ role, onCreateFlight, onCreateRequest, dealsPending,
     ],
     sender: [
       { icon: Search,      label: 'Найти рейс',    sub: 'Поиск курьеров',       color: '#0ea5e9', route: '/avia/dashboard' },
-      { icon: Plus,        label: 'Новая заявка',  sub: 'Создать заявку',       color: '#34d399', onClick: onCreateRequest },
       { icon: Handshake,   label: 'Сделки',        sub: 'Мои договорённости',   color: '#a78bfa', route: '/avia/deals', badge: dealsPending },
       { icon: MessageCircle, label: 'Сообщения',   sub: 'Чаты с курьерами',     color: '#f59e0b', route: '/avia/messages', badge: chatUnread },
     ],
@@ -427,7 +425,6 @@ function QuickActionsCard({ role, onCreateFlight, onCreateRequest, dealsPending,
 function StatsRow({ stats, onDealsClick }: { stats: AviaStats; onDealsClick: () => void }) {
   const items = [
     { icon: Plane,         color: '#0ea5e9', value: stats.flightsTotal,  label: 'Рейсов',  sub: `${stats.flightsActive} акт.` },
-    { icon: Package,       color: '#a78bfa', value: stats.requestsTotal, label: 'Заявок',  sub: `${stats.requestsActive} акт.` },
     { icon: Handshake,     color: '#34d399', value: stats.dealsTotal,    label: 'Сделок',  sub: `${stats.dealsCompleted} зав.` },
     { icon: MessageCircle, color: '#f59e0b', value: stats.chatsTotal,    label: 'Чатов',   sub: '' },
   ];
@@ -441,7 +438,7 @@ function StatsRow({ stats, onDealsClick }: { stats: AviaStats; onDealsClick: () 
         </span>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
         {items.map(({ icon: Icon, color, value, label, sub }) => (
           <div key={label} style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center',
@@ -1828,7 +1825,6 @@ export function AviaProfile() {
               <QuickActionsCard
                 role={user.role || 'sender'}
                 onCreateFlight={() => navigate('/avia/dashboard')}
-                onCreateRequest={() => navigate('/avia/dashboard')}
                 dealsPending={stats?.dealsPending ?? 0}
                 chatUnread={chatUnreadCount}
               />

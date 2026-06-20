@@ -59,8 +59,6 @@ export interface AviaPODPhoto {
 export interface AviaStats {
   flightsTotal: number;
   flightsActive: number;
-  requestsTotal: number;
-  requestsActive: number;
   chatsTotal: number;
   dealsTotal: number;
   dealsActive: number;

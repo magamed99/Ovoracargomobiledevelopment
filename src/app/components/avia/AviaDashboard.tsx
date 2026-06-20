@@ -12,16 +12,15 @@ import { toast } from 'sonner';
 import { useAvia } from './AviaContext';
 import {
   canCreateAd,
-  canCreateRequest,
-  getAviaFlights, getAviaRequests,
-  deleteAviaFlight, deleteAviaRequest,
-  closeAviaFlight, closeAviaRequest,
+  getAviaFlights,
+  deleteAviaFlight,
+  closeAviaFlight,
   completeAviaFlight, startAviaFlight,
   getMyAviaAds,
 } from '../../api/aviaApi';
-import type { AviaFlight, AviaRequest } from '../../api/aviaApi';
+import type { AviaFlight } from '../../api/aviaApi';
 import {
-  applyFlightFilters, applyRequestFilters,
+  applyFlightFilters,
   countActiveFilters, getFilterChips, removeFilterChip,
   EMPTY_FILTER_STATE,
 } from '../../api/aviaFilterApi';
@@ -29,8 +28,7 @@ import type { AviaFilterState } from '../../api/aviaFilterApi';
 import { AviaSearchBar } from './AviaSearchBar';
 import { AviaFilterSheet } from './AviaFilterSheet';
 import { CreateFlightModal } from './CreateFlightModal';
-import { CreateRequestModal } from './CreateRequestModal';
-import { FlightDetailModal, RequestDetailModal } from './DetailModal';
+import { FlightDetailModal } from './DetailModal';
 import { AviaDealOfferModal } from './AviaDealOfferModal';
 import { getAviaDeals } from '../../api/aviaDealApi';
 import { getPublicAds } from '../../api/dataApi';
@@ -546,278 +544,6 @@ function FlightCard({
   );
 }
 
-// ── Карточка заявки ───────────────────────────────────────────────────────────
-
-function RequestCard({
-  request, isMine, onDelete, onClose, onDetail, onChat, onOffer, chatUnread,
-}: {
-  request: AviaRequest;
-  isMine: boolean;
-  onDelete: (id: string) => void;
-  onClose?: (id: string) => void;
-  onDetail?: (r: AviaRequest) => void;
-  onChat?: (otherPhone: string, adRef: AviaChatAdRef) => void;
-  onOffer?: (request: AviaRequest) => void;
-  chatUnread?: number;
-}) {
-  const [deleting, setDeleting] = useState(false);
-  const [closing, setClosing] = useState(false);
-  const isClosed = request.status === 'closed';
-  const { user: aviaUser } = useAvia();
-
-  // ── AviaConfirmSheet state ──────────────────────────────────────────────────
-  type ReqConfirmCfg = { title: string; description: string; variant: 'danger' | 'warning'; label: string; action: () => Promise<void> };
-  const [confirmCfg, setConfirmCfg] = useState<ReqConfirmCfg | null>(null);
-
-  const execDelete = async () => {
-    if (!aviaUser?.phone) return;
-    setDeleting(true);
-    try {
-      await deleteAviaRequest(request.id, aviaUser.phone);
-      onDelete(request.id);
-      toast.success('Заявка удалена', { duration: 2500 });
-    } catch {
-      toast.error('Не удалось удалить заявку');
-    } finally { setDeleting(false); }
-  };
-
-  const execClose = async () => {
-    if (!aviaUser?.phone) return;
-    setClosing(true);
-    try {
-      await closeAviaRequest(request.id, aviaUser.phone);
-      if (onClose) onClose(request.id);
-      toast.success('Заявка закрыта', { duration: 2500 });
-    } catch {
-      toast.error('Не удалось закрыть заявку');
-    } finally { setClosing(false); }
-  };
-
-  const handleDelete = () => setConfirmCfg({ title: 'Удалить заявку?', description: 'Заявка будет удалена навсегда. Это действие нельзя отменить.', variant: 'danger', label: 'Удалить', action: execDelete });
-  const handleClose  = () => setConfirmCfg({ title: 'Закрыть заявку?', description: 'Заявка исчезнет из общего списка.', variant: 'warning', label: 'Закрыть', action: execClose });
-
-  return (
-    <>
-    <motion.div
-      className="avia-card-item"
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: isClosed ? 0.55 : 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      transition={{ duration: 0.25 }}
-      style={{
-        padding: '15px 16px', borderRadius: 20,
-        background: isClosed
-          ? 'rgba(255,255,255,0.02)'
-          : isMine
-            ? 'linear-gradient(145deg, rgba(167,139,250,0.08) 0%, rgba(109,40,217,0.04) 50%, rgba(6,14,26,0.7) 100%)'
-            : 'rgba(255,255,255,0.04)',
-        border: `1px solid ${isClosed ? 'rgba(255,255,255,0.05)' : isMine ? 'rgba(167,139,250,0.18)' : 'rgba(255,255,255,0.07)'}`,
-        position: 'relative',
-        cursor: onDetail ? 'pointer' : undefined,
-        boxShadow: isClosed ? 'none' : isMine
-          ? '0 4px 20px rgba(167,139,250,0.06), inset 0 1px 0 rgba(167,139,250,0.08)'
-          : '0 2px 12px rgba(0,0,0,0.2)',
-        overflow: 'hidden',
-      }}
-      onClick={() => onDetail?.(request)}
-    >
-      {/* Top shine line for own cards */}
-      {isMine && !isClosed && (
-        <div style={{
-          position: 'absolute', top: 0, left: 0, right: 0, height: 1, pointerEvents: 'none',
-          background: 'linear-gradient(90deg, transparent, rgba(167,139,250,0.35), transparent)',
-        }} />
-      )}
-
-      {/* Closed badge overlay */}
-      {isClosed && (
-        <div style={{
-          position: 'absolute', top: 10, right: 12,
-          display: 'flex', alignItems: 'center', gap: 4,
-          padding: '3px 8px', borderRadius: 6,
-          background: '#f59e0b14', border: '1px solid #f59e0b20',
-        }}>
-          <XCircle style={{ width: 10, height: 10, color: '#f59e0b' }} />
-          <span style={{ fontSize: 9, fontWeight: 700, color: '#f59e0b', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-            Закрыта
-          </span>
-        </div>
-      )}
-
-      {/* Route row */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-          <div style={{
-            width: 34, height: 34, borderRadius: 11, flexShrink: 0,
-            background: isClosed ? 'rgba(255,255,255,0.04)' : 'rgba(167,139,250,0.1)',
-            border: `1px solid ${isClosed ? 'rgba(255,255,255,0.06)' : 'rgba(167,139,250,0.18)'}`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: isClosed ? 'none' : '0 0 10px rgba(167,139,250,0.1)',
-          }}>
-            <Package style={{ width: 15, height: 15, color: isClosed ? '#2a3d50' : '#c4b5fd' }} />
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 15, fontWeight: 800, color: isClosed ? '#3a5268' : '#e2eaf3', letterSpacing: '-0.2px', overflowWrap: 'anywhere' }}>{request.from}</span>
-            <ArrowRight style={{ width: 12, height: 12, color: isClosed ? '#1a2d40' : '#3a2060', flexShrink: 0 }} />
-            <span style={{ fontSize: 15, fontWeight: 800, color: isClosed ? '#3a5268' : '#e2eaf3', letterSpacing: '-0.2px', overflowWrap: 'anywhere' }}>{request.to}</span>
-          </div>
-        </div>
-        {isMine && !isClosed && (
-          <span style={{
-            fontSize: 9, fontWeight: 700, color: '#a78bfa',
-            padding: '3px 8px', borderRadius: 6, flexShrink: 0,
-            background: '#a78bfa12', border: '1px solid #a78bfa22',
-            letterSpacing: '0.06em', textTransform: 'uppercase',
-          }}>
-            Моя
-          </span>
-        )}
-      </div>
-
-      {/* Meta */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: request.description ? 8 : 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-          <Calendar style={{ width: 12, height: 12, color: '#4a6080' }} />
-          <span style={{ fontSize: 12, color: '#6b8299', fontWeight: 600 }}>
-            до {fmtDate(request.beforeDate, 'short')}
-          </span>
-        </div>
-        <span style={{ fontSize: 12, color: '#6b8299', fontWeight: 600 }}>
-          {request.weightKg} кг
-        </span>
-      </div>
-
-      {/* Description */}
-      {request.description && (
-        <p style={{
-          fontSize: 12, color: '#4a6080', lineHeight: 1.45,
-          margin: '0 0 10px', padding: '6px 10px', borderRadius: 8,
-          background: '#ffffff06',
-        }}>
-          {request.description}
-        </p>
-      )}
-
-      {/* Footer */}
-      <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-          <div style={{
-            width: 20, height: 20, borderRadius: 6, flexShrink: 0,
-            background: isClosed ? '#ffffff08' : '#a78bfa18',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <User style={{ width: 10, height: 10, color: isClosed ? '#4a6080' : '#a78bfa' }} />
-          </div>
-          <span style={{ fontSize: 11, color: '#4a6080', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {request.senderName || maskPhone(request.senderId)}
-          </span>
-        </div>
-
-        {isMine ? (
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-            {!isClosed && (
-              <button
-                onClick={handleClose}
-                disabled={closing}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 5,
-                  padding: '5px 10px', borderRadius: 8, cursor: 'pointer',
-                  border: '1px solid #f59e0b20', background: '#f59e0b08',
-                  color: '#fbbf24', fontSize: 11, fontWeight: 600,
-                  opacity: closing ? 0.5 : 1, transition: 'opacity 0.2s',
-                }}
-              >
-                <XCircle style={{ width: 12, height: 12 }} />
-                {closing ? '...' : 'Закрыть'}
-              </button>
-            )}
-            <button
-              onClick={handleDelete}
-              disabled={deleting}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 5,
-                padding: '5px 10px', borderRadius: 8, cursor: 'pointer',
-                border: '1px solid #ef444420', background: '#ef444408',
-                color: '#f87171', fontSize: 11, fontWeight: 600,
-                opacity: deleting ? 0.5 : 1, transition: 'opacity 0.2s',
-              }}
-            >
-              <Trash2 style={{ width: 12, height: 12 }} />
-              {deleting ? '...' : 'Удалить'}
-            </button>
-          </div>
-        ) : (
-          !isClosed && (
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-              {onChat && (
-                <motion.button
-                  whileTap={{ scale: 0.94 }}
-                  onClick={() => onChat(request.senderId, { type: 'request', id: request.id, from: request.from, to: request.to })}
-                  style={{
-                    position: 'relative',
-                    display: 'flex', alignItems: 'center', gap: 5,
-                    padding: '5px 10px', borderRadius: 9, cursor: 'pointer',
-                    border: '1px solid rgba(167,139,250,0.22)',
-                    background: 'rgba(167,139,250,0.08)',
-                    color: '#a78bfa', fontSize: 11, fontWeight: 700,
-                  }}
-                >
-                  <MessageCircle style={{ width: 11, height: 11 }} />
-                  Написать
-                  {(chatUnread || 0) > 0 && (
-                    <span style={{
-                      position: 'absolute', top: -4, right: -4,
-                      minWidth: 14, height: 14, borderRadius: 7,
-                      background: '#a78bfa', color: '#fff',
-                      fontSize: 8, fontWeight: 800,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      padding: '0 3px',
-                      border: '2px solid #060d18',
-                      boxShadow: '0 0 6px rgba(167,139,250,0.5)',
-                    }}>
-                      {chatUnread}
-                    </span>
-                  )}
-                </motion.button>
-              )}
-              {onOffer && (
-                <motion.button
-                  whileTap={{ scale: 0.94 }}
-                  onClick={() => onOffer(request)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 5,
-                    padding: '5px 10px', borderRadius: 9, cursor: 'pointer',
-                    border: '1px solid rgba(52,211,153,0.22)',
-                    background: 'rgba(52,211,153,0.08)',
-                    color: '#34d399', fontSize: 11, fontWeight: 700,
-                  }}
-                >
-                  <Handshake style={{ width: 11, height: 11 }} />
-                  Предложить
-                </motion.button>
-              )}
-              <ContactButton phone={request.senderId} accentColor="#a78bfa" />
-            </div>
-          )
-        )}
-      </div>
-    </motion.div>
-
-    {confirmCfg && (
-      <AviaConfirmSheet
-        isOpen={true}
-        onClose={() => setConfirmCfg(null)}
-        onConfirm={() => { confirmCfg.action(); setConfirmCfg(null); }}
-        title={confirmCfg.title}
-        description={confirmCfg.description}
-        variant={confirmCfg.variant}
-        confirmLabel={confirmCfg.label}
-      />
-    )}
-    </>
-  );
-}
-
 // ── Пустой стейт ──────────────────────────────────────────────────────────────
 
 function EmptyState({ icon: Icon, title, subtitle, color }: { icon: typeof Plane; title: string; subtitle?: string; color: string }) {
@@ -900,20 +626,14 @@ export function AviaDashboard() {
   const { user, logout, isAuth } = useAvia();
 
   const [flights, setFlights] = useState<AviaFlight[]>([]);
-  const [requests, setRequests] = useState<AviaRequest[]>([]);
   const [myFlights, setMyFlights] = useState<AviaFlight[]>([]);
-  const [myRequests, setMyRequests] = useState<AviaRequest[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [loadingMy, setLoadingMy] = useState(false);
-  const [activeTab, setActiveTab] = useState<'flights' | 'requests'>('flights');
   const [showFlightModal, setShowFlightModal] = useState(false);
-  const [showRequestModal, setShowRequestModal] = useState(false);
   const [detailFlight, setDetailFlight] = useState<AviaFlight | null>(null);
-  const [detailRequest, setDetailRequest] = useState<AviaRequest | null>(null);
 
   // ── Пакет I: Сделки ────────────────────────────────────────────────────────
   const [dealOfferFlight, setDealOfferFlight] = useState<AviaFlight | null>(null);
-  const [dealOfferRequest, setDealOfferRequest] = useState<AviaRequest | null>(null);
   const [_pendingDealsCount, setPendingDealsCount] = useState(0);
 
   const fetchDealsCount = useCallback(() => {
@@ -973,26 +693,18 @@ export function AviaDashboard() {
 
   // ── Пакет M: Фильтры v2 (client-side) ──
   const [flightFS, setFlightFS] = useState<AviaFilterState>(EMPTY_FILTER_STATE);
-  const [requestFS, setRequestFS] = useState<AviaFilterState>(EMPTY_FILTER_STATE);
   const [showFlightFilter, setShowFlightFilter] = useState(false);
-  const [showRequestFilter, setShowRequestFilter] = useState(false);
 
   // Загружаем все данные без серверных фильтров — фильтрация выполняется на клиенте (Пакет M)
   const fetchMainData = () => {
-    return Promise.all([
-      getAviaFlights(),
-      getAviaRequests(),
-    ]).then(([f, r]) => {
-      setFlights(f);
-      setRequests(r);
-    });
+    return getAviaFlights().then((f) => { setFlights(f); });
   };
 
   const fetchMyData = () => {
     if (!user?.phone) return Promise.resolve();
     setLoadingMy(true);
     return getMyAviaAds(user.phone)
-      .then(({ flights: mf, requests: mr }) => { setMyFlights(mf); setMyRequests(mr); })
+      .then(({ flights: mf }) => { setMyFlights(mf); })
       .catch(() => {})
       .finally(() => setLoadingMy(false));
   };
@@ -1037,12 +749,8 @@ export function AviaDashboard() {
   // Тихий polling без setLoadingData.
   const silentPoll = useCallback(() => {
     if (!user) return;
-    Promise.all([
-      getAviaFlights(),
-      getAviaRequests(),
-    ]).then(([newF, newR]) => {
+    getAviaFlights().then((newF) => {
       setFlights(newF);
-      setRequests(newR);
       setLastPollAt(new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }));
     }).catch(() => {});
   }, [user]);
@@ -1131,14 +839,13 @@ export function AviaDashboard() {
       setPullY(0);
       setIsPulling(false);
     }
-  }, [isPulling, isRefreshing, activeTab, fetchMainData, fetchMyData]);
+  }, [isPulling, isRefreshing, fetchMainData, fetchMyData]);
 
   if (!isAuth || !user) return null;
 
   // ── Производные значения ──────────────────────────────────────────────────
   const hasPassport = !!(user.passportPhoto || user.passportPhotoPath);
   const adCheck   = canCreateAd(user);
-  const requestCheck = canCreateRequest(user);
   const myPhone   = user.phone;
 
   const isExpired = (() => {
@@ -1152,13 +859,6 @@ export function AviaDashboard() {
   const matchesFlight = (f: AviaFlight) => {
     if (!searchLower) return true;
     return [f.from, f.to, f.flightNo, f.courierName, f.id]
-      .filter(Boolean)
-      .some(v => v!.toLowerCase().includes(searchLower));
-  };
-
-  const matchesRequest = (r: AviaRequest) => {
-    if (!searchLower) return true;
-    return [r.from, r.to, r.description, r.senderName, r.id]
       .filter(Boolean)
       .some(v => v!.toLowerCase().includes(searchLower));
   };
@@ -1177,52 +877,32 @@ export function AviaDashboard() {
     return sorted;
   };
 
-  const sortRequests = (arr: AviaRequest[]) => {
-    const sorted = [...arr];
-    switch (sortKey) {
-      case 'date-desc': sorted.sort((a, b) => new Date(b.beforeDate).getTime() - new Date(a.beforeDate).getTime()); break;
-      case 'date-asc':  sorted.sort((a, b) => new Date(a.beforeDate).getTime() - new Date(b.beforeDate).getTime()); break;
-      case 'weight-desc': sorted.sort((a, b) => (b.weightKg || 0) - (a.weightKg || 0)); break;
-      case 'weight-asc':  sorted.sort((a, b) => (a.weightKg || 0) - (b.weightKg || 0)); break;
-      default: break; // price не применимо к заявкам
-    }
-    return sorted;
-  };
-
   // Для курьера вкладка «Мои рейсы» — это его собственные рейсы любого статуса
   // (публичный список flights отдаёт только active, поэтому берём из myFlights,
   // чтобы рейс не пропадал с главной после старта/закрытия поездки).
   const preFilteredFlights = user.role === 'courier' ? myFlights : flights;
-  const preFilteredRequests = user.role === 'sender' ? myRequests : requests;
 
   // Пакет M: клиентская фильтрация поверх role-prefilter
   const displayFlights = sortFlights(
     applyFlightFilters(preFilteredFlights, flightFS, myPhone).filter(matchesFlight)
   );
-  const displayRequests = sortRequests(
-    applyRequestFilters(preFilteredRequests, requestFS, myPhone).filter(matchesRequest)
-  );
 
   // Пакет M: производные для chips + filter badge
-  const activeFS      = activeTab === 'flights' ? flightFS : requestFS;
-  const activeAccent  = activeTab === 'flights' ? '#0ea5e9' : '#a78bfa';
-  const activeFilterCount = countActiveFilters(activeFS);
-  const activeChips   = getFilterChips(activeFS);
+  const activeFilterCount = countActiveFilters(flightFS);
+  const activeChips   = getFilterChips(flightFS);
 
-  // Быстрое действие «Создать» на главном экране: для курьера — рейс, для отправителя — заявка.
-  const quickCreateIsFlight = user.role === 'courier';
-  const quickCreateCheck    = quickCreateIsFlight ? adCheck : requestCheck;
-  const quickCreateTitle    = quickCreateIsFlight ? 'Создать рейс' : 'Создать заявку';
-  const quickCreateSubtitle = quickCreateIsFlight ? 'Опубликовать рейс' : 'Найти курьера';
+  // Быстрое действие «Создать рейс» — доступно только курьеру.
+  // Отправитель ничего не создаёт сам: он откликается («Предложить») на уже
+  // опубликованные курьерами рейсы прямо из списка на главной.
+  const isCourier = user.role === 'courier';
 
   const handleQuickCreate = () => {
-    if (!quickCreateCheck.allowed) {
+    if (!adCheck.allowed) {
       navigate('/avia/profile');
-      toast(quickCreateCheck.reason || 'Необходимо заполнить профиль', { icon: '🛂' });
+      toast(adCheck.reason || 'Необходимо заполнить профиль', { icon: '🛂' });
       return;
     }
-    if (quickCreateIsFlight) setShowFlightModal(true);
-    else setShowRequestModal(true);
+    setShowFlightModal(true);
   };
 
   // Изменение статуса своего рейса/заявки — обновляем оба списка на месте,
@@ -1236,17 +916,8 @@ export function AviaDashboard() {
     setFlights(prev => prev.filter(f => f.id !== id));
     setMyFlights(prev => prev.filter(f => f.id !== id));
   };
-  const updateRequestStatus = (id: string, status: AviaRequest['status']) => {
-    setRequests(prev => prev.map(r => r.id === id ? { ...r, status } : r));
-    setMyRequests(prev => prev.map(r => r.id === id ? { ...r, status } : r));
-  };
-  const removeRequestEverywhere = (id: string) => {
-    setRequests(prev => prev.filter(r => r.id !== id));
-    setMyRequests(prev => prev.filter(r => r.id !== id));
-  };
 
   const handleCloseFlight  = (id: string) => updateFlightStatus(id, 'closed');
-  const handleCloseRequest = (id: string) => updateRequestStatus(id, 'closed');
 
   const _handleLogout = () => {
     logout();
@@ -1421,12 +1092,14 @@ export function AviaDashboard() {
               Быстрые действия
             </span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-            <QuickActionCard
-              icon={Plus} color="#5ba3f5" delay={0}
-              title={quickCreateTitle} subtitle={quickCreateSubtitle}
-              onClick={handleQuickCreate}
-            />
+          <div style={{ display: 'grid', gridTemplateColumns: isCourier ? '1fr 1fr 1fr' : '1fr 1fr', gap: 10 }}>
+            {isCourier && (
+              <QuickActionCard
+                icon={Plus} color="#5ba3f5" delay={0}
+                title="Создать рейс" subtitle="Опубликовать рейс"
+                onClick={handleQuickCreate}
+              />
+            )}
             <QuickActionCard
               icon={Handshake} color="#a78bfa" delay={0.06}
               title="Сделки" subtitle="Договорённости"
@@ -1598,19 +1271,19 @@ export function AviaDashboard() {
             <AviaSearchBar
               value={searchQuery}
               onChange={setSearchQuery}
-              placeholder={activeTab === 'flights' ? 'Рейс, город, курьер...' : 'Город, товар, описание...'}
-              accentColor={activeAccent}
+              placeholder="Рейс, город, курьер..."
+              accentColor="#0ea5e9"
             />
 
             {/* Кнопка фильтров */}
             <motion.button
               whileTap={{ scale: 0.92 }}
-              onClick={() => activeTab === 'flights' ? setShowFlightFilter(true) : setShowRequestFilter(true)}
+              onClick={() => setShowFlightFilter(true)}
               style={{
                 width: 38, height: 38, borderRadius: 10, flexShrink: 0,
-                border: `1px solid ${activeFilterCount > 0 ? activeAccent + '35' : '#ffffff10'}`,
-                background: activeFilterCount > 0 ? activeAccent + '0e' : '#ffffff06',
-                color: activeFilterCount > 0 ? activeAccent : '#6b8299',
+                border: `1px solid ${activeFilterCount > 0 ? '#0ea5e9' + '35' : '#ffffff10'}`,
+                background: activeFilterCount > 0 ? '#0ea5e9' + '0e' : '#ffffff06',
+                color: activeFilterCount > 0 ? '#0ea5e9' : '#6b8299',
                 cursor: 'pointer', position: 'relative',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 transition: 'background 0.2s, border-color 0.2s, color 0.2s',
@@ -1629,7 +1302,7 @@ export function AviaDashboard() {
                     style={{
                       position: 'absolute', top: -4, right: -4,
                       minWidth: 16, height: 16, borderRadius: '50%',
-                      background: activeAccent, color: '#fff',
+                      background: '#0ea5e9', color: '#fff',
                       fontSize: 8, fontWeight: 800,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       padding: '0 3px', border: '2px solid #060d18',
@@ -1661,8 +1334,8 @@ export function AviaDashboard() {
               <option value="date-asc">Дата ↑</option>
               <option value="weight-desc">Вес ↓</option>
               <option value="weight-asc">Вес ↑</option>
-              {activeTab === 'flights' && <option value="price-asc">Цена ↑</option>}
-              {activeTab === 'flights' && <option value="price-desc">Цена ↓</option>}
+              <option value="price-asc">Цена ↑</option>
+              <option value="price-desc">Цена ↓</option>
             </select>
           </motion.div>
         )}
@@ -1686,16 +1359,15 @@ export function AviaDashboard() {
                   transition={{ duration: 0.15 }}
                   whileTap={{ scale: 0.92 }}
                   onClick={() => {
-                    const next = removeFilterChip(activeFS, chip.field);
-                    if (activeTab === 'flights') setFlightFS(next);
-                    else setRequestFS(next);
+                    const next = removeFilterChip(flightFS, chip.field);
+                    setFlightFS(next);
                   }}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 5,
                     padding: '4px 10px', borderRadius: 20,
-                    background: activeAccent + '14',
-                    border: `1px solid ${activeAccent}28`,
-                    color: activeAccent, fontSize: 11, fontWeight: 600,
+                    background: '#0ea5e9' + '14',
+                    border: '1px solid #0ea5e928',
+                    color: '#0ea5e9', fontSize: 11, fontWeight: 600,
                     cursor: 'pointer',
                   }}
                 >
@@ -1709,10 +1381,7 @@ export function AviaDashboard() {
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.82 }}
                   whileTap={{ scale: 0.92 }}
-                  onClick={() => {
-                    if (activeTab === 'flights') setFlightFS(EMPTY_FILTER_STATE);
-                    else setRequestFS(EMPTY_FILTER_STATE);
-                  }}
+                  onClick={() => setFlightFS(EMPTY_FILTER_STATE)}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 4,
                     padding: '4px 10px', borderRadius: 20,
@@ -1734,22 +1403,19 @@ export function AviaDashboard() {
             fontSize: 11, color: '#4a6080', fontWeight: 600,
             marginBottom: 8, textAlign: 'center',
           }}>
-            {activeTab === 'flights'
-              ? `Найдено рейсов: ${displayFlights.length}`
-              : `Найдено заявок: ${displayRequests.length}`}
+            {`Найдено рейсов: ${displayFlights.length}`}
           </div>
         )}
 
         {/* ── Списки ── */}
         <AnimatePresence mode="wait">
-          {activeTab === 'flights' && (
-            <motion.div
-              key="flights-list"
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 10 }}
-              transition={{ duration: 0.22 }}
-            >
+          <motion.div
+            key="flights-list"
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 10 }}
+            transition={{ duration: 0.22 }}
+          >
               {loadingData ? (
                 <div className="avia-cards-grid">{[0, 1, 2, 3].map(i => <SkeletonCard key={i} />)}</div>
               ) : displayFlights.length === 0 ? (
@@ -1795,61 +1461,7 @@ export function AviaDashboard() {
                   </div>
                 </>
               )}
-            </motion.div>
-          )}
-
-          {activeTab === 'requests' && (
-            <motion.div
-              key="requests-list"
-              initial={{ opacity: 0, x: 10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -10 }}
-              transition={{ duration: 0.22 }}
-            >
-              {loadingData ? (
-                <div className="avia-cards-grid">{[0, 1, 2, 3].map(i => <SkeletonCard key={i} />)}</div>
-              ) : displayRequests.length === 0 ? (
-                <EmptyState
-                  icon={searchQuery ? Search : Package}
-                  color="#a78bfa"
-                  title={
-                    searchQuery
-                      ? 'Ничего не найдено'
-                      : user.role === 'sender'
-                        ? 'У вас пока нет заявок'
-                        : 'Заявок пока нет'
-                  }
-                  subtitle={
-                    searchQuery
-                      ? `По запросу «${searchQuery}» совпадений нет`
-                      : user.role === 'sender'
-                        ? 'Нажмите «Создать», чтобы найти курьера'
-                        : 'Отправители пока не оставили заявок — загляните позже'
-                  }
-                />
-              ) : (
-                <div className="avia-cards-grid">
-                  <AnimatePresence>
-                    {displayRequests.map((r) => (
-                      <RequestCard
-                        key={r.id}
-                        request={r}
-                        isMine={r.senderId === myPhone}
-                        onDelete={removeRequestEverywhere}
-                        onClose={handleCloseRequest}
-                        onDetail={setDetailRequest}
-                        onChat={r.senderId !== myPhone ? handleOpenChat : undefined}
-                        onOffer={r.senderId !== myPhone && user.role === 'courier'
-                          ? (req) => setDealOfferRequest(req) : undefined}
-                        chatUnread={r.senderId !== myPhone ? (chatUnreadByPhone.current[r.senderId] || 0) : undefined}
-                      />
-                    ))}
-                  </AnimatePresence>
-                </div>
-              )}
-            </motion.div>
-          )}
-
+          </motion.div>
         </AnimatePresence>
 
         <div style={{ height: 60 }} />
@@ -1873,22 +1485,6 @@ export function AviaDashboard() {
             }}
           />
         )}
-        {showRequestModal && (
-          <CreateRequestModal
-            key="request-modal"
-            user={user}
-            onClose={() => setShowRequestModal(false)}
-            onSuccess={(req) => {
-              setRequests(prev => [req, ...prev]);
-              setMyRequests(prev => [req, ...prev]);
-              setShowRequestModal(false);
-              toast.success('Заявка опубликована!', {
-                description: `${req.from} → ${req.to}, ${req.weightKg} кг`,
-                duration: 3500,
-              });
-            }}
-          />
-        )}
       </AnimatePresence>
 
       {/* ── Detail Modals ── */}
@@ -1906,22 +1502,6 @@ export function AviaDashboard() {
             onClosed={(id) => {
               setFlights(prev => prev.filter(x => x.id !== id));
               setMyFlights(prev => prev.map(x => x.id === id ? { ...x, status: 'closed' } : x));
-            }}
-          />
-        )}
-        {detailRequest && (
-          <RequestDetailModal
-            key={`detail-request-${detailRequest.id}`}
-            request={detailRequest}
-            isMine={detailRequest.senderId === myPhone}
-            onClose={() => setDetailRequest(null)}
-            onDeleted={(id) => {
-              setRequests(prev => prev.filter(x => x.id !== id));
-              setMyRequests(prev => prev.filter(x => x.id !== id));
-            }}
-            onClosed={(id) => {
-              setRequests(prev => prev.filter(x => x.id !== id));
-              setMyRequests(prev => prev.map(x => x.id === id ? { ...x, status: 'closed' } : x));
             }}
           />
         )}
@@ -1948,25 +1528,6 @@ export function AviaDashboard() {
             }}
           />
         )}
-        {dealOfferRequest && (
-          <AviaDealOfferModal
-            key={`deal-request-${dealOfferRequest.id}`}
-            me={user}
-            request={dealOfferRequest}
-            onClose={() => setDealOfferRequest(null)}
-            onSuccess={() => { fetchDealsCount(); }}
-            onOpenChat={(chatId, otherPhone, adRef) => {
-              setDealOfferRequest(null);
-              const params = new URLSearchParams({
-                chatId, otherPhone,
-                adType: adRef.type, adId: adRef.id,
-                adFrom: adRef.from, adTo: adRef.to,
-                ...(adRef.date ? { adDate: adRef.date } : {}),
-              });
-              navigate(`/avia/messages?${params.toString()}`);
-            }}
-          />
-        )}
       </AnimatePresence>
 
       {/* ── Пакет M: Filter Sheets ── */}
@@ -1978,15 +1539,6 @@ export function AviaDashboard() {
         onReset={() => setFlightFS(EMPTY_FILTER_STATE)}
         accentColor="#0ea5e9"
         isFlights={true}
-      />
-      <AviaFilterSheet
-        open={showRequestFilter}
-        onClose={() => setShowRequestFilter(false)}
-        filters={requestFS}
-        onChange={setRequestFS}
-        onReset={() => setRequestFS(EMPTY_FILTER_STATE)}
-        accentColor="#a78bfa"
-        isFlights={false}
       />
 
       {/* ── Пакет G: Notification Center ── */}
