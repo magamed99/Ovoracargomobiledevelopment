@@ -1351,6 +1351,11 @@ export function AviaDashboard() {
               setFlights(prev => prev.filter(x => x.id !== id));
               setMyFlights(prev => prev.map(x => x.id === id ? { ...x, status: 'closed' } : x));
             }}
+            onUpdated={(updated) => {
+              setFlights(prev => prev.map(x => x.id === updated.id ? updated : x));
+              setMyFlights(prev => prev.map(x => x.id === updated.id ? updated : x));
+              setDetailFlight(updated);
+            }}
           />
         )}
       </AnimatePresence>

@@ -366,6 +366,20 @@ export async function createAviaFlight(flightData: Partial<AviaFlight>): Promise
   return res.json();
 }
 
+/** Редактировать рейс: цены, номер рейса, дату (маршрут и вес не меняются) */
+export async function updateAviaFlight(
+  id: string,
+  callerPhone: string,
+  updates: { pricePerKg?: number; docsPrice?: number; currency?: string; flightNo?: string; date?: string },
+): Promise<{ success: boolean; flight?: AviaFlight; error?: string }> {
+  const res = await fetch(`${BASE}/avia/flights/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: HEADERS,
+    body: JSON.stringify({ callerPhone, ...updates }),
+  });
+  return res.json();
+}
+
 /** Удалить рейс (мягкое удаление) */
 export async function deleteAviaFlight(id: string, callerPhone: string): Promise<{ success: boolean; error?: string }> {
   const res = await fetch(`${BASE}/avia/flights/${encodeURIComponent(id)}?callerPhone=${encodeURIComponent(callerPhone)}`, {
