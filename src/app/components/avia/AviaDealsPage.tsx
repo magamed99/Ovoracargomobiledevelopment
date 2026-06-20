@@ -18,7 +18,6 @@ import {
   uploadAviaDealPOD,
 } from '../../api/aviaDealApi';
 import type { AviaDeal, AviaDealStatus, AviaPODPhoto, AviaPODPhotoType } from '../../api/aviaDealApi';
-import { getAviaFlight } from '../../api/aviaApi';
 import { makeAviaChatId } from '../../api/aviaChatApi';
 import { AviaReviewModal } from './AviaReviewModal';
 import { getAviaDealReviewStatus } from '../../api/aviaReviewApi';
@@ -41,15 +40,11 @@ const TABS: { id: TabId; label: string; color: string }[] = [
   { id: 'cancelled', label: 'Отменённые',  color: '#6b8299' },
 ];
 
-// Сделка по рейсу считается «Завершённой» только когда завершён весь рейс
-// (курьер нажал «Завершить поездку»), а не когда завершена одна сделка
-// с одним из отправителей — иначе карточка прыгает во вкладку раньше времени.
-function dealBucket(d: AviaDeal, flightStatusById: Record<string, string>): TabId {
+// Вкладка сделки определяется её собственным статусом — рейс целиком
+// может ещё идти, но сделка с конкретным отправителем уже завершена.
+function dealBucket(d: AviaDeal): TabId {
   if (d.status === 'cancelled' || d.status === 'rejected') return 'cancelled';
-  if (d.status === 'completed') {
-    if (d.adType === 'flight' && flightStatusById[d.adId] !== 'completed') return 'active';
-    return 'completed';
-  }
+  if (d.status === 'completed') return 'completed';
   return 'active';
 }
 
@@ -605,9 +600,6 @@ export function AviaDealsPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>('active');
-  // adId рейса → его статус — нужно знать, завершена ли вся поездка целиком,
-  // а не только отдельная сделка с одним отправителем (см. dealBucket)
-  const [flightStatusById, setFlightStatusById] = useState<Record<string, string>>({});
 
   // Чат перенесён на /avia/messages
 
@@ -625,21 +617,6 @@ export function AviaDealsPage() {
     try {
       const data = await getAviaDeals(myPhone);
       setDeals(data);
-
-      // Подгружаем статус рейсов для завершённых сделок типа «рейс» — без этого
-      // непонятно, завершён ли весь рейс целиком или только эта одна сделка
-      const flightIds = Array.from(new Set(
-        data.filter(d => d.adType === 'flight' && d.status === 'completed').map(d => d.adId)
-      ));
-      if (flightIds.length) {
-        const entries = await Promise.all(flightIds.map(async id => {
-          try {
-            const fl = await getAviaFlight(id, myPhone);
-            return [id, fl?.status || ''] as const;
-          } catch { return [id, ''] as const; }
-        }));
-        setFlightStatusById(prev => ({ ...prev, ...Object.fromEntries(entries) }));
-      }
 
       // загружаем статусы отзывов только для завершённых сделок
       const completed = data.filter(d => d.status === 'completed');
@@ -668,7 +645,7 @@ export function AviaDealsPage() {
   }, [isAuth, myPhone]);
 
   // ── Фильтрация ────────────────────────────────────────────────────────────
-  const filtered = deals.filter(d => dealBucket(d, flightStatusById) === activeTab);
+  const filtered = deals.filter(d => dealBucket(d) === activeTab);
 
   // ── Группировка по рейсу ─────────────────────────────────────────────────
   // У одного рейса может быть несколько принятых/завершённых сделок (разные
@@ -695,9 +672,9 @@ export function AviaDealsPage() {
   }, [filtered]);
 
   // ── Badges ────────────────────────────────────────────────────────────────
-  const activeCount    = deals.filter(d => dealBucket(d, flightStatusById) === 'active').length;
-  const completedCount = deals.filter(d => dealBucket(d, flightStatusById) === 'completed').length;
-  const cancelledCount = deals.filter(d => dealBucket(d, flightStatusById) === 'cancelled').length;
+  const activeCount    = deals.filter(d => dealBucket(d) === 'active').length;
+  const completedCount = deals.filter(d => dealBucket(d) === 'completed').length;
+  const cancelledCount = deals.filter(d => dealBucket(d) === 'cancelled').length;
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleAccept = async (id: string) => {
