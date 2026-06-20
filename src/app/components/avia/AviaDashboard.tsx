@@ -1146,12 +1146,6 @@ export function AviaDashboard() {
                     }}>
                       {currentAviaAd.badge}
                     </span>
-                    <span style={{
-                      fontSize: 9.5, fontWeight: 700, padding: '4px 9px', borderRadius: 999,
-                      background: 'rgba(0,0,0,0.4)', color: 'rgba(255,255,255,0.8)', backdropFilter: 'blur(4px)',
-                    }}>
-                      {isAviaAdFallback ? 'Демо' : 'Реклама'}
-                    </span>
                   </div>
                   <div>
                     <p style={{ fontSize: 18, fontWeight: 900, color: '#fff', lineHeight: 1.2, margin: 0, textShadow: '0 2px 10px rgba(0,0,0,0.4)' }}>
