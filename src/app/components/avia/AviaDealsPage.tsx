@@ -300,8 +300,8 @@ function DealCard({
             </motion.button>
           )}
 
-          {/* Any participant: complete (if accepted) */}
-          {(isInitiator || isRecipient) && deal.status === 'accepted' && (
+          {/* Только курьер может завершить сделку (если активна) */}
+          {isCourier && deal.status === 'accepted' && (
             <motion.button
               whileTap={{ scale: 0.93 }}
               disabled={!!acting}

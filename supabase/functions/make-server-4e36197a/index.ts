@@ -7775,8 +7775,8 @@ app.patch("/make-server-4e36197a/avia/deals/:id/complete", async (c) => {
     const clean = aviaCleanPhone(phone);
     const deal: any = await kv.get(`ovora:avia-deal:${id}`);
     if (!deal) return c.json({ error: 'Deal not found' }, 404);
-    const isParticipant = deal.courierId === clean || deal.senderId === clean;
-    if (!isParticipant) return c.json({ error: 'Forbidden: not a participant' }, 403);
+    const isCourier = deal.courierId === clean;
+    if (!isCourier) return c.json({ error: 'Forbidden: only the courier can complete a deal' }, 403);
     if (deal.status !== 'accepted') return c.json({ error: `Cannot complete deal with status: ${deal.status}` }, 400);
 
     const now = new Date().toISOString();
