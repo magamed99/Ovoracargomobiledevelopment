@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router';
-import { Plane, User, Package, ShieldAlert, ShieldX, Calendar, Trash2, Plus, RefreshCw, ArrowRight, AlertTriangle, Phone, Copy, Check, XCircle, SlidersHorizontal, X, Search, ArrowDown, Bell, MessageCircle, Handshake, FileText, Flag, PlayCircle, ClipboardList, Zap } from 'lucide-react';
+import { Plane, User, Package, ShieldAlert, ShieldX, Calendar, Plus, RefreshCw, ArrowRight, AlertTriangle, Phone, Copy, Check, XCircle, SlidersHorizontal, X, Search, ArrowDown, Bell, MessageCircle, Handshake, FileText, ClipboardList, Zap } from 'lucide-react';
 import { NotificationCenter } from './NotificationCenter';
-import { AviaConfirmSheet } from './AviaConfirmSheet';
 import { fmtDate, maskPhone } from '../../utils/aviaUtils';
 
 import { makeAviaChatId, getAviaUserChats } from '../../api/aviaChatApi';
@@ -13,9 +12,6 @@ import { useAvia } from './AviaContext';
 import {
   canCreateAd,
   getAviaFlights,
-  deleteAviaFlight,
-  closeAviaFlight,
-  completeAviaFlight, startAviaFlight,
   getMyAviaAds,
 } from '../../api/aviaApi';
 import type { AviaFlight } from '../../api/aviaApi';
@@ -153,87 +149,20 @@ function ContactButton({ phone, accentColor }: { phone: string; accentColor: str
 // ── Карточка рейса ────────────────────────────────────────────────────────────
 
 function FlightCard({
-  flight, isMine, onDelete, onClose, onComplete, onStart, onDetail, onChat, onOffer, chatUnread,
+  flight, isMine, onDetail, onChat, onOffer, chatUnread, hasMyDeal,
 }: {
   flight: AviaFlight;
   isMine: boolean;
-  onDelete: (id: string) => void;
-  onClose?: (id: string) => void;
-  onComplete?: (id: string) => void;
-  onStart?: (id: string) => void;
   onDetail?: (f: AviaFlight) => void;
   onChat?: (otherPhone: string, adRef: AviaChatAdRef) => void;
   onOffer?: (flight: AviaFlight) => void;
   chatUnread?: number;
+  hasMyDeal?: boolean;
 }) {
-  const [deleting, setDeleting] = useState(false);
-  const [closing, setClosing] = useState(false);
-  const [completing, setCompleting] = useState(false);
-  const [starting, setStarting] = useState(false);
   const isClosed = flight.status === 'closed';
   const isCompleted = flight.status === 'completed';
   const isInProgress = flight.status === 'in_progress';
-  const { user: aviaUser } = useAvia();
   const navigate = useNavigate();
-
-  // ── AviaConfirmSheet state ──────────────────────────────────────────────────
-  type ConfirmCfg = { title: string; description: string; variant: 'danger' | 'warning' | 'complete'; label: string; action: () => Promise<void> };
-  const [confirmCfg, setConfirmCfg] = useState<ConfirmCfg | null>(null);
-
-  const execDelete = async () => {
-    if (!aviaUser?.phone) return;
-    setDeleting(true);
-    try {
-      await deleteAviaFlight(flight.id, aviaUser.phone);
-      onDelete(flight.id);
-      toast.success('Рейс удалён', { duration: 2500 });
-    } catch {
-      toast.error('Не удалось удалить рейс');
-    } finally { setDeleting(false); }
-  };
-
-  const execClose = async () => {
-    if (!aviaUser?.phone) return;
-    setClosing(true);
-    try {
-      await closeAviaFlight(flight.id, aviaUser.phone);
-      if (onClose) onClose(flight.id);
-      toast.success('Рейс закрыт', { duration: 2500 });
-    } catch {
-      toast.error('Не удалось закрыть рейс');
-    } finally { setClosing(false); }
-  };
-
-  const execComplete = async () => {
-    if (!aviaUser?.phone) return;
-    setCompleting(true);
-    try {
-      const result = await completeAviaFlight(flight.id, aviaUser.phone);
-      if (result.error) throw new Error(result.error);
-      if (onComplete) onComplete(flight.id);
-      toast.success(`Поездка завершена! Завершено сделок: ${result.completedDeals ?? 0}`, { duration: 3000 });
-    } catch {
-      toast.error('Не удалось завершить поездку');
-    } finally { setCompleting(false); }
-  };
-
-  const execStart = async () => {
-    if (!aviaUser?.phone) return;
-    setStarting(true);
-    try {
-      const result = await startAviaFlight(flight.id, aviaUser.phone);
-      if (result.error) throw new Error(result.error);
-      if (onStart) onStart(flight.id);
-      toast.success('Поездка начата! Рейс скрыт из поиска у других пользователей', { duration: 3000 });
-    } catch {
-      toast.error('Не удалось начать поездку');
-    } finally { setStarting(false); }
-  };
-
-  const handleDelete   = () => setConfirmCfg({ title: 'Удалить рейс?', description: 'Рейс будет удалён навсегда. Это действие нельзя отменить.', variant: 'danger', label: 'Удалить', action: execDelete });
-  const handleClose    = () => setConfirmCfg({ title: 'Закрыть рейс?', description: 'Рейс исчезнет из общего списка. Вы сможете его удалить позже.', variant: 'warning', label: 'Закрыть', action: execClose });
-  const handleComplete = () => setConfirmCfg({ title: 'Завершить сделку?', description: 'Все принятые сделки будут отмечены как завершённые.', variant: 'complete', label: 'Завершить', action: execComplete });
-  const handleStart     = () => setConfirmCfg({ title: 'Начать поездку?', description: 'Рейс исчезнет из публичного поиска — новые заявки больше не будут приходить.', variant: 'complete', label: 'Начать', action: execStart });
 
   // Вычисляем отображаемую ёмкость
   const displayFreeKg = (flight.freeKg || 0) - (flight.reservedKg || 0);
@@ -392,154 +321,92 @@ function FlightCard({
         </div>
 
         {isMine ? (
-          <div className="avia-card-actions-row" style={{
-            display: 'flex', gap: 6, flexWrap: 'nowrap',
-            overflowX: 'auto', justifyContent: 'flex-end',
-            width: '100%', WebkitOverflowScrolling: 'touch',
-          }}>
-            <button
-              onClick={() => navigate(`/avia/flight/${flight.id}/manifest`)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0,
-                padding: '5px 10px', borderRadius: 8, cursor: 'pointer',
-                border: '1px solid #a78bfa20', background: '#a78bfa08',
-                color: '#a78bfa', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap',
-              }}
-            >
-              <ClipboardList style={{ width: 12, height: 12 }} />
-              Манифест
-            </button>
-            {!isDone && !isInProgress && (
-              <>
-                <button
-                  onClick={handleStart}
-                  disabled={starting}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0,
-                    padding: '5px 10px', borderRadius: 8, cursor: 'pointer',
-                    border: '1px solid #38bdf820', background: '#38bdf808',
-                    color: '#38bdf8', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap',
-                    opacity: starting ? 0.5 : 1, transition: 'opacity 0.2s',
-                  }}
-                >
-                  <PlayCircle style={{ width: 12, height: 12 }} />
-                  {starting ? '...' : 'Начать поездку'}
-                </button>
-                <button
-                  onClick={handleClose}
-                  disabled={closing}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0,
-                    padding: '5px 10px', borderRadius: 8, cursor: 'pointer',
-                    border: '1px solid #f59e0b20', background: '#f59e0b08',
-                    color: '#fbbf24', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap',
-                    opacity: closing ? 0.5 : 1, transition: 'opacity 0.2s',
-                  }}
-                >
-                  <XCircle style={{ width: 12, height: 12 }} />
-                  {closing ? '...' : 'Закрыть'}
-                </button>
-              </>
-            )}
-            {!isDone && isInProgress && (
-              <button
-                onClick={handleComplete}
-                disabled={completing}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0,
-                  padding: '5px 10px', borderRadius: 8, cursor: 'pointer',
-                  border: '1px solid #34d39920', background: '#34d39908',
-                  color: '#34d399', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap',
-                  opacity: completing ? 0.5 : 1, transition: 'opacity 0.2s',
-                }}
-              >
-                <Flag style={{ width: 12, height: 12 }} />
-                {completing ? '...' : 'Завершить сделку'}
-              </button>
-            )}
-            <button
-              onClick={handleDelete}
-              disabled={deleting}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0,
-                padding: '5px 10px', borderRadius: 8, cursor: 'pointer',
-                border: '1px solid #ef444420', background: '#ef444408',
-                color: '#f87171', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap',
-                opacity: deleting ? 0.5 : 1, transition: 'opacity 0.2s',
-              }}
-            >
-              <Trash2 style={{ width: 12, height: 12 }} />
-              {deleting ? '...' : 'Удалить'}
-            </button>
-          </div>
+          <button
+            onClick={() => navigate(`/avia/flight/${flight.id}/manifest`)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0,
+              padding: '5px 10px', borderRadius: 8, cursor: 'pointer',
+              border: '1px solid #a78bfa20', background: '#a78bfa08',
+              color: '#a78bfa', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap',
+            }}
+          >
+            <ClipboardList style={{ width: 12, height: 12 }} />
+            Манифест
+          </button>
         ) : (
-          !isDone && (
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-              {onChat && (
-                <motion.button
-                  whileTap={{ scale: 0.94 }}
-                  onClick={() => onChat(flight.courierId, { type: 'flight', id: flight.id, from: flight.from, to: flight.to })}
+          !isClosed && (
+            (isInProgress || isCompleted) ? (
+              hasMyDeal && (
+                <button
+                  onClick={() => navigate(`/avia/flight/${flight.id}/manifest`)}
                   style={{
-                    position: 'relative',
-                    display: 'flex', alignItems: 'center', gap: 5,
+                    display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0,
                     padding: '5px 10px', borderRadius: 9, cursor: 'pointer',
-                    border: '1px solid rgba(14,165,233,0.22)',
-                    background: 'rgba(14,165,233,0.08)',
-                    color: '#0ea5e9', fontSize: 11, fontWeight: 700,
+                    border: '1px solid rgba(167,139,250,0.22)',
+                    background: 'rgba(167,139,250,0.08)',
+                    color: '#a78bfa', fontSize: 11, fontWeight: 700,
                   }}
                 >
-                  <MessageCircle style={{ width: 11, height: 11 }} />
-                  Написать
-                  {(chatUnread || 0) > 0 && (
-                    <span style={{
-                      position: 'absolute', top: -4, right: -4,
-                      minWidth: 14, height: 14, borderRadius: 7,
-                      background: '#0ea5e9', color: '#fff',
-                      fontSize: 8, fontWeight: 800,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      padding: '0 3px',
-                      border: '2px solid #060d18',
-                      boxShadow: '0 0 6px rgba(14,165,233,0.5)',
-                    }}>
-                      {chatUnread}
-                    </span>
-                  )}
-                </motion.button>
-              )}
-              {onOffer && (
-                <motion.button
-                  whileTap={{ scale: 0.94 }}
-                  onClick={() => onOffer(flight)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 5,
-                    padding: '5px 10px', borderRadius: 9, cursor: 'pointer',
-                    border: '1px solid rgba(52,211,153,0.22)',
-                    background: 'rgba(52,211,153,0.08)',
-                    color: '#34d399', fontSize: 11, fontWeight: 700,
-                  }}
-                >
-                  <Handshake style={{ width: 11, height: 11 }} />
-                  Предложить
-                </motion.button>
-              )}
-              <ContactButton phone={flight.courierId} accentColor="#0ea5e9" />
-            </div>
+                  <ClipboardList style={{ width: 11, height: 11 }} />
+                  Манифест
+                </button>
+              )
+            ) : (
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                {onChat && (
+                  <motion.button
+                    whileTap={{ scale: 0.94 }}
+                    onClick={() => onChat(flight.courierId, { type: 'flight', id: flight.id, from: flight.from, to: flight.to })}
+                    style={{
+                      position: 'relative',
+                      display: 'flex', alignItems: 'center', gap: 5,
+                      padding: '5px 10px', borderRadius: 9, cursor: 'pointer',
+                      border: '1px solid rgba(14,165,233,0.22)',
+                      background: 'rgba(14,165,233,0.08)',
+                      color: '#0ea5e9', fontSize: 11, fontWeight: 700,
+                    }}
+                  >
+                    <MessageCircle style={{ width: 11, height: 11 }} />
+                    Написать
+                    {(chatUnread || 0) > 0 && (
+                      <span style={{
+                        position: 'absolute', top: -4, right: -4,
+                        minWidth: 14, height: 14, borderRadius: 7,
+                        background: '#0ea5e9', color: '#fff',
+                        fontSize: 8, fontWeight: 800,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        padding: '0 3px',
+                        border: '2px solid #060d18',
+                        boxShadow: '0 0 6px rgba(14,165,233,0.5)',
+                      }}>
+                        {chatUnread}
+                      </span>
+                    )}
+                  </motion.button>
+                )}
+                {onOffer && (
+                  <motion.button
+                    whileTap={{ scale: 0.94 }}
+                    onClick={() => onOffer(flight)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 5,
+                      padding: '5px 10px', borderRadius: 9, cursor: 'pointer',
+                      border: '1px solid rgba(52,211,153,0.22)',
+                      background: 'rgba(52,211,153,0.08)',
+                      color: '#34d399', fontSize: 11, fontWeight: 700,
+                    }}
+                  >
+                    <Handshake style={{ width: 11, height: 11 }} />
+                    Предложить
+                  </motion.button>
+                )}
+                <ContactButton phone={flight.courierId} accentColor="#0ea5e9" />
+              </div>
+            )
           )
         )}
       </div>
     </motion.div>
-
-    {confirmCfg && (
-      <AviaConfirmSheet
-        isOpen={true}
-        onClose={() => setConfirmCfg(null)}
-        onConfirm={() => { confirmCfg.action(); setConfirmCfg(null); }}
-        title={confirmCfg.title}
-        description={confirmCfg.description}
-        variant={confirmCfg.variant}
-        confirmLabel={confirmCfg.label}
-      />
-    )}
     </>
   );
 }
@@ -635,6 +502,9 @@ export function AviaDashboard() {
   // ── Пакет I: Сделки ────────────────────────────────────────────────────────
   const [dealOfferFlight, setDealOfferFlight] = useState<AviaFlight | null>(null);
   const [_pendingDealsCount, setPendingDealsCount] = useState(0);
+  // Рейсы, на которые у меня (как у отправителя) уже есть сделка — чтобы показать
+  // кнопку «Манифест» на карточке рейса вместо переписки/предложения
+  const [myDealFlightIds, setMyDealFlightIds] = useState<Set<string>>(new Set());
 
   const fetchDealsCount = useCallback(() => {
     if (!user?.phone) return;
@@ -642,6 +512,7 @@ export function AviaDashboard() {
       .then(deals => {
         const incoming = deals.filter(d => d.recipientPhone === user.phone && d.status === 'pending').length;
         setPendingDealsCount(incoming);
+        setMyDealFlightIds(new Set(deals.filter(d => d.adType === 'flight').map(d => d.adId)));
       })
       .catch(() => {});
   }, [user?.phone]);
@@ -904,20 +775,6 @@ export function AviaDashboard() {
     }
     setShowFlightModal(true);
   };
-
-  // Изменение статуса своего рейса/заявки — обновляем оба списка на месте,
-  // не вырезая карточку, чтобы она не пропадала с «Главная» (бэкенд публичных
-  // списков отдаёт только active, поэтому live-статус держим на клиенте).
-  const updateFlightStatus = (id: string, status: AviaFlight['status']) => {
-    setFlights(prev => prev.map(f => f.id === id ? { ...f, status } : f));
-    setMyFlights(prev => prev.map(f => f.id === id ? { ...f, status } : f));
-  };
-  const removeFlightEverywhere = (id: string) => {
-    setFlights(prev => prev.filter(f => f.id !== id));
-    setMyFlights(prev => prev.filter(f => f.id !== id));
-  };
-
-  const handleCloseFlight  = (id: string) => updateFlightStatus(id, 'closed');
 
   const _handleLogout = () => {
     logout();
@@ -1440,15 +1297,12 @@ export function AviaDashboard() {
                           key={f.id}
                           flight={f}
                           isMine={f.courierId === myPhone}
-                          onDelete={removeFlightEverywhere}
-                          onClose={handleCloseFlight}
-                          onStart={(id) => updateFlightStatus(id, 'in_progress')}
-                          onComplete={(id) => updateFlightStatus(id, 'completed')}
                           onDetail={setDetailFlight}
                           onChat={f.courierId !== myPhone ? handleOpenChat : undefined}
                           onOffer={f.courierId !== myPhone && user.role === 'sender'
                             ? (fl) => setDealOfferFlight(fl) : undefined}
                           chatUnread={f.courierId !== myPhone ? (chatUnreadByPhone.current[f.courierId] || 0) : undefined}
+                          hasMyDeal={f.courierId !== myPhone && myDealFlightIds.has(f.id)}
                         />
                       ))}
                     </AnimatePresence>
