@@ -12,13 +12,11 @@ export interface CurrencyOption {
 
 export const AVIA_CURRENCIES: CurrencyOption[] = [
   { code: 'USD', symbol: '$',    name: 'Доллар США',      flag: '🇺🇸', color: '#34d399' },
-  { code: 'EUR', symbol: '€',    name: 'Евро',             flag: '🇪🇺', color: '#60a5fa' },
   { code: 'RUB', symbol: '₽',    name: 'Рубль',            flag: '🇷🇺', color: '#f87171' },
-  { code: 'AED', symbol: 'د.إ', name: 'Дирхам ОАЭ',      flag: '🇦🇪', color: '#fbbf24' },
-  { code: 'TJS', symbol: 'с.',   name: 'Сомони',           flag: '🇹🇯', color: '#a78bfa' },
-  { code: 'KZT', symbol: '₸',    name: 'Тенге',            flag: '🇰🇿', color: '#fb923c' },
   { code: 'UZS', symbol: "so'm", name: 'Сум',              flag: '🇺🇿', color: '#4ade80' },
-  { code: 'CNY', symbol: '¥',    name: 'Юань',             flag: '🇨🇳', color: '#f472b6' },
+  { code: 'TJS', symbol: 'с.',   name: 'Сомони',           flag: '🇹🇯', color: '#a78bfa' },
+  { code: 'KGS', symbol: 'с',    name: 'Сом',              flag: '🇰🇬', color: '#fbbf24' },
+  { code: 'KZT', symbol: '₸',    name: 'Тенге',            flag: '🇰🇿', color: '#fb923c' },
 ];
 
 export function getCurrency(code: string): CurrencyOption {
