@@ -499,14 +499,20 @@ export function AviaFlightManifestPage() {
                   </button>
                 ) : (
                   <button
-                    onClick={handleComplete}
-                    disabled={completing}
+                    onClick={() => {
+                      if (counts.accepted > 0) {
+                        toast.error(`Сначала завершите все сделки с отправителями (осталось: ${counts.accepted})`);
+                        return;
+                      }
+                      handleComplete();
+                    }}
+                    disabled={completing || counts.accepted > 0}
                     style={{
                       flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                      padding: '11px 14px', borderRadius: 12, cursor: 'pointer',
+                      padding: '11px 14px', borderRadius: 12, cursor: counts.accepted > 0 ? 'not-allowed' : 'pointer',
                       border: '1px solid #34d39924', background: '#34d3990c',
                       color: '#34d399', fontSize: 13, fontWeight: 700,
-                      opacity: completing ? 0.5 : 1,
+                      opacity: completing || counts.accepted > 0 ? 0.5 : 1,
                     }}
                   >
                     <Flag style={{ width: 15, height: 15 }} />
@@ -514,6 +520,11 @@ export function AviaFlightManifestPage() {
                   </button>
                 )}
               </div>
+            )}
+            {isCourierView && flight.status === 'in_progress' && counts.accepted > 0 && (
+              <p style={{ fontSize: 11, color: '#f59e0b', margin: '-8px 0 14px', lineHeight: 1.5 }}>
+                Завершите сделки со всеми отправителями (фото получения и передачи), чтобы закрыть поездку — осталось: {counts.accepted}
+              </p>
             )}
 
             <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
