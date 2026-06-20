@@ -1,13 +1,8 @@
 import { useState } from 'react';
-import { X, Plane, Calendar, User, Clock, Phone, Copy, Check, Trash2, XCircle, MapPin, Weight, DollarSign, Hash, Pencil } from 'lucide-react';
+import { X, Plane, Calendar, User, Clock, Phone, Copy, Check, MapPin, Weight, DollarSign, Hash, Pencil } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import type { AviaFlight } from '../../api/aviaApi';
-import {
-  deleteAviaFlight,
-  closeAviaFlight,
-} from '../../api/aviaApi';
-import { useAvia } from './AviaContext';
 import { EditFlightModal } from './EditFlightModal';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -144,45 +139,16 @@ function InfoRow({
 // ══════════════════════════════════════════════════════════════════════════════
 
 export function FlightDetailModal({
-  flight, isMine, onClose, onDeleted, onClosed, onUpdated,
+  flight, isMine, onClose, onUpdated,
 }: {
   flight: AviaFlight;
   isMine: boolean;
   onClose: () => void;
-  onDeleted: (id: string) => void;
-  onClosed: (id: string) => void;
   onUpdated?: (flight: AviaFlight) => void;
 }) {
-  const [deleting, setDeleting] = useState(false);
-  const [closing, setClosing] = useState(false);
   const [editing, setEditing] = useState(false);
   const isFlightClosed = flight.status === 'closed';
   const isFlightDone = flight.status === 'closed' || flight.status === 'completed';
-  const { user: aviaUser } = useAvia();
-
-  const handleDelete = async () => {
-    if (!aviaUser?.phone || !confirm('Удалить этот рейс навсегда?')) return;
-    setDeleting(true);
-    try {
-      await deleteAviaFlight(flight.id, aviaUser.phone);
-      onDeleted(flight.id);
-      onClose();
-      toast.success('Рейс удалён');
-    } catch { toast.error('Не удалось удалить рейс'); }
-    finally { setDeleting(false); }
-  };
-
-  const handleCloseAd = async () => {
-    if (!aviaUser?.phone || !confirm('Закрыть рейс? Он исчезнет из общего списка.')) return;
-    setClosing(true);
-    try {
-      await closeAviaFlight(flight.id, aviaUser.phone);
-      onClosed(flight.id);
-      onClose();
-      toast.success('Рейс закрыт');
-    } catch { toast.error('Не удалось закрыть рейс'); }
-    finally { setClosing(false); }
-  };
 
   return (
     <motion.div
@@ -320,51 +286,19 @@ export function FlightDetailModal({
         )}
 
         {/* Actions */}
-        {isMine && (
+        {isMine && !isFlightDone && (
           <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-            {!isFlightDone && (
-              <button
-                onClick={() => setEditing(true)}
-                style={{
-                  flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  padding: '12px 16px', borderRadius: 12, cursor: 'pointer',
-                  border: '1px solid #0ea5e924', background: '#0ea5e90c',
-                  color: '#38bdf8', fontSize: 13, fontWeight: 700,
-                }}
-              >
-                <Pencil style={{ width: 15, height: 15 }} />
-                Редактировать
-              </button>
-            )}
-            {!isFlightClosed && (
-              <button
-                onClick={handleCloseAd}
-                disabled={closing}
-                style={{
-                  flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  padding: '12px 16px', borderRadius: 12, cursor: 'pointer',
-                  border: '1px solid #f59e0b24', background: '#f59e0b0c',
-                  color: '#fbbf24', fontSize: 13, fontWeight: 700,
-                  opacity: closing ? 0.5 : 1,
-                }}
-              >
-                <XCircle style={{ width: 15, height: 15 }} />
-                {closing ? 'Закрытие...' : 'Закрыть рейс'}
-              </button>
-            )}
             <button
-              onClick={handleDelete}
-              disabled={deleting}
+              onClick={() => setEditing(true)}
               style={{
                 flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                 padding: '12px 16px', borderRadius: 12, cursor: 'pointer',
-                border: '1px solid #ef444424', background: '#ef44440c',
-                color: '#f87171', fontSize: 13, fontWeight: 700,
-                opacity: deleting ? 0.5 : 1,
+                border: '1px solid #0ea5e924', background: '#0ea5e90c',
+                color: '#38bdf8', fontSize: 13, fontWeight: 700,
               }}
             >
-              <Trash2 style={{ width: 15, height: 15 }} />
-              {deleting ? 'Удаление...' : 'Удалить'}
+              <Pencil style={{ width: 15, height: 15 }} />
+              Редактировать
             </button>
           </div>
         )}

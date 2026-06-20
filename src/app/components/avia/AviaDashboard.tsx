@@ -750,8 +750,10 @@ export function AviaDashboard() {
 
   // Для курьера вкладка «Мои рейсы» — это его собственные рейсы любого статуса
   // (публичный список flights отдаёт только active, поэтому берём из myFlights,
-  // чтобы рейс не пропадал с главной после старта/закрытия поездки).
-  const preFilteredFlights = user.role === 'courier' ? myFlights : flights;
+  // чтобы рейс не пропадал с главной после старта поездки). Завершённые рейсы
+  // на главной не нужны — управлять ими можно через «Сделки»/Манифест.
+  const preFilteredFlights = (user.role === 'courier' ? myFlights : flights)
+    .filter(fl => fl.status !== 'completed');
 
   // Пакет M: клиентская фильтрация поверх role-prefilter
   const displayFlights = sortFlights(
@@ -1343,14 +1345,6 @@ export function AviaDashboard() {
             flight={detailFlight}
             isMine={detailFlight.courierId === myPhone}
             onClose={() => setDetailFlight(null)}
-            onDeleted={(id) => {
-              setFlights(prev => prev.filter(x => x.id !== id));
-              setMyFlights(prev => prev.filter(x => x.id !== id));
-            }}
-            onClosed={(id) => {
-              setFlights(prev => prev.filter(x => x.id !== id));
-              setMyFlights(prev => prev.map(x => x.id === id ? { ...x, status: 'closed' } : x));
-            }}
             onUpdated={(updated) => {
               setFlights(prev => prev.map(x => x.id === updated.id ? updated : x));
               setMyFlights(prev => prev.map(x => x.id === updated.id ? updated : x));
