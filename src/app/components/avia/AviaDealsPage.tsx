@@ -5,7 +5,7 @@ import {
   ArrowLeft, Handshake, Plane, Package, ArrowRight,
   CheckCircle2, XCircle, Clock, ThumbsUp, RefreshCw,
   Loader2, MessageCircle, Scale, DollarSign,
-  ChevronRight, Bell, Camera,
+  ChevronRight, ChevronDown, Bell, Camera, Info,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAvia } from './AviaContext';
@@ -17,7 +17,7 @@ import {
   completeAviaDeal,
   uploadAviaDealPOD,
 } from '../../api/aviaDealApi';
-import type { AviaDeal, AviaDealStatus } from '../../api/aviaDealApi';
+import type { AviaDeal, AviaDealStatus, AviaPODPhoto, AviaPODPhotoType } from '../../api/aviaDealApi';
 import { makeAviaChatId } from '../../api/aviaChatApi';
 import { AviaReviewModal } from './AviaReviewModal';
 import { getAviaDealReviewStatus } from '../../api/aviaReviewApi';
@@ -46,6 +46,17 @@ function fmtDate(iso: string) {
   } catch { return iso; }
 }
 
+function fmtDateTime(iso: string) {
+  try {
+    return new Date(iso).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  } catch { return iso; }
+}
+
+const POD_META: Record<AviaPODPhotoType, { label: string; shortLabel: string }> = {
+  pickup:   { label: 'Фото получения товара от отправителя', shortLabel: 'Получение' },
+  delivery: { label: 'Фото передачи товара получателю',      shortLabel: 'Передача'  },
+};
+
 function maskPhone(phone: string) {
   const d = phone.replace(/\D/g, '');
   if (d.length < 7) return `+${d}`;
@@ -68,14 +79,16 @@ function DealCard({
   onComplete: (id: string) => void;
   onOpenChat: (otherPhone: string) => void;
   onReview: (deal: AviaDeal) => void;
-  onPODUploaded: (dealId: string, photo: { url: string; path: string; timestamp: string; uploadedBy: string }) => void;
+  onPODUploaded: (dealId: string, photo: AviaPODPhoto) => void;
   alreadyReviewed: boolean;
 }) {
   // Suppress unused var warnings — actions now happen in chat for pending deals
   void onAccept; void onReject; void onCancel;
   const [acting, setActing] = useState<string | null>(null);
-  const [uploadingPOD, setUploadingPOD] = useState(false);
-  const podInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingPOD, setUploadingPOD] = useState<AviaPODPhotoType | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  const pickupInputRef = useRef<HTMLInputElement>(null);
+  const deliveryInputRef = useRef<HTMLInputElement>(null);
   const statusMeta = STATUS_META[deal.status];
   const StatusIcon = statusMeta.icon;
 
@@ -89,6 +102,13 @@ function DealCard({
 
   const otherPhone = isInitiator ? deal.recipientPhone : deal.initiatorPhone;
 
+  const podPhotos      = deal.podPhotos || [];
+  const pickupPhotos   = podPhotos.filter(p => p.type === 'pickup');
+  const deliveryPhotos = podPhotos.filter(p => p.type === 'delivery');
+  const hasPickup       = pickupPhotos.length > 0;
+  const hasDelivery     = deliveryPhotos.length > 0;
+  const canComplete     = hasPickup && hasDelivery;
+
   const act = async (action: string, fn: () => void | Promise<any>) => {
     setActing(action);
     try {
@@ -98,11 +118,11 @@ function DealCard({
     }
   };
 
-  const handlePODFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePODFile = (type: AviaPODPhotoType) => async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
-    setUploadingPOD(true);
+    setUploadingPOD(type);
     try {
       const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
@@ -110,14 +130,14 @@ function DealCard({
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
-      const res = await uploadAviaDealPOD(deal.id, base64, myPhone);
+      const res = await uploadAviaDealPOD(deal.id, type, base64, myPhone);
       if (!res.success || !res.photo) { toast.error(res.error || 'Не удалось загрузить фото'); return; }
       onPODUploaded(deal.id, res.photo);
-      toast.success('Фото подтверждения добавлено');
+      toast.success(type === 'pickup' ? 'Фото получения добавлено' : 'Фото передачи добавлено');
     } catch {
       toast.error('Не удалось загрузить фото');
     } finally {
-      setUploadingPOD(false);
+      setUploadingPOD(null);
     }
   };
 
@@ -202,38 +222,127 @@ function DealCard({
         </p>
       )}
 
-      {/* Фото подтверждения доставки — только курьер, только после завершения */}
-      {deal.status === 'completed' && isCourier && (
-        <div style={{ marginBottom: 10 }}>
-          {!!(deal.podPhotos?.length) && (
-            <div style={{ display: 'flex', gap: 6, overflowX: 'auto', marginBottom: 6 }}>
-              {deal.podPhotos!.map((p, i) => (
-                <a key={p.path || i} href={p.url} target="_blank" rel="noreferrer">
-                  <img src={p.url} alt="POD" style={{
-                    width: 48, height: 48, borderRadius: 8, objectFit: 'cover',
-                    border: '1px solid #ffffff14', flexShrink: 0,
-                  }} />
-                </a>
-              ))}
+      {/* Чекпоинты: получение от отправителя / передача получателю — видно обеим сторонам */}
+      {(deal.status === 'accepted' || deal.status === 'completed') && (
+        <div style={{ marginBottom: 8, display: 'flex', flexDirection: 'column', gap: 5 }}>
+          {(['pickup', 'delivery'] as AviaPODPhotoType[]).map(type => {
+            const photos = type === 'pickup' ? pickupPhotos : deliveryPhotos;
+            const inputRef = type === 'pickup' ? pickupInputRef : deliveryInputRef;
+            const meta = POD_META[type];
+            const done = photos.length > 0;
+            const canUpload = isCourier && deal.status === 'accepted';
+            return (
+              <div key={type} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <div style={{
+                  width: 18, height: 18, borderRadius: 6, flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: done ? '#34d39918' : '#ffffff08',
+                  border: `1px solid ${done ? '#34d39930' : '#ffffff10'}`,
+                }}>
+                  {done
+                    ? <CheckCircle2 style={{ width: 10, height: 10, color: '#34d399' }} />
+                    : <Clock style={{ width: 10, height: 10, color: '#4a6080' }} />}
+                </div>
+                <span style={{ fontSize: 11, color: done ? '#cfe6da' : '#6b8299', fontWeight: 600, flex: 1, minWidth: 0 }}>
+                  {meta.shortLabel}{done && ` · ${fmtDateTime(photos[0].timestamp)}`}
+                </span>
+                {photos.map((p, i) => (
+                  <a key={p.path || i} href={p.url} target="_blank" rel="noreferrer">
+                    <img src={p.url} alt={meta.shortLabel} style={{
+                      width: 26, height: 26, borderRadius: 6, objectFit: 'cover',
+                      border: '1px solid #ffffff14', flexShrink: 0,
+                    }} />
+                  </a>
+                ))}
+                {canUpload && (
+                  <>
+                    <input ref={inputRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={handlePODFile(type)} />
+                    <button
+                      onClick={() => inputRef.current?.click()}
+                      disabled={!!uploadingPOD}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0,
+                        padding: '4px 9px', borderRadius: 7, cursor: 'pointer',
+                        border: '1px solid #34d39928', background: '#34d39910',
+                        color: '#34d399', fontSize: 10, fontWeight: 700,
+                        opacity: uploadingPOD ? 0.6 : 1,
+                      }}
+                    >
+                      {uploadingPOD === type
+                        ? <Loader2 style={{ width: 10, height: 10, animation: 'spin 1s linear infinite' }} />
+                        : <Camera style={{ width: 10, height: 10 }} />}
+                      {done ? 'Ещё' : 'Фото'}
+                    </button>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Подробнее — полная информация о сделке, видно обеим сторонам */}
+      <button
+        onClick={() => setExpanded(v => !v)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 4, marginBottom: 8,
+          padding: '4px 9px', borderRadius: 7, cursor: 'pointer',
+          border: '1px solid #ffffff0e', background: 'transparent',
+          color: '#6b8299', fontSize: 10.5, fontWeight: 700,
+        }}
+      >
+        <Info style={{ width: 10, height: 10 }} />
+        Подробнее
+        <ChevronDown style={{ width: 10, height: 10, transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+      </button>
+
+      {expanded && (
+        <div style={{
+          marginBottom: 10, padding: '10px 12px', borderRadius: 12,
+          background: '#ffffff05', border: '1px solid #ffffff0a',
+          display: 'flex', flexDirection: 'column', gap: 6,
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5 }}>
+            <span style={{ color: '#4a6080' }}>Отправитель</span>
+            <span style={{ color: '#fff', fontWeight: 600 }}>
+              {deal.senderId === cleanMyPhone ? 'Вы' : (deal.senderName || maskPhone(deal.senderId))}
+            </span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5 }}>
+            <span style={{ color: '#4a6080' }}>Курьер</span>
+            <span style={{ color: '#fff', fontWeight: 600 }}>
+              {isCourier ? 'Вы' : (deal.courierName || maskPhone(deal.courierId))}
+            </span>
+          </div>
+          <div style={{ height: 1, background: '#ffffff08', margin: '2px 0' }} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
+            <span style={{ color: '#4a6080' }}>Создана</span>
+            <span style={{ color: '#6b8299' }}>{fmtDateTime(deal.createdAt)}</span>
+          </div>
+          {deal.acceptedAt && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
+              <span style={{ color: '#4a6080' }}>Принята</span>
+              <span style={{ color: '#6b8299' }}>{fmtDateTime(deal.acceptedAt)}</span>
             </div>
           )}
-          <input ref={podInputRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={handlePODFile} />
-          <button
-            onClick={() => podInputRef.current?.click()}
-            disabled={uploadingPOD || (deal.podPhotos?.length || 0) >= 6}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 5,
-              padding: '5px 11px', borderRadius: 8, cursor: 'pointer',
-              border: '1px solid #34d39928', background: '#34d39910',
-              color: '#34d399', fontSize: 11, fontWeight: 700,
-              opacity: uploadingPOD ? 0.6 : 1,
-            }}
-          >
-            {uploadingPOD
-              ? <Loader2 style={{ width: 11, height: 11, animation: 'spin 1s linear infinite' }} />
-              : <Camera style={{ width: 11, height: 11 }} />}
-            {deal.podPhotos?.length ? 'Добавить ещё фото' : 'Фото подтверждения доставки'}
-          </button>
+          {hasPickup && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
+              <span style={{ color: '#4a6080' }}>Получение товара</span>
+              <span style={{ color: '#6b8299' }}>{fmtDateTime(pickupPhotos[0].timestamp)}</span>
+            </div>
+          )}
+          {hasDelivery && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
+              <span style={{ color: '#4a6080' }}>Передача получателю</span>
+              <span style={{ color: '#6b8299' }}>{fmtDateTime(deliveryPhotos[0].timestamp)}</span>
+            </div>
+          )}
+          {deal.completedAt && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
+              <span style={{ color: '#4a6080' }}>Завершена</span>
+              <span style={{ color: '#6b8299' }}>{fmtDateTime(deal.completedAt)}</span>
+            </div>
+          )}
         </div>
       )}
 
@@ -300,19 +409,20 @@ function DealCard({
             </motion.button>
           )}
 
-          {/* Только курьер может завершить сделку (если активна) */}
+          {/* Только курьер может завершить сделку, и только после фото получения + передачи */}
           {isCourier && deal.status === 'accepted' && (
             <motion.button
-              whileTap={{ scale: 0.93 }}
-              disabled={!!acting}
+              whileTap={canComplete ? { scale: 0.93 } : undefined}
+              disabled={!!acting || !canComplete}
+              title={canComplete ? undefined : 'Сначала добавьте фото получения и передачи товара'}
               onClick={() => act('complete', () => onComplete(deal.id))}
               style={{
                 display: 'flex', alignItems: 'center', gap: 4,
-                padding: '5px 11px', borderRadius: 8, cursor: 'pointer',
+                padding: '5px 11px', borderRadius: 8, cursor: canComplete ? 'pointer' : 'not-allowed',
                 border: '1px solid #a78bfa28',
                 background: '#a78bfa10',
                 color: '#a78bfa', fontSize: 11, fontWeight: 700,
-                opacity: acting ? 0.6 : 1,
+                opacity: acting ? 0.6 : (canComplete ? 1 : 0.4),
               }}
             >
               {acting === 'complete'
@@ -462,7 +572,7 @@ export function AviaDealsPage() {
 
   const handleReview = (deal: AviaDeal) => setReviewDeal(deal);
 
-  const handlePODUploaded = (dealId: string, photo: { url: string; path: string; timestamp: string; uploadedBy: string }) => {
+  const handlePODUploaded = (dealId: string, photo: AviaPODPhoto) => {
     setDeals(prev => prev.map(d => d.id === dealId ? { ...d, podPhotos: [...(d.podPhotos || []), photo] } : d));
   };
 

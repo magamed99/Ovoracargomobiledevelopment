@@ -49,7 +49,10 @@ export interface AviaDeal {
   podPhotos?: AviaPODPhoto[];
 }
 
+export type AviaPODPhotoType = 'pickup' | 'delivery';
+
 export interface AviaPODPhoto {
+  type: AviaPODPhotoType;
   url: string;
   path: string;
   timestamp: string;
@@ -215,9 +218,10 @@ export async function completeAviaDeal(
   }
 }
 
-/** Загрузить фото подтверждения доставки (только курьер, только после completed) */
+/** Загрузить фото получения/передачи товара (только курьер, только пока сделка активна) */
 export async function uploadAviaDealPOD(
   dealId: string,
+  type: AviaPODPhotoType,
   base64: string,
   callerPhone: string,
 ): Promise<{ success: boolean; photo?: AviaPODPhoto; error?: string }> {
@@ -225,7 +229,7 @@ export async function uploadAviaDealPOD(
     const res = await fetch(`${BASE}/avia/deals/${encodeURIComponent(dealId)}/pod`, {
       method: 'POST',
       headers: HEADERS,
-      body: JSON.stringify({ base64, callerPhone: callerPhone.replace(/\D/g, '') }),
+      body: JSON.stringify({ base64, type, callerPhone: callerPhone.replace(/\D/g, '') }),
     });
     const data = await res.json();
     if (!res.ok || data.error) return { success: false, error: data.error || 'Ошибка загрузки фото' };
