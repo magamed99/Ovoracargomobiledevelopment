@@ -14,9 +14,9 @@
 import { Hono } from "npm:hono";
 import * as bcrypt from "npm:bcryptjs";
 import {
-  Users, Pins, Flights, Requests, Notifs, Deals, Chats, Reviews,
+  Users, Pins, Flights, Notifs, Deals, Chats, Reviews,
   aviaClean, aviaChatId, aviaId,
-  type AviaUser, type AviaFlight, type AviaRequest, type AviaDeal,
+  type AviaUser, type AviaFlight, type AviaDeal,
   type AviaChatMeta, type AviaMessage, type AviaNotif, type AviaReview,
 } from "./aviaRepo.tsx";
 import { aviaRL, RL, rateLimitMiddleware } from "./rateLimit.tsx";
@@ -691,126 +691,14 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
   });
 
   // ══════════════════════════════════════════════════════════════════════════
-  //  REQUESTS
-  // ══════════════════════════════════════════════════════════════════════════
-
-  app.get(`${P}/requests`, async (c) => {
-    try {
-      const qFrom      = (c.req.query('from') || '').trim().toLowerCase();
-      const qTo        = (c.req.query('to')   || '').trim().toLowerCase();
-      const qDate      = (c.req.query('date') || '').trim();
-      const qWeightMin = Number(c.req.query('weightMin')) || 0;
-      const qWeightMax = Number(c.req.query('weightMax')) || 0;
-
-      let requests = await Requests.listActive();
-
-      if (qFrom || qTo || qDate || qWeightMin || qWeightMax) {
-        requests = requests.filter(r => {
-          if (qFrom && !(r.from || '').toLowerCase().includes(qFrom)) return false;
-          if (qTo   && !(r.to   || '').toLowerCase().includes(qTo))   return false;
-          if (qDate && r.beforeDate !== qDate) return false;
-          if (qWeightMin > 0 && (r.weightKg || 0) < qWeightMin) return false;
-          if (qWeightMax > 0 && (r.weightKg || 0) > qWeightMax) return false;
-          return true;
-        });
-      }
-
-      return c.json({ requests });
-    } catch (err) {
-      console.log('Error GET /avia/requests:', err);
-      return c.json({ error: `${err}` }, 500);
-    }
-  });
-
-  app.post(`${P}/requests`, rlPhone(RL.GENERAL_WRITE), async (c) => {
-    try {
-      const body = await c.req.json();
-      const { senderId, from, to, beforeDate, weightKg, description, budget, currency } = body;
-
-      if (!senderId || !from || !to || !beforeDate || !weightKg) return c.json({ error: 'Missing required fields' }, 400);
-
-      const user = await Users.get(senderId);
-      if (!user) return c.json({ error: 'User not found' }, 404);
-      if (user.role !== 'sender') return c.json({ error: 'Создавать заявки могут только отправители' }, 403);
-      if (!user.firstName || !user.lastName) return c.json({ error: 'Необходимо заполнить ФИО в профиле' }, 403);
-
-      const id: string = aviaId('avia_req');
-      const request: AviaRequest = {
-        id, senderId,
-        senderName  : `${user.firstName} ${user.lastName}`.trim() || user.phone,
-        senderAvatar: user.avatarUrl || '',
-        from, to, beforeDate,
-        weightKg    : Number(weightKg),
-        description : description || '',
-        budget      : budget != null ? (Number(budget) || 0) : null,
-        currency    : (currency && typeof currency === 'string') ? currency.toUpperCase() : 'USD',
-        status      : 'active',
-        createdAt   : new Date().toISOString(),
-      };
-
-      await Requests.set(id, request);
-      return c.json({ success: true, request });
-    } catch (err) {
-      console.log('Error POST /avia/requests:', err);
-      return c.json({ error: `${err}` }, 500);
-    }
-  });
-
-  app.delete(`${P}/requests/:id`, async (c) => {
-    try {
-      const id  = c.req.param('id');
-      const callerPhone = aviaClean(c.req.query('callerPhone') || '');
-      if (!callerPhone) return c.json({ error: 'callerPhone is required' }, 400);
-      const req = await Requests.get(id);
-      if (!req) return c.json({ error: 'Request not found' }, 404);
-      if (req.senderId !== callerPhone) {
-        console.warn(`[AVIA Requests] IDOR attempt: ${callerPhone} tried to delete request ${id} owned by ${req.senderId}`);
-        return c.json({ error: 'Forbidden: not the owner' }, 403);
-      }
-      await Requests.set(id, { ...req, isDeleted: true, updatedAt: new Date().toISOString() });
-      return c.json({ success: true });
-    } catch (err) {
-      console.log('Error DELETE /avia/requests:', err);
-      return c.json({ error: `${err}` }, 500);
-    }
-  });
-
-  app.patch(`${P}/requests/:id/close`, async (c) => {
-    try {
-      const id  = c.req.param('id');
-      const { callerPhone } = await c.req.json().catch(() => ({ callerPhone: '' }));
-      const clean = aviaClean(callerPhone || '');
-      if (!clean) return c.json({ error: 'callerPhone is required' }, 400);
-      const req = await Requests.get(id);
-      if (!req) return c.json({ error: 'Request not found' }, 404);
-      if (req.senderId !== clean) {
-        console.warn(`[AVIA Requests] IDOR attempt: ${clean} tried to close request ${id} owned by ${req.senderId}`);
-        return c.json({ error: 'Forbidden: not the owner' }, 403);
-      }
-      if (req.isDeleted)         return c.json({ error: 'Request already deleted' }, 400);
-      if (req.status === 'closed') return c.json({ error: 'Request already closed' }, 400);
-      const now     = new Date().toISOString();
-      const updated = { ...req, status: 'closed', closedAt: now, updatedAt: now };
-      await Requests.set(id, updated);
-      return c.json({ success: true, request: updated });
-    } catch (err) {
-      console.log('Error PATCH /avia/requests/close:', err);
-      return c.json({ error: `${err}` }, 500);
-    }
-  });
-
-  // ══════════════════════════════════════════════════════════════════════════
   //  MY ADS
   // ══════════════════════════════════════════════════════════════════════════
 
   app.get(`${P}/my/:phone`, async (c) => {
     try {
       const phone = aviaClean(c.req.param('phone'));
-      const [flights, requests] = await Promise.all([
-        Flights.listByCourier(phone),
-        Requests.listBySender(phone),
-      ]);
-      return c.json({ flights, requests });
+      const flights = await Flights.listByCourier(phone);
+      return c.json({ flights });
     } catch (err) {
       console.log('Error GET /avia/my:', err);
       return c.json({ error: `${err}` }, 500);
@@ -1494,9 +1382,8 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       const cached = aviaCache.get(CK.stats(phone));
       if (cached) return c.json({ stats: cached });
 
-      const [flights, requests, deals, chats] = await Promise.all([
+      const [flights, deals, chats] = await Promise.all([
         Flights.listByCourier(phone),
-        Requests.listBySender(phone),
         Deals.listByUser(phone),
         Chats.listByUser(phone),
       ]);
@@ -1504,8 +1391,6 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       const stats = {
         flightsTotal   : flights.length,
         flightsActive  : flights.filter(f => f.status !== 'closed' && f.status !== 'completed').length,
-        requestsTotal  : requests.length,
-        requestsActive : requests.filter(r => r.status !== 'closed').length,
         chatsTotal     : chats.length,
         dealsTotal     : deals.length,
         dealsActive    : deals.filter(d => d.status === 'accepted').length,

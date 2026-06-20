@@ -58,24 +58,6 @@ export interface AviaFlight {
   createdAt: string;
 }
 
-export interface AviaRequest {
-  id: string;
-  senderId: string;
-  senderName?: string;
-  senderAvatar?: string;
-  senderRating?: number;
-  from: string;
-  to: string;
-  beforeDate: string;
-  weightKg: number;
-  description?: string;
-  // Budget & currency (optional, backward-compat)
-  budget?: number;
-  currency?: string;
-  status: string;
-  createdAt: string;
-}
-
 export interface AviaCheckResult {
   isNew: boolean;
   hasPin: boolean;
@@ -335,17 +317,6 @@ export function canCreateAd(user: AviaUser | null): { allowed: boolean; reason?:
   return { allowed: true };
 }
 
-export function canCreateRequest(user: AviaUser | null): { allowed: boolean; reason?: string } {
-  if (!user) return { allowed: false, reason: 'Не авторизован' };
-  if (!user.firstName || !user.lastName) {
-    return { allowed: false, reason: 'Заполните ФИО в профиле перед созданием заявки' };
-  }
-  if (user.role === 'courier') {
-    return { allowed: false, reason: 'Курьеры не могут создавать заявки (только рейсы)' };
-  }
-  return { allowed: true };
-}
-
 // ── Фильтры ──────────────────────────────────────────────────────────────────
 
 export interface AviaFilters {
@@ -395,40 +366,9 @@ export async function createAviaFlight(flightData: Partial<AviaFlight>): Promise
   return res.json();
 }
 
-export async function getAviaRequests(filters?: AviaFilters): Promise<AviaRequest[]> {
-  const qs = buildFilterParams(filters);
-  const res = await fetchWithRetry(`${BASE}/avia/requests${qs}`, { headers: HEADERS });
-  if (!res.ok) return [];
-  const data = await res.json();
-  return data.requests || [];
-}
-
-export async function getAviaRequest(id: string): Promise<AviaRequest | null> {
-  const requests = await getAviaRequests();
-  return requests.find(r => r.id === id) ?? null;
-}
-
-export async function createAviaRequest(requestData: Partial<AviaRequest>): Promise<{ success: boolean; request?: AviaRequest; error?: string }> {
-  const res = await fetch(`${BASE}/avia/requests`, {
-    method: 'POST',
-    headers: HEADERS,
-    body: JSON.stringify(requestData),
-  });
-  return res.json();
-}
-
 /** Удалить рейс (мягкое удаление) */
 export async function deleteAviaFlight(id: string, callerPhone: string): Promise<{ success: boolean; error?: string }> {
   const res = await fetch(`${BASE}/avia/flights/${encodeURIComponent(id)}?callerPhone=${encodeURIComponent(callerPhone)}`, {
-    method: 'DELETE',
-    headers: HEADERS,
-  });
-  return res.json();
-}
-
-/** Удалить заявку (мягкое удаление) */
-export async function deleteAviaRequest(id: string, callerPhone: string): Promise<{ success: boolean; error?: string }> {
-  const res = await fetch(`${BASE}/avia/requests/${encodeURIComponent(id)}?callerPhone=${encodeURIComponent(callerPhone)}`, {
     method: 'DELETE',
     headers: HEADERS,
   });
@@ -465,21 +405,11 @@ export async function completeAviaFlight(id: string, callerPhone: string): Promi
   return res.json();
 }
 
-/** Закрыть заявку (status → closed) */
-export async function closeAviaRequest(id: string, callerPhone: string): Promise<{ success: boolean; request?: AviaRequest; error?: string }> {
-  const res = await fetch(`${BASE}/avia/requests/${encodeURIComponent(id)}/close`, {
-    method: 'PATCH',
-    headers: HEADERS,
-    body: JSON.stringify({ callerPhone }),
-  });
-  return res.json();
-}
-
-/** Получить мои объявления (рейсы + заявки, включая закрытые) */
-export async function getMyAviaAds(phone: string): Promise<{ flights: AviaFlight[]; requests: AviaRequest[] }> {
+/** Получить мои объявления (рейсы, включая закрытые) */
+export async function getMyAviaAds(phone: string): Promise<{ flights: AviaFlight[] }> {
   const clean = phone.replace(/\D/g, '');
   const res = await fetchWithRetry(`${BASE}/avia/my/${encodeURIComponent(clean)}`, { headers: HEADERS });
-  if (!res.ok) return { flights: [], requests: [] };
+  if (!res.ok) return { flights: [] };
   return res.json();
 }
 

@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { createAviaDeal } from '../../api/aviaDealApi';
 import type { AviaDeal } from '../../api/aviaDealApi';
-import type { AviaFlight, AviaRequest } from '../../api/aviaApi';
+import type { AviaFlight } from '../../api/aviaApi';
 import type { AviaUser } from '../../api/aviaApi';
 import { initAviaChat, sendTypedChatMessage } from '../../api/aviaChatApi';
 import type { AviaChatAdRef } from '../../api/aviaChatApi';
@@ -15,32 +15,30 @@ import type { AviaChatAdRef } from '../../api/aviaChatApi';
 interface AviaDealOfferModalProps {
   /** Текущий пользователь */
   me: AviaUser;
-  /** Если предложение на рейс (Отправитель → Курьеру) */
-  flight?: AviaFlight;
-  /** Если предложение на заявку (Курьер → Отправителю) */
-  request?: AviaRequest;
+  /** Предложение на рейс курьера (Отправитель → Курьеру) */
+  flight: AviaFlight;
   onClose: () => void;
   onSuccess?: (deal: AviaDeal) => void;
   /** Открыть чат после отправки предложения */
   onOpenChat?: (chatId: string, otherPhone: string, adRef: AviaChatAdRef) => void;
 }
 
-export function AviaDealOfferModal({ me, flight, request, onClose, onSuccess, onOpenChat }: AviaDealOfferModalProps) {
+export function AviaDealOfferModal({ me, flight, onClose, onSuccess, onOpenChat }: AviaDealOfferModalProps) {
   // Определяем доступные типы на основе настроек рейса курьера
-  const isCargoAvail = flight ? (flight.cargoEnabled ?? true) : true;
-  const isDocsAvail  = flight ? (flight.docsEnabled ?? false) : false;
+  const isCargoAvail = flight.cargoEnabled ?? true;
+  const isDocsAvail  = flight.docsEnabled ?? false;
 
   // Начальный тип: если доступны оба — предлагаем cargo первым; если только docs — docs
   const initialType = isCargoAvail ? 'cargo' : 'docs';
   const [dealType, setDealType] = useState<'cargo' | 'docs'>(initialType);
 
-  const [weightKg, setWeightKg] = useState(request?.weightKg ? String(request.weightKg) : '');
+  const [weightKg, setWeightKg] = useState('');
   const [price, setPrice] = useState(
-    flight?.pricePerKg && dealType === 'cargo'
+    flight.pricePerKg && dealType === 'cargo'
       ? String(Math.round(Number(weightKg || 1) * flight.pricePerKg))
       : '',
   );
-  const [currency, setCurrency] = useState<string>(flight?.currency || request?.currency || 'USD');
+  const [currency, setCurrency] = useState<string>(flight.currency || 'USD');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -50,27 +48,27 @@ export function AviaDealOfferModal({ me, flight, request, onClose, onSuccess, on
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 
   // Определяем, кто получатель
-  const recipientPhone = flight ? flight.courierId : (request?.senderId ?? '');
-  const recipientName  = flight ? (flight.courierName || flight.courierId) : (request?.senderName || request?.senderId || '');
-  const adType: 'flight' | 'request' = flight ? 'flight' : 'request';
-  const adId    = flight ? flight.id   : (request?.id ?? '');
-  const adFrom  = flight ? flight.from : (request?.from ?? '');
-  const adTo    = flight ? flight.to   : (request?.to ?? '');
-  const adDate  = flight ? flight.date : (request?.beforeDate ?? '');
+  const recipientPhone = flight.courierId;
+  const recipientName  = flight.courierName || flight.courierId;
+  const adType: 'flight' = 'flight';
+  const adId    = flight.id;
+  const adFrom  = flight.from;
+  const adTo    = flight.to;
+  const adDate  = flight.date;
 
   // Роли
-  const courierId   = flight ? flight.courierId : me.phone;
-  const senderId    = flight ? me.phone : (request?.senderId ?? '');
-  const courierName = flight ? (flight.courierName || '') : (`${me.firstName || ''} ${me.lastName || ''}`.trim() || me.phone);
-  const senderName  = flight ? (`${me.firstName || ''} ${me.lastName || ''}`.trim() || me.phone) : (request?.senderName || '');
-  const myName      = `${me.firstName || ''} ${me.lastName || ''}`.trim() || me.phone;
+  const courierId   = flight.courierId;
+  const senderId    = me.phone;
+  const courierName = flight.courierName || '';
+  const senderName  = `${me.firstName || ''} ${me.lastName || ''}`.trim() || me.phone;
+  const myName      = senderName;
 
   // Доступный кг на рейсе
-  const availKg = flight ? Math.max(0, (flight.freeKg || 0) - (flight.reservedKg || 0)) : null;
+  const availKg = Math.max(0, (flight.freeKg || 0) - (flight.reservedKg || 0));
 
   const handleWeightChange = (v: string) => {
     setWeightKg(v);
-    if (flight?.pricePerKg && v && dealType === 'cargo') {
+    if (flight.pricePerKg && v && dealType === 'cargo') {
       const kg = Number(v) || 0;
       setPrice(String(Math.round(kg * flight.pricePerKg)));
     }
@@ -81,9 +79,9 @@ export function AviaDealOfferModal({ me, flight, request, onClose, onSuccess, on
     setError('');
     if (t === 'docs') {
       setWeightKg('');
-      setPrice(flight?.docsPrice ? String(flight.docsPrice) : '');
+      setPrice(flight.docsPrice ? String(flight.docsPrice) : '');
     } else {
-      setPrice(flight?.pricePerKg && weightKg ? String(Math.round(Number(weightKg) * flight.pricePerKg)) : '');
+      setPrice(flight.pricePerKg && weightKg ? String(Math.round(Number(weightKg) * flight.pricePerKg)) : '');
     }
   };
 
@@ -166,10 +164,10 @@ export function AviaDealOfferModal({ me, flight, request, onClose, onSuccess, on
     color: '#6b8299', marginBottom: 6, letterSpacing: '0.04em', textTransform: 'uppercase',
   };
 
-  const accentColor = flight ? '#0ea5e9' : '#a78bfa';
-  const AdIcon = flight ? Plane : Package;
+  const accentColor = '#0ea5e9';
+  const AdIcon = Plane;
 
-  const showTypeSelector = flight && isCargoAvail && isDocsAvail;
+  const showTypeSelector = isCargoAvail && isDocsAvail;
 
   return (
     <AnimatePresence>
@@ -217,7 +215,7 @@ export function AviaDealOfferModal({ me, flight, request, onClose, onSuccess, on
                   Отправить предложение
                 </div>
                 <div style={{ fontSize: 11, color: '#4a6080', marginTop: 1 }}>
-                  {flight ? 'на рейс курьера' : 'на заявку отправителя'}
+                  на рейс курьера
                 </div>
               </div>
             </div>
@@ -268,7 +266,7 @@ export function AviaDealOfferModal({ me, flight, request, onClose, onSuccess, on
             </div>
             <div>
               <div style={{ fontSize: 10, color: '#4a6080', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                {flight ? 'Курьер' : 'Отправитель'}
+                Курьер
               </div>
               <div style={{ fontSize: 13, color: '#fff', fontWeight: 600 }}>
                 {recipientName}

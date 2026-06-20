@@ -1,5 +1,5 @@
 // ── AirportAutocomplete — автокомплит аэропортов для модуля AVIA ─────────────
-// Переиспользуемый компонент: CreateFlightModal, CreateRequestModal, AviaFilterSheet
+// Переиспользуемый компонент: CreateFlightModal, AviaFilterSheet
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { MapPin, Plane, X } from 'lucide-react';

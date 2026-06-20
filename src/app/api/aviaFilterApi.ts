@@ -1,7 +1,7 @@
 // ── Пакет M: Клиентская фильтрация AVIA ────────────────────────────────────────
 // Изолировано от CARGO. Не делает сетевых запросов — работает на уже загруженных данных.
 
-import type { AviaFlight, AviaRequest } from './aviaApi';
+import type { AviaFlight } from './aviaApi';
 
 // ── Типы ─────────────────────────────────────────────────────────────────────
 
@@ -48,25 +48,6 @@ export function applyFlightFilters(
     if (f.priceMin  && f.priceMin  > 0 && (fl.pricePerKg || 0) < f.priceMin) return false;
     if (f.priceMax  && f.priceMax  > 0 && (fl.pricePerKg || 0) > f.priceMax) return false;
     if (f.onlyMine && myPhone && fl.courierId !== myPhone) return false;
-    return true;
-  });
-}
-
-export function applyRequestFilters(
-  requests: AviaRequest[],
-  f: AviaFilterState,
-  myPhone?: string,
-): AviaRequest[] {
-  return requests.filter(r => {
-    if (f.from && !strMatch(r.from, f.from)) return false;
-    if (f.to   && !strMatch(r.to,   f.to))   return false;
-    if (f.date) {
-      // Показываем заявки, deadline которых >= выбранной даты
-      if (r.beforeDate.slice(0, 10) < f.date) return false;
-    }
-    if (f.weightMin && f.weightMin > 0 && (r.weightKg || 0) < f.weightMin) return false;
-    if (f.weightMax && f.weightMax > 0 && (r.weightKg || 0) > f.weightMax) return false;
-    if (f.onlyMine && myPhone && r.senderId !== myPhone) return false;
     return true;
   });
 }

@@ -18,7 +18,6 @@
  *   ovora:avia-pin:{phone}             → AviaPin
  *   ovora:avia-pin-change:{phone}      → AviaPinChange
  *   ovora:air-flight:{id}              → AviaFlight
- *   ovora:air-request:{id}             → AviaRequest
  *   ovora:avia-notif:{phone}:{id}      → AviaNotif
  *   ovora:avia-deal:{id}               → AviaDeal
  *   ovora:avia-userdeal:{phone}:{id}   → { dealId, role }
@@ -98,25 +97,6 @@ export interface AviaFlight {
   completedAt   ?: string;
   createdAt     : string;
   updatedAt     ?: string;
-}
-
-export interface AviaRequest {
-  id          : string;
-  senderId    : string;
-  senderName  : string;
-  senderAvatar: string;
-  from        : string;
-  to          : string;
-  beforeDate  : string;
-  weightKg    : number;
-  description : string;
-  budget      : number | null;
-  currency    : string;
-  status      : string;
-  isDeleted   ?: boolean;
-  closedAt    ?: string;
-  createdAt   : string;
-  updatedAt   ?: string;
 }
 
 export interface AviaNotif {
@@ -336,61 +316,6 @@ export const Flights = {
   invalidate(courierId?: string): void {
     aviaCache.del(CK.flightsList());
     if (courierId) aviaCache.del(CK.myFlights(courierId));
-  },
-};
-
-// ══════════════════════════════════════════════════════════════════════════════
-//  REQUESTS
-// ══════════════════════════════════════════════════════════════════════════════
-export const Requests = {
-  /** MIGRATION → SELECT * FROM avia_requests WHERE id = $1 */
-  async get(id: string): Promise<AviaRequest | null> {
-    return await kv.get(`ovora:air-request:${id}`) as AviaRequest | null;
-  },
-
-  /** MIGRATION → INSERT / UPDATE avia_requests */
-  async set(id: string, req: AviaRequest): Promise<void> {
-    await kv.set(`ovora:air-request:${id}`, req);
-    aviaCache.del(CK.requestsList());
-    aviaCache.del(CK.myRequests(req.senderId));
-  },
-
-  /**
-   * MIGRATION → SELECT * FROM avia_requests WHERE NOT is_deleted AND status NOT IN ('closed')
-   * ORDER BY created_at DESC
-   */
-  async listActive(): Promise<AviaRequest[]> {
-    const cached = aviaCache.get<AviaRequest[]>(CK.requestsList());
-    if (cached) return cached;
-
-    const all = await kv.getByPrefix('ovora:air-request:') as AviaRequest[];
-    const result = all
-      .filter(r => r && typeof r === 'object' && !r.isDeleted && r.status !== 'closed')
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-    aviaCache.set(CK.requestsList(), result, TTL.REQUESTS_LIST);
-    return result;
-  },
-
-  /**
-   * MIGRATION → SELECT * FROM avia_requests WHERE sender_id = $1 AND NOT is_deleted
-   */
-  async listBySender(phone: string): Promise<AviaRequest[]> {
-    const cached = aviaCache.get<AviaRequest[]>(CK.myRequests(phone));
-    if (cached) return cached;
-
-    const all = await kv.getByPrefix('ovora:air-request:') as AviaRequest[];
-    const result = all
-      .filter(r => r && typeof r === 'object' && !r.isDeleted && r.senderId === phone)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-    aviaCache.set(CK.myRequests(phone), result, TTL.REQUESTS_LIST);
-    return result;
-  },
-
-  invalidate(senderId?: string): void {
-    aviaCache.del(CK.requestsList());
-    if (senderId) aviaCache.del(CK.myRequests(senderId));
   },
 };
 
