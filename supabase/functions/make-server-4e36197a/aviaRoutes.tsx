@@ -1297,6 +1297,14 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       if (!isParticipant)           return c.json({ error: 'Forbidden: not a participant' }, 403);
       if (deal.status !== 'accepted') return c.json({ error: `Cannot complete deal with status: ${deal.status}` }, 400);
 
+      // Нельзя завершить без фото получения от отправителя и передачи получателю
+      const podPhotosCheck = deal.podPhotos || [];
+      const hasPickup   = podPhotosCheck.some((p: any) => p.type === 'pickup');
+      const hasDelivery = podPhotosCheck.some((p: any) => p.type === 'delivery');
+      if (!hasPickup || !hasDelivery) {
+        return c.json({ error: 'Нужны фото получения и передачи товара, чтобы завершить сделку' }, 400);
+      }
+
       const now     = new Date().toISOString();
       const updated = { ...deal, status: 'completed', completedAt: now, updatedAt: now };
       await Deals.set(id, updated);
@@ -1326,10 +1334,11 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
   app.post(`${P}/deals/:id/pod`, async (c) => {
     try {
       const id = c.req.param('id');
-      const { base64, callerPhone } = await c.req.json();
+      const { base64, type, callerPhone } = await c.req.json();
+      if (!base64 || !type) return c.json({ error: 'base64 and type required' }, 400);
+      if (!['pickup', 'delivery'].includes(type)) return c.json({ error: 'type must be pickup or delivery' }, 400);
       const clean = aviaClean(callerPhone || '');
       if (!clean) return c.json({ error: 'callerPhone is required' }, 400);
-      if (!base64) return c.json({ error: 'base64 required' }, 400);
 
       const deal = await Deals.get(id);
       if (!deal) return c.json({ error: 'Deal not found' }, 404);
@@ -1337,7 +1346,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
         console.warn(`[AVIA Deals] IDOR attempt: ${clean} tried to upload POD photo for deal ${id} owned by courier ${deal.courierId}`);
         return c.json({ error: 'Forbidden: only the courier can upload proof of delivery' }, 403);
       }
-      if (deal.status !== 'completed') return c.json({ error: 'Deal must be completed before uploading proof of delivery' }, 400);
+      if (deal.status !== 'accepted') return c.json({ error: `Cannot upload photo for deal with status: ${deal.status}` }, 400);
       if ((deal.podPhotos || []).length >= 6) return c.json({ error: 'Достигнут лимит фото (6)' }, 400);
 
       const base64Data = base64.replace(/^data:image\/[a-z]+;base64,/, '');
@@ -1346,7 +1355,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
 
       const now = new Date().toISOString();
-      const fileName = `avia-deals/${id}/${Date.now()}.jpg`;
+      const fileName = `avia-deals/${id}/${type}-${Date.now()}.jpg`;
 
       const { error: uploadError } = await supabase.storage
         .from(POD_BUCKET)
@@ -1357,12 +1366,23 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
         .from(POD_BUCKET)
         .createSignedUrl(fileName, 7 * 24 * 3600);
 
-      const photo = { url: signedData?.signedUrl || '', path: fileName, timestamp: now, uploadedBy: clean };
+      const photo = { type, url: signedData?.signedUrl || '', path: fileName, timestamp: now, uploadedBy: clean };
       const podPhotos = [...(deal.podPhotos || []), photo];
       const updated = { ...deal, podPhotos, updatedAt: now };
       await Deals.set(id, updated);
 
-      console.log(`[AVIA Deals] POD photo uploaded for deal ${id} by ${clean}`);
+      // Уведомить отправителя, чтобы он мог следить за действиями курьера
+      if (deal.senderId) {
+        const label = type === 'pickup' ? 'Курьер получил товар' : 'Курьер передал товар получателю';
+        sendPushToUser(deal.senderId, {
+          title: `📷 ${label}`,
+          body: `${deal.adFrom} → ${deal.adTo}`,
+          url: '/avia/deals',
+          tag: `avia-pod-${type}-${id}`,
+        }).catch((e: unknown) => console.warn('[AVIA POD] push failed:', e));
+      }
+
+      console.log(`[AVIA Deals] POD photo (${type}) uploaded for deal ${id} by ${clean}`);
       return c.json({ success: true, photo, deal: updated });
     } catch (err) {
       console.log('Error POST /avia/deals/:id/pod:', err);
