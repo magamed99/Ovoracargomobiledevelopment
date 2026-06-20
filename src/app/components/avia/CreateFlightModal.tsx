@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { createAviaFlight } from '../../api/aviaApi';
 import type { AviaUser, AviaFlight } from '../../api/aviaApi';
 import { AirportAutocomplete } from './AirportAutocomplete';
-import { AviaCurrencySelector, getCurrency } from './AviaCurrencySelector';
+import { AviaCurrencySelector, getCurrency, type CurrencyOption } from './AviaCurrencySelector';
 
 interface Props {
   user: AviaUser;
@@ -35,6 +35,115 @@ const labelStyle: React.CSSProperties = {
   letterSpacing: '0.04em',
   textTransform: 'uppercase',
 };
+
+// ── Price input with currency symbol ─────────────────────────────────────────
+// Hoisted to module scope: defining it inside CreateFlightModal's body created a
+// new component type on every render, forcing React to unmount/remount the
+// <input>, which lost focus and closed the on-screen keyboard on every keystroke.
+
+function PriceInput({
+  value, onChange, placeholder, accentBorder, cur,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  accentBorder: string;
+  cur: CurrencyOption;
+}) {
+  return (
+    <div style={{ position: 'relative' }}>
+      <div style={{
+        position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
+        display: 'flex', alignItems: 'center', gap: 4,
+        pointerEvents: 'none', zIndex: 1,
+      }}>
+        <span style={{ fontSize: 13, fontWeight: 800, color: cur.color }}>{cur.symbol}</span>
+      </div>
+      <input
+        type="number" value={value} min="0" step="0.5"
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        style={{
+          ...inputStyle,
+          border: `1.5px solid ${accentBorder}`,
+          paddingLeft: cur.symbol.length > 2 ? 44 : 30,
+        }}
+      />
+    </div>
+  );
+}
+
+// ── TypeToggle block ──────────────────────────────────────────────────────────
+// Also hoisted to module scope for the same reason as PriceInput above.
+
+function TypeToggle({
+  enabled, onToggle, icon: Icon, label, color, children,
+}: {
+  enabled: boolean;
+  onToggle: () => void;
+  icon: typeof Package;
+  label: string;
+  color: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div style={{
+      borderRadius: 14,
+      border: `1.5px solid ${enabled ? color + '35' : '#ffffff10'}`,
+      background: enabled ? color + '08' : '#ffffff04',
+      overflow: 'hidden',
+      transition: 'border-color 0.2s, background 0.2s',
+    }}>
+      <button
+        type="button"
+        onClick={onToggle}
+        style={{
+          width: '100%',
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '12px 14px',
+          background: 'none', border: 'none', cursor: 'pointer',
+          textAlign: 'left',
+        }}
+      >
+        <div style={{
+          width: 32, height: 32, borderRadius: 10,
+          background: enabled ? color + '20' : '#ffffff08',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0, transition: 'background 0.2s',
+        }}>
+          <Icon style={{ width: 15, height: 15, color: enabled ? color : '#4a6080' }} />
+        </div>
+        <span style={{ flex: 1, fontSize: 14, fontWeight: 700, color: enabled ? '#fff' : '#6b8299' }}>
+          {label}
+        </span>
+        <div style={{
+          width: 22, height: 22, borderRadius: 6,
+          background: enabled ? color : '#ffffff10',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          transition: 'background 0.2s',
+        }}>
+          {enabled && <Check style={{ width: 12, height: 12, color: '#fff' }} />}
+        </div>
+      </button>
+
+      <AnimatePresence>
+        {enabled && children && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.22 }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div style={{ padding: '0 14px 14px', borderTop: `1px solid ${color}18` }}>
+              {children}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 export function CreateFlightModal({ user, onClose, onSuccess }: Props) {
   const [from, setFrom] = useState('');
@@ -93,106 +202,6 @@ export function CreateFlightModal({ user, onClose, onSuccess }: Props) {
       setLoading(false);
     }
   };
-
-  // ── Price input with currency symbol ───────────────────────────────────────
-
-  const PriceInput = ({
-    value, onChange, placeholder, accentBorder,
-  }: {
-    value: string;
-    onChange: (v: string) => void;
-    placeholder: string;
-    accentBorder: string;
-  }) => (
-    <div style={{ position: 'relative' }}>
-      <div style={{
-        position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
-        display: 'flex', alignItems: 'center', gap: 4,
-        pointerEvents: 'none', zIndex: 1,
-      }}>
-        <span style={{ fontSize: 13, fontWeight: 800, color: cur.color }}>{cur.symbol}</span>
-      </div>
-      <input
-        type="number" value={value} min="0" step="0.5"
-        onChange={e => onChange(e.target.value)}
-        placeholder={placeholder}
-        style={{
-          ...inputStyle,
-          border: `1.5px solid ${accentBorder}`,
-          paddingLeft: cur.symbol.length > 2 ? 44 : 30,
-        }}
-      />
-    </div>
-  );
-
-  // ── TypeToggle block ───────────────────────────────────────────────────────
-
-  const TypeToggle = ({
-    enabled, onToggle, icon: Icon, label, color, children,
-  }: {
-    enabled: boolean;
-    onToggle: () => void;
-    icon: typeof Package;
-    label: string;
-    color: string;
-    children?: React.ReactNode;
-  }) => (
-    <div style={{
-      borderRadius: 14,
-      border: `1.5px solid ${enabled ? color + '35' : '#ffffff10'}`,
-      background: enabled ? color + '08' : '#ffffff04',
-      overflow: 'hidden',
-      transition: 'border-color 0.2s, background 0.2s',
-    }}>
-      <button
-        type="button"
-        onClick={onToggle}
-        style={{
-          width: '100%',
-          display: 'flex', alignItems: 'center', gap: 10,
-          padding: '12px 14px',
-          background: 'none', border: 'none', cursor: 'pointer',
-          textAlign: 'left',
-        }}
-      >
-        <div style={{
-          width: 32, height: 32, borderRadius: 10,
-          background: enabled ? color + '20' : '#ffffff08',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          flexShrink: 0, transition: 'background 0.2s',
-        }}>
-          <Icon style={{ width: 15, height: 15, color: enabled ? color : '#4a6080' }} />
-        </div>
-        <span style={{ flex: 1, fontSize: 14, fontWeight: 700, color: enabled ? '#fff' : '#6b8299' }}>
-          {label}
-        </span>
-        <div style={{
-          width: 22, height: 22, borderRadius: 6,
-          background: enabled ? color : '#ffffff10',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          transition: 'background 0.2s',
-        }}>
-          {enabled && <Check style={{ width: 12, height: 12, color: '#fff' }} />}
-        </div>
-      </button>
-
-      <AnimatePresence>
-        {enabled && children && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.22 }}
-            style={{ overflow: 'hidden' }}
-          >
-            <div style={{ padding: '0 14px 14px', borderTop: `1px solid ${color}18` }}>
-              {children}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
 
   return (
     <AnimatePresence>
@@ -348,6 +357,7 @@ export function CreateFlightModal({ user, onClose, onSuccess }: Props) {
                       onChange={setPricePerKg}
                       placeholder="0"
                       accentBorder="#0ea5e925"
+                      cur={cur}
                     />
                   </div>
                 </div>
@@ -374,6 +384,7 @@ export function CreateFlightModal({ user, onClose, onSuccess }: Props) {
                     onChange={setDocsPrice}
                     placeholder="0"
                     accentBorder="#a78bfa25"
+                    cur={cur}
                   />
                   <p style={{ fontSize: 10, color: '#4a6080', marginTop: 6 }}>
                     Количество без ограничений — принимаете столько, сколько хотите
