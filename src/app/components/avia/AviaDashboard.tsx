@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router';
-import { Plane, User, Package, Send, Repeat, ShieldAlert, ShieldX, ShieldCheck, Calendar, Trash2, Plus, RefreshCw, ArrowRight, AlertTriangle, Phone, Copy, Check, XCircle, SlidersHorizontal, X, Search, ArrowDown, Bell, MessageCircle, Handshake, FileText, Flag, PlayCircle, ClipboardList, Zap } from 'lucide-react';
+import { Plane, User, Package, ShieldAlert, ShieldX, Calendar, Trash2, Plus, RefreshCw, ArrowRight, AlertTriangle, Phone, Copy, Check, XCircle, SlidersHorizontal, X, Search, ArrowDown, Bell, MessageCircle, Handshake, FileText, Flag, PlayCircle, ClipboardList, Zap } from 'lucide-react';
 import { NotificationCenter } from './NotificationCenter';
 import { AviaConfirmSheet } from './AviaConfirmSheet';
 import { fmtDate, maskPhone } from '../../utils/aviaUtils';
@@ -40,12 +40,6 @@ import { ImageWithFallback } from '../figma/ImageWithFallback';
 type AvSortKey = 'date-desc' | 'date-asc' | 'weight-desc' | 'weight-asc' | 'price-asc' | 'price-desc';
 
 // ── Вспомогательные ───────────────────────────────────────────────────────────
-
-const ROLE_META: Record<string, { label: string; color: string; icon: typeof Package }> = {
-  courier: { label: 'Курьер',               color: '#0ea5e9', icon: Package },
-  sender:  { label: 'Отправитель',           color: '#a78bfa', icon: Send    },
-  both:    { label: 'Курьер + Отправитель',  color: '#34d399', icon: Repeat  },
-};
 
 const TAB_LABELS: Record<string, { flights: string; requests: string }> = {
   courier: { flights: 'Мои рейсы', requests: 'Заявки'      },
@@ -1174,9 +1168,7 @@ export function AviaDashboard() {
   if (!isAuth || !user) return null;
 
   // ── Производные значения ──────────────────────────────────────────────────
-  const role      = ROLE_META[user.role] || ROLE_META.both;
   const tabLabels = TAB_LABELS[user.role] || TAB_LABELS.both;
-  const RoleIcon  = role.icon;
   const hasPassport = !!(user.passportPhoto || user.passportPhotoPath);
   const adCheck   = canCreateAd(user);
   const requestCheck = canCreateRequest(user);
@@ -1635,51 +1627,7 @@ export function AviaDashboard() {
             </motion.div>
           )}
 
-          {hasPassport && !isExpired && (
-            <motion.div
-              key="passport-ok"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                padding: '10px 14px', borderRadius: 12,
-                background: '#34d39908', border: '1px solid #34d39918',
-                marginBottom: 10,
-              }}
-            >
-              <ShieldCheck style={{ width: 14, height: 14, color: '#34d399' }} />
-              <span style={{ fontSize: 12, fontWeight: 600, color: '#34d399' }}>Паспорт загружен</span>
-              {user.passportExpiryDate && (
-                <span style={{ fontSize: 10, color: '#3d5268', marginLeft: 'auto' }}>
-                  до {fmtDate(user.passportExpiryDate, 'short')}
-                </span>
-              )}
-            </motion.div>
-          )}
         </AnimatePresence>
-
-        {/* ── Role badge ── */}
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1, duration: 0.3 }}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 10,
-            padding: '10px 14px', borderRadius: 12,
-            background: `${role.color}0a`, border: `1px solid ${role.color}1a`,
-            marginBottom: 16,
-          }}
-        >
-          <RoleIcon style={{ width: 14, height: 14, color: role.color }} />
-          <span style={{ fontSize: 12, fontWeight: 700, color: role.color }}>{role.label}</span>
-          {!adCheck.allowed && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
-              <AlertTriangle style={{ width: 11, height: 11, color: '#f59e0b' }} />
-              <span style={{ fontSize: 10, color: '#c9922a' }}>Создание недоступно</span>
-            </div>
-          )}
-        </motion.div>
 
         {/* ── Баннер истечения паспорта ── */}
         {passportDaysLeft !== null && passportDaysLeft >= 0 && passportDaysLeft <= 30 && (
