@@ -4,7 +4,7 @@
  */
 import { Link, useLocation } from 'react-router';
 import {
-  Plane, Package, Send, Repeat,
+  Plane, Package, Send,
   Handshake, MessagesSquare, User,
   Bell, Settings, LogOut, ChevronRight,
   ShieldCheck,
@@ -33,18 +33,11 @@ const ROLE_NAV: Record<string, NavItem[]> = {
     { name: 'Сообщения',  href: '/avia/messages',  icon: MessagesSquare, badge: 'chats' },
     { name: 'Профиль',    href: '/avia/profile',   icon: User,           badge: null    },
   ],
-  both: [
-    { name: 'Главная',    href: '/avia/dashboard', icon: Plane,          badge: null    },
-    { name: 'Сделки',     href: '/avia/deals',     icon: Handshake,      badge: 'deals' },
-    { name: 'Сообщения',  href: '/avia/messages',  icon: MessagesSquare, badge: 'chats' },
-    { name: 'Профиль',    href: '/avia/profile',   icon: User,           badge: null    },
-  ],
 };
 
 const ROLE_META: Record<string, { label: string; color: string; grad: string; icon: typeof Plane }> = {
   courier: { label: 'Курьер',               color: '#0ea5e9', grad: 'linear-gradient(135deg,#1245b0,#2f8fe0)', icon: Package },
   sender:  { label: 'Отправитель',          color: '#a78bfa', grad: 'linear-gradient(135deg,#6d28d9,#a78bfa)', icon: Send    },
-  both:    { label: 'Курьер + Отправитель', color: '#34d399', grad: 'linear-gradient(135deg,#047857,#34d399)', icon: Repeat  },
 };
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────

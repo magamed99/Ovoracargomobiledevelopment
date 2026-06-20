@@ -160,7 +160,7 @@ export function AviaFlightDetailPage() {
   useEffect(() => { load(); }, [load]);
 
   const isMine = flight?.courierId === user?.phone;
-  const canOffer = !isMine && (user?.role === 'sender' || user?.role === 'both');
+  const canOffer = !isMine && user?.role === 'sender';
   const canChat  = !isMine && !!user;
 
   const handleDelete = async () => {
@@ -540,7 +540,7 @@ export function AviaRequestDetailPage() {
   useEffect(() => { load(); }, [load]);
 
   const isMine  = request?.senderId === user?.phone;
-  const canOffer = !isMine && (user?.role === 'courier' || user?.role === 'both');
+  const canOffer = !isMine && user?.role === 'courier';
   const canChat  = !isMine && !!user;
 
   const handleDelete = async () => {

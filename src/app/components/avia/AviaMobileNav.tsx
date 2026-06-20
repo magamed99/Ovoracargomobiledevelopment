@@ -26,12 +26,6 @@ const ROLE_TABS: Record<string, NavTab[]> = {
     { name: 'Чаты',     href: '/avia/messages',  icon: MessagesSquare, badge: 'chats' },
     { name: 'Профиль',  href: '/avia/profile',   icon: User,           badge: null    },
   ],
-  both: [
-    { name: 'Главная',  href: '/avia/dashboard', icon: Plane,          badge: null    },
-    { name: 'Сделки',   href: '/avia/deals',     icon: Handshake,      badge: 'deals' },
-    { name: 'Чаты',     href: '/avia/messages',  icon: MessagesSquare, badge: 'chats' },
-    { name: 'Профиль',  href: '/avia/profile',   icon: User,           badge: null    },
-  ],
 };
 
 export function AviaMobileNav() {

@@ -1,17 +1,16 @@
 import { useNavigate } from 'react-router';
 import { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, Plane, Lock, Users, Package, Repeat, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Plane, Lock, Users, Package, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAvia } from './AviaContext';
 import { checkPhone, registerAvia, loginAvia } from '../../api/aviaApi';
 
 type Step = 'phone' | 'pin-create' | 'pin-login' | 'role';
-type AviaRole = 'courier' | 'sender' | 'both';
+type AviaRole = 'courier' | 'sender';
 
 const ROLES: { id: AviaRole; icon: typeof Package; label: string; desc: string; color: string }[] = [
   { id: 'courier', icon: Package, label: 'Курьер', desc: 'Перевожу посылки авиарейсами', color: '#0ea5e9' },
   { id: 'sender', icon: Users, label: 'Отправитель', desc: 'Ищу курьера для отправки', color: '#a78bfa' },
-  { id: 'both', icon: Repeat, label: 'Оба', desc: 'Могу и перевозить и отправлять', color: '#34d399' },
 ];
 
 export function AviaAuth() {
