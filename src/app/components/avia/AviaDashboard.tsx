@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router';
-import { Plane, User, Package, Send, Repeat, ShieldAlert, ShieldX, ShieldCheck, Calendar, Trash2, Plus, RefreshCw, ArrowRight, AlertTriangle, Phone, Copy, Check, XCircle, SlidersHorizontal, X, Search, ArrowDown, Bell, MessageCircle, Handshake, FileText, Flag, PlayCircle, ClipboardList } from 'lucide-react';
+import { Plane, User, Package, Send, Repeat, ShieldAlert, ShieldX, ShieldCheck, Calendar, Trash2, Plus, RefreshCw, ArrowRight, AlertTriangle, Phone, Copy, Check, XCircle, SlidersHorizontal, X, Search, ArrowDown, Bell, MessageCircle, Handshake, FileText, Flag, PlayCircle, ClipboardList, Zap } from 'lucide-react';
 import { NotificationCenter } from './NotificationCenter';
 import { AviaConfirmSheet } from './AviaConfirmSheet';
 import { fmtDate, maskPhone } from '../../utils/aviaUtils';
@@ -33,7 +33,9 @@ import { CreateRequestModal } from './CreateRequestModal';
 import { FlightDetailModal, RequestDetailModal } from './DetailModal';
 import { AviaDealOfferModal } from './AviaDealOfferModal';
 import { getAviaDeals } from '../../api/aviaDealApi';
-import { AviaDashboardHero } from './AviaDashboardHero';
+import { getPublicAds } from '../../api/dataApi';
+import { usePolling } from '../../hooks/usePolling';
+import { ImageWithFallback } from '../figma/ImageWithFallback';
 
 type AvSortKey = 'date-desc' | 'date-asc' | 'weight-desc' | 'weight-asc' | 'price-asc' | 'price-desc';
 
@@ -860,6 +862,49 @@ function EmptyState({ icon: Icon, title, subtitle, color }: { icon: typeof Plane
   );
 }
 
+// ── Карточка быстрого действия ────────────────────────────────────────────────
+
+function QuickActionCard({
+  icon: Icon, color, title, subtitle, onClick, delay = 0,
+}: {
+  icon: typeof Plane; color: string; title: string; subtitle: string; onClick: () => void; delay?: number;
+}) {
+  return (
+    <motion.button
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay, duration: 0.3 }}
+      whileTap={{ scale: 0.95 }}
+      onClick={onClick}
+      style={{
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+        padding: '18px 10px', borderRadius: 20, border: '1px solid rgba(255,255,255,0.07)',
+        background: 'rgba(255,255,255,0.03)', cursor: 'pointer', textAlign: 'center',
+      }}
+    >
+      <div style={{
+        width: 40, height: 40, borderRadius: 14,
+        background: `${color}14`, border: `1px solid ${color}28`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <Icon style={{ width: 18, height: 18, color }} />
+      </div>
+      <div>
+        <p style={{ fontSize: 11.5, fontWeight: 800, color: '#e2e8f0', margin: 0, lineHeight: 1.2 }}>{title}</p>
+        <p style={{ fontSize: 9.5, color: '#5a6b7d', margin: '2px 0 0', lineHeight: 1.2 }}>{subtitle}</p>
+      </div>
+    </motion.button>
+  );
+}
+
+// ── Рекламный баннер (демо-данные на случай отсутствия реальных) ──────────────
+
+const AVIA_FALLBACK_ADS = [
+  { id: 1, image: 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=600&h=200&fit=crop', badge: 'Авиадоставка', title: 'Отправляйте посылки\nпо всему миру', description: 'Быстро • Надёжно • Через курьеров', url: 'https://example.com/avia' },
+  { id: 2, image: 'https://images.unsplash.com/photo-1517479149777-5f3b1511d5ad?w=600&h=200&fit=crop', badge: 'Экономия', title: 'Курьеры уже летят\nв вашем направлении', description: 'Найдите попутный рейс', url: 'https://example.com/avia2' },
+  { id: 3, image: 'https://images.unsplash.com/photo-1474302770737-173ee21bab63?w=600&h=200&fit=crop', badge: 'Безопасность', title: 'Проверенные курьеры\nи отправители', description: 'Рейтинги и отзывы', url: 'https://example.com/avia3' },
+];
+
 // ── Главный компонент ─────────────────────────────────────────────────────────
 
 export function AviaDashboard() {
@@ -1045,6 +1090,38 @@ export function AviaDashboard() {
     return () => clearInterval(timer);
   }, [silentPoll, user]);
 
+  // ── Рекламный баннер ────────────────────────────────────────────────────
+  const [aviaAdIndex, setAviaAdIndex] = useState(0);
+  const [aviaTouchStart, setAviaTouchStart] = useState(0);
+  const [aviaTouchEnd, setAviaTouchEnd] = useState(0);
+  const [serverAviaAds, setServerAviaAds] = useState<any[] | null>(null);
+
+  usePolling(async () => {
+    try {
+      const data = await getPublicAds('avia');
+      if (data?.length) setServerAviaAds(data);
+    } catch { /* silent */ }
+  }, 5 * 60_000);
+
+  const isAviaAdFallback = !serverAviaAds?.length;
+  const aviaAds          = serverAviaAds?.length ? serverAviaAds : AVIA_FALLBACK_ADS;
+  const currentAviaAd    = aviaAds[aviaAdIndex] ?? aviaAds[0];
+  const hasAviaAds       = aviaAds.length > 0 && currentAviaAd != null;
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setAviaAdIndex(prev => (prev + 1) % aviaAds.length);
+    }, 5000);
+    return () => clearInterval(id);
+  }, [aviaAds.length]);
+
+  const handleAdTouchStart = (e: React.TouchEvent) => setAviaTouchStart(e.targetTouches[0].clientX);
+  const handleAdTouchMove  = (e: React.TouchEvent) => setAviaTouchEnd(e.targetTouches[0].clientX);
+  const handleAdTouchEnd   = () => {
+    if (aviaTouchStart - aviaTouchEnd >  75) setAviaAdIndex(p => (p + 1) % aviaAds.length);
+    if (aviaTouchStart - aviaTouchEnd < -75) setAviaAdIndex(p => (p - 1 + aviaAds.length) % aviaAds.length);
+  };
+
   // ── Pull-to-refresh ─────────────────────────────────────────────────────
   const contentRef = useRef<HTMLDivElement>(null);
   const [pullY, setPullY] = useState(0);
@@ -1187,6 +1264,23 @@ export function AviaDashboard() {
   const showCreateRequest = activeTab === 'requests' && (user.role === 'sender'  || user.role === 'both');
   const showCreateBtn     = showCreateFlight || showCreateRequest;
   const createBtnDisabled = showCreateFlight ? !adCheck.allowed : !requestCheck.allowed;
+
+  // Быстрое действие «Создать» на главном экране: для курьера — рейс, для
+  // отправителя — заявка, для роли «both» — зависит от текущей вкладки.
+  const quickCreateIsFlight = user.role === 'courier' || (user.role === 'both' && activeTab === 'flights');
+  const quickCreateCheck    = quickCreateIsFlight ? adCheck : requestCheck;
+  const quickCreateTitle    = quickCreateIsFlight ? 'Создать рейс' : 'Создать заявку';
+  const quickCreateSubtitle = quickCreateIsFlight ? 'Опубликовать рейс' : 'Найти курьера';
+
+  const handleQuickCreate = () => {
+    if (!quickCreateCheck.allowed) {
+      navigate('/avia/profile');
+      toast(quickCreateCheck.reason || 'Необходимо заполнить профиль', { icon: '🛂' });
+      return;
+    }
+    if (quickCreateIsFlight) setShowFlightModal(true);
+    else setShowRequestModal(true);
+  };
 
   const handleRefresh = () => {
     setLoadingData(true);
@@ -1401,16 +1495,95 @@ export function AviaDashboard() {
           </div>
         )}
 
-        {/* ── Hero: приветствие, статистика, совпадения ── */}
-        <AviaDashboardHero
-          user={user}
-          flights={flights}
-          requests={requests}
-          myFlights={myFlights}
-          myRequests={myRequests}
-          onFlightClick={setDetailFlight}
-          onRequestClick={setDetailRequest}
-        />
+        {/* ── Быстрые действия ── */}
+        <div style={{ marginBottom: 18 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 12 }}>
+            <Zap style={{ width: 13, height: 13, color: '#5ba3f5' }} />
+            <span style={{ fontSize: 10.5, fontWeight: 900, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#607080' }}>
+              Быстрые действия
+            </span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+            <QuickActionCard
+              icon={Plus} color="#5ba3f5" delay={0}
+              title={quickCreateTitle} subtitle={quickCreateSubtitle}
+              onClick={handleQuickCreate}
+            />
+            <QuickActionCard
+              icon={Handshake} color="#a78bfa" delay={0.06}
+              title="Сделки" subtitle="Договорённости"
+              onClick={() => navigate('/avia/deals')}
+            />
+            <QuickActionCard
+              icon={User} color="#34d399" delay={0.12}
+              title="Профиль" subtitle="Документы и роль"
+              onClick={() => navigate('/avia/profile')}
+            />
+          </div>
+        </div>
+
+        {/* ── Рекламный баннер ── */}
+        {hasAviaAds && (
+          <motion.div
+            style={{ marginBottom: 18 }}
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15, duration: 0.35 }}
+          >
+            <a
+              href={isAviaAdFallback ? undefined : currentAviaAd.url}
+              target={isAviaAdFallback ? undefined : '_blank'}
+              rel="noopener noreferrer"
+              onClick={(e) => { if (isAviaAdFallback) e.preventDefault(); }}
+              style={{ display: 'block', borderRadius: 22, overflow: 'hidden', cursor: isAviaAdFallback ? 'default' : 'pointer' }}
+            >
+              <div
+                style={{ position: 'relative', overflow: 'hidden', height: 'clamp(140px, 42vw, 180px)' }}
+                onTouchStart={handleAdTouchStart}
+                onTouchMove={handleAdTouchMove}
+                onTouchEnd={handleAdTouchEnd}
+              >
+                <div style={{ position: 'absolute', inset: 0 }}>
+                  <ImageWithFallback src={currentAviaAd.image} alt="Реклама" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, #00000090 0%, transparent 55%)' }} />
+                </div>
+                <div style={{ position: 'absolute', inset: 0, zIndex: 10, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 14 }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                    <span style={{
+                      fontSize: 9.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em',
+                      padding: '4px 10px', borderRadius: 999, background: 'rgba(255,255,255,0.18)', color: '#fff', backdropFilter: 'blur(4px)',
+                    }}>
+                      {currentAviaAd.badge}
+                    </span>
+                    <span style={{
+                      fontSize: 9.5, fontWeight: 700, padding: '4px 9px', borderRadius: 999,
+                      background: 'rgba(0,0,0,0.4)', color: 'rgba(255,255,255,0.8)', backdropFilter: 'blur(4px)',
+                    }}>
+                      {isAviaAdFallback ? 'Демо' : 'Реклама'}
+                    </span>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 18, fontWeight: 900, color: '#fff', lineHeight: 1.2, margin: 0, textShadow: '0 2px 10px rgba(0,0,0,0.4)' }}>
+                      {currentAviaAd.title.split('\n').map((line: string, i: number) => (
+                        <span key={i}>{line}{i < currentAviaAd.title.split('\n').length - 1 && <br />}</span>
+                      ))}
+                    </p>
+                    <p style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.8)', margin: '4px 0 0' }}>{currentAviaAd.description}</p>
+                  </div>
+                </div>
+                <div style={{ position: 'absolute', bottom: 10, left: '50%', transform: 'translateX(-50%)', zIndex: 20, display: 'flex', gap: 5 }}>
+                  {aviaAds.map((_, idx) => (
+                    <div key={idx} style={{
+                      height: 4, borderRadius: 999, transition: 'all 0.3s',
+                      width: idx === aviaAdIndex ? 18 : 5,
+                      background: idx === aviaAdIndex ? '#fff' : 'rgba(255,255,255,0.4)',
+                    }} />
+                  ))}
+                </div>
+              </div>
+            </a>
+          </motion.div>
+        )}
 
         {/* ── Статус паспорта ── */}
         <AnimatePresence>
