@@ -1343,14 +1343,6 @@ export function AviaDashboard() {
             flight={detailFlight}
             isMine={detailFlight.courierId === myPhone}
             onClose={() => setDetailFlight(null)}
-            onDeleted={(id) => {
-              setFlights(prev => prev.filter(x => x.id !== id));
-              setMyFlights(prev => prev.filter(x => x.id !== id));
-            }}
-            onClosed={(id) => {
-              setFlights(prev => prev.filter(x => x.id !== id));
-              setMyFlights(prev => prev.map(x => x.id === id ? { ...x, status: 'closed' } : x));
-            }}
             onUpdated={(updated) => {
               setFlights(prev => prev.map(x => x.id === updated.id ? updated : x));
               setMyFlights(prev => prev.map(x => x.id === updated.id ? updated : x));
