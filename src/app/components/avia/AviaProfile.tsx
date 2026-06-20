@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useBlocker } from 'react-router';
 import { toast } from 'sonner';
-import { User, Camera, Save, CheckCircle2, Package, Send, Repeat, Loader2, AlertCircle, ShieldCheck, ShieldAlert, ShieldX, KeyRound, Timer, Plane, Handshake, MessageCircle, ThumbsUp, ThumbsDown, MapPin, AtSign, Star, TrendingUp, Calendar, ChevronDown, ChevronUp, LogOut, Plus, Search, ChevronRight, Phone, Shield, Info, Eye, EyeOff } from 'lucide-react';
+import { User, Camera, Save, CheckCircle2, Package, Send, Loader2, AlertCircle, ShieldCheck, ShieldAlert, ShieldX, KeyRound, Timer, Plane, Handshake, MessageCircle, ThumbsUp, ThumbsDown, MapPin, AtSign, Star, TrendingUp, Calendar, ChevronDown, ChevronUp, LogOut, Plus, Search, ChevronRight, Phone, Shield, Info, Eye, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAvia } from './AviaContext';
 import { updateAviaProfile, canCreateAd, changeAviaPin } from '../../api/aviaApi';
@@ -16,12 +16,11 @@ import type { AviaReview } from '../../api/aviaReviewApi';
 import { AviaRatingBadge } from './AviaRatingBadge';
 import { AviaVerificationSheet } from './AviaVerificationSheet';
 
-type AviaRole = 'courier' | 'sender' | 'both';
+type AviaRole = 'courier' | 'sender';
 
 const ROLE_OPTIONS: { id: AviaRole; icon: typeof Package; label: string; color: string; desc: string }[] = [
   { id: 'courier', icon: Package, label: 'Курьер',       color: '#0ea5e9', desc: 'Создаю рейсы' },
   { id: 'sender',  icon: Send,    label: 'Отправитель',  color: '#a78bfa', desc: 'Ищу курьеров' },
-  { id: 'both',    icon: Repeat,  label: 'Оба',          color: '#34d399', desc: 'Совмещаю роли' },
 ];
 
 // ── Shared styles ─────────────────────────────────────────────────────────────
@@ -128,7 +127,7 @@ function HeroCard({ user, likes, dislikes, completeness, onAvatarUpload, avatarU
   const memberSince = user.createdAt
     ? new Date(user.createdAt).toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })
     : null;
-  const roleInfo = ROLE_OPTIONS.find(r => r.id === user.role) ?? ROLE_OPTIONS[2];
+  const roleInfo = ROLE_OPTIONS.find(r => r.id === user.role) ?? ROLE_OPTIONS[1];
   const pctColor = completeness.pct >= 80 ? '#34d399' : completeness.pct >= 50 ? '#fbbf24' : '#f87171';
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -360,15 +359,9 @@ function QuickActionsCard({ role, onCreateFlight, onCreateRequest, dealsPending,
       { icon: Handshake,   label: 'Сделки',        sub: 'Мои договорённости',   color: '#a78bfa', route: '/avia/deals', badge: dealsPending },
       { icon: MessageCircle, label: 'Сообщения',   sub: 'Чаты с курьерами',     color: '#f59e0b', route: '/avia/messages', badge: chatUnread },
     ],
-    both: [
-      { icon: Plane,       label: 'Рейсы',         sub: 'Мои объявления',       color: '#0ea5e9', route: '/avia/dashboard' },
-      { icon: Search,      label: 'Поиск',         sub: 'Найти перевозку',      color: '#6366f1', route: '/avia/dashboard' },
-      { icon: Handshake,   label: 'Сделки',        sub: 'Все договорённости',   color: '#a78bfa', route: '/avia/deals', badge: dealsPending },
-      { icon: MessageCircle, label: 'Сообщения',   sub: 'Все чаты',             color: '#f59e0b', route: '/avia/messages', badge: chatUnread },
-    ],
   };
 
-  const actions = allActions[role] ?? allActions.both;
+  const actions = allActions[role] ?? allActions.sender;
 
   return (
     <div style={{ ...card, padding: '18px' }}>
@@ -1529,7 +1522,7 @@ export function AviaProfile() {
   const [passportNumber, setPassportNumber] = useState('');
   const [city, setCity] = useState('');
   const [telegram, setTelegram] = useState('');
-  const [role, setRole] = useState<AviaRole>('both');
+  const [role, setRole] = useState<AviaRole>('sender');
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -1579,7 +1572,7 @@ export function AviaProfile() {
     passportNumber !== (user.passportNumber || '') ||
     city !== (user.city || '') ||
     telegram !== (user.telegram || '') ||
-    role !== (user.role || 'both')
+    role !== (user.role || 'sender')
   ) : false;
 
   // Refs для стабильного доступа к актуальным значениям в useBlocker (без пересоздания функции)
@@ -1671,7 +1664,7 @@ export function AviaProfile() {
       setPassportNumber(user.passportNumber || '');
       setCity(user.city || '');
       setTelegram(user.telegram || '');
-      setRole(user.role || 'both');
+      setRole(user.role || 'sender');
       passport.setPassportExpiry(user.passportExpiryDate || '');
       if (user.passportPhotoPath) {
         return passport.loadPassportPhoto(user.phone);
@@ -1711,6 +1704,10 @@ export function AviaProfile() {
   const handleSave = async () => {
     if (isSavingRef.current) return;
     if (!firstName.trim() || !lastName.trim()) { setError('Имя и фамилия обязательны'); return; }
+    if (role === 'courier' && user.role !== 'courier' && !hasPassport) {
+      setError('Для перехода на роль «Курьер» нужно сначала загрузить паспорт');
+      return;
+    }
     isSavingRef.current = true;
     setSaving(true); setError(''); setSaved(false);
     try {
@@ -1829,7 +1826,7 @@ export function AviaProfile() {
 
             <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
               <QuickActionsCard
-                role={user.role || 'both'}
+                role={user.role || 'sender'}
                 onCreateFlight={() => navigate('/avia/dashboard')}
                 onCreateRequest={() => navigate('/avia/dashboard')}
                 dealsPending={stats?.dealsPending ?? 0}

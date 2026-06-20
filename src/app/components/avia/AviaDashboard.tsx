@@ -1192,18 +1192,8 @@ export function AviaDashboard() {
   // Для курьера вкладка «Мои рейсы» — это его собственные рейсы любого статуса
   // (публичный список flights отдаёт только active, поэтому берём из myFlights,
   // чтобы рейс не пропадал с главной после старта/закрытия поездки).
-  // Для роли «both» — то же самое, но своя карточка подмешивается к общему
-  // публичному списку (а не заменяет его), т.к. там также видны чужие рейсы.
-  const preFilteredFlights = user.role === 'courier'
-    ? myFlights
-    : user.role === 'both'
-      ? [...flights.filter(f => f.courierId !== myPhone), ...myFlights]
-      : flights;
-  const preFilteredRequests = user.role === 'sender'
-    ? myRequests
-    : user.role === 'both'
-      ? [...requests.filter(r => r.senderId !== myPhone), ...myRequests]
-      : requests;
+  const preFilteredFlights = user.role === 'courier' ? myFlights : flights;
+  const preFilteredRequests = user.role === 'sender' ? myRequests : requests;
 
   // Пакет M: клиентская фильтрация поверх role-prefilter
   const displayFlights = sortFlights(
@@ -1219,9 +1209,8 @@ export function AviaDashboard() {
   const activeFilterCount = countActiveFilters(activeFS);
   const activeChips   = getFilterChips(activeFS);
 
-  // Быстрое действие «Создать» на главном экране: для курьера — рейс, для
-  // отправителя — заявка, для роли «both» — зависит от текущей вкладки.
-  const quickCreateIsFlight = user.role === 'courier' || (user.role === 'both' && activeTab === 'flights');
+  // Быстрое действие «Создать» на главном экране: для курьера — рейс, для отправителя — заявка.
+  const quickCreateIsFlight = user.role === 'courier';
   const quickCreateCheck    = quickCreateIsFlight ? adCheck : requestCheck;
   const quickCreateTitle    = quickCreateIsFlight ? 'Создать рейс' : 'Создать заявку';
   const quickCreateSubtitle = quickCreateIsFlight ? 'Опубликовать рейс' : 'Найти курьера';
@@ -1797,7 +1786,7 @@ export function AviaDashboard() {
                           onComplete={(id) => updateFlightStatus(id, 'completed')}
                           onDetail={setDetailFlight}
                           onChat={f.courierId !== myPhone ? handleOpenChat : undefined}
-                          onOffer={f.courierId !== myPhone && (user.role === 'sender' || user.role === 'both')
+                          onOffer={f.courierId !== myPhone && user.role === 'sender'
                             ? (fl) => setDealOfferFlight(fl) : undefined}
                           chatUnread={f.courierId !== myPhone ? (chatUnreadByPhone.current[f.courierId] || 0) : undefined}
                         />
@@ -1850,7 +1839,7 @@ export function AviaDashboard() {
                         onClose={handleCloseRequest}
                         onDetail={setDetailRequest}
                         onChat={r.senderId !== myPhone ? handleOpenChat : undefined}
-                        onOffer={r.senderId !== myPhone && (user.role === 'courier' || user.role === 'both')
+                        onOffer={r.senderId !== myPhone && user.role === 'courier'
                           ? (req) => setDealOfferRequest(req) : undefined}
                         chatUnread={r.senderId !== myPhone ? (chatUnreadByPhone.current[r.senderId] || 0) : undefined}
                       />

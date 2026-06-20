@@ -93,7 +93,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       const clean = aviaClean(phone);
       if (clean.length < 9) return c.json({ error: 'Некорректный номер телефона' }, 400);
       if (!/^\d{4}$/.test(pin)) return c.json({ error: 'PIN должен содержать 4 цифры' }, 400);
-      if (!['courier', 'sender', 'both'].includes(role)) return c.json({ error: 'role must be courier/sender/both' }, 400);
+      if (!['courier', 'sender'].includes(role)) return c.json({ error: 'role must be courier/sender' }, 400);
 
       const existingPin = await Pins.get(clean);
       if (existingPin?.pinHash) return c.json({ error: 'Этот номер уже зарегистрирован. Используйте вход.' }, 409);
@@ -233,7 +233,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
 
       const clean = aviaClean(phone);
 
-      if (updates.role && !['courier', 'sender', 'both'].includes(updates.role)) return c.json({ error: 'role must be courier/sender/both' }, 400);
+      if (updates.role && !['courier', 'sender'].includes(updates.role)) return c.json({ error: 'role must be courier/sender' }, 400);
 
       // 🔒 Паспорт нельзя менять через PUT
       delete updates.passportPhoto;
@@ -241,6 +241,17 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       delete updates.passportUploadedAt;
       delete updates.passportExpiryDate;
       delete updates.passportVerified;
+
+      // 🔒 Переход на роль «Курьер» требует уже загруженного паспорта
+      if (updates.role === 'courier') {
+        const existing = await Users.get(clean);
+        if (existing && existing.role !== 'courier') {
+          const hasPassport = !!(existing.passportPhoto || existing.passportPhotoPath);
+          if (!hasPassport) {
+            return c.json({ error: 'Для перехода на роль «Курьер» необходимо сначала загрузить паспорт' }, 403);
+          }
+        }
+      }
 
       const updated = await Users.update(clean, updates);
       if (!updated) return c.json({ error: 'User not found' }, 404);
@@ -492,6 +503,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
 
       const user = await Users.get(courierId);
       if (!user) return c.json({ error: 'User not found' }, 404);
+      if (user.role !== 'courier') return c.json({ error: 'Создавать рейсы могут только курьеры' }, 403);
       if (!user.passportPhoto && !user.passportPhotoPath) return c.json({ error: 'Необходимо загрузить фото паспорта' }, 403);
       if (!user.firstName || !user.lastName) return c.json({ error: 'Необходимо заполнить ФИО в профиле' }, 403);
       if (user.passportExpired) return c.json({ error: 'Срок действия вашего паспорта истёк' }, 403);
@@ -719,9 +731,8 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
 
       const user = await Users.get(senderId);
       if (!user) return c.json({ error: 'User not found' }, 404);
-      if (!user.passportPhoto && !user.passportPhotoPath) return c.json({ error: 'Необходимо загрузить фото паспорта' }, 403);
+      if (user.role !== 'sender') return c.json({ error: 'Создавать заявки могут только отправители' }, 403);
       if (!user.firstName || !user.lastName) return c.json({ error: 'Необходимо заполнить ФИО в профиле' }, 403);
-      if (user.passportExpired) return c.json({ error: 'Срок действия вашего паспорта истёк' }, 403);
 
       const id: string = aviaId('avia_req');
       const request: AviaRequest = {

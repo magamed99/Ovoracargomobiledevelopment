@@ -40,7 +40,7 @@ import { aviaCache, CK, TTL } from "./cache.tsx";
 export interface AviaUser {
   id               : string;
   phone            : string;
-  role             : 'courier' | 'sender' | 'both';
+  role             : 'courier' | 'sender';
   firstName        : string;
   lastName         : string;
   middleName       : string;
@@ -218,7 +218,15 @@ export const Users = {
     if (cached) return cached;
 
     const user = await kv.get(`ovora:avia-user:${phone}`) as AviaUser | null;
-    if (user) aviaCache.set(CK.user(phone), user, TTL.USER_PROFILE);
+    if (!user) return null;
+
+    // Legacy-миграция: роль "both" удалена из системы — принудительно переводим на "sender"
+    if ((user.role as string) === 'both') {
+      user.role = 'sender';
+      await kv.set(`ovora:avia-user:${phone}`, user);
+    }
+
+    aviaCache.set(CK.user(phone), user, TTL.USER_PROFILE);
     return user;
   },
 

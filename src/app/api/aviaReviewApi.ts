@@ -31,7 +31,7 @@ export interface AviaPublicProfile {
   phone: string;
   firstName: string | null;
   lastName: string | null;
-  role: 'courier' | 'sender' | 'both' | null;
+  role: 'courier' | 'sender' | null;
   likes: number;
   dislikes: number;
   reviewsCount: number;

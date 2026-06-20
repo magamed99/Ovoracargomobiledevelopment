@@ -11,7 +11,7 @@ const HEADERS = {
 export interface AviaUser {
   id: string;
   phone: string;
-  role: 'courier' | 'sender' | 'both';
+  role: 'courier' | 'sender';
   firstName?: string;
   lastName?: string;
   middleName?: string;
@@ -337,20 +337,8 @@ export function canCreateAd(user: AviaUser | null): { allowed: boolean; reason?:
 
 export function canCreateRequest(user: AviaUser | null): { allowed: boolean; reason?: string } {
   if (!user) return { allowed: false, reason: 'Не авторизован' };
-  if (!user.passportPhoto && !user.passportPhotoPath) {
-    return { allowed: false, reason: 'Загрузите фото паспорта для создания заявок' };
-  }
   if (!user.firstName || !user.lastName) {
     return { allowed: false, reason: 'Заполните ФИО в профиле перед созданием заявки' };
-  }
-  if (user.passportExpired) {
-    return { allowed: false, reason: 'Ваш паспорт просрочен. Создание заявок невозможно.' };
-  }
-  if (user.passportExpiryDate) {
-    const exp = new Date(user.passportExpiryDate);
-    if (exp.getTime() < Date.now()) {
-      return { allowed: false, reason: 'Ваш паспорт просрочен. Создание заявок невозможно.' };
-    }
   }
   if (user.role === 'courier') {
     return { allowed: false, reason: 'Курьеры не могут создавать заявки (только рейсы)' };

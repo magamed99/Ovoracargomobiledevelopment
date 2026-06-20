@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ArrowLeft, User, ThumbsUp, ThumbsDown, Handshake, Package,
-  Send, Repeat, Loader2, MessageCircle, Calendar,
+  Send, Loader2, MessageCircle, Calendar,
 } from 'lucide-react';
 import { getAviaPublicProfile } from '../../api/aviaReviewApi';
 import type { AviaPublicProfile as ProfileType, AviaReview } from '../../api/aviaReviewApi';
@@ -24,7 +24,6 @@ function fmtDate(iso: string) {
 const ROLE_MAP: Record<string, { label: string; icon: typeof Package; color: string }> = {
   courier: { label: 'Курьер',      icon: Package, color: '#0ea5e9' },
   sender:  { label: 'Отправитель', icon: Send,    color: '#a78bfa' },
-  both:    { label: 'Курьер + Отправитель', icon: Repeat, color: '#34d399' },
 };
 
 type ReviewTab = 'likes' | 'dislikes';
