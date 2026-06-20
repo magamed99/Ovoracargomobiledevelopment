@@ -47,6 +47,8 @@ export interface AviaDeal {
   rejectedAt?: string;
   rejectReason?: string;
   podPhotos?: AviaPODPhoto[];
+  /** Статус рейса (только для adType === 'flight') — подмешивается бэкендом в /avia/deals/user/:phone */
+  flightStatus?: string;
 }
 
 export type AviaPODPhotoType = 'pickup' | 'delivery';

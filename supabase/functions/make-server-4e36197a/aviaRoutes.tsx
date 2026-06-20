@@ -1163,7 +1163,25 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
         return c.json({ error: 'Forbidden' }, 403);
       }
       const deals = await Deals.listByUser(phone);
-      return c.json({ deals });
+
+      // Подмешиваем статус рейса в рейсовые сделки — нужно фронтенду, чтобы не
+      // показывать сделку завершённой раньше, чем курьер закроет весь рейс.
+      // Берём напрямую через Flights.get(), а не отдельным запросом с клиента,
+      // т.к. GET /avia/flights/:id закрыт для не-владельцев (защита от IDOR),
+      // а здесь доступ уже проверен (callerPhone === phone, участник сделки).
+      const flightIds = Array.from(new Set(
+        deals.filter(d => d.adType === 'flight').map(d => d.adId)
+      ));
+      const flightStatusById: Record<string, string> = {};
+      await Promise.all(flightIds.map(async id => {
+        const flight = await Flights.get(id);
+        if (flight) flightStatusById[id] = flight.status;
+      }));
+      const enriched = deals.map(d =>
+        d.adType === 'flight' ? { ...d, flightStatus: flightStatusById[d.adId] } : d
+      );
+
+      return c.json({ deals: enriched });
     } catch (err) {
       console.log('Error GET /avia/deals/user/:phone:', err);
       return c.json({ error: `${err}` }, 500);
