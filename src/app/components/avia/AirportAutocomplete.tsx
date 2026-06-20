@@ -130,6 +130,7 @@ export function AirportAutocomplete({
     fontWeight: 500,
     outline: 'none',
     boxSizing: 'border-box' as const,
+    textOverflow: 'ellipsis',
     transition: 'border-color 0.2s, border-radius 0.15s',
     ...extInputStyle,
   };

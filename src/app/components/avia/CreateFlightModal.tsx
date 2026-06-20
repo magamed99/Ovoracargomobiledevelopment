@@ -269,7 +269,7 @@ export function CreateFlightModal({ user, onClose, onSuccess }: Props) {
           {/* Route */}
           <div style={{ marginBottom: 12 }}>
             <label style={labelStyle}>Маршрут *</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <AirportAutocomplete
                 value={from}
                 onChange={v => { setFrom(v); setError(''); }}
@@ -277,7 +277,9 @@ export function CreateFlightModal({ user, onClose, onSuccess }: Props) {
                 accentColor="#4a6080"
                 iconColor="#4a6080"
               />
-              <ArrowRight style={{ width: 16, height: 16, color: '#4a6080', flexShrink: 0 }} />
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <ArrowRight style={{ width: 14, height: 14, color: '#4a6080', transform: 'rotate(90deg)' }} />
+              </div>
               <AirportAutocomplete
                 value={to}
                 onChange={v => { setTo(v); setError(''); }}
