@@ -17,7 +17,6 @@ import {
   completeAviaDeal,
   uploadAviaDealPOD,
 } from '../../api/aviaDealApi';
-import { getAviaFlight } from '../../api/aviaApi';
 import type { AviaDeal, AviaDealStatus, AviaPODPhoto, AviaPODPhotoType } from '../../api/aviaDealApi';
 import { makeAviaChatId } from '../../api/aviaChatApi';
 import { AviaReviewModal } from './AviaReviewModal';
@@ -44,16 +43,17 @@ const TABS: { id: TabId; label: string; color: string }[] = [
 // Для рейсовых сделок отдельная сделка считается «по-настоящему» завершённой
 // только когда курьер закрыл весь рейс кнопкой «Завершить поездку» — до этого
 // момента сделка показывается активной, даже если получение/передача уже отмечены.
-function effectiveDealStatus(d: AviaDeal, flightStatusById: Record<string, string>): AviaDealStatus {
-  if (d.status === 'completed' && d.adType === 'flight') {
-    const flightStatus = flightStatusById[d.adId];
-    if (flightStatus && flightStatus !== 'completed') return 'accepted';
+// flightStatus подмешивается бэкендом в /avia/deals/user/:phone (см. aviaRoutes.tsx) —
+// прямой запрос статуса рейса с клиента не работает для не-владельца (IDOR-защита).
+function effectiveDealStatus(d: AviaDeal): AviaDealStatus {
+  if (d.status === 'completed' && d.adType === 'flight' && d.flightStatus && d.flightStatus !== 'completed') {
+    return 'accepted';
   }
   return d.status;
 }
 
-function dealBucket(d: AviaDeal, flightStatusById: Record<string, string>): TabId {
-  const status = effectiveDealStatus(d, flightStatusById);
+function dealBucket(d: AviaDeal): TabId {
+  const status = effectiveDealStatus(d);
   if (status === 'cancelled' || status === 'rejected') return 'cancelled';
   if (status === 'completed') return 'completed';
   return 'active';
@@ -87,13 +87,11 @@ function maskPhone(phone: string) {
 function DealCard({
   deal,
   myPhone,
-  flightStatusById,
   onAccept, onReject, onCancel, onComplete, onOpenChat, onReview, onPODUploaded,
   alreadyReviewed,
 }: {
   deal: AviaDeal;
   myPhone: string;
-  flightStatusById: Record<string, string>;
   onAccept: (id: string) => void;
   onReject: (id: string) => void;
   onCancel: (id: string) => void;
@@ -111,7 +109,7 @@ function DealCard({
   const [expanded, setExpanded] = useState(false);
   const pickupInputRef = useRef<HTMLInputElement>(null);
   const deliveryInputRef = useRef<HTMLInputElement>(null);
-  const displayStatus = effectiveDealStatus(deal, flightStatusById);
+  const displayStatus = effectiveDealStatus(deal);
   const statusMeta = STATUS_META[displayStatus];
   const StatusIcon = statusMeta.icon;
 
@@ -515,10 +513,10 @@ function DealCard({
 // Когда у одного рейса несколько принятых/завершённых сделок (разные отправители),
 // показываем одну карточку рейса вместо дублей — детали каждого отправителя (фото
 // получения/передачи) находятся на странице манифеста.
-function FlightGroupCard({ deals, flightStatusById }: { deals: AviaDeal[]; flightStatusById: Record<string, string> }) {
+function FlightGroupCard({ deals }: { deals: AviaDeal[] }) {
   const navigate = useNavigate();
   const first = deals[0];
-  const allCompleted = deals.every(d => effectiveDealStatus(d, flightStatusById) === 'completed');
+  const allCompleted = deals.every(d => effectiveDealStatus(d) === 'completed');
   const statusMeta = allCompleted ? STATUS_META.completed : STATUS_META.accepted;
   const StatusIcon = statusMeta.icon;
   const totalWeight = deals.reduce((sum, d) => sum + (d.weightKg || 0), 0);
@@ -614,9 +612,6 @@ export function AviaDealsPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>('active');
-  // adId рейса → его статус. Нужно, чтобы не показывать отдельную сделку
-  // завершённой, пока курьер не закрыл рейс целиком.
-  const [flightStatusById, setFlightStatusById] = useState<Record<string, string>>({});
 
   // Чат перенесён на /avia/messages
 
@@ -634,24 +629,6 @@ export function AviaDealsPage() {
     try {
       const data = await getAviaDeals(myPhone);
       setDeals(data);
-
-      // подгружаем статус рейса для завершённых рейсовых сделок — пока рейс не
-      // закрыт целиком, такая сделка должна отображаться как активная
-      const flightIds = Array.from(new Set(
-        data.filter(d => d.adType === 'flight' && d.status === 'completed').map(d => d.adId)
-      ));
-      if (flightIds.length > 0) {
-        const statuses: Record<string, string> = {};
-        await Promise.all(flightIds.map(async id => {
-          try {
-            const flight = await getAviaFlight(id, myPhone);
-            if (flight) statuses[id] = flight.status;
-          } catch {
-            // оставляем неопределённым — карточка останется со старым статусом
-          }
-        }));
-        setFlightStatusById(prev => ({ ...prev, ...statuses }));
-      }
 
       // загружаем статусы отзывов только для завершённых сделок
       const completed = data.filter(d => d.status === 'completed');
@@ -680,7 +657,7 @@ export function AviaDealsPage() {
   }, [isAuth, myPhone]);
 
   // ── Фильтрация ────────────────────────────────────────────────────────────
-  const filtered = deals.filter(d => dealBucket(d, flightStatusById) === activeTab);
+  const filtered = deals.filter(d => dealBucket(d) === activeTab);
 
   // ── Группировка по рейсу ─────────────────────────────────────────────────
   // У одного рейса может быть несколько принятых/завершённых сделок (разные
@@ -707,9 +684,9 @@ export function AviaDealsPage() {
   }, [filtered]);
 
   // ── Badges ────────────────────────────────────────────────────────────────
-  const activeCount    = deals.filter(d => dealBucket(d, flightStatusById) === 'active').length;
-  const completedCount = deals.filter(d => dealBucket(d, flightStatusById) === 'completed').length;
-  const cancelledCount = deals.filter(d => dealBucket(d, flightStatusById) === 'cancelled').length;
+  const activeCount    = deals.filter(d => dealBucket(d) === 'active').length;
+  const completedCount = deals.filter(d => dealBucket(d) === 'completed').length;
+  const cancelledCount = deals.filter(d => dealBucket(d) === 'cancelled').length;
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleAccept = async (id: string) => {
@@ -916,13 +893,12 @@ export function AviaDealsPage() {
         ) : (
           <AnimatePresence>
             {renderItems.map(item => item.kind === 'flightGroup' ? (
-              <FlightGroupCard key={`flight-${item.deals[0].adId}`} deals={item.deals} flightStatusById={flightStatusById} />
+              <FlightGroupCard key={`flight-${item.deals[0].adId}`} deals={item.deals} />
             ) : (
               <DealCard
                 key={item.deal.id}
                 deal={item.deal}
                 myPhone={myPhone}
-                flightStatusById={flightStatusById}
                 onAccept={handleAccept}
                 onReject={handleReject}
                 onCancel={handleCancel}
