@@ -33,6 +33,7 @@ import { CreateRequestModal } from './CreateRequestModal';
 import { FlightDetailModal, RequestDetailModal } from './DetailModal';
 import { AviaDealOfferModal } from './AviaDealOfferModal';
 import { getAviaDeals } from '../../api/aviaDealApi';
+import { AviaDashboardHero } from './AviaDashboardHero';
 
 type AvSortKey = 'date-desc' | 'date-asc' | 'weight-desc' | 'weight-asc' | 'price-asc' | 'price-desc';
 
@@ -829,7 +830,7 @@ function RequestCard({
 
 // ── Пустой стейт ──────────────────────────────────────────────────────────────
 
-function EmptyState({ icon: Icon, text, color }: { icon: typeof Plane; text: string; color: string }) {
+function EmptyState({ icon: Icon, title, subtitle, color }: { icon: typeof Plane; title: string; subtitle?: string; color: string }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -847,9 +848,14 @@ function EmptyState({ icon: Icon, text, color }: { icon: typeof Plane; text: str
       }}>
         <Icon style={{ width: 24, height: 24, color, opacity: 0.5 }} />
       </div>
-      <p style={{ fontSize: 13, color: '#2a4060', margin: 0, lineHeight: 1.7, whiteSpace: 'pre-line', fontWeight: 500 }}>
-        {text}
+      <p style={{ fontSize: 14, fontWeight: 800, color: '#c8d4e0', margin: 0, lineHeight: 1.4 }}>
+        {title}
       </p>
+      {subtitle && (
+        <p style={{ fontSize: 12, color: '#3d5268', margin: '4px 0 0', lineHeight: 1.6, fontWeight: 500 }}>
+          {subtitle}
+        </p>
+      )}
     </motion.div>
   );
 }
@@ -1395,6 +1401,17 @@ export function AviaDashboard() {
           </div>
         )}
 
+        {/* ── Hero: приветствие, статистика, совпадения ── */}
+        <AviaDashboardHero
+          user={user}
+          flights={flights}
+          requests={requests}
+          myFlights={myFlights}
+          myRequests={myRequests}
+          onFlightClick={setDetailFlight}
+          onRequestClick={setDetailRequest}
+        />
+
         {/* ── Статус паспорта ── */}
         <AnimatePresence>
           {!hasPassport && (
@@ -1538,7 +1555,6 @@ export function AviaDashboard() {
           }}>
             {(['flights', 'requests'] as const).map((tab) => {
               const isActive = activeTab === tab;
-              const count = tab === 'flights' ? displayFlights.length : displayRequests.length;
               const tabColor = tab === 'flights' ? '#0ea5e9' : '#a78bfa';
               const tabLabel = tabLabels[tab];
               const TabIcon = tab === 'flights' ? Plane : Package;
@@ -1562,15 +1578,6 @@ export function AviaDashboard() {
                 >
                   <TabIcon style={{ width: 12, height: 12 }} />
                   {tabLabel}
-                  <span style={{
-                    fontSize: 9, fontWeight: 700,
-                    background: isActive ? `${tabColor}20` : '#ffffff10',
-                    color: isActive ? tabColor : '#3d5268',
-                    padding: '1px 5px', borderRadius: 5,
-                    minWidth: 16, textAlign: 'center',
-                  }}>
-                    {loadingData ? '·' : count}
-                  </span>
                   {/* New items badge */}
                   {newCount > 0 && !isActive && (
                     <span style={{
@@ -1825,12 +1832,19 @@ export function AviaDashboard() {
                 <EmptyState
                   icon={searchQuery ? Search : Plane}
                   color="#0ea5e9"
-                  text={
+                  title={
                     searchQuery
-                      ? `Ничего не найдено по «${searchQuery}».\nПопробуйте другой запрос.`
+                      ? 'Ничего не найдено'
                       : user.role === 'courier'
-                        ? 'У вас пока нет опубликованных рейсов.\nНажмите «Создать», чтобы добавить первый.'
-                        : 'Активных рейсов пока нет. Попробуйте обновить позже.'
+                        ? 'У вас пока нет рейсов'
+                        : 'Рейсов пока нет'
+                  }
+                  subtitle={
+                    searchQuery
+                      ? `По запросу «${searchQuery}» совпадений нет`
+                      : user.role === 'courier'
+                        ? 'Нажмите «Создать», чтобы опубликовать первый рейс'
+                        : 'Курьеры пока не опубликовали маршруты — загляните позже'
                   }
                 />
               ) : (
@@ -1874,12 +1888,19 @@ export function AviaDashboard() {
                 <EmptyState
                   icon={searchQuery ? Search : Package}
                   color="#a78bfa"
-                  text={
+                  title={
                     searchQuery
-                      ? `Ничего не найдено по «${searchQuery}».\nПопробуйте другой запрос.`
+                      ? 'Ничего не найдено'
                       : user.role === 'sender'
-                        ? 'У вас пока нет заявок.\nНажмите «Создать», чтобы найти курьера.'
-                        : 'Заявок от отправителей пока нет. Попробуйте позже.'
+                        ? 'У вас пока нет заявок'
+                        : 'Заявок пока нет'
+                  }
+                  subtitle={
+                    searchQuery
+                      ? `По запросу «${searchQuery}» совпадений нет`
+                      : user.role === 'sender'
+                        ? 'Нажмите «Создать», чтобы найти курьера'
+                        : 'Отправители пока не оставили заявок — загляните позже'
                   }
                 />
               ) : (
