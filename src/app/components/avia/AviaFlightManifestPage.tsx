@@ -1,19 +1,22 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
+import { toast } from 'sonner';
 import {
   ArrowLeft, Plane, RefreshCw, AlertTriangle, ArrowRight,
   Clock, CheckCircle2, XCircle, ClipboardList, MessageCircle,
-  User, Weight, DollarSign, ShieldAlert, ThumbsUp,
+  User, Weight, DollarSign, ShieldAlert, ThumbsUp, Camera,
+  PlayCircle, Flag,
 } from 'lucide-react';
 import { useAvia } from './AviaContext';
-import { getAviaFlight } from '../../api/aviaApi';
+import { getAviaFlight, startAviaFlight, completeAviaFlight } from '../../api/aviaApi';
 import type { AviaFlight } from '../../api/aviaApi';
 import { getAviaDeals } from '../../api/aviaDealApi';
 import type { AviaDeal, AviaDealStatus } from '../../api/aviaDealApi';
 import { makeAviaChatId } from '../../api/aviaChatApi';
 import { getAviaDealReviewStatus } from '../../api/aviaReviewApi';
 import { AviaReviewModal } from './AviaReviewModal';
+import { AviaConfirmSheet } from './AviaConfirmSheet';
 
 function fmtDate(iso: string): string {
   try {
@@ -36,15 +39,18 @@ const STATUS_META: Record<AviaDealStatus, { label: string; color: string; bg: st
 };
 
 function ManifestRow({
-  deal, onOpenChat, reviewed, onReview,
+  deal, isCourierView, onOpenChat, reviewed, onReview,
 }: {
   deal: AviaDeal;
+  isCourierView: boolean;
   onOpenChat: (phone: string) => void;
   reviewed: boolean;
   onReview: (deal: AviaDeal) => void;
 }) {
   const statusMeta = STATUS_META[deal.status];
   const StatusIcon = statusMeta.icon;
+  const chatPhone = isCourierView ? deal.senderId : deal.courierId;
+  const podPhotos = deal.podPhotos || [];
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
@@ -66,10 +72,12 @@ function ManifestRow({
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: '#e2eaf3', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {deal.senderName || 'Отправитель'}
+            {isCourierView
+              ? (deal.senderName || 'Отправитель')
+              : (deal.courierName || 'Курьер')}
           </div>
           <div style={{ fontSize: 10, color: '#3d5268', fontWeight: 600 }}>
-            {maskPhone(deal.senderId)}
+            {maskPhone(chatPhone)}
           </div>
         </div>
         <div style={{
@@ -95,9 +103,31 @@ function ManifestRow({
         )}
       </div>
 
+      {podPhotos.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#4a6080', fontWeight: 600 }}>
+            <Camera style={{ width: 11, height: 11 }} />
+            Фото груза
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {podPhotos.map((p, i) => (
+              <a
+                key={i}
+                href={p.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: 'block', width: 52, height: 52, borderRadius: 8, overflow: 'hidden', border: '1px solid #ffffff12' }}
+              >
+                <img src={p.url} alt={p.type === 'pickup' ? 'Получение' : 'Передача'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         <button
-          onClick={() => onOpenChat(deal.senderId)}
+          onClick={() => onOpenChat(chatPhone)}
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             padding: '8px 12px', borderRadius: 10,
@@ -131,7 +161,7 @@ function ManifestRow({
               }}
             >
               <ThumbsUp style={{ width: 12, height: 12 }} />
-              Оценить отправителя
+              {isCourierView ? 'Оценить отправителя' : 'Оценить курьера'}
             </button>
           )
         )}
@@ -150,6 +180,12 @@ export function AviaFlightManifestPage() {
   const [error, setError]     = useState('');
   const [reviewedDeals, setReviewedDeals] = useState<Record<string, boolean>>({});
   const [reviewDeal, setReviewDeal] = useState<AviaDeal | null>(null);
+  const [starting, setStarting] = useState(false);
+  const [completing, setCompleting] = useState(false);
+  type ConfirmCfg = { title: string; description: string; variant: 'complete'; label: string; action: () => Promise<void> };
+  const [confirmCfg, setConfirmCfg] = useState<ConfirmCfg | null>(null);
+
+  const isCourierView = !!(flight && user && flight.courierId === user.phone);
 
   const load = useCallback(() => {
     if (!id || !user?.phone) return;
@@ -161,9 +197,13 @@ export function AviaFlightManifestPage() {
     ])
       .then(async ([f, allDeals]) => {
         if (!f) { setError('Рейс не найден'); return; }
-        if (f.courierId !== user.phone) { setError('Доступ запрещён: вы не владелец этого рейса'); return; }
-        setFlight(f);
         const flightDeals = allDeals.filter(d => d.adType === 'flight' && d.adId === id);
+        // Доступ: владелец рейса (курьер) или отправитель, у которого есть сделка на этот рейс
+        if (f.courierId !== user.phone && flightDeals.length === 0) {
+          setError('Доступ запрещён: у вас нет сделки на этот рейс');
+          return;
+        }
+        setFlight(f);
         setDeals(flightDeals);
 
         const completed = flightDeals.filter(d => d.status === 'completed');
@@ -195,6 +235,44 @@ export function AviaFlightManifestPage() {
     });
     navigate(`/avia/messages?${params.toString()}`);
   };
+
+  const execStart = async () => {
+    if (!user?.phone || !flight) return;
+    setStarting(true);
+    try {
+      const result = await startAviaFlight(flight.id, user.phone);
+      if (result.error) throw new Error(result.error);
+      setFlight(prev => prev ? { ...prev, status: 'in_progress' } : prev);
+      toast.success('Поездка начата! Рейс скрыт из поиска у других пользователей', { duration: 3000 });
+    } catch {
+      toast.error('Не удалось начать поездку');
+    } finally { setStarting(false); }
+  };
+
+  const execComplete = async () => {
+    if (!user?.phone || !flight) return;
+    setCompleting(true);
+    try {
+      const result = await completeAviaFlight(flight.id, user.phone);
+      if (result.error) throw new Error(result.error);
+      setFlight(prev => prev ? { ...prev, status: 'completed' } : prev);
+      toast.success(`Поездка завершена! Завершено сделок: ${result.completedDeals ?? 0}`, { duration: 3000 });
+      load();
+    } catch {
+      toast.error('Не удалось завершить поездку');
+    } finally { setCompleting(false); }
+  };
+
+  const handleStart = () => setConfirmCfg({
+    title: 'Начать поездку?',
+    description: 'Рейс исчезнет из публичного поиска — новые заявки больше не будут приходить.',
+    variant: 'complete', label: 'Начать', action: execStart,
+  });
+  const handleComplete = () => setConfirmCfg({
+    title: 'Завершить поездку?',
+    description: 'Все принятые сделки будут отмечены как завершённые.',
+    variant: 'complete', label: 'Завершить', action: execComplete,
+  });
 
   const counts = {
     pending:   deals.filter(d => d.status === 'pending').length,
@@ -281,6 +359,42 @@ export function AviaFlightManifestPage() {
               </div>
             </motion.div>
 
+            {isCourierView && flight.status !== 'closed' && flight.status !== 'completed' && (
+              <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+                {flight.status !== 'in_progress' ? (
+                  <button
+                    onClick={handleStart}
+                    disabled={starting}
+                    style={{
+                      flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                      padding: '11px 14px', borderRadius: 12, cursor: 'pointer',
+                      border: '1px solid #38bdf824', background: '#38bdf80c',
+                      color: '#38bdf8', fontSize: 13, fontWeight: 700,
+                      opacity: starting ? 0.5 : 1,
+                    }}
+                  >
+                    <PlayCircle style={{ width: 15, height: 15 }} />
+                    {starting ? 'Запуск...' : 'Начать поездку'}
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleComplete}
+                    disabled={completing}
+                    style={{
+                      flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                      padding: '11px 14px', borderRadius: 12, cursor: 'pointer',
+                      border: '1px solid #34d39924', background: '#34d3990c',
+                      color: '#34d399', fontSize: 13, fontWeight: 700,
+                      opacity: completing ? 0.5 : 1,
+                    }}
+                  >
+                    <Flag style={{ width: 15, height: 15 }} />
+                    {completing ? 'Завершение...' : 'Завершить поездку'}
+                  </button>
+                )}
+              </div>
+            )}
+
             <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
               {[
                 { label: 'Ожидают', value: counts.pending, color: '#f59e0b' },
@@ -314,6 +428,7 @@ export function AviaFlightManifestPage() {
                     <ManifestRow
                       key={d.id}
                       deal={d}
+                      isCourierView={isCourierView}
                       onOpenChat={handleOpenChat}
                       reviewed={!!reviewedDeals[d.id]}
                       onReview={setReviewDeal}
@@ -331,6 +446,18 @@ export function AviaFlightManifestPage() {
           myPhone={user.phone}
           onClose={() => setReviewDeal(null)}
           onReviewed={(dealId) => setReviewedDeals(prev => ({ ...prev, [dealId]: true }))}
+        />
+      )}
+
+      {confirmCfg && (
+        <AviaConfirmSheet
+          isOpen={true}
+          onClose={() => setConfirmCfg(null)}
+          onConfirm={() => { confirmCfg.action(); setConfirmCfg(null); }}
+          title={confirmCfg.title}
+          description={confirmCfg.description}
+          variant={confirmCfg.variant}
+          confirmLabel={confirmCfg.label}
         />
       )}
     </div>

@@ -6581,6 +6581,19 @@ app.get("/make-server-4e36197a/avia/flights", async (c) => {
   }
 });
 
+// ── GET /avia/flights/:id — один рейс (для манифеста и деталей) ─────────────
+app.get("/make-server-4e36197a/avia/flights/:id", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const flight: any = await kv.get(`ovora:air-flight:${id}`);
+    if (!flight || flight.isDeleted) return c.json({ error: 'Flight not found' }, 404);
+    return c.json({ flight });
+  } catch (err) {
+    console.log('Error GET /avia/flights/:id:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
 // ── POST /avia/flights — создание рейса (Курьером) ──────────────────────────
 app.post("/make-server-4e36197a/avia/flights", async (c) => {
   try {
