@@ -1274,6 +1274,14 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       if (!isParticipant)           return c.json({ error: 'Forbidden: not a participant' }, 403);
       if (deal.status !== 'accepted') return c.json({ error: `Cannot complete deal with status: ${deal.status}` }, 400);
 
+      // Для сделок по рейсу — нельзя завершить сделку до того, как курьер начал поездку
+      if (deal.adType === 'flight') {
+        const flight = await Flights.get(deal.adId);
+        if (flight && flight.status !== 'in_progress') {
+          return c.json({ error: 'Нельзя завершить сделку до начала поездки' }, 400);
+        }
+      }
+
       // Нельзя завершить без фото получения от отправителя и передачи получателю
       const podPhotosCheck = deal.podPhotos || [];
       const hasPickup   = podPhotosCheck.some((p: any) => p.type === 'pickup');
