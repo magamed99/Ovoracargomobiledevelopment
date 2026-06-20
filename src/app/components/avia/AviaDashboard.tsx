@@ -1138,11 +1138,11 @@ export function AviaDashboard() {
                   <ImageWithFallback src={currentAviaAd.image} alt="Реклама" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, #00000090 0%, transparent 55%)' }} />
                 </div>
-                <div style={{ position: 'absolute', inset: 0, zIndex: 10, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 14 }}>
+                <div style={{ position: 'absolute', inset: 0, zIndex: 10, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 16 }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                     <span style={{
-                      fontSize: 9.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em',
-                      padding: '4px 10px', borderRadius: 999, background: 'rgba(255,255,255,0.18)', color: '#fff', backdropFilter: 'blur(4px)',
+                      display: 'inline-block', maxWidth: 'calc(100% - 8px)', fontSize: 9.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em',
+                      padding: '5px 12px', borderRadius: 999, background: 'rgba(0,0,0,0.4)', color: '#fff', backdropFilter: 'blur(4px)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                     }}>
                       {currentAviaAd.badge}
                     </span>

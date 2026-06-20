@@ -5394,7 +5394,7 @@ app.get("/make-server-4e36197a/auth/backup/exists/:email", handleBackupExists);
 // ═══════════���══════════════════════════════════════════════════════════════════
 
 // Admin: upload ad media (image or video) to Supabase Storage
-app.post("/make-server-4e36197a/admin/ads/upload", async (c) => {
+app.post("/make-server-4e36197a/admin/ads/upload", requireAdmin, async (c) => {
   try {
     const formData = await c.req.formData();
     const file = formData.get("file") as File | null;
@@ -5452,7 +5452,7 @@ app.get("/make-server-4e36197a/ads", async (c) => {
 });
 
 // Admin: get all ads (including inactive)
-app.get("/make-server-4e36197a/admin/ads", async (c) => {
+app.get("/make-server-4e36197a/admin/ads", requireAdmin, async (c) => {
   try {
     const ads: any[] = await kv.getByPrefix("ovora:ad:");
     const sorted = ads.filter(a => a).sort((a: any, b: any) => (a.order ?? 999) - (b.order ?? 999));
@@ -5464,7 +5464,7 @@ app.get("/make-server-4e36197a/admin/ads", async (c) => {
 });
 
 // Admin: create new ad
-app.post("/make-server-4e36197a/admin/ads", async (c) => {
+app.post("/make-server-4e36197a/admin/ads", requireAdmin, async (c) => {
   try {
     const body = await c.req.json();
     const id = `ad_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -5493,7 +5493,7 @@ app.post("/make-server-4e36197a/admin/ads", async (c) => {
 });
 
 // Admin: update ad
-app.put("/make-server-4e36197a/admin/ads/:id", async (c) => {
+app.put("/make-server-4e36197a/admin/ads/:id", requireAdmin, async (c) => {
   try {
     const id = c.req.param("id");
     const body = await c.req.json();
@@ -5510,7 +5510,7 @@ app.put("/make-server-4e36197a/admin/ads/:id", async (c) => {
 });
 
 // Admin: delete ad
-app.delete("/make-server-4e36197a/admin/ads/:id", async (c) => {
+app.delete("/make-server-4e36197a/admin/ads/:id", requireAdmin, async (c) => {
   try {
     const id = c.req.param("id");
     await kv.del(`ovora:ad:${id}`);
