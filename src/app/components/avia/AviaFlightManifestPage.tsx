@@ -50,11 +50,12 @@ const STATUS_META: Record<AviaDealStatus, { label: string; color: string; bg: st
 };
 
 function ManifestRow({
-  deal, isCourierView, myPhone, onOpenChat, reviewed, onReview, onPODUploaded, onCompleteDeal,
+  deal, isCourierView, myPhone, tripStarted, onOpenChat, reviewed, onReview, onPODUploaded, onCompleteDeal,
 }: {
   deal: AviaDeal;
   isCourierView: boolean;
   myPhone: string;
+  tripStarted: boolean;
   onOpenChat: (phone: string) => void;
   reviewed: boolean;
   onReview: (deal: AviaDeal) => void;
@@ -69,7 +70,7 @@ function ManifestRow({
   const deliveryPhotos = podPhotos.filter(p => p.type === 'delivery');
   const hasPickup = pickupPhotos.length > 0;
   const hasDelivery = deliveryPhotos.length > 0;
-  const canComplete = hasPickup && hasDelivery;
+  const canComplete = hasPickup && hasDelivery && tripStarted;
 
   const [uploadingPOD, setUploadingPOD] = useState<AviaPODPhotoType | null>(null);
   const [completing, setCompleting] = useState(false);
@@ -232,7 +233,13 @@ function ManifestRow({
           <button
             onClick={handleComplete}
             disabled={completing || !canComplete}
-            title={canComplete ? undefined : 'Сначала добавьте фото получения и передачи товара'}
+            title={
+              canComplete
+                ? undefined
+                : !tripStarted
+                  ? 'Сначала начните поездку'
+                  : 'Сначала добавьте фото получения и передачи товара'
+            }
             style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               padding: '8px 12px', borderRadius: 10, cursor: canComplete ? 'pointer' : 'not-allowed',
@@ -562,6 +569,7 @@ export function AviaFlightManifestPage() {
                       deal={d}
                       isCourierView={isCourierView}
                       myPhone={user?.phone || ''}
+                      tripStarted={flight?.status === 'in_progress'}
                       onOpenChat={handleOpenChat}
                       reviewed={!!reviewedDeals[d.id]}
                       onReview={setReviewDeal}
