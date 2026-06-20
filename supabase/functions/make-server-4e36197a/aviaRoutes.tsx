@@ -1177,9 +1177,18 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
         const flight = await Flights.get(id);
         if (flight) flightStatusById[id] = flight.status;
       }));
-      const enriched = deals.map(d =>
-        d.adType === 'flight' ? { ...d, flightStatus: flightStatusById[d.adId] } : d
-      );
+
+      // Сделки-сироты: рейс, на который ссылается сделка, был удалён —
+      // такая сделка больше никому не нужна, чистим её сразу при загрузке.
+      const now = new Date().toISOString();
+      const enriched: AviaDeal[] = [];
+      for (const d of deals) {
+        if (d.adType === 'flight' && !flightStatusById[d.adId]) {
+          await Deals.set(d.id, { ...d, deletedAt: now });
+          continue;
+        }
+        enriched.push(d.adType === 'flight' ? { ...d, flightStatus: flightStatusById[d.adId] } : d);
+      }
 
       return c.json({ deals: enriched });
     } catch (err) {
