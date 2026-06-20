@@ -7766,6 +7766,67 @@ app.patch("/make-server-4e36197a/avia/deals/:id/cancel", async (c) => {
   }
 });
 
+// ── POST /avia/deals/:id/pod — фото получения/передачи товара курьером ──────
+//  Storage: make-4e36197a-pod/avia-deals/{dealId}/{type}-{ts}.jpg
+app.post("/make-server-4e36197a/avia/deals/:id/pod", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const { base64, type, callerPhone } = await c.req.json();
+    if (!base64 || !type) return c.json({ error: 'base64 and type required' }, 400);
+    if (!['pickup', 'delivery'].includes(type)) return c.json({ error: 'type must be pickup or delivery' }, 400);
+    if (!callerPhone) return c.json({ error: 'callerPhone required' }, 400);
+    const clean = aviaCleanPhone(callerPhone);
+
+    const key = `ovora:avia-deal:${id}`;
+    const deal: any = await kv.get(key);
+    if (!deal) return c.json({ error: 'Deal not found' }, 404);
+    if (deal.courierId !== clean) return c.json({ error: 'Forbidden: only the courier can upload proof photos' }, 403);
+    if (deal.status !== 'accepted') return c.json({ error: `Cannot upload photo for deal with status: ${deal.status}` }, 400);
+
+    const base64Data = base64.replace(/^data:image\/[a-z]+;base64,/, '');
+    const binaryStr = atob(base64Data);
+    const bytes = new Uint8Array(binaryStr.length);
+    for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+
+    const now = new Date().toISOString();
+    const fileName = `avia-deals/${id}/${type}-${Date.now()}.jpg`;
+
+    const { error: uploadError } = await supabase.storage
+      .from(POD_BUCKET)
+      .upload(fileName, bytes, { contentType: 'image/jpeg', upsert: true });
+    if (uploadError) { console.log('[AVIA POD] Upload error:', uploadError); throw uploadError; }
+
+    const { data: signedData } = await supabase.storage
+      .from(POD_BUCKET)
+      .createSignedUrl(fileName, 7 * 24 * 3600);
+
+    const photo = {
+      type, url: signedData?.signedUrl || '', path: fileName,
+      timestamp: now, uploadedBy: clean,
+    };
+    const podPhotos = [...(deal.podPhotos || []), photo];
+    const updated = { ...deal, podPhotos, updatedAt: now };
+    await kv.set(key, updated);
+
+    // Уведомить отправителя, чтобы он мог следить за действиями курьера
+    if (deal.senderId) {
+      const label = type === 'pickup' ? 'Курьер получил товар' : 'Курьер передал товар получателю';
+      sendPushToUser(deal.senderId, {
+        title: `📷 ${label}`,
+        body: `${deal.adFrom} → ${deal.adTo}`,
+        url: '/avia/deals',
+        tag: `avia-pod-${type}-${id}`,
+      }).catch(e => console.warn('[AVIA POD] push failed:', e));
+    }
+
+    console.log(`[AVIA Deals] ${type} photo uploaded for deal ${id}`);
+    return c.json({ success: true, photo, deal: updated });
+  } catch (err) {
+    console.log('Error POST /avia/deals/:id/pod:', err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
 // ── PATCH /avia/deals/:id/complete ───────────────────────────────────────────
 app.patch("/make-server-4e36197a/avia/deals/:id/complete", async (c) => {
   try {
@@ -7775,9 +7836,17 @@ app.patch("/make-server-4e36197a/avia/deals/:id/complete", async (c) => {
     const clean = aviaCleanPhone(phone);
     const deal: any = await kv.get(`ovora:avia-deal:${id}`);
     if (!deal) return c.json({ error: 'Deal not found' }, 404);
-    const isParticipant = deal.courierId === clean || deal.senderId === clean;
-    if (!isParticipant) return c.json({ error: 'Forbidden: not a participant' }, 403);
+    const isCourier = deal.courierId === clean;
+    if (!isCourier) return c.json({ error: 'Forbidden: only the courier can complete a deal' }, 403);
     if (deal.status !== 'accepted') return c.json({ error: `Cannot complete deal with status: ${deal.status}` }, 400);
+
+    // Нельзя завершить без фото получения от отправителя и передачи получателю
+    const podPhotos = deal.podPhotos || [];
+    const hasPickup = podPhotos.some((p: any) => p.type === 'pickup');
+    const hasDelivery = podPhotos.some((p: any) => p.type === 'delivery');
+    if (!hasPickup || !hasDelivery) {
+      return c.json({ error: 'Нужны фото получения и передачи товара, чтобы завершить сделку' }, 400);
+    }
 
     const now = new Date().toISOString();
     const updated = { ...deal, status: 'completed', completedAt: now, updatedAt: now };
