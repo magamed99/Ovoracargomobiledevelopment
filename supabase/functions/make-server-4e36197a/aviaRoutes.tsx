@@ -645,45 +645,22 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       if (flight.isDeleted)           return c.json({ error: 'Flight deleted' }, 400);
       if (flight.status === 'completed') return c.json({ error: 'Flight already completed' }, 400);
 
+      // Нельзя завершить поездку, пока есть принятые сделки, не завершённые курьером
+      // (для каждой нужны фото получения и передачи + нажатие «Завершить сделку»)
+      const userDeals = await Deals.listByUser(flight.courierId);
+      const flightDeals = userDeals.filter(d => d.adId === id);
+      const stillAccepted = flightDeals.filter(d => d.status === 'accepted').length;
+      if (stillAccepted > 0) {
+        return c.json({ error: `Сначала завершите все сделки с отправителями (осталось: ${stillAccepted})` }, 400);
+      }
+
       const now     = new Date().toISOString();
       const updated = { ...flight, status: 'completed', completedAt: now, updatedAt: now, freeKg: 0, reservedKg: 0 };
       await Flights.set(id, updated);
 
-      // Завершаем все принятые сделки по этому рейсу (fire-and-forget)
-      // MIGRATION POINT: вынести в очередь (BullMQ / pg-boss)
-      ;(async () => {
-        try {
-          const userDeals = await Deals.listByUser(flight.courierId);
-          let count = 0;
-          for (const deal of userDeals) {
-            if (deal.adId !== id || deal.status !== 'accepted') continue;
-            await Deals.set(deal.id, { ...deal, status: 'completed', completedAt: now, updatedAt: now });
-            count++;
-
-            // Системное сообщение в чат
-            const chatId = aviaChatId(deal.initiatorPhone, deal.recipientPhone);
-            const meta   = await Chats.getMeta(chatId);
-            if (meta) {
-              const msgId = aviaId('deal_update');
-              await Chats.addMessage(chatId, { id: msgId, chatId, senderPhone: 'system', text: 'Поездка завершена', type: 'deal_update', meta: { dealId: deal.id, status: 'completed' }, createdAt: now });
-              await Chats.setMeta(chatId, { ...meta, lastMessage: '✈ Поездка завершена', lastMessageAt: now, lastSenderPhone: 'system' });
-            }
-
-            // Уведомление отправителю
-            const notifId = aviaId('flight_done');
-            await Notifs.push(deal.senderId, {
-              id: notifId, phone: deal.senderId, type: 'system',
-              iconName: 'Star', iconBg: 'bg-yellow-500/10 text-yellow-400',
-              title: '✈ Поездка завершена!',
-              description: `Курьер ${flight.courierName || flight.courierId} завершил поездку · ${flight.from} → ${flight.to}`,
-              isUnread: true, createdAt: now, meta: { dealId: deal.id, flightId: id },
-            });
-          }
-          console.log(`[AVIA] Flight ${id} completed. ${count} deals completed`);
-        } catch (e) { console.warn('[AVIA] Complete flight side-effects error:', e); }
-      })();
-
-      return c.json({ success: true, flight: updated });
+      const completedDeals = flightDeals.filter(d => d.status === 'completed').length;
+      console.log(`[AVIA] Flight ${id} completed. ${completedDeals} deals already completed by courier`);
+      return c.json({ success: true, flight: updated, completedDeals });
     } catch (err) {
       console.log('Error PATCH /avia/flights/complete:', err);
       return c.json({ error: `${err}` }, 500);
