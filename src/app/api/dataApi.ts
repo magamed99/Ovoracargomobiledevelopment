@@ -25,8 +25,17 @@ const TRIPS_TTL   = 30_000; // 30 сек
 const _USER_TTL    = 60_000; // 1 мин
 const STATS_TTL   = 120_000; // 2 мин
 
-function getAdminCode(): string {
-  return (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('ovora_admin_token')) || '';
+// Роль cargo-admin/avia-admin аутентифицируется ТОЛЬКО через JWT (X-Admin-Token) —
+// у неё нет legacy-кода, совпадающего с ADMIN_ACCESS_CODE. super-admin использует
+// JWT, если он выдан (ADMIN_JWT_SECRET настроен), иначе падает на legacy
+// X-Admin-Code — это сохраняет текущее прод-поведение без миграции секретов.
+function getAdminAuthHeader(): Record<string, string> {
+  if (typeof sessionStorage === 'undefined') return {};
+  const jwt = sessionStorage.getItem('ovora_admin_jwt');
+  if (jwt) return { 'X-Admin-Token': jwt };
+  const code = sessionStorage.getItem('ovora_admin_token');
+  if (code) return { 'X-Admin-Code': code };
+  return {};
 }
 
 function getHeaders(path: string, isFormData: boolean): Record<string, string> {
@@ -36,11 +45,10 @@ function getHeaders(path: string, isFormData: boolean): Record<string, string> {
   if (!isFormData) {
     headers['Content-Type'] = 'application/json';
   }
-  // Add admin code for protected routes via custom header
+  // Add admin auth for protected routes via custom header
   const isAdmin = path.startsWith('/admin/') || path.startsWith('/kv/');
   if (isAdmin) {
-    const code = getAdminCode();
-    if (code) headers['X-Admin-Code'] = code;
+    Object.assign(headers, getAdminAuthHeader());
   }
   return headers;
 }
@@ -51,8 +59,7 @@ export function adminHeaders(): Record<string, string> {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${publicAnonKey}`,
   };
-  const code = getAdminCode();
-  if (code) headers['X-Admin-Code'] = code;
+  Object.assign(headers, getAdminAuthHeader());
   return headers;
 }
 
@@ -501,6 +508,20 @@ export async function getAdminDocuments() {
 export async function updateAdminDocStatus(documentId: string, userEmail: string, status: string, notes?: string) {
   const data = await req('PUT', `/admin/documents/${encodeURIComponent(documentId)}/status`, { status, userEmail, notes });
   return data;
+}
+
+// ── Admin audit log ───────────────────────────────────────────────
+export async function getAdminAudit(filter?: {
+  actorEmail?: string; targetId?: string; action?: string; limit?: number; offset?: number;
+}) {
+  const params = new URLSearchParams();
+  if (filter?.actorEmail) params.set('actorEmail', filter.actorEmail);
+  if (filter?.targetId)   params.set('targetId', filter.targetId);
+  if (filter?.action)     params.set('action', filter.action);
+  if (filter?.limit)      params.set('limit', String(filter.limit));
+  if (filter?.offset)     params.set('offset', String(filter.offset));
+  const qs = params.toString();
+  return req('GET', `/admin/audit${qs ? `?${qs}` : ''}`) as Promise<{ entries: any[]; total: number }>;
 }
 
 // ── Admin settings ─────────────────────────────────────────────────

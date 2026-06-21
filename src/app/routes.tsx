@@ -344,22 +344,22 @@ export const router = createBrowserRouter([
               .then(m => ({ Component: m.AdminDashboard })),
           },
           {
-            path: "drivers",
+            path: "cargo/drivers",
             lazy: () => import("./components/admin/DriversManagement")
               .then(m => ({ Component: m.DriversManagement })),
           },
           {
-            path: "users",
+            path: "cargo/users",
             lazy: () => import("./components/admin/UsersManagement")
               .then(m => ({ Component: m.UsersManagement })),
           },
           {
-            path: "trips",
+            path: "cargo/trips",
             lazy: () => import("./components/admin/TripsManagement")
               .then(m => ({ Component: m.TripsManagement })),
           },
           {
-            path: "verification",
+            path: "cargo/verification",
             lazy: () => import("./components/admin/DocumentVerification")
               .then(m => ({ Component: m.DocumentVerification })),
           },
@@ -369,12 +369,12 @@ export const router = createBrowserRouter([
               .then(m => ({ Component: m.BlacklistManagement })),
           },
           {
-            path: "analytics",
+            path: "cargo/analytics",
             lazy: () => import("./components/admin/Analytics")
               .then(m => ({ Component: m.Analytics })),
           },
           {
-            path: "reviews",
+            path: "cargo/reviews",
             lazy: () => import("./components/admin/Reviews")
               .then(m => ({ Component: m.Reviews })),
           },
@@ -384,12 +384,12 @@ export const router = createBrowserRouter([
               .then(m => ({ Component: m.CodeManagement })),
           },
           {
-            path: "offers",
+            path: "cargo/offers",
             lazy: () => import("./components/admin/OffersManagement")
               .then(m => ({ Component: m.OffersManagement })),
           },
           {
-            path: "cargos",
+            path: "cargo/cargos",
             lazy: () => import("./components/admin/CargosManagement")
               .then(m => ({ Component: m.CargosManagement })),
           },
@@ -399,14 +399,19 @@ export const router = createBrowserRouter([
               .then(m => ({ Component: m.AdsManagement })),
           },
           {
-            path: "settings",
+            path: "cargo/settings",
             lazy: () => import("./components/admin/Settings")
               .then(m => ({ Component: m.Settings })),
           },
           {
-            path: "subscriptions",
+            path: "cargo/subscriptions",
             lazy: () => import("./components/admin/SubscriptionManagement")
               .then(m => ({ Component: m.SubscriptionManagement })),
+          },
+          {
+            path: "cargo/audit",
+            lazy: () => import("./components/admin/CargoAuditLog")
+              .then(m => ({ Component: m.CargoAuditLog })),
           },
           {
             path: "site",
@@ -414,17 +419,17 @@ export const router = createBrowserRouter([
               .then(m => ({ Component: m.SiteSettingsPage })),
           },
           {
-            path: "avia-users",
+            path: "avia/users",
             lazy: () => import("./components/admin/AviaUsersManagement")
               .then(m => ({ Component: m.AviaUsersManagement })),
           },
           {
-            path: "avia-cards",
+            path: "avia/cards",
             lazy: () => import("./components/admin/AviaCardsManagement")
               .then(m => ({ Component: m.AviaCardsManagement })),
           },
           {
-            path: "avia-audit",
+            path: "avia/audit",
             lazy: () => import("./components/admin/AviaAuditLog")
               .then(m => ({ Component: m.AviaAuditLog })),
           },

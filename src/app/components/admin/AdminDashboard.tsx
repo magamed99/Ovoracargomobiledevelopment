@@ -3,12 +3,16 @@ import { Link } from 'react-router';
 import {
   Users, Car, Package, CheckCircle, RefreshCw, Loader2, Route,
   Star, Activity, Download, ArrowRight, Clock, TrendingUp,
-  AlertCircle, Zap,
+  AlertCircle, Zap, Plane, Send, Handshake, ShieldOff, Boxes,
 } from 'lucide-react';
 import { DonutChart } from '../ui/DonutChart';
 import { SimpleBarChart } from '../ui/SimpleBarChart';
 import { getAdminTrips, getAdminUsers, getAdminOffers, getAdminReviews } from '../../api/dataApi';
+import { getAviaAdminUsers, getAviaAdminDeals, getAviaAdminFlights } from '../../api/aviaAdminApi';
+import { PLATFORM_THEME } from './platformTheme';
 import { toast } from 'sonner';
+
+type AdminPlatform = 'cargo' | 'avia';
 
 // ── CSV export ────────────────────────────────────────────────────────────────
 function exportCsv(rows: Record<string, unknown>[], filename: string) {
@@ -52,7 +56,17 @@ const STATUS_LABEL: Record<string, string> = {
   scheduled: 'Запланирована',
 };
 
+type AdminRole = 'super-admin' | 'cargo-admin' | 'avia-admin';
+
 export function AdminDashboard() {
+  const adminRole = ((typeof sessionStorage !== 'undefined' && sessionStorage.getItem('ovora_admin_role')) || 'super-admin') as AdminRole;
+  // cargo-admin/avia-admin видят только свою платформу — их JWT не проходит
+  // requireRole на эндпоинтах другой платформы (см. CLAUDE.md RBAC).
+  const availablePlatforms: AdminPlatform[] =
+    adminRole === 'cargo-admin' ? ['cargo'] :
+    adminRole === 'avia-admin'  ? ['avia']  :
+    ['cargo', 'avia'];
+  const [platform, setPlatform] = useState<AdminPlatform>(availablePlatforms[0]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<{
     trips: number; drivers: number; users: number; senders: number;
@@ -64,6 +78,12 @@ export function AdminDashboard() {
   const [offers, setOffers] = useState<any[]>([]);
   const [exportOpen, setExportOpen] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
+  const [aviaLoading, setAviaLoading] = useState(false);
+  const [aviaLoaded, setAviaLoaded] = useState(false);
+  const [aviaUsers, setAviaUsers] = useState<any[]>([]);
+  const [aviaDeals, setAviaDeals] = useState<any[]>([]);
+  const [aviaFlights, setAviaFlights] = useState<any[]>([]);
 
   const load = async () => {
     setLoading(true);
@@ -95,7 +115,28 @@ export function AdminDashboard() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  const loadAvia = async () => {
+    setAviaLoading(true);
+    try {
+      const [usersData, dealsData, flightsData] = await Promise.all([
+        getAviaAdminUsers(), getAviaAdminDeals(), getAviaAdminFlights(),
+      ]);
+      setAviaUsers(usersData || []);
+      setAviaDeals(dealsData || []);
+      setAviaFlights(flightsData || []);
+      setAviaLoaded(true);
+    } catch (err) {
+      toast.error('Ошибка загрузки данных AVIA: ' + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setAviaLoading(false);
+    }
+  };
+
+  useEffect(() => { if (availablePlatforms.includes('cargo')) load(); else setLoading(false); }, []);
+
+  useEffect(() => {
+    if (platform === 'avia' && !aviaLoaded) loadAvia();
+  }, [platform, aviaLoaded]);
 
   // ── Chart data ────────────────────────────────────────────────────────────
   const tripStatusData = [
@@ -139,6 +180,42 @@ export function AdminDashboard() {
   });
   const topDrivers = Object.values(driverMap).sort((a, b) => b.trips - a.trips).slice(0, 5);
 
+  // ── AVIA chart data ──────────────────────────────────────────────────────
+  const aviaCouriers = aviaUsers.filter(u => u?.role === 'courier').length;
+  const aviaSenders = aviaUsers.filter(u => u?.role === 'sender').length;
+  const aviaBlocked = aviaUsers.filter(u => u?.blocked).length;
+  const aviaActiveDeals = aviaDeals.filter(d => d?.status === 'pending' || d?.status === 'active').length;
+  const aviaCompletedDeals = aviaDeals.filter(d => d?.status === 'completed').length;
+
+  const aviaDealStatusData = Object.entries(
+    aviaDeals.reduce((acc: Record<string, number>, d) => {
+      const key = d?.status || 'unknown';
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {})
+  ).map(([name, value], i) => ({
+    name,
+    value,
+    color: ['#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#94a3b8'][i % 5],
+  })).filter(d => d.value > 0);
+
+  const aviaRoleData = [
+    { name: 'Курьеры', value: aviaCouriers, color: '#0ea5e9' },
+    { name: 'Отправители', value: aviaSenders, color: '#38bdf8' },
+  ].filter(d => d.value > 0);
+
+  const recentDeals = [...aviaDeals]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 8);
+
+  const courierMap: Record<string, { name: string; flights: number }> = {};
+  aviaFlights.forEach(f => {
+    if (!f?.courierId) return;
+    if (!courierMap[f.courierId]) courierMap[f.courierId] = { name: f.courierId, flights: 0 };
+    courierMap[f.courierId].flights++;
+  });
+  const topCouriers = Object.values(courierMap).sort((a, b) => b.flights - a.flights).slice(0, 5);
+
   if (loading) return (
     <div className="flex flex-col items-center justify-center h-72 gap-3">
       <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: '#eff6ff' }}>
@@ -153,37 +230,37 @@ export function AdminDashboard() {
       title: 'Всего поездок', value: stats?.trips ?? 0, icon: Route,
       gradient: 'linear-gradient(135deg,#1565d8,#2385f4)',
       sub: `${stats?.activeTrips ?? 0} активных`,
-      to: '/admin/trips', badge: stats?.activeTrips,
+      to: '/admin/cargo/trips', badge: stats?.activeTrips,
     },
     {
       title: 'Водители', value: stats?.drivers ?? 0, icon: Car,
       gradient: 'linear-gradient(135deg,#059669,#10b981)',
       sub: `${stats?.senders ?? 0} отправителей`,
-      to: '/admin/drivers',
+      to: '/admin/cargo/drivers',
     },
     {
       title: 'Пользователей', value: stats?.users ?? 0, icon: Users,
       gradient: 'linear-gradient(135deg,#7c3aed,#8b5cf6)',
       sub: 'Всего в системе',
-      to: '/admin/users',
+      to: '/admin/cargo/users',
     },
     {
       title: 'Оферт', value: stats?.offers ?? 0, icon: Package,
       gradient: 'linear-gradient(135deg,#d97706,#f59e0b)',
       sub: `${stats?.pendingOffers ?? 0} ожидают`,
-      to: '/admin/offers', badge: stats?.pendingOffers,
+      to: '/admin/cargo/offers', badge: stats?.pendingOffers,
     },
     {
       title: 'Принято', value: stats?.acceptedOffers ?? 0, icon: CheckCircle,
       gradient: 'linear-gradient(135deg,#0891b2,#06b6d4)',
       sub: 'Завершённых сделок',
-      to: '/admin/offers',
+      to: '/admin/cargo/offers',
     },
     {
       title: 'Отзывов', value: stats?.reviews ?? 0, icon: Star,
       gradient: 'linear-gradient(135deg,#db2777,#ec4899)',
       sub: 'В системе',
-      to: '/admin/reviews',
+      to: '/admin/cargo/reviews',
     },
   ];
 
@@ -266,7 +343,7 @@ export function AdminDashboard() {
             )}
           </div>
           <button
-            onClick={load}
+            onClick={() => (platform === 'cargo' ? load() : loadAvia())}
             className="flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm transition-all"
             style={{ background: '#ffffff25', color: '#ffffff' }}
           >
@@ -276,9 +353,32 @@ export function AdminDashboard() {
         </div>
       </div>
 
+      {/* ── Platform tabs ── */}
+      {availablePlatforms.length > 1 && (
+      <div className="flex items-center gap-2 bg-white rounded-2xl p-1.5 w-fit" style={{ border: '1px solid #f0f4f8' }}>
+        {availablePlatforms.map(p => {
+          const theme = PLATFORM_THEME[p];
+          const active = platform === p;
+          return (
+            <button
+              key={p}
+              onClick={() => setPlatform(p)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all"
+              style={active ? { background: theme.gradient, color: '#ffffff' } : { color: '#64748b' }}
+            >
+              {p === 'cargo' ? <Boxes className="w-4 h-4" /> : <Plane className="w-4 h-4" />}
+              {theme.label}
+            </button>
+          );
+        })}
+      </div>
+      )}
+
+      {platform === 'cargo' && (
+      <>
       {/* ── Pending alert ── */}
       {(stats?.pendingOffers ?? 0) > 0 && (
-        <Link to="/admin/offers" className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:shadow-md" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
+        <Link to="/admin/cargo/offers" className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:shadow-md" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
           <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
           <p className="text-sm text-amber-800 font-medium flex-1">
             Есть <strong>{stats?.pendingOffers}</strong> оферт, ожидающих рассмотрения
@@ -461,7 +561,7 @@ export function AdminDashboard() {
               </div>
               <p className="font-semibold text-gray-900 text-sm">Последние поездки</p>
             </div>
-            <Link to="/admin/trips" className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors">
+            <Link to="/admin/cargo/trips" className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors">
               Все поездки <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
@@ -515,7 +615,7 @@ export function AdminDashboard() {
               </div>
               <p className="font-semibold text-gray-900 text-sm">Топ водителей</p>
             </div>
-            <Link to="/admin/drivers" className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors">
+            <Link to="/admin/cargo/drivers" className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors">
               Все <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
@@ -556,6 +656,217 @@ export function AdminDashboard() {
           )}
         </div>
       </div>
+      </>
+      )}
+
+      {platform === 'avia' && (
+      <>
+      {aviaLoading && !aviaLoaded ? (
+        <div className="flex flex-col items-center justify-center h-72 gap-3">
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: '#f0f9ff' }}>
+            <Loader2 className="w-6 h-6 animate-spin" style={{ color: PLATFORM_THEME.avia.accent }} />
+          </div>
+          <p className="text-gray-500 text-sm font-medium">Загрузка данных AVIA...</p>
+        </div>
+      ) : (
+      <>
+      {/* ── AVIA stat cards ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
+        {[
+          { title: 'Курьеры', value: aviaCouriers, icon: Send, gradient: PLATFORM_THEME.avia.gradient, sub: `${aviaSenders} отправителей`, to: '/admin/avia/users' },
+          { title: 'Пользователей AVIA', value: aviaUsers.length, icon: Users, gradient: 'linear-gradient(135deg,#7c3aed,#8b5cf6)', sub: 'Всего в системе', to: '/admin/avia/users' },
+          { title: 'Рейсов', value: aviaFlights.length, icon: Plane, gradient: 'linear-gradient(135deg,#0891b2,#06b6d4)', sub: 'Опубликовано курьерами', to: '/admin/avia/cards' },
+          { title: 'Сделок', value: aviaDeals.length, icon: Handshake, gradient: 'linear-gradient(135deg,#d97706,#f59e0b)', sub: `${aviaActiveDeals} активных`, to: '/admin/avia/cards', badge: aviaActiveDeals },
+          { title: 'Заблокировано', value: aviaBlocked, icon: ShieldOff, gradient: 'linear-gradient(135deg,#dc2626,#ef4444)', sub: 'Пользователей AVIA', to: '/admin/avia/users' },
+        ].map(card => (
+          <Link key={card.title} to={card.to} className="group">
+            <div
+              className="rounded-2xl p-3 sm:p-4 transition-all hover:shadow-lg hover:-translate-y-0.5 relative overflow-hidden"
+              style={{ background: '#ffffff', border: '1px solid #f0f4f8' }}
+            >
+              <div
+                className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center mb-3 relative"
+                style={{ background: card.gradient }}
+              >
+                <card.icon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                {card.badge != null && card.badge > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-white text-[9px] font-bold">
+                    {card.badge > 9 ? '9+' : card.badge}
+                  </span>
+                )}
+              </div>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900">{card.value}</p>
+              <p className="text-xs font-semibold text-gray-700 mt-0.5">{card.title}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{card.sub}</p>
+              <ArrowRight className="absolute bottom-3 right-3 w-4 h-4 text-gray-300 group-hover:text-gray-500 transition-colors" />
+            </div>
+          </Link>
+        ))}
+      </div>
+
+      {/* ── AVIA charts ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white rounded-2xl p-4 sm:p-5" style={{ border: '1px solid #f0f4f8' }}>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: PLATFORM_THEME.avia.bg }}>
+              <Handshake className="w-4 h-4" style={{ color: PLATFORM_THEME.avia.accent }} />
+            </div>
+            <div>
+              <p className="font-semibold text-gray-900 text-sm">Статус сделок</p>
+              <p className="text-xs text-gray-500">Всего: {aviaDeals.length}</p>
+            </div>
+          </div>
+          {aviaDealStatusData.length > 0 ? (
+            <>
+              <div className="flex justify-center">
+                <DonutChart data={aviaDealStatusData} innerRadius={40} outerRadius={65} size={160} />
+              </div>
+              <div className="grid grid-cols-3 gap-2 mt-3">
+                {aviaDealStatusData.map(item => (
+                  <div key={item.name} className="text-center p-2 rounded-xl" style={{ background: item.color + '12' }}>
+                    <p className="text-lg font-bold" style={{ color: item.color }}>{item.value}</p>
+                    <p className="text-[11px] text-gray-500">{item.name}</p>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="h-[200px] flex items-center justify-center text-gray-400 text-sm">Нет данных</div>
+          )}
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 sm:p-5" style={{ border: '1px solid #f0f4f8' }}>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: '#f5f3ff' }}>
+              <Users className="w-4 h-4 text-purple-600" />
+            </div>
+            <div>
+              <p className="font-semibold text-gray-900 text-sm">Роли пользователей AVIA</p>
+              <p className="text-xs text-gray-500">Всего: {aviaUsers.length}</p>
+            </div>
+          </div>
+          {aviaRoleData.length > 0 ? (
+            <>
+              <div className="flex justify-center">
+                <DonutChart data={aviaRoleData} innerRadius={40} outerRadius={65} size={160} />
+              </div>
+              <div className="grid grid-cols-2 gap-3 mt-3">
+                {aviaRoleData.map(item => (
+                  <div key={item.name} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: item.color + '12' }}>
+                    <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
+                    <div>
+                      <p className="text-lg font-bold" style={{ color: item.color }}>{item.value}</p>
+                      <p className="text-[11px] text-gray-600">{item.name}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="h-[200px] flex items-center justify-center text-gray-400 text-sm">Нет данных</div>
+          )}
+        </div>
+      </div>
+
+      {/* ── AVIA bottom row ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 bg-white rounded-2xl p-4 sm:p-5" style={{ border: '1px solid #f0f4f8' }}>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: PLATFORM_THEME.avia.bg }}>
+                <Clock className="w-4 h-4" style={{ color: PLATFORM_THEME.avia.accent }} />
+              </div>
+              <p className="font-semibold text-gray-900 text-sm">Последние сделки</p>
+            </div>
+            <Link to="/admin/avia/cards" className="flex items-center gap-1 text-xs font-medium transition-colors" style={{ color: PLATFORM_THEME.avia.accent }}>
+              Все сделки <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+          {recentDeals.length === 0 ? (
+            <div className="py-10 text-center text-gray-400">
+              <Handshake className="w-10 h-10 mb-2 mx-auto text-gray-200" />
+              <p className="text-sm">Сделок пока нет</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {recentDeals.map(deal => (
+                <div key={deal.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: PLATFORM_THEME.avia.bg }}>
+                    <Handshake className="w-3.5 h-3.5" style={{ color: PLATFORM_THEME.avia.accent }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 truncate">{deal.initiatorPhone} → {deal.recipientPhone}</p>
+                    <p className="text-xs text-gray-500 truncate">{deal.dealType === 'docs' ? 'Документы' : `${deal.weightKg ?? '—'} кг`}</p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-xs font-bold text-gray-700">{deal.price ? `$${deal.price}` : '—'}</p>
+                    <p className="text-xs text-gray-400"><RelTime iso={deal.createdAt} /></p>
+                  </div>
+                  <span
+                    className="hidden sm:inline text-[10px] font-semibold px-2 py-1 rounded-lg flex-shrink-0"
+                    style={{ background: PLATFORM_THEME.avia.bg, color: PLATFORM_THEME.avia.accent }}
+                  >
+                    {deal.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 sm:p-5" style={{ border: '1px solid #f0f4f8' }}>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: PLATFORM_THEME.avia.bg }}>
+                <Plane className="w-4 h-4" style={{ color: PLATFORM_THEME.avia.accent }} />
+              </div>
+              <p className="font-semibold text-gray-900 text-sm">Топ курьеров</p>
+            </div>
+            <Link to="/admin/avia/users" className="flex items-center gap-1 text-xs font-medium transition-colors" style={{ color: PLATFORM_THEME.avia.accent }}>
+              Все <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+          {topCouriers.length === 0 ? (
+            <div className="py-10 text-center text-gray-400">
+              <Plane className="w-10 h-10 mb-2 mx-auto text-gray-200" />
+              <p className="text-sm">Нет данных</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {topCouriers.map((c, i) => {
+                const medals = ['#f59e0b', '#94a3b8', '#d97706'];
+                return (
+                  <div key={c.name} className="flex items-center gap-3">
+                    <div
+                      className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                      style={{ background: medals[i] || PLATFORM_THEME.avia.accent }}
+                    >
+                      {i + 1}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">{c.name}</p>
+                      <div className="w-full rounded-full h-1.5 mt-1" style={{ background: '#f1f5f9' }}>
+                        <div
+                          className="h-1.5 rounded-full transition-all"
+                          style={{
+                            width: `${Math.min(100, (c.flights / (topCouriers[0]?.flights || 1)) * 100)}%`,
+                            background: medals[i] || PLATFORM_THEME.avia.accent,
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <span className="text-sm font-bold text-gray-700 flex-shrink-0">{c.flights}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+      </>
+      )}
+      </>
+      )}
     </div>
   );
 }

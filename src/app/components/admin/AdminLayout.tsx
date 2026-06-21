@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { YandexMetrikaTracker } from '../YandexMetrika';
 import { getAdminStats } from '../../api/dataApi';
 import { AdminAuthGate } from './AdminAuthGate';
+import { PLATFORM_THEME, GROUP_PLATFORM } from './platformTheme';
 
 const PIN_SESSION_KEY = 'ovora_admin_auth';
 
@@ -24,24 +25,25 @@ const navGroups = [
   {
     label: 'CARGO',
     items: [
-      { name: 'Водители', href: '/admin/drivers', icon: Car },
-      { name: 'Пользователи', href: '/admin/users', icon: Users },
-      { name: 'Поездки', href: '/admin/trips', icon: Package },
-      { name: 'Грузы', href: '/admin/cargos', icon: Boxes },
-      { name: 'Оферты', href: '/admin/offers', icon: ClipboardList },
-      { name: 'Верификация', href: '/admin/verification', icon: FileCheck },
-      { name: 'Отзывы', href: '/admin/reviews', icon: MessageSquare },
-      { name: 'Аналитика', href: '/admin/analytics', icon: BarChart3 },
-      { name: 'Подписки', href: '/admin/subscriptions', icon: Crown },
-      { name: 'Настройки CARGO', href: '/admin/settings', icon: SlidersHorizontal },
+      { name: 'Водители', href: '/admin/cargo/drivers', icon: Car },
+      { name: 'Пользователи', href: '/admin/cargo/users', icon: Users },
+      { name: 'Поездки', href: '/admin/cargo/trips', icon: Package },
+      { name: 'Грузы', href: '/admin/cargo/cargos', icon: Boxes },
+      { name: 'Оферты', href: '/admin/cargo/offers', icon: ClipboardList },
+      { name: 'Верификация', href: '/admin/cargo/verification', icon: FileCheck },
+      { name: 'Отзывы', href: '/admin/cargo/reviews', icon: MessageSquare },
+      { name: 'Аналитика', href: '/admin/cargo/analytics', icon: BarChart3 },
+      { name: 'Подписки', href: '/admin/cargo/subscriptions', icon: Crown },
+      { name: 'Настройки CARGO', href: '/admin/cargo/settings', icon: SlidersHorizontal },
+      { name: 'Аудит CARGO', href: '/admin/cargo/audit', icon: History },
     ],
   },
   {
     label: 'AVIA',
     items: [
-      { name: 'AVIA Пользователи', href: '/admin/avia-users', icon: Plane },
-      { name: 'AVIA Карточки', href: '/admin/avia-cards', icon: Boxes },
-      { name: 'AVIA Аудит', href: '/admin/avia-audit', icon: History },
+      { name: 'AVIA Пользователи', href: '/admin/avia/users', icon: Plane },
+      { name: 'AVIA Карточки', href: '/admin/avia/cards', icon: Boxes },
+      { name: 'AVIA Аудит', href: '/admin/avia/audit', icon: History },
     ],
   },
   {
@@ -78,8 +80,16 @@ export function AdminLayout() {
   const [stats, setStats] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [authed, setAuthed] = useState(() =>
-    sessionStorage.getItem(PIN_SESSION_KEY) === 'true' && !!sessionStorage.getItem('ovora_admin_token')
+    sessionStorage.getItem(PIN_SESSION_KEY) === 'true' &&
+    (!!sessionStorage.getItem('ovora_admin_token') || !!sessionStorage.getItem('ovora_admin_jwt'))
   );
+  const adminRole = (sessionStorage.getItem('ovora_admin_role') || 'super-admin') as 'super-admin' | 'cargo-admin' | 'avia-admin';
+  const visibleNavGroups = navGroups.filter(group => {
+    if (adminRole === 'super-admin') return true;
+    if (adminRole === 'cargo-admin') return group.label !== 'AVIA';
+    if (adminRole === 'avia-admin') return group.label === 'Главная' || group.label === 'AVIA';
+    return true;
+  });
 
   useEffect(() => {
     if (authed) {
@@ -95,11 +105,11 @@ export function AdminLayout() {
     e.preventDefault();
     if (!searchQuery.trim()) return;
     const q = searchQuery.toLowerCase();
-    if (q.includes('водитель') || q.includes('driver')) navigate('/admin/drivers');
-    else if (q.includes('пользователь') || q.includes('user')) navigate('/admin/users');
-    else if (q.includes('поездк') || q.includes('trip')) navigate('/admin/trips');
-    else if (q.includes('аналитик') || q.includes('analytic')) navigate('/admin/analytics');
-    else if (q.includes('отзыв') || q.includes('review')) navigate('/admin/reviews');
+    if (q.includes('водитель') || q.includes('driver')) navigate('/admin/cargo/drivers');
+    else if (q.includes('пользователь') || q.includes('user')) navigate('/admin/cargo/users');
+    else if (q.includes('поездк') || q.includes('trip')) navigate('/admin/cargo/trips');
+    else if (q.includes('аналитик') || q.includes('analytic')) navigate('/admin/cargo/analytics');
+    else if (q.includes('отзыв') || q.includes('review')) navigate('/admin/cargo/reviews');
     setSearchQuery('');
   };
 
@@ -109,6 +119,8 @@ export function AdminLayout() {
   };
 
   const currentPage = allNavItems.find(n => isActive(n));
+  const currentGroup = navGroups.find(g => g.items.some(n => isActive(n)));
+  const currentPlatform = currentGroup ? GROUP_PLATFORM[currentGroup.label] : undefined;
   const today = new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
@@ -172,54 +184,57 @@ export function AdminLayout() {
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-4">
-          {navGroups.map(group => (
-            <div key={group.label}>
-              <p className="text-[10px] font-bold uppercase tracking-widest px-3 mb-1.5" style={{ color: '#94a3b8' }}>
-                {group.label}
-              </p>
-              <ul className="space-y-0.5">
-                {group.items.map(item => {
-                  const active = isActive(item);
-                  return (
-                    <li key={item.href}>
-                      <Link
-                        to={item.href}
-                        onClick={() => setSidebarOpen(false)}
-                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all group relative outline-none"
-                      >
-                        <div
-                          className="relative z-10 w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-all"
-                          style={{
-                            background: active ? '#1565d8' : '#f1f5f9',
-                          }}
+          {visibleNavGroups.map(group => {
+            const groupAccent = PLATFORM_THEME[GROUP_PLATFORM[group.label]]?.accent || '#1565d8';
+            return (
+              <div key={group.label}>
+                <p className="text-[10px] font-bold uppercase tracking-widest px-3 mb-1.5" style={{ color: '#94a3b8' }}>
+                  {group.label}
+                </p>
+                <ul className="space-y-0.5">
+                  {group.items.map(item => {
+                    const active = isActive(item);
+                    return (
+                      <li key={item.href}>
+                        <Link
+                          to={item.href}
+                          onClick={() => setSidebarOpen(false)}
+                          className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all group relative outline-none"
                         >
-                          <item.icon
+                          <div
+                            className="relative z-10 w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-all"
                             style={{
-                              width: 15,
-                              height: 15,
-                              color: active ? '#ffffff' : '#64748b',
-                              strokeWidth: 2,
+                              background: active ? groupAccent : '#f1f5f9',
                             }}
-                          />
-                        </div>
+                          >
+                            <item.icon
+                              style={{
+                                width: 15,
+                                height: 15,
+                                color: active ? '#ffffff' : '#64748b',
+                                strokeWidth: 2,
+                              }}
+                            />
+                          </div>
 
-                        <span
-                          className="font-medium text-sm flex-1 relative z-10 transition-colors duration-150"
-                          style={{ color: active ? '#1565d8' : '#475569' }}
-                        >
-                          {item.name}
-                        </span>
+                          <span
+                            className="font-medium text-sm flex-1 relative z-10 transition-colors duration-150"
+                            style={{ color: active ? groupAccent : '#475569' }}
+                          >
+                            {item.name}
+                          </span>
 
-                        {active && (
-                          <ChevronRight className="w-3.5 h-3.5 relative z-10 flex-shrink-0" style={{ color: '#1565d8' }} />
-                        )}
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          ))}
+                          {active && (
+                            <ChevronRight className="w-3.5 h-3.5 relative z-10 flex-shrink-0" style={{ color: groupAccent }} />
+                          )}
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            );
+          })}
         </nav>
 
         {/* User & logout */}
@@ -233,11 +248,19 @@ export function AdminLayout() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-gray-900 truncate leading-tight">Администратор</p>
-              <p className="text-xs text-gray-400 truncate">admin@ovora.tj</p>
+              <p className="text-xs text-gray-400 truncate">
+                {adminRole === 'super-admin' ? 'Полный доступ' : adminRole === 'cargo-admin' ? 'CARGO' : 'AVIA'}
+              </p>
             </div>
           </div>
           <button
-            onClick={() => { sessionStorage.removeItem(PIN_SESSION_KEY); sessionStorage.removeItem('ovora_admin_token'); window.location.reload(); }}
+            onClick={() => {
+              sessionStorage.removeItem(PIN_SESSION_KEY);
+              sessionStorage.removeItem('ovora_admin_token');
+              sessionStorage.removeItem('ovora_admin_jwt');
+              sessionStorage.removeItem('ovora_admin_role');
+              window.location.reload();
+            }}
             className="flex items-center gap-2 w-full px-3 py-2 text-xs font-medium rounded-xl transition-colors text-gray-400 hover:text-red-500 hover:bg-red-50"
           >
             <LogOut className="w-3.5 h-3.5" />
@@ -272,9 +295,18 @@ export function AdminLayout() {
             <div className="hidden lg:flex items-center gap-2 text-sm">
               <span className="text-gray-400 font-medium">Ovora Admin</span>
               <ChevronRight className="w-3.5 h-3.5 text-gray-300" />
-              <span className="font-semibold" style={{ color: '#1565d8' }}>
+              <span className="font-semibold" style={{ color: currentPlatform ? PLATFORM_THEME[currentPlatform].accent : '#1565d8' }}>
                 {currentPage?.name || 'Обзор'}
               </span>
+              {currentPlatform && (
+                <span
+                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold"
+                  style={{ background: PLATFORM_THEME[currentPlatform].bg, color: PLATFORM_THEME[currentPlatform].accent }}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: PLATFORM_THEME[currentPlatform].accent }} />
+                  {PLATFORM_THEME[currentPlatform].label}
+                </span>
+              )}
             </div>
 
             {/* Search */}

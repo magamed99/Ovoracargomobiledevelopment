@@ -9,6 +9,7 @@ import { SignJWT, jwtVerify } from "npm:jose";
 import { rateLimitMiddleware, RL } from "./rateLimit.tsx";
 import * as kv from "./kv_store.tsx";
 import { Blacklist } from "./blacklist.tsx";
+import { AuditLog as CargoAuditLog } from "./cargoAudit.tsx";
 import { handleSendOtp, handleVerifyOtp } from "./otp.tsx";
 import { handleGenerateBackup, handleVerifyBackup, handleBackupExists } from "./backup.tsx";
 import { handleEmailCheck, handleSetCode, handleVerifyPermCode, handleResetCode, handleAdminListCodes } from "./permCode.tsx";
@@ -77,87 +78,99 @@ app.use("/*", cors({
 
 // ── Admin Middleware — защита всех /admin/* и /kv/* маршрутов ─────────────────
 // Authorization всегда содержит anon key (требование Supabase gateway), поэтому
-// его нельзя использовать как сигнал "это JWT-логин". X-Admin-Code — основной
-// проверяемый признак; JWT в Authorization — fallback для клиентов, которые его
-// не отправляют (X-Admin-Code не задан).
-async function requireAdmin(c: any, next: any) {
-  // ── Primary: X-Admin-Code plaintext ───────────────────────────────────────
+// его нельзя использовать для передачи admin JWT. Роль передаётся через
+// X-Admin-Code (legacy plaintext, всегда super-admin) или X-Admin-Token
+// (новый JWT с ролью внутри, см. POST /admin/auth) — выдаётся отдельным
+// заголовком, чтобы не конфликтовать с anon-key в Authorization.
+// 'super-admin' проходит любую requireRole-проверку; 'cargo-admin'/'avia-admin'
+// ограничены своей платформой.
+type AdminRole = 'super-admin' | 'cargo-admin' | 'avia-admin';
+
+async function resolveAdminRole(c: any): Promise<AdminRole | null> {
+  // ── Primary: X-Admin-Code plaintext — всегда super-admin (backward-compat) ──
   const adminCode = (c.req.header('X-Admin-Code') || '').trim();
   if (adminCode) {
     const envCode = (Deno.env.get('ADMIN_ACCESS_CODE') || '').trim();
     if (!envCode) {
       console.error('[requireAdmin] ADMIN_ACCESS_CODE not configured in environment');
-      return c.json({ error: 'Server configuration error: Admin access code not set' }, 500);
+      return null;
     }
-    if (adminCode !== envCode) {
-      console.warn('[requireAdmin] Unauthorized access attempt:', c.req.path);
-      return c.json({ error: 'Unauthorized: Admin access required' }, 401);
-    }
-    console.log('[requireAdmin] X-Admin-Code access granted for:', c.req.path);
-    return await next();
+    return adminCode === envCode ? 'super-admin' : null;
   }
 
-  // ── Fallback: signed JWT (Authorization: Bearer <token>) ──────────────────
-  const authHeader = (c.req.header('Authorization') || '').trim();
-  if (authHeader.startsWith('Bearer ')) {
-    const token = authHeader.slice(7);
+  // ── Role-scoped JWT (X-Admin-Token) — выдаётся /admin/auth ─────────────────
+  const adminToken = (c.req.header('X-Admin-Token') || '').trim();
+  if (adminToken) {
     const jwtSecret = (Deno.env.get('ADMIN_JWT_SECRET') || '').trim();
     if (jwtSecret) {
       try {
         const secret = new TextEncoder().encode(jwtSecret);
-        await jwtVerify(token, secret);
-        console.log('[requireAdmin] JWT admin access granted for:', c.req.path);
-        return await next();
+        const { payload } = await jwtVerify(adminToken, secret);
+        return (payload.role as AdminRole) || 'super-admin';
       } catch (err) {
-        console.warn('[requireAdmin] Invalid/expired JWT for:', c.req.path, err);
+        console.warn('[requireAdmin] Invalid/expired admin JWT:', err);
       }
     }
   }
 
-  console.warn('[requireAdmin] No valid admin credentials for:', c.req.path);
-  return c.json({ error: 'Unauthorized: Admin access required' }, 401);
+  return null;
+}
+
+async function requireAdmin(c: any, next: any) {
+  const role = await resolveAdminRole(c);
+  if (!role) {
+    console.warn('[requireAdmin] No valid admin credentials for:', c.req.path);
+    return c.json({ error: 'Unauthorized: Admin access required' }, 401);
+  }
+  console.log(`[requireAdmin] Access granted (role=${role}) for:`, c.req.path);
+  c.set('adminRole', role);
+  return await next();
+}
+
+// ── Role gate — применяется ПОСЛЕ requireAdmin. super-admin проходит всегда,
+// остальные роли — только если входят в allowed.
+function requireRole(allowed: AdminRole[]) {
+  return async (c: any, next: any) => {
+    const role = c.get('adminRole') as AdminRole | undefined;
+    if (role === 'super-admin' || (role && allowed.includes(role))) {
+      return await next();
+    }
+    console.warn(`[requireRole] Forbidden: role=${role} not in [${allowed.join(', ')}] for`, c.req.path);
+    return c.json({ error: 'Forbidden: insufficient admin role' }, 403);
+  };
 }
 
 // ── Non-blocking admin check — для эндпоинтов с двойным режимом
 // (владелец ресурса ИЛИ админ-оверрайд), где requireAdmin как middleware
 // не подходит, потому что обычные пользователи тоже должны иметь доступ.
-// Проверяет и X-Admin-Code, и JWT (Bearer), как requireAdmin.
+// Проверяет и X-Admin-Code, и X-Admin-Token, как requireAdmin.
 async function isAdminCaller(c: any): Promise<boolean> {
-  const adminCode = (c.req.header('X-Admin-Code') || '').trim();
-  if (adminCode) {
-    const envCode = (Deno.env.get('ADMIN_ACCESS_CODE') || '').trim();
-    if (envCode && adminCode === envCode) return true;
-  }
-  const authHeader = (c.req.header('Authorization') || '').trim();
-  if (authHeader.startsWith('Bearer ')) {
-    const token = authHeader.slice(7);
-    const jwtSecret = (Deno.env.get('ADMIN_JWT_SECRET') || '').trim();
-    if (jwtSecret) {
-      try {
-        const secret = new TextEncoder().encode(jwtSecret);
-        await jwtVerify(token, secret);
-        return true;
-      } catch { /* not a valid admin JWT — fall through */ }
-    }
-  }
-  return false;
+  return (await resolveAdminRole(c)) !== null;
 }
 
-// Применяем middleware ко всем /admin/* и /kv/* маршрутам (КРОМЕ /admin/auth)
+// Применяем middleware ко всем /admin/* и /kv/* маршрутам (КРОМЕ /admin/auth).
+// CARGO-эндпоинты доступны cargo-admin и super-admin (см. CLAUDE.md RBAC).
 app.use('/make-server-4e36197a/admin/*', async (c, next) => {
   // Пропускаем /admin/auth — он нужен для получения токена
   if (c.req.path === '/make-server-4e36197a/admin/auth') {
     return await next();
-  } else {
-    return await requireAdmin(c, next);
   }
+  return await requireAdmin(c, next);
+});
+app.use('/make-server-4e36197a/admin/*', async (c, next) => {
+  if (c.req.path === '/make-server-4e36197a/admin/auth') {
+    return await next();
+  }
+  return await requireRole(['cargo-admin'])(c, next);
 });
 
 // Защищаем все /kv/* маршруты (они очень опасны — прямой доступ к БД)
 app.use('/make-server-4e36197a/kv/*', requireAdmin);
 
-// Защищаем все /avia/admin/* маршруты (управление AVIA-пользователями/карточками/аудитом)
+// Защищаем все /avia/admin/* маршруты (управление AVIA-пользователями/карточками/аудитом).
+// AVIA-эндпоинты доступны avia-admin и super-admin.
 app.use('/make-server-4e36197a/avia/admin/*', requireAdmin);
+app.use('/make-server-4e36197a/avia/admin/*', requireRole(['avia-admin']));
 
 // ── Supabase client (for storage) ─────────────────────────────────────────────
 const supabase = createClient(
@@ -358,10 +371,12 @@ app.post("/make-server-4e36197a/admin/auth",
   async (c) => {
   try {
     const { code } = await c.req.json();
-    const envCode = (Deno.env.get('ADMIN_ACCESS_CODE') || '').trim();
+    const superCode = (Deno.env.get('ADMIN_ACCESS_CODE') || '').trim();
+    const cargoCode = (Deno.env.get('ADMIN_ACCESS_CODE_CARGO') || '').trim();
+    const aviaCode  = (Deno.env.get('ADMIN_ACCESS_CODE_AVIA') || '').trim();
     const jwtSecret = (Deno.env.get('ADMIN_JWT_SECRET') || '').trim();
 
-    if (!envCode) {
+    if (!superCode) {
       console.log('[AdminAuth] ADMIN_ACCESS_CODE not set in env');
       return c.json({ success: false, error: 'Код доступа не настроен на сервере' }, 500);
     }
@@ -370,27 +385,41 @@ app.post("/make-server-4e36197a/admin/auth",
       return c.json({ success: false, error: 'Код обязателен' }, 400);
     }
 
-    if (code.trim() !== envCode) {
+    const trimmed = code.trim();
+    let role: 'super-admin' | 'cargo-admin' | 'avia-admin' | null = null;
+    if (trimmed === superCode) role = 'super-admin';
+    else if (cargoCode && trimmed === cargoCode) role = 'cargo-admin';
+    else if (aviaCode && trimmed === aviaCode) role = 'avia-admin';
+
+    if (!role) {
       console.log('[AdminAuth] Wrong admin code attempt');
       return c.json({ success: false, error: 'Неверный код доступа' });
     }
 
-    console.log('[AdminAuth] Admin access granted, issuing JWT');
+    // Роли cargo-admin/avia-admin работают ТОЛЬКО через JWT (X-Admin-Token) —
+    // у них нет своего legacy X-Admin-Code пути, поэтому без ADMIN_JWT_SECRET
+    // их сессия не будет работать ни на одном запросе.
+    if (role !== 'super-admin' && !jwtSecret) {
+      console.error(`[AdminAuth] Role ${role} requires ADMIN_JWT_SECRET, but it's not configured`);
+      return c.json({ success: false, error: 'Эта роль требует настройки ADMIN_JWT_SECRET на сервере' }, 500);
+    }
+
+    console.log(`[AdminAuth] Admin access granted, role=${role}, issuing JWT`);
 
     // Issue a signed JWT (8 h expiry) so the plaintext code never travels in headers again
     let token: string | undefined;
     if (jwtSecret) {
       const secret = new TextEncoder().encode(jwtSecret);
-      token = await new SignJWT({ role: 'admin' })
+      token = await new SignJWT({ role })
         .setProtectedHeader({ alg: 'HS256' })
         .setIssuedAt()
         .setExpirationTime('8h')
         .sign(secret);
     } else {
-      console.warn('[AdminAuth] ADMIN_JWT_SECRET not set — token not issued, legacy X-Admin-Code still works');
+      console.warn('[AdminAuth] ADMIN_JWT_SECRET not set — token not issued, legacy X-Admin-Code still works (super-admin only)');
     }
 
-    return c.json({ success: true, token });
+    return c.json({ success: true, token, role });
   } catch (err) {
     console.log('Error POST /admin/auth:', err);
     return c.json({ success: false, error: `${err}` }, 500);
@@ -4520,6 +4549,7 @@ app.delete("/make-server-4e36197a/admin/cargos/:id", async (c) => {
     if (existing.senderEmail) {
       await kv.del(`ovora:sendercargos:${existing.senderEmail}:${id}`).catch(() => {});
     }
+    await CargoAuditLog.record({ action: 'cargo.admin_delete', actorEmail: 'admin', targetId: id, targetType: 'cargo', details: { senderEmail: existing.senderEmail } });
     console.log(`[DELETE /admin/cargos] Admin removed cargo ${id}`);
     return c.json({ success: true });
   } catch (err) {
@@ -4564,6 +4594,7 @@ app.put("/make-server-4e36197a/admin/offers/:tripId/:offerId/status", async (c) 
       }
     }
 
+    await CargoAuditLog.record({ action: 'offer.admin_status_change', actorEmail: 'admin', targetId: `${tripId}:${offerId}`, targetType: 'offer', details: { status, previousStatus: existing.status } });
     console.log(`[PUT /admin/offers] Admin set offer ${tripId}:${offerId} status to ${status}`);
     return c.json({ success: true, offer: updated });
   } catch (err) {
@@ -4584,6 +4615,7 @@ app.delete("/make-server-4e36197a/admin/reviews/:reviewId", async (c) => {
     if (existing.targetEmail) await kv.del(`ovora:userreviews:target:${existing.targetEmail}:${reviewId}`).catch(() => {});
     if (existing.authorEmail) await kv.del(`ovora:userreviews:author:${existing.authorEmail}:${reviewId}`).catch(() => {});
 
+    await CargoAuditLog.record({ action: 'review.admin_delete', actorEmail: 'admin', targetId: reviewId, targetType: 'review', details: { targetEmail: existing.targetEmail, authorEmail: existing.authorEmail } });
     console.log(`[DELETE /admin/reviews] Admin removed review ${reviewId}`);
     return c.json({ success: true });
   } catch (err) {
@@ -4642,6 +4674,7 @@ app.put("/make-server-4e36197a/admin/documents/:documentId/status", async (c) =>
       const user: any = await kv.get(userKey);
       if (user) await kv.set(userKey, { ...user, isVerified: true, documentsVerified: true, updatedAt: new Date().toISOString() });
     }
+    await CargoAuditLog.record({ action: 'document.admin_status_change', actorEmail: 'admin', targetId: documentId, targetType: 'document', details: { userEmail, status, notes } });
     console.log(`[admin/documents] ${documentId} for ${userEmail} → ${status}`);
     return c.json({ success: true, document: updated });
   } catch (err) {
@@ -4665,6 +4698,7 @@ app.put("/make-server-4e36197a/admin/settings", async (c) => {
   try {
     const body = await c.req.json();
     await kv.set("ovora:admin:settings", { ...body, updatedAt: new Date().toISOString() });
+    await CargoAuditLog.record({ action: 'settings.admin_update', actorEmail: 'admin', targetType: 'settings', details: { fields: Object.keys(body) } });
     return c.json({ success: true });
   } catch (err) {
     return c.json({ error: `${err}` }, 500);
@@ -4682,6 +4716,7 @@ app.put("/make-server-4e36197a/admin/users/:email/status", async (c) => {
     if (!existing) return c.json({ error: "User not found" }, 404);
     const updated = { ...existing, status, updatedAt: new Date().toISOString() };
     await kv.set(key, updated);
+    await CargoAuditLog.record({ action: 'user.admin_status_change', actorEmail: 'admin', targetId: email, targetType: 'user', details: { status, previousStatus: existing.status } });
     return c.json({ success: true, user: updated });
   } catch (err) {
     console.log("Error PUT /admin/users/:email/status:", err);
@@ -4710,6 +4745,7 @@ app.delete("/make-server-4e36197a/admin/users/:email", async (c) => {
         originalName: `${existing.firstName || ""} ${existing.lastName || ""}`.trim(),
       });
     }
+    await CargoAuditLog.record({ action: 'user.admin_delete', actorEmail: 'admin', targetId: email, targetType: 'user', details: { role: existing.role, blacklisted: cleanPhone.length >= 7 } });
     return c.json({ success: true, blacklisted: cleanPhone.length >= 7 });
   } catch (err) {
     console.log("Error DELETE /admin/users/:email:", err);
@@ -4732,6 +4768,7 @@ app.delete("/make-server-4e36197a/admin/blacklist/:phone", async (c) => {
   try {
     const phone = decodeURIComponent(c.req.param("phone"));
     await Blacklist.remove(phone);
+    await CargoAuditLog.record({ action: 'blacklist.admin_remove', actorEmail: 'admin', targetId: phone, targetType: 'blacklist' });
     return c.json({ success: true });
   } catch (err) {
     console.log("Error DELETE /admin/blacklist/:phone:", err);
@@ -4793,10 +4830,27 @@ app.delete("/make-server-4e36197a/admin/trips/deleteAll", async (c) => {
         deleted++;
       }
     }
+    await CargoAuditLog.record({ action: 'trip.admin_delete_all', actorEmail: 'admin', targetType: 'trip', details: { deleted } });
     console.log(`[admin] Deleted ${deleted} trips`);
     return c.json({ success: true, deleted });
   } catch (err) {
     console.log("Error DELETE /admin/trips/deleteAll:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ✅ Admin: журнал аудита CARGO (зеркало /avia/admin/audit)
+app.get("/make-server-4e36197a/admin/audit", async (c) => {
+  try {
+    const actorEmail = c.req.query("actorEmail") || undefined;
+    const targetId = c.req.query("targetId") || undefined;
+    const action = c.req.query("action") || undefined;
+    const limit = Number(c.req.query("limit")) || 100;
+    const offset = Number(c.req.query("offset")) || 0;
+    const result = await CargoAuditLog.list({ actorEmail, targetId, action, limit, offset });
+    return c.json(result);
+  } catch (err) {
+    console.log("Error GET /admin/audit:", err);
     return c.json({ error: `${err}` }, 500);
   }
 });
@@ -5534,6 +5588,7 @@ app.post("/make-server-4e36197a/admin/ads", requireAdmin, async (c) => {
       updatedAt: new Date().toISOString(),
     };
     await kv.set(`ovora:ad:${id}`, ad);
+    await CargoAuditLog.record({ action: 'ad.admin_create', actorEmail: 'admin', targetId: id, targetType: 'ad', details: { placement: ad.placement } });
     console.log(`[admin/ads] Created ad ${id}, placement=${ad.placement}`);
     return c.json({ success: true, ad });
   } catch (err) {
@@ -5551,6 +5606,7 @@ app.put("/make-server-4e36197a/admin/ads/:id", requireAdmin, async (c) => {
     if (!existing) return c.json({ error: "Ad not found" }, 404);
     const updated = { ...existing, ...body, id, updatedAt: new Date().toISOString() };
     await kv.set(`ovora:ad:${id}`, updated);
+    await CargoAuditLog.record({ action: 'ad.admin_update', actorEmail: 'admin', targetId: id, targetType: 'ad', details: { fields: Object.keys(body) } });
     console.log(`[admin/ads] Updated ad ${id}`);
     return c.json({ success: true, ad: updated });
   } catch (err) {
@@ -5564,6 +5620,7 @@ app.delete("/make-server-4e36197a/admin/ads/:id", requireAdmin, async (c) => {
   try {
     const id = c.req.param("id");
     await kv.del(`ovora:ad:${id}`);
+    await CargoAuditLog.record({ action: 'ad.admin_delete', actorEmail: 'admin', targetId: id, targetType: 'ad' });
     console.log(`[admin/ads] Deleted ad ${id}`);
     return c.json({ success: true });
   } catch (err) {
