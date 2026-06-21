@@ -166,6 +166,10 @@ export function SenderTripsPage() {
   const [pullY, setPullY]   = useState(0);
   const pullStartY          = useRef(0);
   const isPullingRef        = useRef(false);
+  // ✅ FIX: версия запроса — pull-to-refresh и кнопка обновления могут запустить
+  // loadData() параллельно; без версионирования более старый ответ мог прилететь
+  // позже и перезаписать стейт свежими данными более нового запроса.
+  const loadVersionRef = useRef(0);
 
   const showConfirm = (
     title: string, message: string, confirmLabel: string,
@@ -173,11 +177,11 @@ export function SenderTripsPage() {
   ) => setConfirmModal({ title, message, confirmLabel, onConfirm, isDanger });
 
   // ── Load cargos ────────────────────────────────────────────────────────────
-  const loadCargos = useCallback(async () => {
+  const loadCargos = useCallback(async (version: number) => {
     if (!currentUser?.email) return;
     try {
       const cargos = await getMyCargos(currentUser.email);
-      if (!isMountedRef.current) return;
+      if (!isMountedRef.current || version !== loadVersionRef.current) return;
       setPublishedCargos(cargos);
       // Load offers for each cargo
       const offersMap: Record<string, any[]> = {};
@@ -189,26 +193,27 @@ export function SenderTripsPage() {
           } catch { offersMap[cargo.id] = []; }
         })
       );
-      if (isMountedRef.current) setCargoOffersMap(offersMap);
+      if (isMountedRef.current && version === loadVersionRef.current) setCargoOffersMap(offersMap);
     } catch {}
   }, [currentUser?.email]);
 
   // ── Main data load ─────────────────────────────────────────────────────────
   const loadData = useCallback(async (silent = false) => {
     if (!currentUser?.email) return;
+    const version = ++loadVersionRef.current;
     if (!silent) setLoading(true);
     else setIsRefreshing(true);
     try {
       const offerList = await getOffersForUser(currentUser.email);
       const chatList = getChats();
-      if (!isMountedRef.current) return;
+      if (!isMountedRef.current || version !== loadVersionRef.current) return;
       setChats(chatList);
 
       const acceptedOffers = offerList.filter((o: any) => o.status === 'accepted');
       const tripIds = [...new Set(acceptedOffers.map((o: any) => o.tripId).filter(Boolean))] as string[];
       if (tripIds.length > 0) {
         const trips = await getTripsByIds(tripIds);
-        if (!isMountedRef.current) return;
+        if (!isMountedRef.current || version !== loadVersionRef.current) return;
         const merged = acceptedOffers.map((offer: any) => {
           const trip = trips.find((t: any) => t.id === offer.tripId);
           // ✅ FIX: реальный груз/цена живут в оферте, а не в Trip — без этого
@@ -233,10 +238,10 @@ export function SenderTripsPage() {
       } else {
         setSenderTrips([]);
       }
-      await loadCargos();
+      await loadCargos(version);
     } catch {}
     finally {
-      if (isMountedRef.current) { setLoading(false); setIsRefreshing(false); }
+      if (isMountedRef.current && version === loadVersionRef.current) { setLoading(false); setIsRefreshing(false); }
     }
   }, [currentUser?.email, loadCargos]);
 

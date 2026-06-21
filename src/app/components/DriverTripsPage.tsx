@@ -37,6 +37,11 @@ export function DriverTripsPage() {
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const loadDataRef = useRef<(silent?: boolean) => Promise<void>>(async () => {});
+  // ✅ FIX: версия запроса — несколько loadData() могут лететь параллельно
+  // (8с polling, pull-to-refresh, кнопка обновления, cleanup orphaned offers),
+  // и без версионирования более старый ответ мог прилететь позже и
+  // перезаписать стейт свежими данными более нового запроса.
+  const loadVersionRef = useRef(0);
   const [weatherData, setWeatherData] = useState<Record<number, WeatherData>>({});
 
   // ── Confirm modal (вместо window.confirm) ────────────────────────────────────
@@ -60,13 +65,14 @@ export function DriverTripsPage() {
     // User context may still be loading from localStorage on first render.
     // Return early (keep loading=true) rather than replacing state with empty arrays.
     if (!currentUser?.email) return;
+    const version = ++loadVersionRef.current;
     if (!silent) setLoading(true); else setIsRefreshing(true);
     try {
       const [tripsData, offersData] = await Promise.all([
         getMyTrips(currentUser.email),
         getOffersForDriver(currentUser.email),
       ]);
-      if (!isMountedRef.current) return;
+      if (!isMountedRef.current || version !== loadVersionRef.current) return;
       const MS_48H = 48 * 60 * 60 * 1000;
       const activeOffers = offersData.filter((o: any) => {
         if (o.status === 'cancelled' || o.status === 'deleted') return false;
@@ -82,12 +88,12 @@ export function DriverTripsPage() {
       const pending = activeOffers.filter((o: any) => o.status === 'pending').length;
       window.dispatchEvent(new CustomEvent('ovora_pending_offers', { detail: pending }));
     } catch {
+      if (!isMountedRef.current || version !== loadVersionRef.current) return;
       const cachedTrips = JSON.parse(localStorage.getItem('ovora_all_trips') || '[]');
-      if (!isMountedRef.current) return;
       setPublishedTrips(cachedTrips);
       setOffers(JSON.parse(localStorage.getItem('ovora_cached_offers') || '[]'));
     } finally {
-      if (isMountedRef.current) { if (!silent) setLoading(false); else setIsRefreshing(false); }
+      if (isMountedRef.current && version === loadVersionRef.current) { if (!silent) setLoading(false); else setIsRefreshing(false); }
     }
   }, [currentUser?.email, isMountedRef]);
 
