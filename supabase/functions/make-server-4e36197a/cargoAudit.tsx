@@ -1,0 +1,77 @@
+/**
+ * ╔══════════════════════════════════════════════════════════════╗
+ * ║  CARGO AUDIT LOG — журнал админских действий CARGO            ║
+ * ║                                                                ║
+ * ║  KV-ключ: ovora:cargo-audit:{timestampMs}:{id}                ║
+ * ║  Сортировка по времени достигается префиксом timestamp —      ║
+ * ║  при миграции на SQL заменить на ORDER BY created_at DESC.    ║
+ * ║  Зеркалирует aviaAudit.tsx — единый паттерн для двух платформ.║
+ * ╚══════════════════════════════════════════════════════════════╝
+ */
+
+import * as kv from "./kv_store.tsx";
+
+export type CargoAuditAction =
+  | 'cargo.admin_delete'
+  | 'offer.admin_status_change'
+  | 'review.admin_delete'
+  | 'document.admin_status_change'
+  | 'settings.admin_update'
+  | 'user.admin_status_change' | 'user.admin_delete'
+  | 'blacklist.admin_remove'
+  | 'trip.admin_delete_all'
+  | 'ad.admin_create' | 'ad.admin_update' | 'ad.admin_delete';
+
+export interface CargoAuditEntry {
+  id        : string;
+  timestamp : string;
+  action    : CargoAuditAction;
+  /** Email админа-актора (пока неизвестен на уровне requireAdmin — см. CLAUDE.md) */
+  actorEmail: string;
+  targetId  ?: string;
+  targetType?: 'cargo' | 'offer' | 'review' | 'document' | 'settings' | 'user' | 'blacklist' | 'trip' | 'ad';
+  details   ?: Record<string, unknown>;
+}
+
+const PREFIX = 'ovora:cargo-audit:';
+
+export const AuditLog = {
+  /** MIGRATION → INSERT INTO cargo_audit_log (...) VALUES (...) */
+  async record(entry: Omit<CargoAuditEntry, 'id' | 'timestamp'>): Promise<void> {
+    try {
+      const now = Date.now();
+      const id  = `caudit_${now}_${Math.random().toString(36).slice(2, 8)}`;
+      const full: CargoAuditEntry = { ...entry, id, timestamp: new Date(now).toISOString() };
+      await kv.set(`${PREFIX}${now}:${id}`, full);
+    } catch (e) {
+      // Аудит не должен ронять основной запрос админа
+      console.warn('[CargoAudit] record failed (non-fatal):', e);
+    }
+  },
+
+  /**
+   * MIGRATION → SELECT * FROM cargo_audit_log WHERE ... ORDER BY created_at DESC LIMIT/OFFSET
+   * KV не умеет фильтровать/пагинировать на стороне БД — делаем в памяти.
+   */
+  async list(filter?: {
+    actorEmail?: string;
+    targetId?: string;
+    action?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ entries: CargoAuditEntry[]; total: number }> {
+    const all = (await kv.getByPrefix(PREFIX)) as CargoAuditEntry[];
+    let filtered = all.filter(e => e && typeof e === 'object' && e.id);
+
+    if (filter?.actorEmail) filtered = filtered.filter(e => e.actorEmail === filter.actorEmail);
+    if (filter?.targetId)   filtered = filtered.filter(e => e.targetId === filter.targetId);
+    if (filter?.action)     filtered = filtered.filter(e => e.action === filter.action);
+
+    filtered.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+    const total  = filtered.length;
+    const offset = filter?.offset || 0;
+    const limit  = filter?.limit || 100;
+    return { entries: filtered.slice(offset, offset + limit), total };
+  },
+};

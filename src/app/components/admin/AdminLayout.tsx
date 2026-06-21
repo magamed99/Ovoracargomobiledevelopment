@@ -35,6 +35,7 @@ const navGroups = [
       { name: 'Аналитика', href: '/admin/analytics', icon: BarChart3 },
       { name: 'Подписки', href: '/admin/subscriptions', icon: Crown },
       { name: 'Настройки CARGO', href: '/admin/settings', icon: SlidersHorizontal },
+      { name: 'Аудит CARGO', href: '/admin/audit', icon: History },
     ],
   },
   {

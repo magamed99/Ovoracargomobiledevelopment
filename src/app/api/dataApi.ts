@@ -503,6 +503,20 @@ export async function updateAdminDocStatus(documentId: string, userEmail: string
   return data;
 }
 
+// ── Admin audit log ───────────────────────────────────────────────
+export async function getAdminAudit(filter?: {
+  actorEmail?: string; targetId?: string; action?: string; limit?: number; offset?: number;
+}) {
+  const params = new URLSearchParams();
+  if (filter?.actorEmail) params.set('actorEmail', filter.actorEmail);
+  if (filter?.targetId)   params.set('targetId', filter.targetId);
+  if (filter?.action)     params.set('action', filter.action);
+  if (filter?.limit)      params.set('limit', String(filter.limit));
+  if (filter?.offset)     params.set('offset', String(filter.offset));
+  const qs = params.toString();
+  return req('GET', `/admin/audit${qs ? `?${qs}` : ''}`) as Promise<{ entries: any[]; total: number }>;
+}
+
 // ── Admin settings ─────────────────────────────────────────────────
 export async function getAdminSettings() {
   const data = await req('GET', '/admin/settings');

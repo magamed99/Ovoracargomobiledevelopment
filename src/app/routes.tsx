@@ -409,6 +409,11 @@ export const router = createBrowserRouter([
               .then(m => ({ Component: m.SubscriptionManagement })),
           },
           {
+            path: "audit",
+            lazy: () => import("./components/admin/CargoAuditLog")
+              .then(m => ({ Component: m.CargoAuditLog })),
+          },
+          {
             path: "site",
             lazy: () => import("./components/admin/SiteSettingsPage")
               .then(m => ({ Component: m.SiteSettingsPage })),
