@@ -803,7 +803,7 @@ export function AviaDashboard() {
           background: 'rgba(6,14,26,0.97)',
           backdropFilter: 'blur(12px)',
           WebkitBackdropFilter: 'blur(12px)',
-          position: 'sticky', top: 0, zIndex: 10,
+          position: 'sticky', top: 0, zIndex: 30,
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
@@ -988,7 +988,7 @@ export function AviaDashboard() {
               style={{ display: 'block', borderRadius: 22, overflow: 'hidden', cursor: isAviaAdFallback ? 'default' : 'pointer' }}
             >
               <div
-                style={{ position: 'relative', overflow: 'hidden', height: 'clamp(140px, 42vw, 180px)' }}
+                style={{ position: 'relative', overflow: 'hidden', height: 'clamp(140px, 42vw, 180px)', zIndex: 0, isolation: 'isolate' }}
                 onTouchStart={handleAdTouchStart}
                 onTouchMove={handleAdTouchMove}
                 onTouchEnd={handleAdTouchEnd}
