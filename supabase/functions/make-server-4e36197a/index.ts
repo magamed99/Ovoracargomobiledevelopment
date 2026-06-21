@@ -78,87 +78,99 @@ app.use("/*", cors({
 
 // ── Admin Middleware — защита всех /admin/* и /kv/* маршрутов ─────────────────
 // Authorization всегда содержит anon key (требование Supabase gateway), поэтому
-// его нельзя использовать как сигнал "это JWT-логин". X-Admin-Code — основной
-// проверяемый признак; JWT в Authorization — fallback для клиентов, которые его
-// не отправляют (X-Admin-Code не задан).
-async function requireAdmin(c: any, next: any) {
-  // ── Primary: X-Admin-Code plaintext ───────────────────────────────────────
+// его нельзя использовать для передачи admin JWT. Роль передаётся через
+// X-Admin-Code (legacy plaintext, всегда super-admin) или X-Admin-Token
+// (новый JWT с ролью внутри, см. POST /admin/auth) — выдаётся отдельным
+// заголовком, чтобы не конфликтовать с anon-key в Authorization.
+// 'super-admin' проходит любую requireRole-проверку; 'cargo-admin'/'avia-admin'
+// ограничены своей платформой.
+type AdminRole = 'super-admin' | 'cargo-admin' | 'avia-admin';
+
+async function resolveAdminRole(c: any): Promise<AdminRole | null> {
+  // ── Primary: X-Admin-Code plaintext — всегда super-admin (backward-compat) ──
   const adminCode = (c.req.header('X-Admin-Code') || '').trim();
   if (adminCode) {
     const envCode = (Deno.env.get('ADMIN_ACCESS_CODE') || '').trim();
     if (!envCode) {
       console.error('[requireAdmin] ADMIN_ACCESS_CODE not configured in environment');
-      return c.json({ error: 'Server configuration error: Admin access code not set' }, 500);
+      return null;
     }
-    if (adminCode !== envCode) {
-      console.warn('[requireAdmin] Unauthorized access attempt:', c.req.path);
-      return c.json({ error: 'Unauthorized: Admin access required' }, 401);
-    }
-    console.log('[requireAdmin] X-Admin-Code access granted for:', c.req.path);
-    return await next();
+    return adminCode === envCode ? 'super-admin' : null;
   }
 
-  // ── Fallback: signed JWT (Authorization: Bearer <token>) ──────────────────
-  const authHeader = (c.req.header('Authorization') || '').trim();
-  if (authHeader.startsWith('Bearer ')) {
-    const token = authHeader.slice(7);
+  // ── Role-scoped JWT (X-Admin-Token) — выдаётся /admin/auth ─────────────────
+  const adminToken = (c.req.header('X-Admin-Token') || '').trim();
+  if (adminToken) {
     const jwtSecret = (Deno.env.get('ADMIN_JWT_SECRET') || '').trim();
     if (jwtSecret) {
       try {
         const secret = new TextEncoder().encode(jwtSecret);
-        await jwtVerify(token, secret);
-        console.log('[requireAdmin] JWT admin access granted for:', c.req.path);
-        return await next();
+        const { payload } = await jwtVerify(adminToken, secret);
+        return (payload.role as AdminRole) || 'super-admin';
       } catch (err) {
-        console.warn('[requireAdmin] Invalid/expired JWT for:', c.req.path, err);
+        console.warn('[requireAdmin] Invalid/expired admin JWT:', err);
       }
     }
   }
 
-  console.warn('[requireAdmin] No valid admin credentials for:', c.req.path);
-  return c.json({ error: 'Unauthorized: Admin access required' }, 401);
+  return null;
+}
+
+async function requireAdmin(c: any, next: any) {
+  const role = await resolveAdminRole(c);
+  if (!role) {
+    console.warn('[requireAdmin] No valid admin credentials for:', c.req.path);
+    return c.json({ error: 'Unauthorized: Admin access required' }, 401);
+  }
+  console.log(`[requireAdmin] Access granted (role=${role}) for:`, c.req.path);
+  c.set('adminRole', role);
+  return await next();
+}
+
+// ── Role gate — применяется ПОСЛЕ requireAdmin. super-admin проходит всегда,
+// остальные роли — только если входят в allowed.
+function requireRole(allowed: AdminRole[]) {
+  return async (c: any, next: any) => {
+    const role = c.get('adminRole') as AdminRole | undefined;
+    if (role === 'super-admin' || (role && allowed.includes(role))) {
+      return await next();
+    }
+    console.warn(`[requireRole] Forbidden: role=${role} not in [${allowed.join(', ')}] for`, c.req.path);
+    return c.json({ error: 'Forbidden: insufficient admin role' }, 403);
+  };
 }
 
 // ── Non-blocking admin check — для эндпоинтов с двойным режимом
 // (владелец ресурса ИЛИ админ-оверрайд), где requireAdmin как middleware
 // не подходит, потому что обычные пользователи тоже должны иметь доступ.
-// Проверяет и X-Admin-Code, и JWT (Bearer), как requireAdmin.
+// Проверяет и X-Admin-Code, и X-Admin-Token, как requireAdmin.
 async function isAdminCaller(c: any): Promise<boolean> {
-  const adminCode = (c.req.header('X-Admin-Code') || '').trim();
-  if (adminCode) {
-    const envCode = (Deno.env.get('ADMIN_ACCESS_CODE') || '').trim();
-    if (envCode && adminCode === envCode) return true;
-  }
-  const authHeader = (c.req.header('Authorization') || '').trim();
-  if (authHeader.startsWith('Bearer ')) {
-    const token = authHeader.slice(7);
-    const jwtSecret = (Deno.env.get('ADMIN_JWT_SECRET') || '').trim();
-    if (jwtSecret) {
-      try {
-        const secret = new TextEncoder().encode(jwtSecret);
-        await jwtVerify(token, secret);
-        return true;
-      } catch { /* not a valid admin JWT — fall through */ }
-    }
-  }
-  return false;
+  return (await resolveAdminRole(c)) !== null;
 }
 
-// Применяем middleware ко всем /admin/* и /kv/* маршрутам (КРОМЕ /admin/auth)
+// Применяем middleware ко всем /admin/* и /kv/* маршрутам (КРОМЕ /admin/auth).
+// CARGO-эндпоинты доступны cargo-admin и super-admin (см. CLAUDE.md RBAC).
 app.use('/make-server-4e36197a/admin/*', async (c, next) => {
   // Пропускаем /admin/auth — он нужен для получения токена
   if (c.req.path === '/make-server-4e36197a/admin/auth') {
     return await next();
-  } else {
-    return await requireAdmin(c, next);
   }
+  return await requireAdmin(c, next);
+});
+app.use('/make-server-4e36197a/admin/*', async (c, next) => {
+  if (c.req.path === '/make-server-4e36197a/admin/auth') {
+    return await next();
+  }
+  return await requireRole(['cargo-admin'])(c, next);
 });
 
 // Защищаем все /kv/* маршруты (они очень опасны — прямой доступ к БД)
 app.use('/make-server-4e36197a/kv/*', requireAdmin);
 
-// Защищаем все /avia/admin/* маршруты (управление AVIA-пользователями/карточками/аудитом)
+// Защищаем все /avia/admin/* маршруты (управление AVIA-пользователями/карточками/аудитом).
+// AVIA-эндпоинты доступны avia-admin и super-admin.
 app.use('/make-server-4e36197a/avia/admin/*', requireAdmin);
+app.use('/make-server-4e36197a/avia/admin/*', requireRole(['avia-admin']));
 
 // ── Supabase client (for storage) ─────────────────────────────────────────────
 const supabase = createClient(
@@ -359,10 +371,12 @@ app.post("/make-server-4e36197a/admin/auth",
   async (c) => {
   try {
     const { code } = await c.req.json();
-    const envCode = (Deno.env.get('ADMIN_ACCESS_CODE') || '').trim();
+    const superCode = (Deno.env.get('ADMIN_ACCESS_CODE') || '').trim();
+    const cargoCode = (Deno.env.get('ADMIN_ACCESS_CODE_CARGO') || '').trim();
+    const aviaCode  = (Deno.env.get('ADMIN_ACCESS_CODE_AVIA') || '').trim();
     const jwtSecret = (Deno.env.get('ADMIN_JWT_SECRET') || '').trim();
 
-    if (!envCode) {
+    if (!superCode) {
       console.log('[AdminAuth] ADMIN_ACCESS_CODE not set in env');
       return c.json({ success: false, error: 'Код доступа не настроен на сервере' }, 500);
     }
@@ -371,27 +385,41 @@ app.post("/make-server-4e36197a/admin/auth",
       return c.json({ success: false, error: 'Код обязателен' }, 400);
     }
 
-    if (code.trim() !== envCode) {
+    const trimmed = code.trim();
+    let role: 'super-admin' | 'cargo-admin' | 'avia-admin' | null = null;
+    if (trimmed === superCode) role = 'super-admin';
+    else if (cargoCode && trimmed === cargoCode) role = 'cargo-admin';
+    else if (aviaCode && trimmed === aviaCode) role = 'avia-admin';
+
+    if (!role) {
       console.log('[AdminAuth] Wrong admin code attempt');
       return c.json({ success: false, error: 'Неверный код доступа' });
     }
 
-    console.log('[AdminAuth] Admin access granted, issuing JWT');
+    // Роли cargo-admin/avia-admin работают ТОЛЬКО через JWT (X-Admin-Token) —
+    // у них нет своего legacy X-Admin-Code пути, поэтому без ADMIN_JWT_SECRET
+    // их сессия не будет работать ни на одном запросе.
+    if (role !== 'super-admin' && !jwtSecret) {
+      console.error(`[AdminAuth] Role ${role} requires ADMIN_JWT_SECRET, but it's not configured`);
+      return c.json({ success: false, error: 'Эта роль требует настройки ADMIN_JWT_SECRET на сервере' }, 500);
+    }
+
+    console.log(`[AdminAuth] Admin access granted, role=${role}, issuing JWT`);
 
     // Issue a signed JWT (8 h expiry) so the plaintext code never travels in headers again
     let token: string | undefined;
     if (jwtSecret) {
       const secret = new TextEncoder().encode(jwtSecret);
-      token = await new SignJWT({ role: 'admin' })
+      token = await new SignJWT({ role })
         .setProtectedHeader({ alg: 'HS256' })
         .setIssuedAt()
         .setExpirationTime('8h')
         .sign(secret);
     } else {
-      console.warn('[AdminAuth] ADMIN_JWT_SECRET not set — token not issued, legacy X-Admin-Code still works');
+      console.warn('[AdminAuth] ADMIN_JWT_SECRET not set — token not issued, legacy X-Admin-Code still works (super-admin only)');
     }
 
-    return c.json({ success: true, token });
+    return c.json({ success: true, token, role });
   } catch (err) {
     console.log('Error POST /admin/auth:', err);
     return c.json({ success: false, error: `${err}` }, 500);

@@ -7,6 +7,8 @@ export const SK = {
   USER_ROLE:           'userRole',
   IS_AUTHENTICATED:    'isAuthenticated',
   ADMIN_TOKEN:         'ovora_admin_token',
+  ADMIN_JWT:           'ovora_admin_jwt',
+  ADMIN_ROLE:          'ovora_admin_role',
 
   // ── localStorage (персистентное) ─────────────────────────────────────────
   CURRENT_USER:        'ovora_current_user',

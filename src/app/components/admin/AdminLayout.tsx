@@ -80,8 +80,16 @@ export function AdminLayout() {
   const [stats, setStats] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [authed, setAuthed] = useState(() =>
-    sessionStorage.getItem(PIN_SESSION_KEY) === 'true' && !!sessionStorage.getItem('ovora_admin_token')
+    sessionStorage.getItem(PIN_SESSION_KEY) === 'true' &&
+    (!!sessionStorage.getItem('ovora_admin_token') || !!sessionStorage.getItem('ovora_admin_jwt'))
   );
+  const adminRole = (sessionStorage.getItem('ovora_admin_role') || 'super-admin') as 'super-admin' | 'cargo-admin' | 'avia-admin';
+  const visibleNavGroups = navGroups.filter(group => {
+    if (adminRole === 'super-admin') return true;
+    if (adminRole === 'cargo-admin') return group.label !== 'AVIA';
+    if (adminRole === 'avia-admin') return group.label === 'Главная' || group.label === 'AVIA';
+    return true;
+  });
 
   useEffect(() => {
     if (authed) {
@@ -176,7 +184,7 @@ export function AdminLayout() {
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-4">
-          {navGroups.map(group => {
+          {visibleNavGroups.map(group => {
             const groupAccent = PLATFORM_THEME[GROUP_PLATFORM[group.label]]?.accent || '#1565d8';
             return (
               <div key={group.label}>
@@ -240,11 +248,19 @@ export function AdminLayout() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-gray-900 truncate leading-tight">Администратор</p>
-              <p className="text-xs text-gray-400 truncate">admin@ovora.tj</p>
+              <p className="text-xs text-gray-400 truncate">
+                {adminRole === 'super-admin' ? 'Полный доступ' : adminRole === 'cargo-admin' ? 'CARGO' : 'AVIA'}
+              </p>
             </div>
           </div>
           <button
-            onClick={() => { sessionStorage.removeItem(PIN_SESSION_KEY); sessionStorage.removeItem('ovora_admin_token'); window.location.reload(); }}
+            onClick={() => {
+              sessionStorage.removeItem(PIN_SESSION_KEY);
+              sessionStorage.removeItem('ovora_admin_token');
+              sessionStorage.removeItem('ovora_admin_jwt');
+              sessionStorage.removeItem('ovora_admin_role');
+              window.location.reload();
+            }}
             className="flex items-center gap-2 w-full px-3 py-2 text-xs font-medium rounded-xl transition-colors text-gray-400 hover:text-red-500 hover:bg-red-50"
           >
             <LogOut className="w-3.5 h-3.5" />

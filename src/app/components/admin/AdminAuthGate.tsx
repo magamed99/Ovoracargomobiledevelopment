@@ -61,7 +61,16 @@ export function AdminAuthGate({ onSuccess }: Props) {
 
       if (data.success) {
         sessionStorage.setItem(ADMIN_SESSION_KEY, 'true');
-        sessionStorage.setItem('ovora_admin_token', code);
+        sessionStorage.setItem('ovora_admin_role', data.role || 'super-admin');
+        if (data.token) {
+          // JWT выдан — используем X-Admin-Token, plaintext-код больше не нужен
+          sessionStorage.setItem('ovora_admin_jwt', data.token);
+          sessionStorage.removeItem('ovora_admin_token');
+        } else {
+          // ADMIN_JWT_SECRET не настроен на сервере — legacy-режим (только super-admin)
+          sessionStorage.setItem('ovora_admin_token', code);
+          sessionStorage.removeItem('ovora_admin_jwt');
+        }
         onSuccess();
       } else {
         setDigits(['', '', '', '', '', '']);

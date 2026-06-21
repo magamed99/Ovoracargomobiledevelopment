@@ -56,8 +56,17 @@ const STATUS_LABEL: Record<string, string> = {
   scheduled: 'Запланирована',
 };
 
+type AdminRole = 'super-admin' | 'cargo-admin' | 'avia-admin';
+
 export function AdminDashboard() {
-  const [platform, setPlatform] = useState<AdminPlatform>('cargo');
+  const adminRole = ((typeof sessionStorage !== 'undefined' && sessionStorage.getItem('ovora_admin_role')) || 'super-admin') as AdminRole;
+  // cargo-admin/avia-admin видят только свою платформу — их JWT не проходит
+  // requireRole на эндпоинтах другой платформы (см. CLAUDE.md RBAC).
+  const availablePlatforms: AdminPlatform[] =
+    adminRole === 'cargo-admin' ? ['cargo'] :
+    adminRole === 'avia-admin'  ? ['avia']  :
+    ['cargo', 'avia'];
+  const [platform, setPlatform] = useState<AdminPlatform>(availablePlatforms[0]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<{
     trips: number; drivers: number; users: number; senders: number;
@@ -123,7 +132,7 @@ export function AdminDashboard() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { if (availablePlatforms.includes('cargo')) load(); else setLoading(false); }, []);
 
   useEffect(() => {
     if (platform === 'avia' && !aviaLoaded) loadAvia();
@@ -334,7 +343,7 @@ export function AdminDashboard() {
             )}
           </div>
           <button
-            onClick={load}
+            onClick={() => (platform === 'cargo' ? load() : loadAvia())}
             className="flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm transition-all"
             style={{ background: '#ffffff25', color: '#ffffff' }}
           >
@@ -345,8 +354,9 @@ export function AdminDashboard() {
       </div>
 
       {/* ── Platform tabs ── */}
+      {availablePlatforms.length > 1 && (
       <div className="flex items-center gap-2 bg-white rounded-2xl p-1.5 w-fit" style={{ border: '1px solid #f0f4f8' }}>
-        {(['cargo', 'avia'] as AdminPlatform[]).map(p => {
+        {availablePlatforms.map(p => {
           const theme = PLATFORM_THEME[p];
           const active = platform === p;
           return (
@@ -362,6 +372,7 @@ export function AdminDashboard() {
           );
         })}
       </div>
+      )}
 
       {platform === 'cargo' && (
       <>
