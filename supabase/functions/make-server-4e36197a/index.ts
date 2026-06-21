@@ -8,6 +8,7 @@ import webpush from "npm:web-push";
 import { SignJWT, jwtVerify } from "npm:jose";
 import { rateLimitMiddleware, RL } from "./rateLimit.tsx";
 import * as kv from "./kv_store.tsx";
+import { Blacklist } from "./blacklist.tsx";
 import { handleSendOtp, handleVerifyOtp } from "./otp.tsx";
 import { handleGenerateBackup, handleVerifyBackup, handleBackupExists } from "./backup.tsx";
 import { handleEmailCheck, handleSetCode, handleVerifyPermCode, handleResetCode, handleAdminListCodes } from "./permCode.tsx";
@@ -585,6 +586,17 @@ app.post("/make-server-4e36197a/auth/register",
     const lenErr = assertMaxLen({ email, firstName, lastName, phone, vehicle },
       { email: 254, firstName: 60, lastName: 60, phone: 20, vehicle: 100 });
     if (lenErr) return c.json({ error: lenErr }, 400);
+
+    // ── Проверка чёрного списка ──────────────────────────────────────────────
+    if (phone) {
+      const blEntry = await Blacklist.check(phone);
+      if (blEntry) {
+        return c.json({
+          error: "Этот номер телефона заблокирован администратором. Регистрация недоступна.",
+          blacklisted: true,
+        }, 403);
+      }
+    }
 
     const key = `ovora:user:email:${email.toLowerCase().trim()}`;
     const existing: any = await kv.get(key) || {};
@@ -4677,17 +4689,52 @@ app.put("/make-server-4e36197a/admin/users/:email/status", async (c) => {
   }
 });
 
-// ✅ Admin: delete user (hard delete)
+// ✅ Admin: delete user (hard delete) + блокировка телефона от повторной регистрации
 app.delete("/make-server-4e36197a/admin/users/:email", async (c) => {
   try {
     const email = decodeURIComponent(c.req.param("email"));
     const key = `ovora:user:email:${email.toLowerCase().trim()}`;
     const existing: any = await kv.get(key);
     if (!existing) return c.json({ error: "User not found" }, 404);
+
+    const cleanPhone = String(existing.phone || "").replace(/\D/g, "");
     await kv.del(key);
-    return c.json({ success: true });
+    if (cleanPhone.length >= 7) {
+      await kv.del(`ovora:user:phone:${cleanPhone}`);
+      await Blacklist.add(cleanPhone, {
+        reason: "Удалён администратором",
+        blockedBy: "admin",
+        source: "cargo",
+        originalEmail: existing.email,
+        originalRole: existing.role,
+        originalName: `${existing.firstName || ""} ${existing.lastName || ""}`.trim(),
+      });
+    }
+    return c.json({ success: true, blacklisted: cleanPhone.length >= 7 });
   } catch (err) {
     console.log("Error DELETE /admin/users/:email:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ✅ Admin: чёрный список телефонов (общий для CARGO и AVIA)
+app.get("/make-server-4e36197a/admin/blacklist", async (c) => {
+  try {
+    const entries = await Blacklist.listAll();
+    return c.json({ entries });
+  } catch (err) {
+    console.log("Error GET /admin/blacklist:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+app.delete("/make-server-4e36197a/admin/blacklist/:phone", async (c) => {
+  try {
+    const phone = decodeURIComponent(c.req.param("phone"));
+    await Blacklist.remove(phone);
+    return c.json({ success: true });
+  } catch (err) {
+    console.log("Error DELETE /admin/blacklist/:phone:", err);
     return c.json({ error: `${err}` }, 500);
   }
 });

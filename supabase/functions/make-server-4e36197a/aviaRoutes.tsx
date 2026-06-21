@@ -24,6 +24,7 @@ import { aviaCache, CK, TTL } from "./cache.tsx";
 import { sendEmail, throttleEmail } from "./email.tsx";
 import { AuditLog } from "./aviaAudit.tsx";
 import * as kv from "./kv_store.tsx";
+import { Blacklist } from "./blacklist.tsx";
 
 // ── Константы ────────────────────────────────────────────────────────────────
 const BCRYPT_ROUNDS          = 10;
@@ -72,6 +73,11 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       const clean = aviaClean(phone);
       if (clean.length < 9) return c.json({ error: 'Некорректный номер телефона' }, 400);
 
+      const blEntry = await Blacklist.check(clean);
+      if (blEntry) {
+        return c.json({ error: 'Этот номер телефона заблокирован администратором.', blacklisted: true }, 403);
+      }
+
       const [pinData, user] = await Promise.all([
         Pins.get(clean),
         Users.get(clean),
@@ -96,6 +102,11 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       if (clean.length < 9) return c.json({ error: 'Некорректный номер телефона' }, 400);
       if (!/^\d{4}$/.test(pin)) return c.json({ error: 'PIN должен содержать 4 цифры' }, 400);
       if (!['courier', 'sender'].includes(role)) return c.json({ error: 'role must be courier/sender' }, 400);
+
+      const blEntry = await Blacklist.check(clean);
+      if (blEntry) {
+        return c.json({ error: 'Этот номер телефона заблокирован администратором. Регистрация недоступна.', blacklisted: true }, 403);
+      }
 
       const existingPin = await Pins.get(clean);
       if (existingPin?.pinHash) return c.json({ error: 'Этот номер уже зарегистрирован. Используйте вход.' }, 409);
@@ -1751,8 +1762,15 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
 
       await Users.hardDelete(phone);
       await Pins.del(phone);
+      await Blacklist.add(phone, {
+        reason: 'Удалён администратором',
+        blockedBy: 'admin',
+        source: 'avia',
+        originalRole: existing.role,
+        originalName: `${existing.firstName || ''} ${existing.lastName || ''}`.trim(),
+      });
       await AuditLog.record({ action: 'user.admin_delete', actorPhone: 'admin', targetId: phone, targetType: 'user', details: { snapshot: existing } });
-      return c.json({ success: true });
+      return c.json({ success: true, blacklisted: true });
     } catch (err) {
       console.log('Error DELETE /avia/admin/users/:phone:', err);
       return c.json({ error: `${err}` }, 500);
