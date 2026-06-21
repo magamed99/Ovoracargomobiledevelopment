@@ -5,8 +5,16 @@ import { cors } from "npm:hono/cors";
 import { logger } from "npm:hono/logger";
 import { createClient } from "npm:@supabase/supabase-js";
 import webpush from "npm:web-push";
-import { SignJWT, jwtVerify } from "npm:jose";
+import { SignJWT } from "npm:jose";
+import {
+  type AdminRole as AdminRoleType,
+  resolveAdminRole,
+  requireAdmin,
+  requireRole,
+  isAdminCaller,
+} from "./adminAuth.tsx";
 import { rateLimitMiddleware, RL } from "./rateLimit.tsx";
+import { calculateAverageRating } from "./rating.tsx";
 import * as kv from "./kv_store.tsx";
 import { Blacklist } from "./blacklist.tsx";
 import { AuditLog as CargoAuditLog } from "./cargoAudit.tsx";
@@ -77,76 +85,8 @@ app.use("/*", cors({
 }));
 
 // ── Admin Middleware — защита всех /admin/* и /kv/* маршрутов ─────────────────
-// Authorization всегда содержит anon key (требование Supabase gateway), поэтому
-// его нельзя использовать для передачи admin JWT. Роль передаётся через
-// X-Admin-Code (legacy plaintext, всегда super-admin) или X-Admin-Token
-// (новый JWT с ролью внутри, см. POST /admin/auth) — выдаётся отдельным
-// заголовком, чтобы не конфликтовать с anon-key в Authorization.
-// 'super-admin' проходит любую requireRole-проверку; 'cargo-admin'/'avia-admin'
-// ограничены своей платформой.
-type AdminRole = 'super-admin' | 'cargo-admin' | 'avia-admin';
-
-async function resolveAdminRole(c: any): Promise<AdminRole | null> {
-  // ── Primary: X-Admin-Code plaintext — всегда super-admin (backward-compat) ──
-  const adminCode = (c.req.header('X-Admin-Code') || '').trim();
-  if (adminCode) {
-    const envCode = (Deno.env.get('ADMIN_ACCESS_CODE') || '').trim();
-    if (!envCode) {
-      console.error('[requireAdmin] ADMIN_ACCESS_CODE not configured in environment');
-      return null;
-    }
-    return adminCode === envCode ? 'super-admin' : null;
-  }
-
-  // ── Role-scoped JWT (X-Admin-Token) — выдаётся /admin/auth ─────────────────
-  const adminToken = (c.req.header('X-Admin-Token') || '').trim();
-  if (adminToken) {
-    const jwtSecret = (Deno.env.get('ADMIN_JWT_SECRET') || '').trim();
-    if (jwtSecret) {
-      try {
-        const secret = new TextEncoder().encode(jwtSecret);
-        const { payload } = await jwtVerify(adminToken, secret);
-        return (payload.role as AdminRole) || 'super-admin';
-      } catch (err) {
-        console.warn('[requireAdmin] Invalid/expired admin JWT:', err);
-      }
-    }
-  }
-
-  return null;
-}
-
-async function requireAdmin(c: any, next: any) {
-  const role = await resolveAdminRole(c);
-  if (!role) {
-    console.warn('[requireAdmin] No valid admin credentials for:', c.req.path);
-    return c.json({ error: 'Unauthorized: Admin access required' }, 401);
-  }
-  console.log(`[requireAdmin] Access granted (role=${role}) for:`, c.req.path);
-  c.set('adminRole', role);
-  return await next();
-}
-
-// ── Role gate — применяется ПОСЛЕ requireAdmin. super-admin проходит всегда,
-// остальные роли — только если входят в allowed.
-function requireRole(allowed: AdminRole[]) {
-  return async (c: any, next: any) => {
-    const role = c.get('adminRole') as AdminRole | undefined;
-    if (role === 'super-admin' || (role && allowed.includes(role))) {
-      return await next();
-    }
-    console.warn(`[requireRole] Forbidden: role=${role} not in [${allowed.join(', ')}] for`, c.req.path);
-    return c.json({ error: 'Forbidden: insufficient admin role' }, 403);
-  };
-}
-
-// ── Non-blocking admin check — для эндпоинтов с двойным режимом
-// (владелец ресурса ИЛИ админ-оверрайд), где requireAdmin как middleware
-// не подходит, потому что обычные пользователи тоже должны иметь доступ.
-// Проверяет и X-Admin-Code, и X-Admin-Token, как requireAdmin.
-async function isAdminCaller(c: any): Promise<boolean> {
-  return (await resolveAdminRole(c)) !== null;
-}
+// Логика вынесена в adminAuth.tsx (юнит-тестируется отдельно от Hono/Deno-обвязки).
+type AdminRole = AdminRoleType;
 
 // Применяем middleware ко всем /admin/* и /kv/* маршрутам (КРОМЕ /admin/auth).
 // CARGO-эндпоинты доступны cargo-admin и super-admin (см. CLAUDE.md RBAC).
@@ -2043,9 +1983,7 @@ app.post("/make-server-4e36197a/reviews", async (c) => {
           : [];
         const validReviews = targetReviews.filter(r => r != null);
         if (validReviews.length > 0) {
-          const avgRating = Math.round(
-            (validReviews.reduce((sum, r) => sum + (Number(r.rating) || 0), 0) / validReviews.length) * 10
-          ) / 10;
+          const avgRating = calculateAverageRating(validReviews.map(r => r.rating));
           const allTrips: any[] = await kv.getByPrefix(`ovora:trip:`);
           const driverTrips = allTrips.filter(t => t && !t.deletedAt && t.driverEmail === review.targetEmail);
           for (const trip of driverTrips) {
@@ -5758,15 +5696,13 @@ app.get("/make-server-4e36197a/users/:email/stats", async (c) => {
 
     const receivedReviews = allReviews.filter(r => r && r.targetEmail === email);
     const reviewCount = receivedReviews.length;
-    const avgRating = reviewCount > 0
-      ? receivedReviews.reduce((sum, r) => sum + (Number(r.rating) || 0), 0) / reviewCount
-      : 0;
+    const avgRating = calculateAverageRating(receivedReviews.map(r => r.rating));
 
     console.log(`[user-stats] trips=${tripCount}, reviews=${reviewCount}, avg=${avgRating.toFixed(2)}`);
     return c.json({
       tripCount,
       reviewCount,
-      avgRating: Math.round(avgRating * 10) / 10,
+      avgRating,
       reviews: receivedReviews.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
     });
   } catch (err) {
@@ -5897,8 +5833,7 @@ app.post('/make-server-4e36197a/rest-stops/:id/review', async (c) => {
     const now = new Date().toISOString();
     await kv.set(`ovora:restplace-review:${id}:${reviewId}`, { id: reviewId, placeId: id, userEmail, userName: userName || 'Пользователь', rating, text, createdAt: now });
     const allReviews: any[] = await kv.getByPrefix(`ovora:restplace-review:${id}:`);
-    const totalRating = allReviews.reduce((sum, r) => sum + (Number(r.rating) || 0), 0);
-    const newAvg = allReviews.length > 0 ? Math.round((totalRating / allReviews.length) * 10) / 10 : rating;
+    const newAvg = calculateAverageRating(allReviews.map(r => r.rating));
     await kv.set(`ovora:restplace:${id}`, { ...place, rating: newAvg, reviewCount: allReviews.length, updatedAt: now });
     return c.json({ success: true });
   } catch (err) {
