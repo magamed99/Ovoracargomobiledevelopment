@@ -1523,7 +1523,16 @@ app.post("/make-server-4e36197a/offers/cleanup", async (c) => {
       .filter((e: any) => e?.tripId && e?.offerId)
       .map((e: any) => `ovora:offer:${e.tripId}:${e.offerId}`);
     const offers: any[] = offerKeys.length > 0 ? await kv.mget(offerKeys) : [];
-    const pendingOffers = offers.filter(o => o && o.status === 'pending' && o.senderEmail);
+    // ✅ FIX: грейс-период — оферта, созданная меньше 2 минут назад, никогда
+    // не считается "осиротевшей". Без этого создание чата (initChatRoom —
+    // fire-and-forget на клиенте) могло не успеть записаться на сервере к
+    // моменту, когда сработает cleanup, и свежая оферта попадала под
+    // авто-отмену прямо в момент, когда пользователь её открывает/принимает.
+    const GRACE_MS = 2 * 60 * 1000;
+    const pendingOffers = offers.filter(o =>
+      o && o.status === 'pending' && o.senderEmail &&
+      (Date.now() - new Date(o.createdAt || 0).getTime()) > GRACE_MS
+    );
 
     if (pendingOffers.length === 0) return c.json({ cancelled: 0 });
 
