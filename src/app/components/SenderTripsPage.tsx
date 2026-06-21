@@ -199,10 +199,8 @@ export function SenderTripsPage() {
     if (!silent) setLoading(true);
     else setIsRefreshing(true);
     try {
-      const [offerList, chatList] = await Promise.all([
-        getOffersForUser(currentUser.email),
-        getChats(currentUser.email),
-      ]);
+      const offerList = await getOffersForUser(currentUser.email);
+      const chatList = getChats();
       if (!isMountedRef.current) return;
       setChats(chatList);
 
@@ -283,9 +281,16 @@ export function SenderTripsPage() {
     e.stopPropagation();
     if (!currentUser?.email || !trip.driverEmail) return;
     const chatId = generatePairChatId(currentUser.email, trip.driverEmail);
-    await initChatRoom(chatId, currentUser.email, trip.driverEmail,
-      `${currentUser.firstName} ${currentUser.lastName}`, trip.driverName || 'Водитель',
-      currentUser.avatarUrl || null, trip.driverAvatar || null);
+    await initChatRoom(chatId, {
+      id: trip.driverEmail,
+      name: trip.driverName || 'Водитель',
+      avatar: trip.driverAvatar || '',
+      role: 'driver',
+      sub: 'Водитель',
+      online: true,
+      verified: true,
+      email: trip.driverEmail,
+    }, String(trip.tripId ?? trip.id), `${trip.from} → ${trip.to}`, trip);
     navigate(`/chat/${chatId}`);
   };
 
@@ -307,7 +312,7 @@ export function SenderTripsPage() {
       'Отменить',
       async () => {
         try {
-          await updateOffer(trip.offerId, { status: 'cancelled', callerEmail: currentUser?.email });
+          await updateOffer(trip.tripId ?? trip.id, trip.offerId, { status: 'cancelled', callerEmail: currentUser?.email });
           setSenderTrips(prev =>
             prev.map(t => t.offerId === trip.offerId ? { ...t, status: 'cancelled' } : t)
           );

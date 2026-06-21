@@ -38,7 +38,7 @@ export function AviaDealOfferModal({ me, flight, onClose, onSuccess, onOpenChat 
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
 
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 
   // Определяем, кто получатель

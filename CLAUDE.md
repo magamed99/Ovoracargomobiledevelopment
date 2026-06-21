@@ -173,7 +173,7 @@ print('Missing EN:', sorted(ru-en))
 ## TypeScript
 
 ```bash
-npm run typecheck   # tsc --noEmit — 70 ошибок (аннотационные, не критичные)
+npm run typecheck   # tsc --noEmit — 0 ошибок
 npm run build       # сборка через Vite/esbuild — не делает type-check
 ```
 
