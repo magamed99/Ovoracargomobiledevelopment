@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { YandexMetrikaTracker } from '../YandexMetrika';
 import { getAdminStats } from '../../api/dataApi';
 import { AdminAuthGate } from './AdminAuthGate';
+import { PLATFORM_THEME, GROUP_PLATFORM } from './platformTheme';
 
 const PIN_SESSION_KEY = 'ovora_admin_auth';
 
@@ -109,6 +110,8 @@ export function AdminLayout() {
   };
 
   const currentPage = allNavItems.find(n => isActive(n));
+  const currentGroup = navGroups.find(g => g.items.some(n => isActive(n)));
+  const currentPlatform = currentGroup ? GROUP_PLATFORM[currentGroup.label] : undefined;
   const today = new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
@@ -172,54 +175,57 @@ export function AdminLayout() {
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-4">
-          {navGroups.map(group => (
-            <div key={group.label}>
-              <p className="text-[10px] font-bold uppercase tracking-widest px-3 mb-1.5" style={{ color: '#94a3b8' }}>
-                {group.label}
-              </p>
-              <ul className="space-y-0.5">
-                {group.items.map(item => {
-                  const active = isActive(item);
-                  return (
-                    <li key={item.href}>
-                      <Link
-                        to={item.href}
-                        onClick={() => setSidebarOpen(false)}
-                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all group relative outline-none"
-                      >
-                        <div
-                          className="relative z-10 w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-all"
-                          style={{
-                            background: active ? '#1565d8' : '#f1f5f9',
-                          }}
+          {navGroups.map(group => {
+            const groupAccent = PLATFORM_THEME[GROUP_PLATFORM[group.label]]?.accent || '#1565d8';
+            return (
+              <div key={group.label}>
+                <p className="text-[10px] font-bold uppercase tracking-widest px-3 mb-1.5" style={{ color: '#94a3b8' }}>
+                  {group.label}
+                </p>
+                <ul className="space-y-0.5">
+                  {group.items.map(item => {
+                    const active = isActive(item);
+                    return (
+                      <li key={item.href}>
+                        <Link
+                          to={item.href}
+                          onClick={() => setSidebarOpen(false)}
+                          className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all group relative outline-none"
                         >
-                          <item.icon
+                          <div
+                            className="relative z-10 w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-all"
                             style={{
-                              width: 15,
-                              height: 15,
-                              color: active ? '#ffffff' : '#64748b',
-                              strokeWidth: 2,
+                              background: active ? groupAccent : '#f1f5f9',
                             }}
-                          />
-                        </div>
+                          >
+                            <item.icon
+                              style={{
+                                width: 15,
+                                height: 15,
+                                color: active ? '#ffffff' : '#64748b',
+                                strokeWidth: 2,
+                              }}
+                            />
+                          </div>
 
-                        <span
-                          className="font-medium text-sm flex-1 relative z-10 transition-colors duration-150"
-                          style={{ color: active ? '#1565d8' : '#475569' }}
-                        >
-                          {item.name}
-                        </span>
+                          <span
+                            className="font-medium text-sm flex-1 relative z-10 transition-colors duration-150"
+                            style={{ color: active ? groupAccent : '#475569' }}
+                          >
+                            {item.name}
+                          </span>
 
-                        {active && (
-                          <ChevronRight className="w-3.5 h-3.5 relative z-10 flex-shrink-0" style={{ color: '#1565d8' }} />
-                        )}
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          ))}
+                          {active && (
+                            <ChevronRight className="w-3.5 h-3.5 relative z-10 flex-shrink-0" style={{ color: groupAccent }} />
+                          )}
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            );
+          })}
         </nav>
 
         {/* User & logout */}
@@ -272,9 +278,18 @@ export function AdminLayout() {
             <div className="hidden lg:flex items-center gap-2 text-sm">
               <span className="text-gray-400 font-medium">Ovora Admin</span>
               <ChevronRight className="w-3.5 h-3.5 text-gray-300" />
-              <span className="font-semibold" style={{ color: '#1565d8' }}>
+              <span className="font-semibold" style={{ color: currentPlatform ? PLATFORM_THEME[currentPlatform].accent : '#1565d8' }}>
                 {currentPage?.name || 'Обзор'}
               </span>
+              {currentPlatform && (
+                <span
+                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold"
+                  style={{ background: PLATFORM_THEME[currentPlatform].bg, color: PLATFORM_THEME[currentPlatform].accent }}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: PLATFORM_THEME[currentPlatform].accent }} />
+                  {PLATFORM_THEME[currentPlatform].label}
+                </span>
+              )}
             </div>
 
             {/* Search */}
