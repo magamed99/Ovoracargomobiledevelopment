@@ -2,6 +2,7 @@ import { useRouteError, isRouteErrorResponse, useNavigate } from 'react-router';
 import { AlertTriangle, Home, RefreshCw } from 'lucide-react';
 import { useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
+import { Sentry } from '../config/sentry';
 
 // After a new deploy, an already-open tab may still reference an old
 // content-hashed chunk filename that no longer exists on the server.
@@ -21,6 +22,10 @@ export function ErrorPage() {
   }
 
   const isStaleChunk = /dynamically imported module/i.test(message);
+
+  useEffect(() => {
+    if (!isStaleChunk) Sentry.captureException(error);
+  }, [error, isStaleChunk]);
 
   // Auto-recover once: reload to fetch the fresh app shell instead of
   // stranding the user on this screen. Guarded by a timestamp so a
