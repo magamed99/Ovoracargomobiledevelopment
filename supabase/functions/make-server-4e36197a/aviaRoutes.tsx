@@ -22,6 +22,8 @@ import {
 import { aviaRL, RL, rateLimitMiddleware } from "./rateLimit.tsx";
 import { aviaCache, CK, TTL } from "./cache.tsx";
 import { sendEmail, throttleEmail } from "./email.tsx";
+import { AuditLog } from "./aviaAudit.tsx";
+import * as kv from "./kv_store.tsx";
 
 // ── Константы ────────────────────────────────────────────────────────────────
 const BCRYPT_ROUNDS          = 10;
@@ -113,6 +115,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
         avatarUrl: '', createdAt: now, lastLoginAt: now,
       };
       await Users.set(clean, user);
+      await AuditLog.record({ action: 'user.register', actorPhone: clean, targetId: clean, targetType: 'user', details: { role } });
 
       console.log(`[AVIA] Registered: ${clean}, role=${role}`);
       return c.json({ success: true, user });
@@ -132,6 +135,11 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
 
       if (!pinData?.pinHash) return c.json({ error: 'Аккаунт не найден. Зарегистрируйтесь.' }, 404);
 
+      const existingUser = await Users.get(clean);
+      if (existingUser?.blocked) {
+        return c.json({ error: 'Аккаунт заблокирован администратором. Обратитесь в поддержку.' }, 403);
+      }
+
       const attempts = (pinData.attempts || 0) + 1;
       if (attempts > MAX_LOGIN_ATTEMPTS) return c.json({ error: 'Превышен лимит попыток. Обратитесь в поддержку.' }, 429);
 
@@ -148,6 +156,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       // Сброс попыток + обновление lastLoginAt
       await Pins.set(clean, { ...pinData, attempts: 0 });
       const user = await Users.update(clean, { lastLoginAt: new Date().toISOString() });
+      await AuditLog.record({ action: 'user.login', actorPhone: clean, targetId: clean, targetType: 'user' });
 
       console.log(`[AVIA] Login success: ${clean}`);
       return c.json({ success: true, user: user || { phone: clean } });
@@ -200,6 +209,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       await Pins.set(phone, { ...pinData, pinHash: newHash, updatedAt: new Date().toISOString(), attempts: 0 });
       await Pins.delPinChange(phone);
       aviaRL.reset(`avia-pin-change:${phone}`);
+      await AuditLog.record({ action: 'user.pin_change', actorPhone: phone, targetId: phone, targetType: 'user' });
 
       console.log(`[AVIA] PIN changed for: ${phone}`);
       return c.json({ success: true });
@@ -255,6 +265,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
 
       const updated = await Users.update(clean, updates);
       if (!updated) return c.json({ error: 'User not found' }, 404);
+      await AuditLog.record({ action: 'user.profile_update', actorPhone: clean, targetId: clean, targetType: 'user', details: { fields: Object.keys(updates) } });
 
       console.log(`[AVIA] Profile updated: ${clean}`);
       return c.json({ success: true, user: updated });
@@ -293,6 +304,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       if (!existing) return c.json({ error: 'AVIA user not found' }, 404);
 
       const updated = await Users.update(phone, { avatarUrl });
+      await AuditLog.record({ action: 'user.profile_update', actorPhone: phone, targetId: phone, targetType: 'user', details: { fields: ['avatarUrl'] } });
       return c.json({ success: true, avatarUrl, user: updated });
     } catch (err) {
       console.log('Error POST /avia/users/:phone/avatar:', err);
@@ -387,6 +399,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
         passportExpired     : isExpired,
       });
 
+      await AuditLog.record({ action: 'user.passport_upload', actorPhone: clean, targetId: clean, targetType: 'user', details: { isExpired } });
       console.log(`[AVIA] Passport uploaded for ${clean}: expired=${isExpired}`);
       return c.json({ success: true, user: updated, photoUrl, expiryDate: finalExpiry, isExpired, ocrFullName });
     } catch (err) {
@@ -528,6 +541,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       };
 
       await Flights.set(id, flight);
+      await AuditLog.record({ action: 'flight.create', actorPhone: courierId, targetId: id, targetType: 'flight', details: { from, to, date } });
       console.log(`[AVIA] Flight created ${id}`);
       return c.json({ success: true, flight });
     } catch (err) {
@@ -565,6 +579,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
 
       const updated = { ...flight, ...updates };
       await Flights.set(id, updated);
+      await AuditLog.record({ action: 'flight.edit', actorPhone: clean, targetId: id, targetType: 'flight', details: { fields: Object.keys(updates) } });
       console.log(`[AVIA] Flight ${id} edited by ${clean}`);
       return c.json({ success: true, flight: updated });
     } catch (err) {
@@ -585,6 +600,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
         return c.json({ error: 'Forbidden: not the owner' }, 403);
       }
       await Flights.set(id, { ...flight, isDeleted: true, updatedAt: new Date().toISOString() });
+      await AuditLog.record({ action: 'flight.delete', actorPhone: callerPhone, targetId: id, targetType: 'flight' });
       return c.json({ success: true });
     } catch (err) {
       console.log('Error DELETE /avia/flights:', err);
@@ -609,6 +625,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       const now     = new Date().toISOString();
       const updated = { ...flight, status: 'in_progress', startedAt: now, updatedAt: now };
       await Flights.set(id, updated);
+      await AuditLog.record({ action: 'flight.start', actorPhone: clean, targetId: id, targetType: 'flight' });
 
       // Уведомляем отправителей с принятыми сделками, что поездка началась (fire-and-forget)
       ;(async () => {
@@ -660,6 +677,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       const now     = new Date().toISOString();
       const updated = { ...flight, status: 'closed', closedAt: now, updatedAt: now };
       await Flights.set(id, updated);
+      await AuditLog.record({ action: 'flight.close', actorPhone: clean, targetId: id, targetType: 'flight' });
       return c.json({ success: true, flight: updated });
     } catch (err) {
       console.log('Error PATCH /avia/flights/close:', err);
@@ -694,6 +712,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       const now     = new Date().toISOString();
       const updated = { ...flight, status: 'completed', completedAt: now, updatedAt: now, freeKg: 0, reservedKg: 0 };
       await Flights.set(id, updated);
+      await AuditLog.record({ action: 'flight.complete', actorPhone: clean, targetId: id, targetType: 'flight' });
 
       const completedDeals = flightDeals.filter(d => d.status === 'completed').length;
       console.log(`[AVIA] Flight ${id} completed. ${completedDeals} deals already completed by courier`);
@@ -1033,6 +1052,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
         otherPhone ? Chats.delUserIndex(otherPhone, chatId) : Promise.resolve(),
       ]);
 
+      await AuditLog.record({ action: 'chat.delete', actorPhone: clean, targetId: chatId, targetType: 'chat', details: { cancelledDealIds } });
       console.log(`[AVIA Chat] DELETE ${chatId} by ${clean}`);
       return c.json({ success: true, cancelledDealIds });
     } catch (err) {
@@ -1110,6 +1130,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       await Deals.set(id, deal);
       await Deals.addParticipant(p1, id, 'initiator');
       await Deals.addParticipant(p2, id, 'recipient');
+      await AuditLog.record({ action: 'deal.create', actorPhone: p1, targetId: id, targetType: 'deal', details: { recipientPhone: p2, adType, adId } });
 
       // Уведомление получателю (fire-and-forget)
       ;(async () => {
@@ -1221,6 +1242,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
         }
         await Deals.set(deal.id, { ...deal, deletedAt: now });
         deleted.push(deal.id);
+        await AuditLog.record({ action: 'deal.delete', actorPhone: clean, targetId: deal.id, targetType: 'deal' });
       }
       return c.json({ success: true, deleted });
     } catch (err) {
@@ -1265,6 +1287,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
         }
       }
 
+      await AuditLog.record({ action: 'deal.accept', actorPhone: clean, targetId: id, targetType: 'deal' });
       await injectDealUpdateMessage(deal, 'Предложение принято', 'accepted');
 
       await Notifs.push(deal.initiatorPhone, {
@@ -1304,6 +1327,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
         if (flight) await Flights.set(deal.adId, { ...flight, reservedKg: Math.max(0, (flight.reservedKg || 0) - (deal.weightKg || 0)), updatedAt: now });
       }
 
+      await AuditLog.record({ action: 'deal.reject', actorPhone: clean, targetId: id, targetType: 'deal', details: { reason: reason || '' } });
       await injectDealUpdateMessage(deal, 'Предложение отклонено', 'rejected');
       await Notifs.push(deal.initiatorPhone, {
         id: aviaId('deal_reject'), phone: deal.initiatorPhone, type: 'system',
@@ -1341,6 +1365,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
         if (flight) await Flights.set(deal.adId, { ...flight, reservedKg: Math.max(0, (flight.reservedKg || 0) - (deal.weightKg || 0)), updatedAt: now });
       }
 
+      await AuditLog.record({ action: 'deal.cancel', actorPhone: clean, targetId: id, targetType: 'deal' });
       await injectDealUpdateMessage(deal, 'Предложение отменено', 'cancelled');
       await Notifs.push(deal.recipientPhone, {
         id: aviaId('deal_cancel'), phone: deal.recipientPhone, type: 'system',
@@ -1390,6 +1415,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       const updated = { ...deal, status: 'completed', completedAt: now, updatedAt: now };
       await Deals.set(id, updated);
 
+      await AuditLog.record({ action: 'deal.complete', actorPhone: clean, targetId: id, targetType: 'deal' });
       await injectDealUpdateMessage(deal, 'Сделка завершена', 'completed');
 
       const other  = clean === deal.courierId ? deal.senderId : deal.courierId;
@@ -1451,6 +1477,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       const podPhotos = [...(deal.podPhotos || []), photo];
       const updated = { ...deal, podPhotos, updatedAt: now };
       await Deals.set(id, updated);
+      await AuditLog.record({ action: 'deal.pod_upload', actorPhone: clean, targetId: id, targetType: 'deal', details: { type } });
 
       // Уведомить отправителя, чтобы он мог следить за действиями курьера
       if (deal.senderId) {
@@ -1647,6 +1674,161 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json(result);
     } catch (err) {
       console.log('Error GET /avia/public-profile/:phone:', err);
+      return c.json({ error: `${err}` }, 500);
+    }
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  ADMIN — управление пользователями/карточками/аудитом AVIA
+  //  Защищено requireAdmin в index.ts (app.use(`${P}/admin/*`, requireAdmin))
+  // ══════════════════════════════════════════════════════════════════════════
+
+  app.get(`${P}/admin/users`, async (c) => {
+    try {
+      const users = await Users.listAll();
+      const safe = users.map(u => {
+        const { passportNumber, passportPhoto, passportPhotoPath, ...rest } = u as any;
+        return rest;
+      });
+      return c.json({ users: safe });
+    } catch (err) {
+      console.log('Error GET /avia/admin/users:', err);
+      return c.json({ error: `${err}` }, 500);
+    }
+  });
+
+  app.put(`${P}/admin/users/:phone`, async (c) => {
+    try {
+      const phone = aviaClean(decodeURIComponent(c.req.param('phone')));
+      const body  = await c.req.json();
+      const existing = await Users.get(phone);
+      if (!existing) return c.json({ error: 'AVIA user not found' }, 404);
+
+      const ALLOWED = ['firstName', 'lastName', 'middleName', 'birthDate', 'city', 'telegram', 'role'] as const;
+      const updates: Partial<AviaUser> = {};
+      for (const field of ALLOWED) {
+        if (body[field] !== undefined) (updates as any)[field] = body[field];
+      }
+      if (Object.keys(updates).length === 0) return c.json({ error: 'No allowed fields provided' }, 400);
+
+      const updated = await Users.update(phone, updates);
+      await AuditLog.record({ action: 'user.admin_edit', actorPhone: 'admin', targetId: phone, targetType: 'user', details: { fields: Object.keys(updates) } });
+      return c.json({ success: true, user: updated });
+    } catch (err) {
+      console.log('Error PUT /avia/admin/users/:phone:', err);
+      return c.json({ error: `${err}` }, 500);
+    }
+  });
+
+  app.patch(`${P}/admin/users/:phone/block`, async (c) => {
+    try {
+      const phone = aviaClean(decodeURIComponent(c.req.param('phone')));
+      const { blocked, reason } = await c.req.json();
+      const existing = await Users.get(phone);
+      if (!existing) return c.json({ error: 'AVIA user not found' }, 404);
+
+      const updates: Partial<AviaUser> = blocked
+        ? { blocked: true, blockedAt: new Date().toISOString(), blockedReason: reason || '' }
+        : { blocked: false, blockedAt: undefined, blockedReason: undefined };
+      const updated = await Users.update(phone, updates);
+      await AuditLog.record({
+        action: blocked ? 'user.admin_block' : 'user.admin_unblock',
+        actorPhone: 'admin', targetId: phone, targetType: 'user',
+        details: blocked ? { reason: reason || '' } : undefined,
+      });
+      return c.json({ success: true, user: updated });
+    } catch (err) {
+      console.log('Error PATCH /avia/admin/users/:phone/block:', err);
+      return c.json({ error: `${err}` }, 500);
+    }
+  });
+
+  app.delete(`${P}/admin/users/:phone`, async (c) => {
+    try {
+      const phone = aviaClean(decodeURIComponent(c.req.param('phone')));
+      const existing = await Users.get(phone);
+      if (!existing) return c.json({ error: 'AVIA user not found' }, 404);
+
+      await Users.hardDelete(phone);
+      await Pins.del(phone);
+      await AuditLog.record({ action: 'user.admin_delete', actorPhone: 'admin', targetId: phone, targetType: 'user', details: { snapshot: existing } });
+      return c.json({ success: true });
+    } catch (err) {
+      console.log('Error DELETE /avia/admin/users/:phone:', err);
+      return c.json({ error: `${err}` }, 500);
+    }
+  });
+
+  app.post(`${P}/admin/users/:phone/reset-code`, async (c) => {
+    try {
+      const phone = aviaClean(decodeURIComponent(c.req.param('phone')));
+      const existing = await Users.get(phone);
+      if (!existing) return c.json({ error: 'AVIA user not found' }, 404);
+
+      const newPin  = String(Math.floor(1000 + Math.random() * 9000));
+      const salt    = await bcrypt.genSalt(BCRYPT_ROUNDS);
+      const pinHash = await bcrypt.hash(newPin, salt);
+      await Pins.set(phone, { pinHash, phone, attempts: 0, createdAt: new Date().toISOString() });
+
+      await AuditLog.record({ action: 'user.admin_reset_code', actorPhone: 'admin', targetId: phone, targetType: 'user' });
+      return c.json({ success: true, newPin });
+    } catch (err) {
+      console.log('Error POST /avia/admin/users/:phone/reset-code:', err);
+      return c.json({ error: `${err}` }, 500);
+    }
+  });
+
+  app.get(`${P}/admin/deals`, async (c) => {
+    try {
+      let deals = await Deals.listAll();
+      const status = c.req.query('status');
+      const phone  = c.req.query('phone') ? aviaClean(c.req.query('phone')!) : '';
+      const dealType = c.req.query('dealType');
+      if (status)   deals = deals.filter(d => d.status === status);
+      if (phone)    deals = deals.filter(d => d.initiatorPhone === phone || d.recipientPhone === phone);
+      if (dealType) deals = deals.filter(d => d.dealType === dealType);
+      return c.json({ deals });
+    } catch (err) {
+      console.log('Error GET /avia/admin/deals:', err);
+      return c.json({ error: `${err}` }, 500);
+    }
+  });
+
+  app.get(`${P}/admin/flights`, async (c) => {
+    try {
+      const flights = await Flights.listAll();
+      return c.json({ flights });
+    } catch (err) {
+      console.log('Error GET /avia/admin/flights:', err);
+      return c.json({ error: `${err}` }, 500);
+    }
+  });
+
+  app.delete(`${P}/admin/deals/:id`, async (c) => {
+    try {
+      const id   = c.req.param('id');
+      const deal = await Deals.get(id);
+      if (!deal) return c.json({ error: 'Deal not found' }, 404);
+      await Deals.set(id, { ...deal, deletedAt: new Date().toISOString() });
+      await AuditLog.record({ action: 'deal.admin_delete', actorPhone: 'admin', targetId: id, targetType: 'deal' });
+      return c.json({ success: true });
+    } catch (err) {
+      console.log('Error DELETE /avia/admin/deals/:id:', err);
+      return c.json({ error: `${err}` }, 500);
+    }
+  });
+
+  app.get(`${P}/admin/audit`, async (c) => {
+    try {
+      const actorPhone = c.req.query('actorPhone') ? aviaClean(c.req.query('actorPhone')!) : undefined;
+      const targetId    = c.req.query('targetId') || undefined;
+      const action       = c.req.query('action') || undefined;
+      const limit        = Number(c.req.query('limit')) || 100;
+      const offset       = Number(c.req.query('offset')) || 0;
+      const result = await AuditLog.list({ actorPhone, targetId, action, limit, offset });
+      return c.json(result);
+    } catch (err) {
+      console.log('Error GET /avia/admin/audit:', err);
       return c.json({ error: `${err}` }, 500);
     }
   });
