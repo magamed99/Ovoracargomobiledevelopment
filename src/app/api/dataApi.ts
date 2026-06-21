@@ -84,14 +84,16 @@ async function reqWithRetry(method: string, path: string, body?: any, attempts =
       clearTimeout(timer);
       if (!res.ok) {
         const text = await res.text();
-        throw new Error(`API ${method} ${path} failed (${res.status}): ${text}`);
+        const httpErr: any = new Error(`API ${method} ${path} failed (${res.status}): ${text}`);
+        httpErr.status = res.status;
+        throw httpErr;
       }
       return res.json();
     } catch (err: any) {
       clearTimeout(timer);
       lastErr = err;
       // Don't retry on explicit HTTP errors (4xx/5xx) — only on network errors
-      if (err?.message?.includes('failed (')) throw err;
+      if (err?.status !== undefined) throw err;
       if (i < attempts - 1) {
         await new Promise(r => setTimeout(r, 800 * (i + 1))); // 800ms, 1600ms backoff
       }
@@ -335,8 +337,10 @@ export async function submitReview(review: any) {
     if (review.authorEmail) cacheClear(`stats:${review.authorEmail}`);
     return data.review;
   } catch (err: any) {
-    // ✅ FIX #3: Обработка дубликата (409)
-    if (err?.message?.includes('409')) {
+    // ✅ FIX #3: Обработка дубликата (409) — проверяем реальный HTTP-статус,
+    // а не подстроку '409' в тексте сообщения (могла случайно совпасть с
+    // содержимым текста ошибки или путём запроса).
+    if (err?.status === 409) {
       throw new Error('DUPLICATE_REVIEW');
     }
     throw err;
