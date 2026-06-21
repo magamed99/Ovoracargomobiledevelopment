@@ -5,6 +5,7 @@
  */
 
 import { projectId, publicAnonKey } from '../../../utils/supabase/info';
+import { CSRF_HEADER, CSRF_TOKEN } from '../api/csrfToken';
 
 const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;
 const PUSH_STATE_KEY = 'ovora_push_subscribed'; // 'yes' | 'denied' | ''
@@ -99,6 +100,7 @@ export async function subscribeToPush(userEmail: string): Promise<'granted' | 'd
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${publicAnonKey}`,
+        [CSRF_HEADER]: CSRF_TOKEN,
       },
       body: JSON.stringify({ email: userEmail, subscription: subscription.toJSON() }),
     });
@@ -134,6 +136,7 @@ export async function unsubscribeFromPush(userEmail: string): Promise<void> {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${publicAnonKey}`,
+          [CSRF_HEADER]: CSRF_TOKEN,
         },
         body: JSON.stringify({ email: userEmail, endpoint: subscription.endpoint }),
       }).catch(() => {});
@@ -171,6 +174,7 @@ export async function ensurePushSubscription(userEmail: string): Promise<void> {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${publicAnonKey}`,
+          [CSRF_HEADER]: CSRF_TOKEN,
         },
         body: JSON.stringify({ email: userEmail, subscription: subscription.toJSON() }),
       }).catch(() => {});

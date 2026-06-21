@@ -1,4 +1,5 @@
 import { projectId, publicAnonKey } from '../../../utils/supabase/info';
+import { CSRF_HEADER, CSRF_TOKEN } from './csrfToken';
 
 const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;
 
@@ -41,6 +42,7 @@ function getAdminAuthHeader(): Record<string, string> {
 function getHeaders(path: string, isFormData: boolean): Record<string, string> {
   const headers: Record<string, string> = {
     Authorization: `Bearer ${publicAnonKey}`,
+    [CSRF_HEADER]: CSRF_TOKEN,
   };
   if (!isFormData) {
     headers['Content-Type'] = 'application/json';
@@ -58,6 +60,7 @@ export function adminHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${publicAnonKey}`,
+    [CSRF_HEADER]: CSRF_TOKEN,
   };
   Object.assign(headers, getAdminAuthHeader());
   return headers;

@@ -1,9 +1,11 @@
 import { projectId, publicAnonKey } from '../../../utils/supabase/info';
+import { CSRF_HEADER, CSRF_TOKEN } from './csrfToken';
 
 const BASE    = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;
 const HEADERS = {
   'Content-Type': 'application/json',
   Authorization:  `Bearer ${publicAnonKey}`,
+  [CSRF_HEADER]: CSRF_TOKEN,
 };
 
 // ── Fetch timeout ─────────────────────────────────────────────────────────────

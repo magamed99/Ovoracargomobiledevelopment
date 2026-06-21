@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { projectId, publicAnonKey } from '../../../../utils/supabase/info';
 import { adminHeaders } from '../../api/dataApi';
+import { CSRF_HEADER, CSRF_TOKEN } from '../../api/csrfToken';
 import { toast } from 'sonner';
 import { AdminPageHeader, HeaderBtn, FilterChips, SkeletonList } from './AdminPageHeader';
 
@@ -81,7 +82,7 @@ export function CodeManagement() {
     setResettingEmail(email);
     try {
       const res = await fetch(`${BASE}/auth/reset-code`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${publicAnonKey}` },
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${publicAnonKey}`, [CSRF_HEADER]: CSRF_TOKEN },
         body: JSON.stringify({ email }),
       });
       const data = await res.json();

@@ -77,12 +77,30 @@ app.use("/*", cors({
     if (/^https?:\/\/([a-z0-9-]+\.)?ovora-cargo\.ru$/.test(origin)) return origin;
     return null; // deny
   },
-  allowHeaders: ["Content-Type", "Authorization", "X-Admin-Code"],
+  allowHeaders: ["Content-Type", "Authorization", "X-Admin-Code", "X-Admin-Token", "X-Csrf-Token"],
   allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   exposeHeaders: ["Content-Length"],
   credentials: true,
   maxAge: 600,
 }));
+
+// ── CSRF protection (0.6) ──────────────────────────────────────────────────────
+// Бэкенд не использует cookie-сессии (вся авторизация — в заголовках), поэтому
+// классический double-submit cookie неприменим. Вместо этого требуем кастомный
+// заголовок на всех мутирующих запросах: значение не секрет, его роль — форсировать
+// CORS preflight, который CORS allowlist уже отклоняет для чужих origin. Без
+// preflight браузер не отправит сам запрос, а без этой проверки сервер отклонит
+// его явно (защита от form-based / no-cors запросов, которые preflight не требуют).
+const CSRF_HEADER_NAME = "x-csrf-token";
+const CSRF_EXPECTED = "ovora-pwa-v1";
+const CSRF_PROTECTED_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+app.use("/*", async (c, next) => {
+  if (!CSRF_PROTECTED_METHODS.has(c.req.method)) return await next();
+  if (c.req.header(CSRF_HEADER_NAME) !== CSRF_EXPECTED) {
+    return c.json({ error: "Missing or invalid CSRF token" }, 403);
+  }
+  return await next();
+});
 
 // ── Admin Middleware — защита всех /admin/* и /kv/* маршрутов ─────────────────
 // Логика вынесена в adminAuth.tsx (юнит-тестируется отдельно от Hono/Deno-обвязки).

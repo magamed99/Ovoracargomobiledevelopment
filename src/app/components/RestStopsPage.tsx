@@ -9,9 +9,10 @@ import { toast } from 'sonner';
 // @ts-ignore — Vite virtual module resolved at build time
 import { projectId, publicAnonKey } from '/utils/supabase/info';
 import { ImageWithFallback } from './figma/ImageWithFallback';
+import { CSRF_HEADER, CSRF_TOKEN } from '../api/csrfToken';
 
 const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;
-const H = { 'Content-Type': 'application/json', Authorization: `Bearer ${publicAnonKey}` };
+const H = { 'Content-Type': 'application/json', Authorization: `Bearer ${publicAnonKey}`, [CSRF_HEADER]: CSRF_TOKEN };
 
 interface RestStop {
   id: string;

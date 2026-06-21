@@ -5,9 +5,10 @@ import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 // @ts-ignore — Vite virtual module resolved at build time
 import { projectId, publicAnonKey } from '/utils/supabase/info';
+import { CSRF_HEADER, CSRF_TOKEN } from '../api/csrfToken';
 
 const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;
-const H    = { 'Content-Type': 'application/json', Authorization: `Bearer ${publicAnonKey}` };
+const H    = { 'Content-Type': 'application/json', Authorization: `Bearer ${publicAnonKey}`, [CSRF_HEADER]: CSRF_TOKEN };
 
 // Preferred channel; if backend doesn't have it yet (not deployed), falls back to first available
 const FALLBACK_CHANNEL = { id: 'ch-russia', name: 'Россия', emoji: '🇷🇺', color: '#5ba3f5', desc: 'Общий канал' };
@@ -342,7 +343,7 @@ export function RadioPage() {
     form.append('userEmail', userEmail);
     const res  = await fetch(`${BASE}/radio/voice-upload`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${publicAnonKey}` },
+      headers: { Authorization: `Bearer ${publicAnonKey}`, [CSRF_HEADER]: CSRF_TOKEN },
       body: form,
     });
     let data: any = {};
