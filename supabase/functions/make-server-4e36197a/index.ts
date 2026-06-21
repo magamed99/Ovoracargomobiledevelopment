@@ -2092,10 +2092,17 @@ app.get("/make-server-4e36197a/reviews/user/:email", async (c) => {
 
 app.get("/make-server-4e36197a/reviews", async (c) => {
   try {
+    const minRating = Number(c.req.query("minRating") ?? "");
+    const limit = Math.min(Number(c.req.query("limit") ?? "") || Infinity, 200);
+
     const all: any[] = await kv.getByPrefix(`ovora:review:`);
-    const sorted = all
-      .filter(r => r)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    let filtered = all.filter(r => r);
+    if (Number.isFinite(minRating)) {
+      filtered = filtered.filter(r => (r.rating ?? 0) >= minRating);
+    }
+    const sorted = filtered
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, Number.isFinite(limit) ? limit : undefined);
     return c.json({ reviews: sorted });
   } catch (err) {
     console.log("Error GET /reviews:", err);

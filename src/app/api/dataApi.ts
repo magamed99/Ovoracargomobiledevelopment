@@ -352,8 +352,12 @@ export async function getReviewsForUser(email: string): Promise<any[]> {
   return data.reviews;
 }
 
-export async function getAllReviews(): Promise<any[]> {
-  const data = await req('GET', '/reviews');
+export async function getAllReviews(opts?: { minRating?: number; limit?: number }): Promise<any[]> {
+  const params = new URLSearchParams();
+  if (opts?.minRating !== undefined) params.set('minRating', String(opts.minRating));
+  if (opts?.limit !== undefined) params.set('limit', String(opts.limit));
+  const qs = params.toString();
+  const data = await req('GET', `/reviews${qs ? `?${qs}` : ''}`);
   return data.reviews;
 }
 
