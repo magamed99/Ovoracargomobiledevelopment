@@ -242,6 +242,26 @@ export async function uploadAviaDealPOD(
   }
 }
 
+/** Удалить у себя зависшие сделки по id (например, манифест рейса недоступен) */
+export async function deleteAviaDealsByIds(
+  dealIds: string[],
+  callerPhone: string,
+): Promise<{ success: boolean; deleted?: string[]; error?: string }> {
+  try {
+    const res = await fetch(`${BASE}/avia/deals/delete-by-id`, {
+      method: 'POST',
+      headers: HEADERS,
+      body: JSON.stringify({ dealIds, callerPhone: callerPhone.replace(/\D/g, '') }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) return { success: false, error: data.error || 'Ошибка удаления' };
+    return { success: true, deleted: data.deleted };
+  } catch (err: any) {
+    console.error('[aviaDealApi] deleteAviaDealsByIds error:', err);
+    return { success: false, error: err.message };
+  }
+}
+
 /** Получить статистику профиля */
 export async function getAviaStats(phone: string): Promise<AviaStats | null> {
   try {

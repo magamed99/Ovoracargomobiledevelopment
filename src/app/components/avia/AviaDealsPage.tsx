@@ -5,7 +5,7 @@ import {
   ArrowLeft, Handshake, Plane, Package, ArrowRight,
   CheckCircle2, XCircle, Clock, ThumbsUp, RefreshCw,
   Loader2, MessageCircle, Scale, DollarSign,
-  ChevronRight, ChevronDown, Bell, Camera, Info, ClipboardList, Users,
+  ChevronRight, ChevronDown, Bell, Camera, Info, ClipboardList, Users, Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAvia } from './AviaContext';
@@ -16,6 +16,7 @@ import {
   cancelAviaDeal,
   completeAviaDeal,
   uploadAviaDealPOD,
+  deleteAviaDealsByIds,
 } from '../../api/aviaDealApi';
 import type { AviaDeal, AviaDealStatus, AviaPODPhoto, AviaPODPhotoType } from '../../api/aviaDealApi';
 import { makeAviaChatId } from '../../api/aviaChatApi';
@@ -87,7 +88,7 @@ function maskPhone(phone: string) {
 function DealCard({
   deal,
   myPhone,
-  onAccept, onReject, onCancel, onComplete, onOpenChat, onReview, onPODUploaded,
+  onAccept, onReject, onCancel, onComplete, onOpenChat, onReview, onPODUploaded, onDeleteStuck,
   alreadyReviewed,
 }: {
   deal: AviaDeal;
@@ -96,6 +97,7 @@ function DealCard({
   onReject: (id: string) => void;
   onCancel: (id: string) => void;
   onComplete: (id: string) => void;
+  onDeleteStuck: (id: string) => void;
   onOpenChat: (otherPhone: string) => void;
   onReview: (deal: AviaDeal) => void;
   onPODUploaded: (dealId: string, photo: AviaPODPhoto) => void;
@@ -132,6 +134,16 @@ function DealCard({
   // Рейсовые сделки в работе/завершённые — вся детализация (фото, действия) переехала
   // на страницу манифеста рейса, на карточке остаётся только переход туда
   const useManifestButton = adIsFlightType && (deal.status === 'accepted' || deal.status === 'completed');
+  // У манифеста рейса есть собственная IDOR-защита для не-владельца: если рейс уже
+  // не активен (закрыт/завершён) — отправителю манифест недоступен («Рейс не найден»),
+  // только курьеру. Даём отправителю возможность убрать такую зависшую карточку.
+  const manifestStuckForMe = useManifestButton && !isCourier && !!deal.flightStatus && deal.flightStatus !== 'active';
+
+  const handleDeleteStuck = async () => {
+    if (!window.confirm('Удалить эту сделку из списка? Действие необратимо.')) return;
+    setActing('deleteStuck');
+    try { onDeleteStuck(deal.id); } finally { setActing(null); }
+  };
 
   const act = async (action: string, fn: () => void | Promise<any>) => {
     setActing(action);
@@ -247,18 +259,37 @@ function DealCard({
       )}
 
       {useManifestButton ? (
-        <button
-          onClick={() => navigate(`/avia/flight/${deal.adId}/manifest`)}
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-            width: '100%', padding: '10px 14px', borderRadius: 12,
-            border: '1px solid rgba(167,139,250,0.22)', background: 'rgba(167,139,250,0.08)',
-            color: '#a78bfa', fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
-          }}
-        >
-          <ClipboardList style={{ width: 14, height: 14 }} />
-          Манифест
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            onClick={() => navigate(`/avia/flight/${deal.adId}/manifest`)}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              flex: 1, padding: '10px 14px', borderRadius: 12,
+              border: '1px solid rgba(167,139,250,0.22)', background: 'rgba(167,139,250,0.08)',
+              color: '#a78bfa', fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
+            }}
+          >
+            <ClipboardList style={{ width: 14, height: 14 }} />
+            Манифест
+          </button>
+          {manifestStuckForMe && (
+            <button
+              onClick={handleDeleteStuck}
+              disabled={acting === 'deleteStuck'}
+              title="Манифест этого рейса вам недоступен — можно удалить сделку из списка"
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                padding: '10px 14px', borderRadius: 12,
+                border: '1px solid rgba(239,68,68,0.22)', background: 'rgba(239,68,68,0.08)',
+                color: '#ef4444', cursor: 'pointer', opacity: acting === 'deleteStuck' ? 0.6 : 1,
+              }}
+            >
+              {acting === 'deleteStuck'
+                ? <Loader2 style={{ width: 14, height: 14, animation: 'spin 1s linear infinite' }} />
+                : <Trash2 style={{ width: 14, height: 14 }} />}
+            </button>
+          )}
+        </div>
       ) : (
         <>
       {/* Чекпоинты: получение от отправителя / передача получателю — видно обеим сторонам */}
@@ -717,6 +748,13 @@ export function AviaDealsPage() {
     setDeals(prev => prev.map(d => d.id === id ? { ...d, status: 'completed', completedAt: new Date().toISOString() } : d));
   };
 
+  const handleDeleteStuck = async (id: string) => {
+    const res = await deleteAviaDealsByIds([id], myPhone);
+    if (!res.success) { toast.error(res.error || 'Ошибка удаления'); return; }
+    toast('Сделка удалена');
+    setDeals(prev => prev.filter(d => d.id !== id));
+  };
+
   const handleOpenChat = (otherPhone: string) => {
     const chatId = makeAviaChatId(myPhone, otherPhone);
     const params = new URLSearchParams({ chatId, otherPhone });
@@ -906,6 +944,7 @@ export function AviaDealsPage() {
                 onOpenChat={handleOpenChat}
                 onReview={handleReview}
                 onPODUploaded={handlePODUploaded}
+                onDeleteStuck={handleDeleteStuck}
                 alreadyReviewed={!!reviewedDeals[item.deal.id]}
               />
             ))}
