@@ -2148,10 +2148,41 @@ app.delete("/make-server-4e36197a/reviews/:reviewId", async (c) => {
 app.post("/make-server-4e36197a/chat/init", async (c) => {
   try {
     const body = await c.req.json();
-    const { chatId, participants, tripId, tripRoute, contactInfo, senderInfo, tripData } = body;
+    const { chatId, participants, tripId, tripRoute, contactInfo, senderInfo, tripData, callerEmail } = body;
     if (!chatId) return c.json({ error: "chatId required" }, 400);
+    if (!callerEmail) return c.json({ error: "callerEmail is required" }, 400);
     const metaKey = `ovora:chatmeta:${chatId}`;
     const existing: any = await kv.get(metaKey) || {};
+
+    const existingParticipants: string[] = Array.isArray(existing.participants) ? existing.participants : [];
+
+    let finalParticipants: string[];
+    if (existingParticipants.length > 0) {
+      // Чат уже существует — состав участников неизменен через этот эндпоинт,
+      // звонящий обязан уже быть участником (иначе можно подменить участников
+      // чужого чата и обойти IDOR-проверку на GET /chat/:chatId/messages).
+      if (!existingParticipants.includes(callerEmail)) {
+        console.warn(`[chat/init] Unauthorized: ${callerEmail} is not a participant of existing chat ${chatId}`);
+        return c.json({ error: "Forbidden: you are not a participant of this chat" }, 403);
+      }
+      finalParticipants = existingParticipants;
+    } else {
+      // Новый чат — звонящий обязан быть среди заявленных участников, и каждый
+      // участник обязан быть реальным зарегистрированным пользователем
+      // (иначе можно подсунуть произвольный email несуществующего человека).
+      const proposed: string[] = Array.isArray(participants) ? participants.filter(Boolean) : [];
+      if (!proposed.includes(callerEmail)) {
+        return c.json({ error: "callerEmail must be one of participants" }, 400);
+      }
+      for (const email of proposed) {
+        const user = await kv.get(`ovora:user:email:${String(email).toLowerCase().trim()}`).catch(() => null);
+        if (!user) {
+          console.warn(`[chat/init] Rejected: participant ${email} is not a registered user`);
+          return c.json({ error: `Participant ${email} is not a registered user` }, 400);
+        }
+      }
+      finalParticipants = proposed;
+    }
 
     // ✅ FIX: Keep ALL tripIds this pair has discussed (not just the latest one).
     // pair-based chat = one chat per driver↔sender pair, can discuss multiple trips.
@@ -2163,7 +2194,7 @@ app.post("/make-server-4e36197a/chat/init", async (c) => {
     await kv.set(metaKey, {
       ...existing,
       chatId,
-      participants: participants || existing.participants || [],
+      participants: finalParticipants,
       tripId: tripId || existing.tripId,      // keep for backward compat
       tripIds: newTripIds,                    // ✅ array of ALL tripIds discussed
       tripRoute: tripRoute || existing.tripRoute,

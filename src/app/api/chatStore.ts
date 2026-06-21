@@ -255,6 +255,7 @@ export async function initChatRoom(
     contactInfo,
     senderInfo,
     tripData, // ✅ Pass tripData to API
+    myEmail,
   ).catch(() => {});
 
   return existing || getChats().find(c => c.id === chatId)!;

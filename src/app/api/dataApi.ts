@@ -373,8 +373,9 @@ export async function initChat(
   contactInfo?: Record<string, any>,   // { [viewerEmail]: ContactInfo }
   senderInfo?: Record<string, any>,
   tripData?: any, // ✅ Add tripData parameter
+  callerEmail?: string,
 ) {
-  await req('POST', '/chat/init', { chatId, participants, tripId, tripRoute, contactInfo, senderInfo, tripData });
+  await req('POST', '/chat/init', { chatId, participants, tripId, tripRoute, contactInfo, senderInfo, tripData, callerEmail });
 }
 
 export async function sendMessage(msg: {
