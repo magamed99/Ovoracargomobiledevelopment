@@ -364,6 +364,11 @@ export const router = createBrowserRouter([
               .then(m => ({ Component: m.DocumentVerification })),
           },
           {
+            path: "blacklist",
+            lazy: () => import("./components/admin/BlacklistManagement")
+              .then(m => ({ Component: m.BlacklistManagement })),
+          },
+          {
             path: "analytics",
             lazy: () => import("./components/admin/Analytics")
               .then(m => ({ Component: m.Analytics })),

@@ -450,6 +450,15 @@ export async function getAdminUsers() {
   return data.users;
 }
 
+export async function getBlacklist() {
+  const data = await req('GET', '/admin/blacklist');
+  return data.entries || [];
+}
+
+export async function removeFromBlacklist(phone: string) {
+  return req('DELETE', `/admin/blacklist/${encodeURIComponent(phone)}`);
+}
+
 export async function getAdminTrips() {
   const data = await req('GET', '/admin/trips');
   return data.trips;
