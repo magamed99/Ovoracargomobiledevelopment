@@ -800,7 +800,7 @@ export function AviaDashboard() {
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           borderBottom: '1px solid rgba(14,165,233,0.07)',
-          background: 'rgba(6,14,26,0.8)',
+          background: 'rgba(6,14,26,0.97)',
           backdropFilter: 'blur(12px)',
           WebkitBackdropFilter: 'blur(12px)',
           position: 'sticky', top: 0, zIndex: 10,
