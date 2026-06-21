@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Phone, Send, Paperclip, CheckCheck, Check, FileText, X, Shield, Mic, Trash2, Copy, MapPin, MoreVertical, UserX, Eraser, StopCircle } from 'lucide-react';
+import { ArrowLeft, Phone, Send, Paperclip, CheckCheck, Check, FileText, X, Shield, Mic, Trash2, Copy, MapPin, MoreVertical, UserX, Eraser, StopCircle, AlertCircle, RotateCw } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../contexts/UserContext';
@@ -8,7 +8,7 @@ import { ProposalCard } from './ProposalCard';
 import { ProposalFormModal } from './ProposalFormModal';
 import { VoiceMessage } from './VoiceMessage';
 import { toast } from 'sonner';
-import { getChats, getMessages, pushMessage, markRead, updateProposalStatus, fetchMessages, deleteMessage, deleteChat, ChatMessage, ChatProposal, ChatContact } from '../api/chatStore';
+import { getChats, getMessages, pushMessage, retryMessage, markRead, updateProposalStatus, fetchMessages, deleteMessage, deleteChat, ChatMessage, ChatProposal, ChatContact } from '../api/chatStore';
 
 // ── SwipeableMessage Component ─────────────────────────────────────────────────
 interface SwipeableMessageProps {
@@ -560,6 +560,13 @@ export function ChatPage() {
     }
   };
 
+  // ── Retry a failed message send ─────────────────────────────────────────────
+  const handleRetryMessage = async (messageId: string) => {
+    if (!chatId) return;
+    await retryMessage(chatId, messageId);
+    loadMessages();
+  };
+
   // ── Copy message ──────────────────────────────────────────────────────────
   const handleCopyMessage = (text: string) => {
     if (text.startsWith('__IMG__')) {
@@ -907,6 +914,16 @@ export function ChatPage() {
                       : <Check className="w-3 h-3" />
                     )}
                   </div>
+                  {isMine && msg.failed && (
+                    <button
+                      onClick={() => handleRetryMessage(msg.id)}
+                      className="flex items-center gap-1 text-[10px] font-semibold px-1 text-[#ef4444] active:opacity-70"
+                    >
+                      <AlertCircle className="w-3 h-3" />
+                      Не отправлено · Повторить
+                      <RotateCw className="w-3 h-3" />
+                    </button>
+                  )}
                 </div>
               </motion.div>
               </SwipeableMessage>

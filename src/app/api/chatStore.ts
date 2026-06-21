@@ -67,6 +67,7 @@ export interface ChatMessage {
   time: string;         // HH:mm display
   ts: number;           // unix ms
   read: boolean;
+  failed?: boolean;     // true — не дошло до сервера, доступен ретрай (см. retryMessage)
 }
 
 export interface Chat {
@@ -260,12 +261,11 @@ export async function initChatRoom(
 }
 
 /**
- * Send a message. Optimistic insert → then API.
+ * Sync an already-optimistically-inserted message to the API. Marks the
+ * message as `failed: true` (visible in UI for retry) if the request fails,
+ * and clears the flag + swaps in the server-assigned msgId on success.
  */
-export async function pushMessage(
-  chatId: string,
-  msg: ChatMessage,
-): Promise<ChatMessage[]> {
+async function _syncMessageToServer(chatId: string, msg: ChatMessage): Promise<void> {
   const currentUser = getCachedUser();
   const myEmail = currentUser?.email || 'guest';
   const myRole  = sessionStorage.getItem('userRole') || 'sender';
@@ -273,7 +273,47 @@ export async function pushMessage(
     ? `${currentUser.firstName} ${currentUser.lastName || ''}`.trim() || (myRole === 'driver' ? 'Водитель' : 'Отправитель')
     : (myRole === 'driver' ? 'Водитель' : 'Отправитель');
   const contact = loadContact(chatId);
+  const participants = contact?.email
+    ? [myEmail, contact.email].filter(Boolean)
+    : undefined;
 
+  try {
+    const serverMsg = await apiSendMessage({
+      chatId,
+      senderId: myEmail,
+      senderName: myName,
+      text: msg.text,
+      type: msg.type,
+      proposal: msg.proposal,
+      from: msg.from,
+      participants,
+    });
+    // ✅ Replace optimistic ID with server-assigned msgId, clear failed flag
+    // This prevents duplication when fetchMessages() merges server + local messages
+    const currentMsgs = getMessages(chatId);
+    const confirmedMsgs = currentMsgs.map(m =>
+      m.id === msg.id ? { ...m, id: serverMsg?.msgId || m.id, failed: false } : m
+    );
+    saveMessages(chatId, confirmedMsgs);
+    // No emit on success — avoid extra re-render; next poll will show consistent state
+  } catch {
+    // ✅ Помечаем сообщение как недоставленное — ChatPage показывает
+    // индикатор ошибки с кнопкой "Повторить" (retryMessage), вместо того
+    // чтобы молча оставлять его выглядящим отправленным навсегда.
+    const currentMsgs = getMessages(chatId);
+    const failedMsgs = currentMsgs.map(m => m.id === msg.id ? { ...m, failed: true } : m);
+    saveMessages(chatId, failedMsgs);
+    emit();
+  }
+}
+
+/**
+ * Send a message. Optimistic insert → then API.
+ */
+export async function pushMessage(
+  chatId: string,
+  msg: ChatMessage,
+): Promise<ChatMessage[]> {
   // 1. Optimistic insert into local cache
   const msgs = getMessages(chatId);
   const updated = [...msgs, msg];
@@ -291,36 +331,22 @@ export async function pushMessage(
   emit();
 
   // 3. Sync to API
-  const participants = contact?.email
-    ? [myEmail, contact.email].filter(Boolean)
-    : undefined;
-
-  try {
-    const serverMsg = await apiSendMessage({
-      chatId,
-      senderId: myEmail,
-      senderName: myName,
-      text: msg.text,
-      type: msg.type,
-      proposal: msg.proposal,
-      from: msg.from,
-      participants,
-    });
-    // ✅ Replace optimistic ID with server-assigned msgId
-    // This prevents duplication when fetchMessages() merges server + local messages
-    if (serverMsg?.msgId && serverMsg.msgId !== msg.id) {
-      const currentMsgs = getMessages(chatId);
-      const confirmedMsgs = currentMsgs.map(m =>
-        m.id === msg.id ? { ...m, id: serverMsg.msgId } : m
-      );
-      saveMessages(chatId, confirmedMsgs);
-      // No emit — avoid extra re-render; next poll will show consistent state
-    }
-  } catch {
-    // Keep optimistic message — offline mode
-  }
+  await _syncMessageToServer(chatId, msg);
 
   return updated;
+}
+
+/**
+ * Retry a previously-failed message send (see `failed` flag on ChatMessage).
+ */
+export async function retryMessage(chatId: string, messageId: string): Promise<void> {
+  const msgs = getMessages(chatId);
+  const msg = msgs.find(m => m.id === messageId);
+  if (!msg) return;
+  // Clear failed flag while retry is in flight
+  saveMessages(chatId, msgs.map(m => m.id === messageId ? { ...m, failed: false } : m));
+  emit();
+  await _syncMessageToServer(chatId, msg);
 }
 
 /**
