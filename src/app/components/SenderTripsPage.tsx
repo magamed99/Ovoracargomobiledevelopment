@@ -13,7 +13,7 @@ import { useUser } from '../contexts/UserContext';
 import { useIsMounted } from '../hooks/useIsMounted';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { toast } from 'sonner';
-import { getTripsByIds, getOffersForUser, getMyCargos, updateOffer, deleteCargo, getCargoOffersForCargo } from '../api/dataApi';
+import { getTripsByIds, getOffersForUser, getMyCargos, updateOffer, deleteCargo, getCargoOffersForSender } from '../api/dataApi';
 import { initChatRoom, getChats } from '../api/chatStore';
 import { generatePairChatId } from '../api/chatUtils';
 import { TripCardSkeleton } from './SkeletonCard';
@@ -183,20 +183,21 @@ export function SenderTripsPage() {
   const loadCargos = useCallback(async (version: number) => {
     if (!currentUser?.email) return;
     try {
-      const cargos = await getMyCargos(currentUser.email);
+      // ✅ FIX: один батч-запрос (по всем грузам отправителя сразу) вместо
+      // N параллельных getCargoOffersForCargo — при 20 грузах это было 20
+      // отдельных запросов на каждую загрузку/обновление страницы.
+      const [cargos, allOffers] = await Promise.all([
+        getMyCargos(currentUser.email),
+        getCargoOffersForSender(currentUser.email).catch(() => [] as any[]),
+      ]);
       if (!isMountedRef.current || version !== loadVersionRef.current) return;
       setPublishedCargos(cargos);
-      // Load offers for each cargo
       const offersMap: Record<string, any[]> = {};
-      await Promise.all(
-        cargos.map(async (cargo: any) => {
-          try {
-            const offers = await getCargoOffersForCargo(cargo.id);
-            offersMap[cargo.id] = offers;
-          } catch { offersMap[cargo.id] = []; }
-        })
-      );
-      if (isMountedRef.current && version === loadVersionRef.current) setCargoOffersMap(offersMap);
+      for (const offer of allOffers) {
+        if (!offer?.cargoId) continue;
+        (offersMap[offer.cargoId] ??= []).push(offer);
+      }
+      setCargoOffersMap(offersMap);
     } catch {}
   }, [currentUser?.email]);
 
