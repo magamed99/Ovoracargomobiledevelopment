@@ -281,14 +281,18 @@ export function DriverTripsPage() {
             status: 'inProgress' as const,
           };
           localStorage.setItem('ovora_active_shipment', JSON.stringify(shipmentData));
-          try { await saveActiveShipment(shipmentData, currentUser?.email || ''); } catch {}
+          try {
+            await saveActiveShipment(shipmentData, currentUser?.email || '');
+          } catch (err: any) {
+            toast.error(`Не удалось сохранить данные трекинга: ${err?.message || 'неизвестная ошибка'}`);
+          }
           await updateTrip(String(trip.id), { status: 'inProgress' });
           setPublishedTrips(prev => prev.map(t => t.id === trip.id ? { ...t, status: 'inProgress' } : t));
           toast.success('Поездка начата!', {
             action: { label: 'Перейти к трекингу', onClick: () => navigate('/tracking') },
             duration: 7000,
           });
-        } catch { toast.error('Ошибка при запуске поездки'); }
+        } catch (err: any) { toast.error(`Ошибка при запуске поездки: ${err?.message || 'неизвестная ошибка'}`); }
       }
     );
   };
@@ -307,7 +311,7 @@ export function DriverTripsPage() {
             action: { label: 'Оценить отправителя', onClick: () => openReview({ stopPropagation: () => {} } as any, trip) },
             duration: 8000,
           });
-        } catch { toast.error('Ошибка при завершении'); }
+        } catch (err: any) { toast.error(`Ошибка при завершении: ${err?.message || 'неизвестная ошибка'}`); }
       }
     );
   };
@@ -326,7 +330,7 @@ export function DriverTripsPage() {
         setPublishedTrips(prev => prev.map(t => t.id === trip.id ? { ...t, status: 'frozen', prevStatus: trip.status } : t));
         toast.success('Поездка заморожена — отдыхайте!');
       }
-    } catch { toast.error('Ошибка'); }
+    } catch (err: any) { toast.error(`Ошибка: ${err?.message || 'неизвестная ошибка'}`); }
   };
 
   const handleCancelTrip = async (e: React.MouseEvent, trip: any) => {
@@ -340,7 +344,7 @@ export function DriverTripsPage() {
           await updateTrip(String(trip.id), { status: 'cancelled' });
           setPublishedTrips(prev => prev.map(t => t.id === trip.id ? { ...t, status: 'cancelled' } : t));
           toast.success('Поездка отменена');
-        } catch { toast.error('Ошибка при отмене'); }
+        } catch (err: any) { toast.error(`Ошибка при отмене: ${err?.message || 'неизвестная ошибка'}`); }
       },
       true
     );
