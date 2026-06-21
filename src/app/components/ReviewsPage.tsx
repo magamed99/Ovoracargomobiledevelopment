@@ -97,6 +97,9 @@ export function ReviewsPage() {
   const [loading, setLoading]     = useState(true);
   const [activeTab, setActiveTab] = useState<'received' | 'given'>('received');
   const [sortBy, setSortBy]       = useState<'newest' | 'highest' | 'lowest'>('newest');
+  const REVIEWS_PAGE_SIZE = 20;
+  const [visibleReviewsCount, setVisibleReviewsCount] = useState(REVIEWS_PAGE_SIZE);
+  useEffect(() => { setVisibleReviewsCount(REVIEWS_PAGE_SIZE); }, [activeTab, sortBy]);
   const [showSort, setShowSort]   = useState(false);
   const [showModal, setShowModal] = useState(false);
 
@@ -228,6 +231,10 @@ export function ReviewsPage() {
     if (sortBy === 'lowest')  return a.rating - b.rating;
     return String(b.id).localeCompare(String(a.id));
   });
+  // ✅ FIX: пагинация — у популярных водителей список отзывов растёт без
+  // ограничений, рендерить всё сразу дорого по DOM/памяти.
+  const visibleReviews = sorted.slice(0, visibleReviewsCount);
+  const hasMoreReviews = sorted.length > visibleReviewsCount;
 
   const liveTotal = current.length;
   const liveAvg   = liveTotal ? current.reduce((s, r) => s + r.rating, 0) / liveTotal : 0;
@@ -379,7 +386,7 @@ export function ReviewsPage() {
               <p className="text-[13px] text-center px-8 text-[#64748b]">Отзывы появятся после завершения поездок</p>
             </div>
           ) : (
-            sorted.map(review => {
+            visibleReviews.map(review => {
               const liked = review.helpedBy.includes(currentUser?.email || '99');
               return (
                 <div key={review.id} className={`border-b ${divider}`}>
@@ -434,6 +441,14 @@ export function ReviewsPage() {
                 </div>
               );
             })
+          )}
+          {!loading && hasMoreReviews && (
+            <div className="px-4 py-3">
+              <button onClick={() => setVisibleReviewsCount(c => c + REVIEWS_PAGE_SIZE)}
+                className="w-full h-10 rounded-xl text-[13px] font-semibold bg-white/[0.06] text-[#94a3b8] hover:bg-white/10">
+                Показать ещё ({sorted.length - visibleReviewsCount})
+              </button>
+            </div>
           )}
         </div>
 
@@ -727,7 +742,7 @@ export function ReviewsPage() {
               </div>
             ) : (
               <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-                {sorted.map((review, idx) => {
+                {visibleReviews.map((review, idx) => {
                   const liked = review.helpedBy.includes(currentUser?.email || '99');
                   const avatarBg = AVATAR_BG[idx % AVATAR_BG.length];
                   const accentColor = COLORS[idx % COLORS.length];
@@ -810,6 +825,14 @@ export function ReviewsPage() {
                     </div>
                   );
                 })}
+              </div>
+            )}
+            {!loading && hasMoreReviews && (
+              <div style={{ display:'flex', justifyContent:'center', marginTop:24 }}>
+                <button onClick={() => setVisibleReviewsCount(c => c + REVIEWS_PAGE_SIZE)}
+                  style={{ padding:'10px 20px', borderRadius:12, fontSize:13, fontWeight:700, background:'#0e1e32', color:'#7a92a8', border:'1px solid #1a2d42', cursor:'pointer' }}>
+                  Показать ещё ({sorted.length - visibleReviewsCount})
+                </button>
               </div>
             )}
           </div>

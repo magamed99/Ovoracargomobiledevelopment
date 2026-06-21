@@ -144,6 +144,9 @@ export function SenderTripsPage() {
   const { user: currentUser } = useUser();
   const isMountedRef = useIsMounted();
   const [activeTab, setActiveTab] = useState<'active' | 'completed' | 'cancelled'>('active');
+  const PAGE_SIZE = 20;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [activeTab]);
 
   const [reviewedTrips, setReviewedTrips] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem(REVIEWED_TRIPS_KEY) || '[]'); }
@@ -277,6 +280,10 @@ export function SenderTripsPage() {
     if (activeTab === 'cancelled') return t.status === 'cancelled';
     return false;
   });
+  // ✅ FIX: пагинация — список бронирований у активного отправителя со временем
+  // растёт (особенно "Завершённые"), рендерить всё сразу дорого по DOM/памяти.
+  const visibleTrips = filteredTrips.slice(0, visibleCount);
+  const hasMoreTrips = filteredTrips.length > visibleCount;
   const senderAllCargos = publishedCargos;
 
   const getUnread = (trip: any) => {
@@ -457,7 +464,7 @@ export function SenderTripsPage() {
                   )}
                 </div>
               )}
-              {!loading && filteredTrips.map(trip => (
+              {!loading && visibleTrips.map(trip => (
                 <div key={trip.id} className="px-4 py-2">
                   <SwipeableCard
                     enabled={trip.status === 'cancelled'}
@@ -484,6 +491,14 @@ export function SenderTripsPage() {
                   </SwipeableCard>
                 </div>
               ))}
+              {!loading && hasMoreTrips && (
+                <div className="px-4 py-2">
+                  <button onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
+                    className={`w-full h-10 rounded-xl text-[13px] font-semibold ${isDark ? 'bg-white/[0.06] text-[#94a3b8] hover:bg-white/10' : 'bg-black/[0.04] text-[#64748b] hover:bg-black/[0.08]'}`}>
+                    Показать ещё ({filteredTrips.length - visibleCount})
+                  </button>
+                </div>
+              )}
             </>
           <div style={{ height: 'env(safe-area-inset-bottom, 16px)', minHeight: 80 }} />
         </div>
@@ -586,26 +601,36 @@ export function SenderTripsPage() {
                   </div>
                 )}
                 {!loading && filteredTrips.length > 0 && (
-                  <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
-                    {filteredTrips.map(trip => (
-                      <TripCard
-                        key={trip.id}
-                        trip={trip}
-                        mode="sender"
-                        alreadyReviewed={reviewedTrips.includes(String(trip.id))}
-                        unreadMessages={getUnread(trip)}
-                        onChat={e => openDriverChat(e, trip)}
-                        onTrack={e => {
-                          e.stopPropagation();
-                          // ✅ FIX: см. mobile-версию выше — сохраняем полный объект поездки.
-                          localStorage.setItem('ovora_sender_tracking_trip', JSON.stringify(trip));
-                          navigate('/tracking');
-                        }}
-                        onReview={e => openReview(e, trip)}
-                        onCancelBooking={e => handleCancelBooking(e, trip)}
-                      />
-                    ))}
-                  </div>
+                  <>
+                    <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
+                      {visibleTrips.map(trip => (
+                        <TripCard
+                          key={trip.id}
+                          trip={trip}
+                          mode="sender"
+                          alreadyReviewed={reviewedTrips.includes(String(trip.id))}
+                          unreadMessages={getUnread(trip)}
+                          onChat={e => openDriverChat(e, trip)}
+                          onTrack={e => {
+                            e.stopPropagation();
+                            // ✅ FIX: см. mobile-версию выше — сохраняем полный объект поездки.
+                            localStorage.setItem('ovora_sender_tracking_trip', JSON.stringify(trip));
+                            navigate('/tracking');
+                          }}
+                          onReview={e => openReview(e, trip)}
+                          onCancelBooking={e => handleCancelBooking(e, trip)}
+                        />
+                      ))}
+                    </div>
+                    {hasMoreTrips && (
+                      <div className="flex justify-center mt-6">
+                        <button onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
+                          className={`px-5 h-10 rounded-xl text-[13px] font-semibold ${isDark ? 'bg-white/[0.06] text-[#94a3b8] hover:bg-white/10' : 'bg-black/[0.04] text-[#64748b] hover:bg-black/[0.08]'}`}>
+                          Показать ещё ({filteredTrips.length - visibleCount})
+                        </button>
+                      </div>
+                    )}
+                  </>
                 )}
               </>
           </div>

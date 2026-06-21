@@ -30,6 +30,9 @@ export function DriverTripsPage() {
   const { user: currentUser } = useUser();
   const isMountedRef = useIsMounted();
   const [activeTab, setActiveTab] = useState<'active' | 'completed' | 'cancelled'>('active');
+  const PAGE_SIZE = 20;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [activeTab]);
 
   const [reviewedTrips, setReviewedTrips] = useState<string[]>([]);
   const [publishedTrips, setPublishedTrips] = useState<any[]>([]);
@@ -206,6 +209,12 @@ export function DriverTripsPage() {
   );
 
   const activeCount = driverTrips.filter(t => ['planned', 'inProgress', 'frozen'].includes(t.status)).length;
+
+  // ✅ FIX: пагинация вместо рендера всего списка сразу — у активных
+  // водителей со временем накапливаются сотни поездок (особенно в табе
+  // "Завершённые"), и рендерить их все одновременно дорого по DOM/памяти.
+  const visibleTrips = filteredTrips.slice(0, visibleCount);
+  const hasMoreTrips = filteredTrips.length > visibleCount;
 
   // ── Actions ──────────────────────────────────────────────────────────────────
   // На поездке может быть несколько отправителей (разные accepted-офферы) —
@@ -529,7 +538,7 @@ export function DriverTripsPage() {
               )}
             </div>
           )}
-          {!loading && filteredTrips.map(trip => (
+          {!loading && visibleTrips.map(trip => (
             <div key={trip.id} className="px-4 py-2">
               <TripCard
                 trip={trip}
@@ -550,6 +559,14 @@ export function DriverTripsPage() {
               />
             </div>
           ))}
+          {!loading && hasMoreTrips && (
+            <div className="px-4 py-2">
+              <button onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
+                className={`w-full h-10 rounded-xl text-[13px] font-semibold ${isDark ? 'bg-white/[0.06] text-[#94a3b8] hover:bg-white/10' : 'bg-black/[0.04] text-[#64748b] hover:bg-black/[0.08]'}`}>
+                Показать ещё ({filteredTrips.length - visibleCount})
+              </button>
+            </div>
+          )}
           <div style={{ height: 'env(safe-area-inset-bottom, 16px)', minHeight: 80 }} />
         </div>
       </div>
@@ -656,28 +673,38 @@ export function DriverTripsPage() {
               </div>
             )}
             {!loading && filteredTrips.length > 0 && (
-              <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
-                {filteredTrips.map(trip => (
-                  <TripCard
-                    key={trip.id}
-                    trip={trip}
-                    mode="driver"
-                    weather={weatherData[trip.id]}
-                    alreadyReviewed={isTripFullyReviewed(trip)}
-                    unreadMessages={getUnread(trip)}
-                    onStart={e => startTrip(e, trip)}
-                    onFreeze={e => handleFreezeTrip(e, trip)}
-                    onComplete={e => completeTrip(e, trip)}
-                    onCancel={e => handleCancelTrip(e, trip)}
-                    onMessages={e => openSenderChat(e, trip)}
-                    onTrack={e => navigateToTracking(e, trip)}
-                    onReview={e => openReview(e, trip)}
-                    onAcceptOffer={handleAcceptOffer}
-                    onDeclineOffer={handleDeclineOffer}
-                    offerActionId={offerActionId}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
+                  {visibleTrips.map(trip => (
+                    <TripCard
+                      key={trip.id}
+                      trip={trip}
+                      mode="driver"
+                      weather={weatherData[trip.id]}
+                      alreadyReviewed={isTripFullyReviewed(trip)}
+                      unreadMessages={getUnread(trip)}
+                      onStart={e => startTrip(e, trip)}
+                      onFreeze={e => handleFreezeTrip(e, trip)}
+                      onComplete={e => completeTrip(e, trip)}
+                      onCancel={e => handleCancelTrip(e, trip)}
+                      onMessages={e => openSenderChat(e, trip)}
+                      onTrack={e => navigateToTracking(e, trip)}
+                      onReview={e => openReview(e, trip)}
+                      onAcceptOffer={handleAcceptOffer}
+                      onDeclineOffer={handleDeclineOffer}
+                      offerActionId={offerActionId}
+                    />
+                  ))}
+                </div>
+                {hasMoreTrips && (
+                  <div className="flex justify-center mt-6">
+                    <button onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
+                      className={`px-5 h-10 rounded-xl text-[13px] font-semibold ${isDark ? 'bg-white/[0.06] text-[#94a3b8] hover:bg-white/10' : 'bg-black/[0.04] text-[#64748b] hover:bg-black/[0.08]'}`}>
+                      Показать ещё ({filteredTrips.length - visibleCount})
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
