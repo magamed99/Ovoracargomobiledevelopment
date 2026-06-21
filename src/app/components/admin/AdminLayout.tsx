@@ -5,6 +5,7 @@ import {
   MessageSquare, Bell, Search,
   Menu, X, ChevronRight, Truck, ClipboardList, Megaphone,
   LogOut, Clock, TrendingUp, Database, Crown, Globe, Boxes, Plane, History, ShieldOff,
+  KeyRound, SlidersHorizontal,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { YandexMetrikaTracker } from '../YandexMetrika';
@@ -21,16 +22,18 @@ const navGroups = [
     ],
   },
   {
-    label: 'Управление',
+    label: 'CARGO',
     items: [
       { name: 'Водители', href: '/admin/drivers', icon: Car },
       { name: 'Пользователи', href: '/admin/users', icon: Users },
       { name: 'Поездки', href: '/admin/trips', icon: Package },
       { name: 'Грузы', href: '/admin/cargos', icon: Boxes },
       { name: 'Оферты', href: '/admin/offers', icon: ClipboardList },
-      { name: 'Реклама', href: '/admin/ads', icon: Megaphone },
       { name: 'Верификация', href: '/admin/verification', icon: FileCheck },
-      { name: 'Чёрный список', href: '/admin/blacklist', icon: ShieldOff },
+      { name: 'Отзывы', href: '/admin/reviews', icon: MessageSquare },
+      { name: 'Аналитика', href: '/admin/analytics', icon: BarChart3 },
+      { name: 'Подписки', href: '/admin/subscriptions', icon: Crown },
+      { name: 'Настройки CARGO', href: '/admin/settings', icon: SlidersHorizontal },
     ],
   },
   {
@@ -42,21 +45,11 @@ const navGroups = [
     ],
   },
   {
-    label: 'Отчёты',
+    label: 'Общее',
     items: [
-      { name: 'Аналитика', href: '/admin/analytics', icon: BarChart3 },
-      { name: 'Отзывы', href: '/admin/reviews', icon: MessageSquare },
-    ],
-  },
-  {
-    label: 'Монетизация',
-    items: [
-      { name: 'Подписки', href: '/admin/subscriptions', icon: Crown },
-    ],
-  },
-  {
-    label: 'Сайт',
-    items: [
+      { name: 'Реклама', href: '/admin/ads', icon: Megaphone },
+      { name: 'Чёрный список', href: '/admin/blacklist', icon: ShieldOff },
+      { name: 'Коды доступа', href: '/admin/codes', icon: KeyRound },
       { name: 'Настройки сайта', href: '/admin/site', icon: Globe },
     ],
   },
@@ -228,24 +221,6 @@ export function AdminLayout() {
             </div>
           ))}
         </nav>
-
-        {/* Stats pill */}
-        {stats && (
-          <div className="mx-3 mb-3 px-3 py-2.5 rounded-xl" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-            <div className="grid grid-cols-3 gap-2 text-center">
-              {[
-                { label: 'Польз.', val: stats.users, color: '#3b82f6' },
-                { label: 'Поездок', val: stats.trips, color: '#10b981' },
-                { label: 'Оферт', val: stats.offers, color: '#f59e0b' },
-              ].map(s => (
-                <div key={s.label}>
-                  <p className="text-sm font-bold" style={{ color: s.color }}>{s.val}</p>
-                  <p className="text-[10px] text-gray-500 leading-tight">{s.label}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* User & logout */}
         <div className="flex-shrink-0 p-3" style={{ borderTop: '1px solid #f0f4f8' }}>

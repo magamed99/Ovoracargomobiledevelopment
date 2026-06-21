@@ -400,8 +400,8 @@ export const router = createBrowserRouter([
           },
           {
             path: "settings",
-            lazy: () => import("./components/SettingsPage")
-              .then(m => ({ Component: m.SettingsPage })),
+            lazy: () => import("./components/admin/Settings")
+              .then(m => ({ Component: m.Settings })),
           },
           {
             path: "subscriptions",
