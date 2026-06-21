@@ -1197,6 +1197,38 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
     }
   });
 
+  /**
+   * Удалить у себя конкретные «зависшие» сделки по id (например, сделка ссылается
+   * на рейс, к манифесту которого у отправителя нет доступа). Удалить можно только
+   * свою сделку (callerPhone должен быть initiatorPhone или recipientPhone) —
+   * операция затрагивает обе стороны сделки, поэтому действовать нужно осознанно.
+   */
+  app.post(`${P}/deals/delete-by-id`, async (c) => {
+    try {
+      const { callerPhone, dealIds } = await c.req.json();
+      const clean = aviaClean(callerPhone || '');
+      if (!clean) return c.json({ error: 'callerPhone is required' }, 400);
+      if (!Array.isArray(dealIds) || dealIds.length === 0) return c.json({ error: 'dealIds required' }, 400);
+
+      const now = new Date().toISOString();
+      const deleted: string[] = [];
+      for (const id of dealIds) {
+        const deal = await Deals.get(String(id));
+        if (!deal) continue;
+        if (deal.initiatorPhone !== clean && deal.recipientPhone !== clean) {
+          console.warn(`[AVIA Deals] IDOR attempt: ${clean} tried to delete deal ${id} they are not part of`);
+          continue;
+        }
+        await Deals.set(deal.id, { ...deal, deletedAt: now });
+        deleted.push(deal.id);
+      }
+      return c.json({ success: true, deleted });
+    } catch (err) {
+      console.log('Error POST /avia/deals/delete-by-id:', err);
+      return c.json({ error: `${err}` }, 500);
+    }
+  });
+
   // ── Deal status transitions ───────────────────────────────────────────────
 
   async function injectDealUpdateMessage(deal: AviaDeal, text: string, status: string): Promise<void> {
