@@ -155,6 +155,9 @@ app.use('/make-server-4e36197a/admin/*', async (c, next) => {
 // Защищаем все /kv/* маршруты (они очень опасны — прямой доступ к БД)
 app.use('/make-server-4e36197a/kv/*', requireAdmin);
 
+// Защищаем все /avia/admin/* маршруты (управление AVIA-пользователями/карточками/аудитом)
+app.use('/make-server-4e36197a/avia/admin/*', requireAdmin);
+
 // ── Supabase client (for storage) ─────────────────────────────────────────────
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,

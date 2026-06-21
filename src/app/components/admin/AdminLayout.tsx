@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Car, Package, FileCheck, BarChart3,
   MessageSquare, Bell, Search,
   Menu, X, ChevronRight, Truck, ClipboardList, Megaphone,
-  LogOut, Clock, TrendingUp, Database, Crown, Globe, Boxes,
+  LogOut, Clock, TrendingUp, Database, Crown, Globe, Boxes, Plane, History,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { YandexMetrikaTracker } from '../YandexMetrika';
@@ -30,6 +30,14 @@ const navGroups = [
       { name: 'Оферты', href: '/admin/offers', icon: ClipboardList },
       { name: 'Реклама', href: '/admin/ads', icon: Megaphone },
       { name: 'Верификация', href: '/admin/verification', icon: FileCheck },
+    ],
+  },
+  {
+    label: 'AVIA',
+    items: [
+      { name: 'AVIA Пользователи', href: '/admin/avia-users', icon: Plane },
+      { name: 'AVIA Карточки', href: '/admin/avia-cards', icon: Boxes },
+      { name: 'AVIA Аудит', href: '/admin/avia-audit', icon: History },
     ],
   },
   {

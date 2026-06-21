@@ -27,6 +27,7 @@
  *   ovora:avia-review:{id}             → AviaReview
  *   ovora:avia-userreviews:{phone}:{id}→ AviaReview (index)
  *   ovora:avia-dealreviewed:{dealId}   → { byInitiator, byRecipient }
+ *   ovora:avia-audit:{ts}:{id}         → AviaAuditEntry (см. aviaAudit.tsx)
  */
 
 import * as kv from "./kv_store.tsx";
@@ -57,6 +58,9 @@ export interface AviaUser {
   createdAt        : string;
   lastLoginAt      : string;
   updatedAt        ?: string;
+  blocked          ?: boolean;
+  blockedAt        ?: string;
+  blockedReason    ?: string;
 }
 
 export interface AviaPin {
@@ -226,6 +230,20 @@ export const Users = {
     await this.set(phone, updated);
     return updated;
   },
+
+  /** MIGRATION → SELECT * FROM avia_users (только для админ-панели) */
+  async listAll(): Promise<AviaUser[]> {
+    const all = await kv.getByPrefix('ovora:avia-user:') as AviaUser[];
+    return all.filter(u => u && typeof u === 'object' && u.phone);
+  },
+
+  /** MIGRATION → DELETE FROM avia_users WHERE phone = $1 */
+  async hardDelete(phone: string): Promise<void> {
+    await kv.del(`ovora:avia-user:${phone}`);
+    aviaCache.del(CK.user(phone));
+    aviaCache.del(CK.publicProfile(phone));
+    aviaCache.del(CK.stats(phone));
+  },
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -252,6 +270,12 @@ export const Pins = {
   },
 
   async delPinChange(phone: string): Promise<void> {
+    await kv.del(`ovora:avia-pin-change:${phone}`);
+  },
+
+  /** MIGRATION → DELETE FROM avia_pins WHERE phone = $1 */
+  async del(phone: string): Promise<void> {
+    await kv.del(`ovora:avia-pin:${phone}`);
     await kv.del(`ovora:avia-pin-change:${phone}`);
   },
 };
@@ -316,6 +340,14 @@ export const Flights = {
   invalidate(courierId?: string): void {
     aviaCache.del(CK.flightsList());
     if (courierId) aviaCache.del(CK.myFlights(courierId));
+  },
+
+  /** MIGRATION → SELECT * FROM avia_flights (только для админ-панели) */
+  async listAll(): Promise<AviaFlight[]> {
+    const all = await kv.getByPrefix('ovora:air-flight:') as AviaFlight[];
+    return all
+      .filter(f => f && typeof f === 'object' && f.id)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   },
 };
 
@@ -446,6 +478,14 @@ export const Deals = {
       d.recipientPhone === recipientPhone &&
       (d.status === 'pending' || d.status === 'accepted')
     ) || null;
+  },
+
+  /** MIGRATION → SELECT * FROM avia_deals (только для админ-панели, включая удалённые) */
+  async listAll(): Promise<AviaDeal[]> {
+    const all = await kv.getByPrefix('ovora:avia-deal:') as AviaDeal[];
+    return all
+      .filter(d => d && typeof d === 'object' && d.id)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   },
 };
 

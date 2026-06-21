@@ -408,6 +408,21 @@ export const router = createBrowserRouter([
             lazy: () => import("./components/admin/SiteSettingsPage")
               .then(m => ({ Component: m.SiteSettingsPage })),
           },
+          {
+            path: "avia-users",
+            lazy: () => import("./components/admin/AviaUsersManagement")
+              .then(m => ({ Component: m.AviaUsersManagement })),
+          },
+          {
+            path: "avia-cards",
+            lazy: () => import("./components/admin/AviaCardsManagement")
+              .then(m => ({ Component: m.AviaCardsManagement })),
+          },
+          {
+            path: "avia-audit",
+            lazy: () => import("./components/admin/AviaAuditLog")
+              .then(m => ({ Component: m.AviaAuditLog })),
+          },
         ],
       },
 
