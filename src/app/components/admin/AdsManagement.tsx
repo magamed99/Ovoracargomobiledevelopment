@@ -5,6 +5,7 @@ import {
   Play, Film, Upload, Loader2, CloudUpload, Sparkles
 } from 'lucide-react';
 import { getAdminAds, createAdminAd, updateAdminAd, deleteAdminAd, uploadAdMedia } from '../../api/dataApi';
+import { FilterChips } from './AdminPageHeader';
 
 interface Ad {
   id: string;
@@ -309,6 +310,7 @@ export function AdsManagement() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
   const [seeding, setSeeding] = useState(false);
+  const [filterPlacement, setFilterPlacement] = useState<'all' | 'welcome' | 'cargo' | 'avia'>('all');
 
   const showToast = (type: 'success' | 'error', msg: string) => {
     setToast({ type, msg });
@@ -332,9 +334,11 @@ export function AdsManagement() {
 
   const openCreate = () => {
     setEditAd(null);
-    setForm({ ...EMPTY_AD, order: ads.length });
+    setForm({ ...EMPTY_AD, order: ads.length, placement: filterPlacement === 'all' ? 'all' : filterPlacement });
     setShowForm(true);
   };
+
+  const filteredAds = filterPlacement === 'all' ? ads : ads.filter(a => (a.placement || 'all') === filterPlacement);
 
   const openEdit = (ad: Ad) => {
     setEditAd(ad);
@@ -445,6 +449,18 @@ export function AdsManagement() {
         </div>
       </div>
 
+      {/* Placement filter */}
+      <FilterChips
+        value={filterPlacement}
+        onChange={setFilterPlacement}
+        options={[
+          { value: 'all', label: '🌐 Везде', count: ads.length },
+          { value: 'welcome', label: '🏠 Welcome', count: ads.filter(a => (a.placement || 'all') === 'welcome').length },
+          { value: 'cargo', label: '🚚 CARGO', count: ads.filter(a => (a.placement || 'all') === 'cargo').length },
+          { value: 'avia', label: '✈️ AVIA', count: ads.filter(a => (a.placement || 'all') === 'avia').length },
+        ]}
+      />
+
       {/* Error */}
       {error && (
         <div className="flex items-start gap-3 px-4 py-3 bg-red-50 border border-red-200 rounded-xl">
@@ -490,9 +506,18 @@ export function AdsManagement() {
           </div>
           <p className="text-xs text-gray-400 text-center">«Создать примеры» — 3 готовых баннера, которые можно сразу редактировать</p>
         </div>
+      ) : filteredAds.length === 0 ? (
+        <div className="flex flex-col items-center justify-center bg-white rounded-2xl border border-dashed border-gray-300 p-8 gap-3">
+          <Image className="w-8 h-8 text-gray-300" />
+          <p className="text-gray-500 text-sm text-center">Баннеров для этого раздела пока нет</p>
+          <button onClick={openCreate}
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium text-sm transition-colors">
+            <Plus className="w-4 h-4" /> Добавить баннер
+          </button>
+        </div>
       ) : (
         <div className="grid gap-4">
-          {ads.map(ad => (
+          {filteredAds.map(ad => (
             <div key={ad.id}
               className={`bg-white rounded-2xl border overflow-hidden transition-all ${ad.isActive ? 'border-gray-200' : 'border-gray-200 opacity-60'}`}>
               <div className="flex flex-col sm:flex-row items-stretch gap-0">
