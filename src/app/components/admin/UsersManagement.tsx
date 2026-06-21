@@ -309,7 +309,7 @@ export function UsersManagement() {
                     <div className="flex items-center gap-1 flex-shrink-0">
                       {user.role === 'driver' && (
                         <Link
-                          to="/admin/drivers"
+                          to="/admin/cargo/drivers"
                           className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-xl transition-colors"
                           style={{ background: '#eff6ff', color: '#1565d8' }}
                         >

@@ -25,25 +25,25 @@ const navGroups = [
   {
     label: 'CARGO',
     items: [
-      { name: 'Водители', href: '/admin/drivers', icon: Car },
-      { name: 'Пользователи', href: '/admin/users', icon: Users },
-      { name: 'Поездки', href: '/admin/trips', icon: Package },
-      { name: 'Грузы', href: '/admin/cargos', icon: Boxes },
-      { name: 'Оферты', href: '/admin/offers', icon: ClipboardList },
-      { name: 'Верификация', href: '/admin/verification', icon: FileCheck },
-      { name: 'Отзывы', href: '/admin/reviews', icon: MessageSquare },
-      { name: 'Аналитика', href: '/admin/analytics', icon: BarChart3 },
-      { name: 'Подписки', href: '/admin/subscriptions', icon: Crown },
-      { name: 'Настройки CARGO', href: '/admin/settings', icon: SlidersHorizontal },
-      { name: 'Аудит CARGO', href: '/admin/audit', icon: History },
+      { name: 'Водители', href: '/admin/cargo/drivers', icon: Car },
+      { name: 'Пользователи', href: '/admin/cargo/users', icon: Users },
+      { name: 'Поездки', href: '/admin/cargo/trips', icon: Package },
+      { name: 'Грузы', href: '/admin/cargo/cargos', icon: Boxes },
+      { name: 'Оферты', href: '/admin/cargo/offers', icon: ClipboardList },
+      { name: 'Верификация', href: '/admin/cargo/verification', icon: FileCheck },
+      { name: 'Отзывы', href: '/admin/cargo/reviews', icon: MessageSquare },
+      { name: 'Аналитика', href: '/admin/cargo/analytics', icon: BarChart3 },
+      { name: 'Подписки', href: '/admin/cargo/subscriptions', icon: Crown },
+      { name: 'Настройки CARGO', href: '/admin/cargo/settings', icon: SlidersHorizontal },
+      { name: 'Аудит CARGO', href: '/admin/cargo/audit', icon: History },
     ],
   },
   {
     label: 'AVIA',
     items: [
-      { name: 'AVIA Пользователи', href: '/admin/avia-users', icon: Plane },
-      { name: 'AVIA Карточки', href: '/admin/avia-cards', icon: Boxes },
-      { name: 'AVIA Аудит', href: '/admin/avia-audit', icon: History },
+      { name: 'AVIA Пользователи', href: '/admin/avia/users', icon: Plane },
+      { name: 'AVIA Карточки', href: '/admin/avia/cards', icon: Boxes },
+      { name: 'AVIA Аудит', href: '/admin/avia/audit', icon: History },
     ],
   },
   {
@@ -105,11 +105,11 @@ export function AdminLayout() {
     e.preventDefault();
     if (!searchQuery.trim()) return;
     const q = searchQuery.toLowerCase();
-    if (q.includes('водитель') || q.includes('driver')) navigate('/admin/drivers');
-    else if (q.includes('пользователь') || q.includes('user')) navigate('/admin/users');
-    else if (q.includes('поездк') || q.includes('trip')) navigate('/admin/trips');
-    else if (q.includes('аналитик') || q.includes('analytic')) navigate('/admin/analytics');
-    else if (q.includes('отзыв') || q.includes('review')) navigate('/admin/reviews');
+    if (q.includes('водитель') || q.includes('driver')) navigate('/admin/cargo/drivers');
+    else if (q.includes('пользователь') || q.includes('user')) navigate('/admin/cargo/users');
+    else if (q.includes('поездк') || q.includes('trip')) navigate('/admin/cargo/trips');
+    else if (q.includes('аналитик') || q.includes('analytic')) navigate('/admin/cargo/analytics');
+    else if (q.includes('отзыв') || q.includes('review')) navigate('/admin/cargo/reviews');
     setSearchQuery('');
   };
 

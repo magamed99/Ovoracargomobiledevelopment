@@ -230,37 +230,37 @@ export function AdminDashboard() {
       title: 'Всего поездок', value: stats?.trips ?? 0, icon: Route,
       gradient: 'linear-gradient(135deg,#1565d8,#2385f4)',
       sub: `${stats?.activeTrips ?? 0} активных`,
-      to: '/admin/trips', badge: stats?.activeTrips,
+      to: '/admin/cargo/trips', badge: stats?.activeTrips,
     },
     {
       title: 'Водители', value: stats?.drivers ?? 0, icon: Car,
       gradient: 'linear-gradient(135deg,#059669,#10b981)',
       sub: `${stats?.senders ?? 0} отправителей`,
-      to: '/admin/drivers',
+      to: '/admin/cargo/drivers',
     },
     {
       title: 'Пользователей', value: stats?.users ?? 0, icon: Users,
       gradient: 'linear-gradient(135deg,#7c3aed,#8b5cf6)',
       sub: 'Всего в системе',
-      to: '/admin/users',
+      to: '/admin/cargo/users',
     },
     {
       title: 'Оферт', value: stats?.offers ?? 0, icon: Package,
       gradient: 'linear-gradient(135deg,#d97706,#f59e0b)',
       sub: `${stats?.pendingOffers ?? 0} ожидают`,
-      to: '/admin/offers', badge: stats?.pendingOffers,
+      to: '/admin/cargo/offers', badge: stats?.pendingOffers,
     },
     {
       title: 'Принято', value: stats?.acceptedOffers ?? 0, icon: CheckCircle,
       gradient: 'linear-gradient(135deg,#0891b2,#06b6d4)',
       sub: 'Завершённых сделок',
-      to: '/admin/offers',
+      to: '/admin/cargo/offers',
     },
     {
       title: 'Отзывов', value: stats?.reviews ?? 0, icon: Star,
       gradient: 'linear-gradient(135deg,#db2777,#ec4899)',
       sub: 'В системе',
-      to: '/admin/reviews',
+      to: '/admin/cargo/reviews',
     },
   ];
 
@@ -378,7 +378,7 @@ export function AdminDashboard() {
       <>
       {/* ── Pending alert ── */}
       {(stats?.pendingOffers ?? 0) > 0 && (
-        <Link to="/admin/offers" className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:shadow-md" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
+        <Link to="/admin/cargo/offers" className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:shadow-md" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
           <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
           <p className="text-sm text-amber-800 font-medium flex-1">
             Есть <strong>{stats?.pendingOffers}</strong> оферт, ожидающих рассмотрения
@@ -561,7 +561,7 @@ export function AdminDashboard() {
               </div>
               <p className="font-semibold text-gray-900 text-sm">Последние поездки</p>
             </div>
-            <Link to="/admin/trips" className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors">
+            <Link to="/admin/cargo/trips" className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors">
               Все поездки <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
@@ -615,7 +615,7 @@ export function AdminDashboard() {
               </div>
               <p className="font-semibold text-gray-900 text-sm">Топ водителей</p>
             </div>
-            <Link to="/admin/drivers" className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors">
+            <Link to="/admin/cargo/drivers" className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors">
               Все <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
@@ -673,11 +673,11 @@ export function AdminDashboard() {
       {/* ── AVIA stat cards ── */}
       <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
         {[
-          { title: 'Курьеры', value: aviaCouriers, icon: Send, gradient: PLATFORM_THEME.avia.gradient, sub: `${aviaSenders} отправителей`, to: '/admin/avia-users' },
-          { title: 'Пользователей AVIA', value: aviaUsers.length, icon: Users, gradient: 'linear-gradient(135deg,#7c3aed,#8b5cf6)', sub: 'Всего в системе', to: '/admin/avia-users' },
-          { title: 'Рейсов', value: aviaFlights.length, icon: Plane, gradient: 'linear-gradient(135deg,#0891b2,#06b6d4)', sub: 'Опубликовано курьерами', to: '/admin/avia-cards' },
-          { title: 'Сделок', value: aviaDeals.length, icon: Handshake, gradient: 'linear-gradient(135deg,#d97706,#f59e0b)', sub: `${aviaActiveDeals} активных`, to: '/admin/avia-cards', badge: aviaActiveDeals },
-          { title: 'Заблокировано', value: aviaBlocked, icon: ShieldOff, gradient: 'linear-gradient(135deg,#dc2626,#ef4444)', sub: 'Пользователей AVIA', to: '/admin/avia-users' },
+          { title: 'Курьеры', value: aviaCouriers, icon: Send, gradient: PLATFORM_THEME.avia.gradient, sub: `${aviaSenders} отправителей`, to: '/admin/avia/users' },
+          { title: 'Пользователей AVIA', value: aviaUsers.length, icon: Users, gradient: 'linear-gradient(135deg,#7c3aed,#8b5cf6)', sub: 'Всего в системе', to: '/admin/avia/users' },
+          { title: 'Рейсов', value: aviaFlights.length, icon: Plane, gradient: 'linear-gradient(135deg,#0891b2,#06b6d4)', sub: 'Опубликовано курьерами', to: '/admin/avia/cards' },
+          { title: 'Сделок', value: aviaDeals.length, icon: Handshake, gradient: 'linear-gradient(135deg,#d97706,#f59e0b)', sub: `${aviaActiveDeals} активных`, to: '/admin/avia/cards', badge: aviaActiveDeals },
+          { title: 'Заблокировано', value: aviaBlocked, icon: ShieldOff, gradient: 'linear-gradient(135deg,#dc2626,#ef4444)', sub: 'Пользователей AVIA', to: '/admin/avia/users' },
         ].map(card => (
           <Link key={card.title} to={card.to} className="group">
             <div
@@ -778,7 +778,7 @@ export function AdminDashboard() {
               </div>
               <p className="font-semibold text-gray-900 text-sm">Последние сделки</p>
             </div>
-            <Link to="/admin/avia-cards" className="flex items-center gap-1 text-xs font-medium transition-colors" style={{ color: PLATFORM_THEME.avia.accent }}>
+            <Link to="/admin/avia/cards" className="flex items-center gap-1 text-xs font-medium transition-colors" style={{ color: PLATFORM_THEME.avia.accent }}>
               Все сделки <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
@@ -822,7 +822,7 @@ export function AdminDashboard() {
               </div>
               <p className="font-semibold text-gray-900 text-sm">Топ курьеров</p>
             </div>
-            <Link to="/admin/avia-users" className="flex items-center gap-1 text-xs font-medium transition-colors" style={{ color: PLATFORM_THEME.avia.accent }}>
+            <Link to="/admin/avia/users" className="flex items-center gap-1 text-xs font-medium transition-colors" style={{ color: PLATFORM_THEME.avia.accent }}>
               Все <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
