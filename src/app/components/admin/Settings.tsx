@@ -101,9 +101,9 @@ export function Settings() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Настройки системы</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Настройки системы</h1>
           <p className="text-gray-500 mt-1 text-sm">
             {savedAt
               ? `Последнее сохранение: ${new Date(savedAt).toLocaleString('ru-RU')}`
@@ -112,7 +112,7 @@ export function Settings() {
           </p>
         </div>
         <button onClick={handleSave} disabled={saving}
-          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium text-sm disabled:opacity-60">
+          className="flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium text-sm disabled:opacity-60 w-full sm:w-auto">
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           {saving ? 'Сохранение...' : 'Сохранить'}
         </button>
@@ -225,12 +225,12 @@ export function Settings() {
               { id: 'driverNewTrip', label: 'Новая поездка водителю', desc: 'Уведомлять водителя о новых запросах' },
               { id: 'tripCompleted', label: 'Завершение поездки', desc: 'Уведомление после завершения' },
             ].map((item, i, arr) => (
-              <div key={item.id} className={`flex items-center justify-between py-3 ${i < arr.length - 1 ? 'border-b border-gray-100' : ''}`}>
-                <div>
+              <div key={item.id} className={`flex items-center justify-between gap-3 py-3 ${i < arr.length - 1 ? 'border-b border-gray-100' : ''}`}>
+                <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900">{item.label}</p>
                   <p className="text-xs text-gray-500 mt-0.5">{item.desc}</p>
                 </div>
-                <Switch id={item.id} checked={(settings as any)[item.id]} onCheckedChange={() => toggle(item.id as any)} />
+                <Switch id={item.id} checked={(settings as any)[item.id]} onCheckedChange={() => toggle(item.id as any)} className="flex-shrink-0" />
               </div>
             ))}
           </div>
@@ -253,12 +253,12 @@ export function Settings() {
               { id: 'emergencySOS', label: 'Кнопка SOS', desc: 'Экстренный вызов помощи во время поездки' },
               { id: 'tripRecording', label: 'Запись маршрутов', desc: 'Сохранение данных о маршруте и времени' },
             ].map((item, i, arr) => (
-              <div key={item.id} className={`flex items-center justify-between py-3 ${i < arr.length - 1 ? 'border-b border-gray-100' : ''}`}>
-                <div>
+              <div key={item.id} className={`flex items-center justify-between gap-3 py-3 ${i < arr.length - 1 ? 'border-b border-gray-100' : ''}`}>
+                <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900">{item.label}</p>
                   <p className="text-xs text-gray-500 mt-0.5">{item.desc}</p>
                 </div>
-                <Switch id={item.id} checked={(settings as any)[item.id]} onCheckedChange={() => toggle(item.id as any)} />
+                <Switch id={item.id} checked={(settings as any)[item.id]} onCheckedChange={() => toggle(item.id as any)} className="flex-shrink-0" />
               </div>
             ))}
           </div>
@@ -283,12 +283,12 @@ export function Settings() {
               { id: 'cargoDelivery', label: 'Доставка грузов', desc: 'Возможность заказа грузоперевозок' },
               { id: 'multipleStops', label: 'Промежуточные остановки', desc: 'Добавление промежуточных точек маршрута' },
             ].map((item, i, arr) => (
-              <div key={item.id} className={`flex items-center justify-between py-3 ${i < arr.length - 1 ? 'border-b border-gray-100' : ''}`}>
-                <div>
+              <div key={item.id} className={`flex items-center justify-between gap-3 py-3 ${i < arr.length - 1 ? 'border-b border-gray-100' : ''}`}>
+                <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900">{item.label}</p>
                   <p className="text-xs text-gray-500 mt-0.5">{item.desc}</p>
                 </div>
-                <Switch id={item.id} checked={(settings as any)[item.id]} onCheckedChange={() => toggle(item.id as any)} />
+                <Switch id={item.id} checked={(settings as any)[item.id]} onCheckedChange={() => toggle(item.id as any)} className="flex-shrink-0" />
               </div>
             ))}
           </div>
@@ -309,12 +309,12 @@ export function Settings() {
               { id: 'allowCashPayments', label: 'Оплата наличными', desc: 'Разрешить оплату наличными водителю' },
               { id: 'allowCardPayments', label: 'Безналичная оплата', desc: 'Онлайн-оплата через приложение' },
             ].map((item, i, arr) => (
-              <div key={item.id} className={`flex items-center justify-between py-3 ${i < arr.length - 1 ? 'border-b border-gray-100' : ''}`}>
-                <div>
+              <div key={item.id} className={`flex items-center justify-between gap-3 py-3 ${i < arr.length - 1 ? 'border-b border-gray-100' : ''}`}>
+                <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900">{item.label}</p>
                   <p className="text-xs text-gray-500 mt-0.5">{item.desc}</p>
                 </div>
-                <Switch id={item.id} checked={(settings as any)[item.id]} onCheckedChange={() => toggle(item.id as any)} />
+                <Switch id={item.id} checked={(settings as any)[item.id]} onCheckedChange={() => toggle(item.id as any)} className="flex-shrink-0" />
               </div>
             ))}
           </div>

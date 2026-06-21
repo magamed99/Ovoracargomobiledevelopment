@@ -48,21 +48,22 @@ function StatCard({ icon: Icon, label, value, sub, color }: {
       background: 'rgba(255,255,255,0.03)',
       border: '1px solid rgba(255,255,255,0.07)',
       borderRadius: 14,
-      padding: '18px 20px',
+      padding: '16px 18px',
       display: 'flex', flexDirection: 'column', gap: 10,
+      minWidth: 0,
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minWidth: 0 }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {label}
         </span>
-        <div style={{ width: 32, height: 32, borderRadius: 9, background: `${color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 32, height: 32, borderRadius: 9, background: `${color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <Icon size={16} color={color} />
         </div>
       </div>
       <div style={{ fontSize: 28, fontWeight: 900, color: '#e8f4ff', letterSpacing: '-0.5px' }}>
         {value}
       </div>
-      {sub && <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.35)' }}>{sub}</div>}
+      {sub && <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.35)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sub}</div>}
     </div>
   );
 }
@@ -204,7 +205,7 @@ export function SubscriptionManagement() {
       : null;
 
   return (
-    <div style={{ padding: 24, maxWidth: 1200, margin: '0 auto' }}>
+    <div style={{ maxWidth: 1200, margin: '0 auto' }}>
       <AdminPageHeader
         title="Подписки"
         subtitle="Управление годовыми подписками пользователей"
@@ -212,7 +213,7 @@ export function SubscriptionManagement() {
       />
 
       {/* ── Stats ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 28 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 28 }}>
         <StatCard
           icon={Users} label="Всего пользователей"
           value={stats?.totalUsers ?? '—'}
@@ -241,7 +242,7 @@ export function SubscriptionManagement() {
       {/* ── Toolbar ── */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
         {/* Search */}
-        <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
+        <div style={{ position: 'relative', flex: '1 1 220px', minWidth: 0 }}>
           <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#475569' }} />
           <input
             value={search}
@@ -293,6 +294,8 @@ export function SubscriptionManagement() {
         border: '1px solid rgba(255,255,255,0.06)',
         borderRadius: 14, overflow: 'hidden',
       }}>
+        <div style={{ overflowX: 'auto' }}>
+        <div style={{ minWidth: 620 }}>
         {/* Header */}
         <div style={{
           display: 'grid', gridTemplateColumns: '1fr 130px 90px 100px 100px 80px',
@@ -384,6 +387,8 @@ export function SubscriptionManagement() {
             );
           })
         )}
+        </div>
+        </div>
       </div>
 
       {/* Summary */}

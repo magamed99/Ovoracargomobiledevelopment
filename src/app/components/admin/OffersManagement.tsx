@@ -192,7 +192,7 @@ export function OffersManagement() {
               return (
                 <div key={id}>
                   <div
-                    className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                    className="flex items-start sm:items-center gap-3 sm:gap-4 px-3 sm:px-5 py-4 cursor-pointer hover:bg-gray-50 transition-colors"
                     onClick={() => setExpandedId(isExpanded ? null : id)}
                   >
                     {/* Status dot */}
@@ -221,15 +221,15 @@ export function OffersManagement() {
                           <span className="text-sm font-bold text-gray-900 ml-1">{offer.price} ТЖС</span>
                         )}
                       </div>
-                      <div className="flex items-center gap-4 text-xs text-gray-500 flex-wrap">
-                        <span className="flex items-center gap-1">
-                          <User className="w-3 h-3" />
-                          {offer.senderName || offer.senderEmail || '—'}
+                      <div className="flex items-center gap-2 sm:gap-4 text-xs text-gray-500 flex-wrap">
+                        <span className="flex items-center gap-1 min-w-0">
+                          <User className="w-3 h-3 flex-shrink-0" />
+                          <span className="truncate">{offer.senderName || offer.senderEmail || '—'}</span>
                         </span>
-                        <span className="text-gray-300">→</span>
-                        <span className="flex items-center gap-1">
-                          <Truck className="w-3 h-3" />
-                          {offer.driverName || offer.driverEmail || '—'}
+                        <span className="text-gray-300 hidden sm:inline">→</span>
+                        <span className="flex items-center gap-1 min-w-0">
+                          <Truck className="w-3 h-3 flex-shrink-0" />
+                          <span className="truncate">{offer.driverName || offer.driverEmail || '—'}</span>
                         </span>
                         {offer.weight && (
                           <span className="flex items-center gap-1">
@@ -237,7 +237,7 @@ export function OffersManagement() {
                             {offer.weight} кг
                           </span>
                         )}
-                        <span className="flex items-center gap-1 ml-auto">
+                        <span className="flex items-center gap-1 sm:ml-auto">
                           <Clock className="w-3 h-3" />
                           <RelTime iso={offer.createdAt} />
                         </span>
@@ -245,13 +245,13 @@ export function OffersManagement() {
                     </div>
 
                     <ChevronDown
-                      className="w-4 h-4 text-gray-400 flex-shrink-0 transition-transform"
+                      className="w-4 h-4 text-gray-400 flex-shrink-0 transition-transform mt-1 sm:mt-0"
                       style={{ transform: isExpanded ? 'rotate(180deg)' : 'none' }}
                     />
                   </div>
 
                   {isExpanded && (
-                    <div className="px-5 pb-4 pt-3 grid grid-cols-2 md:grid-cols-3 gap-3" style={{ background: '#f8fafc', borderTop: '1px solid #f0f4f8' }}>
+                    <div className="px-3 sm:px-5 pb-4 pt-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3" style={{ background: '#f8fafc', borderTop: '1px solid #f0f4f8' }}>
                       {[
                         { label: 'Email отправителя', value: offer.senderEmail || '—' },
                         { label: 'Email водителя', value: offer.driverEmail || '—' },
@@ -266,17 +266,17 @@ export function OffersManagement() {
                         </div>
                       ))}
                       {offer.description && (
-                        <div className="col-span-2 md:col-span-3">
+                        <div className="sm:col-span-2 md:col-span-3">
                           <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1">Описание</p>
                           <p className="text-sm text-gray-900">{offer.description}</p>
                         </div>
                       )}
                       {(status === 'pending' || status === 'accepted') && (
-                        <div className="col-span-2 md:col-span-3 pt-1">
+                        <div className="sm:col-span-2 md:col-span-3 pt-1">
                           <button
                             onClick={e => { e.stopPropagation(); handleCancel(offer); }}
                             disabled={cancellingId === id}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-red-700 bg-red-50 border border-red-200 hover:bg-red-100 transition-colors disabled:opacity-50"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-red-700 bg-red-50 border border-red-200 hover:bg-red-100 transition-colors disabled:opacity-50 w-full sm:w-auto justify-center sm:justify-start"
                           >
                             <Ban className="w-3.5 h-3.5" />
                             {cancellingId === id ? 'Отмена...' : 'Отменить оферту (спор)'}

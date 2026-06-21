@@ -141,13 +141,13 @@ export function AviaCardsManagement() {
           ) : (
             <div className="divide-y divide-gray-50">
               {filteredDeals.map(deal => (
-                <div key={deal.id} className="flex items-center gap-3 px-5 py-3.5" style={{ opacity: deal.deletedAt ? 0.5 : 1 }}>
+                <div key={deal.id} className="flex items-start gap-3 px-3 sm:px-5 py-3.5" style={{ opacity: deal.deletedAt ? 0.5 : 1 }}>
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#fef3c7' }}>
                     <Package className="w-4 h-4" style={{ color: '#d97706' }} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-semibold text-gray-900">{deal.adFrom} → {deal.adTo}</span>
+                      <span className="text-sm font-semibold text-gray-900 break-words">{deal.adFrom} → {deal.adTo}</span>
                       <span className="px-2 py-0.5 rounded-full text-xs font-semibold" style={{ background: '#f1f5f9', color: '#475569' }}>
                         {STATUS_LABELS[deal.status] || deal.status}
                       </span>
@@ -155,9 +155,12 @@ export function AviaCardsManagement() {
                         <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-600">Удалена</span>
                       )}
                     </div>
-                    <p className="text-xs text-gray-400 mt-0.5 truncate">
+                    <p className="text-xs text-gray-400 mt-0.5 break-words">
                       {deal.initiatorPhone} → {deal.recipientPhone} · {deal.dealType === 'docs' ? 'документы' : `${deal.weightKg} кг`}{deal.price ? ` · $${deal.price}` : ''}
                     </p>
+                    <div className="text-xs text-gray-400 mt-0.5 md:hidden">
+                      {deal.createdAt ? new Date(deal.createdAt).toLocaleDateString('ru-RU') : '—'}
+                    </div>
                   </div>
                   <div className="text-xs text-gray-400 flex-shrink-0 hidden md:block">
                     {deal.createdAt ? new Date(deal.createdAt).toLocaleDateString('ru-RU') : '—'}
@@ -181,13 +184,13 @@ export function AviaCardsManagement() {
           ) : (
             <div className="divide-y divide-gray-50">
               {filteredFlights.map(flight => (
-                <div key={flight.id} className="flex items-center gap-3 px-5 py-3.5" style={{ opacity: flight.isDeleted ? 0.5 : 1 }}>
+                <div key={flight.id} className="flex items-start gap-3 px-3 sm:px-5 py-3.5" style={{ opacity: flight.isDeleted ? 0.5 : 1 }}>
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#e0f2fe' }}>
                     <Plane className="w-4 h-4" style={{ color: '#0369a1' }} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-semibold text-gray-900">{flight.from} → {flight.to}</span>
+                      <span className="text-sm font-semibold text-gray-900 break-words">{flight.from} → {flight.to}</span>
                       <span className="px-2 py-0.5 rounded-full text-xs font-semibold" style={{ background: '#f1f5f9', color: '#475569' }}>
                         {STATUS_LABELS[flight.status] || flight.status}
                       </span>
@@ -195,9 +198,12 @@ export function AviaCardsManagement() {
                         <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-600">Удалён</span>
                       )}
                     </div>
-                    <p className="text-xs text-gray-400 mt-0.5 truncate">
+                    <p className="text-xs text-gray-400 mt-0.5 break-words">
                       {flight.courierId} · {flight.date} · свободно {flight.freeKg} кг
                     </p>
+                    <div className="text-xs text-gray-400 mt-0.5 md:hidden">
+                      {flight.createdAt ? new Date(flight.createdAt).toLocaleDateString('ru-RU') : '—'}
+                    </div>
                   </div>
                   <div className="text-xs text-gray-400 flex-shrink-0 hidden md:block">
                     {flight.createdAt ? new Date(flight.createdAt).toLocaleDateString('ru-RU') : '—'}

@@ -161,7 +161,7 @@ export function AdminAuthGate({ onSuccess }: Props) {
           {/* Top accent */}
           <div style={{ height: 3, background: 'linear-gradient(90deg, #1565d8, #5ba3f5, #7c3aed)' }} />
 
-          <div className="p-8">
+          <div className="p-5 sm:p-8">
             {/* Logo */}
             <div className="flex flex-col items-center mb-8">
               <div className="relative mb-4">
@@ -250,7 +250,7 @@ export function AdminAuthGate({ onSuccess }: Props) {
               </div>
 
               {/* OTP Boxes */}
-              <div className="flex items-center justify-center gap-2.5">
+              <div className="flex items-center justify-center gap-1.5 sm:gap-2.5">
                 {digits.map((digit, i) => (
                   <div key={i} className="relative">
                     <input
@@ -263,7 +263,7 @@ export function AdminAuthGate({ onSuccess }: Props) {
                       onKeyDown={e => handleDigitKeyDown(i, e)}
                       onPaste={handlePaste}
                       disabled={loading}
-                      className="w-12 h-14 text-center text-xl font-bold rounded-2xl outline-none transition-all select-none"
+                      className="w-9 h-12 sm:w-12 sm:h-14 text-center text-lg sm:text-xl font-bold rounded-2xl outline-none transition-all select-none"
                       style={{
                         background: digit ? '#0d2040' : '#080f1c',
                         border: error

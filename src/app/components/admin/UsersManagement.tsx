@@ -183,7 +183,7 @@ export function UsersManagement() {
           />
         </div>
 
-        <div className="flex flex-wrap gap-4">
+        <div className="flex flex-col sm:flex-row flex-wrap gap-4">
           {/* Role chips */}
           <div>
             <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Роль</p>
@@ -252,7 +252,7 @@ export function UsersManagement() {
 
               return (
                 <div key={user.email} style={{ background: isBlocked ? '#fef2f210' : undefined }}>
-                  <div className="flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50 transition-colors">
+                  <div className="flex items-start sm:items-center gap-3 px-4 sm:px-5 py-3.5 hover:bg-gray-50 transition-colors">
                     {/* Avatar */}
                     <div
                       className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 overflow-hidden"
@@ -271,10 +271,10 @@ export function UsersManagement() {
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`font-semibold text-sm ${isBlocked ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
-                          {fullName}
-                        </span>
+                      <span className={`font-semibold text-sm block truncate ${isBlocked ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                        {fullName}
+                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap mt-1">
                         <span
                           className="px-2 py-0.5 rounded-full text-xs font-semibold"
                           style={
@@ -296,7 +296,8 @@ export function UsersManagement() {
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-gray-400 mt-0.5 truncate">{user.email}</p>
+                      <p className="text-xs text-gray-400 mt-1 truncate">{user.email}</p>
+                      <p className="md:hidden text-xs text-gray-400 mt-0.5 truncate">{user.phone || '—'}</p>
                     </div>
 
                     <div className="hidden md:block text-sm text-gray-500 flex-shrink-0">{user.phone || '—'}</div>
@@ -352,7 +353,7 @@ export function UsersManagement() {
 
                   {/* Expanded */}
                   {isExpanded && (
-                    <div className="px-5 pb-4 pt-3 grid grid-cols-2 md:grid-cols-4 gap-4" style={{ background: '#f8fafc', borderTop: '1px solid #f0f4f8' }}>
+                    <div className="px-4 sm:px-5 pb-4 pt-3 grid grid-cols-2 md:grid-cols-4 gap-4" style={{ background: '#f8fafc', borderTop: '1px solid #f0f4f8' }}>
                       {[
                         { label: 'Email', value: user.email },
                         { label: 'Телефон', value: user.phone || '—' },

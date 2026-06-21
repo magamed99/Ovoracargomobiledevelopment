@@ -172,13 +172,13 @@ export function Analytics() {
       />
 
       {/* Key metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
         {keyMetrics.map((m) => (
           <Card key={m.label}>
-            <CardContent className="p-4">
+            <CardContent className="p-3 sm:p-4">
               <m.icon className={`w-5 h-5 ${m.color} mb-2`} />
-              <p className="text-2xl font-bold text-gray-900">{m.value}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{m.label}</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900">{m.value}</p>
+              <p className="text-xs text-gray-500 mt-0.5 truncate">{m.label}</p>
             </CardContent>
           </Card>
         ))}
@@ -222,13 +222,15 @@ export function Analytics() {
             {tripStatusData.length > 0 ? (
               <>
                 <div className="flex justify-center">
-                  <DonutChart data={tripStatusData} innerRadius={55} outerRadius={85} size={220} />
+                  <div className="w-full max-w-[220px] [&_svg]:w-full [&_svg]:h-auto">
+                    <DonutChart data={tripStatusData} innerRadius={55} outerRadius={85} size={220} />
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3 mt-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
                   {tripStatusData.map(item => (
-                    <div key={item.name} className="flex items-center gap-2">
+                    <div key={item.name} className="flex items-center gap-2 min-w-0">
                       <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
-                      <span className="text-sm text-gray-600">{item.name}: <strong>{item.value}</strong></span>
+                      <span className="text-sm text-gray-600 truncate">{item.name}: <strong>{item.value}</strong></span>
                     </div>
                   ))}
                 </div>
@@ -246,13 +248,15 @@ export function Analytics() {
             {offerStatusData.length > 0 ? (
               <>
                 <div className="flex justify-center">
-                  <DonutChart data={offerStatusData} innerRadius={55} outerRadius={85} size={220} />
+                  <div className="w-full max-w-[220px] [&_svg]:w-full [&_svg]:h-auto">
+                    <DonutChart data={offerStatusData} innerRadius={55} outerRadius={85} size={220} />
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3 mt-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
                   {offerStatusData.map(item => (
-                    <div key={item.name} className="flex items-center gap-2">
+                    <div key={item.name} className="flex items-center gap-2 min-w-0">
                       <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
-                      <span className="text-sm text-gray-600">{item.name}: <strong>{item.value}</strong></span>
+                      <span className="text-sm text-gray-600 truncate">{item.name}: <strong>{item.value}</strong></span>
                     </div>
                   ))}
                 </div>
@@ -287,13 +291,15 @@ export function Analytics() {
             {userRoleData.length > 0 ? (
               <>
                 <div className="flex justify-center">
-                  <DonutChart data={userRoleData} innerRadius={45} outerRadius={70} size={160} />
+                  <div className="w-full max-w-[160px] [&_svg]:w-full [&_svg]:h-auto">
+                    <DonutChart data={userRoleData} innerRadius={45} outerRadius={70} size={160} />
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4 mt-4">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4 mt-4">
                   {userRoleData.map(item => (
-                    <div key={item.name} className="text-center p-3 rounded-xl" style={{ backgroundColor: item.color + '15' }}>
+                    <div key={item.name} className="text-center p-2.5 sm:p-3 rounded-xl min-w-0" style={{ backgroundColor: item.color + '15' }}>
                       <p className="text-2xl font-bold" style={{ color: item.color }}>{item.value}</p>
-                      <p className="text-xs text-gray-600 mt-0.5">{item.name}</p>
+                      <p className="text-xs text-gray-600 mt-0.5 truncate">{item.name}</p>
                     </div>
                   ))}
                 </div>

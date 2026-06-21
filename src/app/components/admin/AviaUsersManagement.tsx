@@ -229,7 +229,7 @@ export function AviaUsersManagement() {
 
               return (
                 <div key={user.phone} style={{ background: isBlocked ? '#fef2f210' : undefined }}>
-                  <div className="flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50 transition-colors">
+                  <div className="flex items-start sm:items-center flex-wrap sm:flex-nowrap gap-3 px-3 sm:px-5 py-3.5 hover:bg-gray-50 transition-colors">
                     <div
                       className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 overflow-hidden"
                       style={{
@@ -245,35 +245,16 @@ export function AviaUsersManagement() {
                         : initials}
                     </div>
 
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`font-semibold text-sm ${isBlocked ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                    <div className="flex-1 min-w-0 order-1 sm:order-none">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`font-semibold text-sm truncate ${isBlocked ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
                           {fullName}
                         </span>
-                        <span
-                          className="px-2 py-0.5 rounded-full text-xs font-semibold"
-                          style={
-                            user.role === 'courier'
-                              ? { background: '#e0f2fe', color: '#0369a1' }
-                              : { background: '#f5f3ff', color: '#6d28d9' }
-                          }
-                        >
-                          {user.role === 'courier' ? '✈ Курьер' : '📦 Отправитель'}
-                        </span>
-                        {isBlocked && (
-                          <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-600">
-                            🚫 Заблокирован
-                          </span>
-                        )}
                       </div>
                       <p className="text-xs text-gray-400 mt-0.5 truncate">{user.phone}</p>
                     </div>
 
-                    <div className="hidden lg:block text-xs text-gray-400 flex-shrink-0">
-                      <RelTime iso={user.createdAt} />
-                    </div>
-
-                    <div className="flex items-center gap-1 flex-shrink-0">
+                    <div className="flex items-center gap-1 flex-shrink-0 order-2 sm:order-none ml-auto sm:ml-0">
                       <button
                         onClick={() => setExpandedId(isExpanded ? null : user.phone)}
                         className="p-1.5 hover:bg-gray-100 rounded-xl text-gray-400 transition-colors"
@@ -313,10 +294,31 @@ export function AviaUsersManagement() {
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
+
+                    <div className="flex items-center gap-1.5 flex-wrap order-3 w-full sm:w-auto sm:order-none">
+                      <span
+                        className="px-2 py-0.5 rounded-full text-xs font-semibold"
+                        style={
+                          user.role === 'courier'
+                            ? { background: '#e0f2fe', color: '#0369a1' }
+                            : { background: '#f5f3ff', color: '#6d28d9' }
+                        }
+                      >
+                        {user.role === 'courier' ? '✈ Курьер' : '📦 Отправитель'}
+                      </span>
+                      {isBlocked && (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-600">
+                          🚫 Заблокирован
+                        </span>
+                      )}
+                      <span className="hidden lg:inline text-xs text-gray-400">
+                        <RelTime iso={user.createdAt} />
+                      </span>
+                    </div>
                   </div>
 
                   {isExpanded && (
-                    <div className="px-5 pb-4 pt-3 grid grid-cols-2 md:grid-cols-4 gap-4" style={{ background: '#f8fafc', borderTop: '1px solid #f0f4f8' }}>
+                    <div className="px-3 sm:px-5 pb-4 pt-3 grid grid-cols-2 md:grid-cols-4 gap-4" style={{ background: '#f8fafc', borderTop: '1px solid #f0f4f8' }}>
                       {[
                         { label: 'Телефон', value: user.phone },
                         { label: 'Город', value: user.city || '—' },
@@ -360,7 +362,7 @@ function EditUserModal({ user, onClose, onSave }: { user: any; onClose: () => vo
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: '#00000060' }} onClick={onClose}>
-      <div className="bg-white rounded-2xl p-6 w-full max-w-md space-y-4" onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto space-y-4" onClick={e => e.stopPropagation()}>
         <h3 className="text-lg font-bold text-gray-900">Редактировать профиль</h3>
         <p className="text-xs text-gray-400">{user.phone}</p>
         <div className="space-y-3">

@@ -48,11 +48,11 @@ function ReviewCard({
       className="bg-white rounded-2xl overflow-hidden transition-shadow hover:shadow-md"
       style={{ border: `1px solid ${colors.border}` }}
     >
-      <div className="p-4">
-        <div className="flex items-start gap-3">
+      <div className="p-3 sm:p-4">
+        <div className="flex items-start gap-2 sm:gap-3">
           {/* Rating circle */}
           <div
-            className="w-11 h-11 rounded-xl flex flex-col items-center justify-center flex-shrink-0"
+            className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex flex-col items-center justify-center flex-shrink-0"
             style={{ background: colors.bg }}
           >
             <span className="text-sm font-black" style={{ color: colors.text }}>{rating}</span>
@@ -61,7 +61,7 @@ function ReviewCard({
 
           {/* Author avatar */}
           <div
-            className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
             style={{
               background: rating >= 4
                 ? 'linear-gradient(135deg,#059669,#10b981)'
@@ -90,12 +90,12 @@ function ReviewCard({
               )}
             </div>
             <div className="flex items-center gap-1.5 text-sm flex-wrap">
-              <span className="font-semibold text-gray-900">{authorName}</span>
+              <span className="font-semibold text-gray-900 break-words">{authorName}</span>
               <span className="text-gray-300">→</span>
-              <span className="text-gray-500">{targetName}</span>
+              <span className="text-gray-500 break-words">{targetName}</span>
             </div>
             {comment ? (
-              <p className={`text-sm text-gray-600 mt-2 leading-relaxed ${!isExpanded && comment.length > 160 ? 'line-clamp-2' : ''}`}>
+              <p className={`text-sm text-gray-600 mt-2 leading-relaxed break-words ${!isExpanded && comment.length > 160 ? 'line-clamp-2' : ''}`}>
                 "{comment}"
               </p>
             ) : (
@@ -249,8 +249,8 @@ export function Reviews() {
 
       {/* ── Rating overview ── */}
       {reviews.length > 0 && (
-        <div className="bg-white rounded-2xl p-5" style={{ border: '1px solid #f0f4f8' }}>
-          <div className="flex flex-col md:flex-row gap-6 items-center">
+        <div className="bg-white rounded-2xl p-4 sm:p-5" style={{ border: '1px solid #f0f4f8' }}>
+          <div className="flex flex-col md:flex-row gap-6 items-stretch md:items-center">
             {/* Big avg */}
             <div className="text-center flex-shrink-0">
               <div
@@ -288,7 +288,7 @@ export function Reviews() {
             </div>
 
             {/* Quick stats */}
-            <div className="grid grid-cols-2 gap-3 flex-shrink-0">
+            <div className="grid grid-cols-2 gap-3 w-full md:w-auto flex-shrink-0">
               {[
                 { label: 'Отлично (4–5★)', value: reviews.filter(r => (r?.rating || 0) >= 4).length, color: '#10b981', bg: '#f0fdf4' },
                 { label: 'Нейтрально (3★)', value: reviews.filter(r => (r?.rating || 0) === 3).length, color: '#f59e0b', bg: '#fffbeb' },
