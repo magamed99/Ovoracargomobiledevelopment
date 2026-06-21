@@ -241,13 +241,27 @@ export function ChatPage() {
     markRead(chatId);
   }, [chatId]);
 
+  // ✅ FIX: exponential backoff поллинга при подряд идущих сбоях синхронизации
+  // (сервер недоступен/таймаут) — раньше poll долбил сервер каждые 4с даже
+  // если он явно не отвечает, лишь молча используя локальный кэш.
+  const POLL_BASE_MS = 4_000;
+  const POLL_MAX_MS = 60_000;
+  const pollDelayRef = useRef(POLL_BASE_MS);
+  const consecutiveFailuresRef = useRef(0);
+
   const syncMessages = useCallback(async () => {
     if (!chatId) return;
     try {
       const fresh = await fetchMessages(chatId);
       setMessages([...fresh]);
       markRead(chatId);
-    } catch { /* use local cache */ } finally {
+      consecutiveFailuresRef.current = 0;
+      pollDelayRef.current = POLL_BASE_MS;
+    } catch {
+      // use local cache, but slow down polling — server is having trouble
+      consecutiveFailuresRef.current += 1;
+      pollDelayRef.current = Math.min(POLL_BASE_MS * 2 ** consecutiveFailuresRef.current, POLL_MAX_MS);
+    } finally {
       setFirstSyncDone(true);
     }
   }, [chatId]);
@@ -267,16 +281,25 @@ export function ChatPage() {
     // 1. Instant render from cache
     loadMessages();
 
-    // 2. Sync from API
-    syncMessages();
-
-    // 3. Poll every 4s for new messages from server
-    pollRef.current = setInterval(syncMessages, 4_000);
+    // 2. Sync from API, then poll with exponential backoff on failure
+    // (fixed setInterval can't slow itself down, so we self-reschedule).
+    let cancelled = false;
+    pollDelayRef.current = POLL_BASE_MS;
+    consecutiveFailuresRef.current = 0;
+    const scheduleNext = () => {
+      pollRef.current = setTimeout(async () => {
+        if (cancelled) return;
+        await syncMessages();
+        if (!cancelled) scheduleNext();
+      }, pollDelayRef.current);
+    };
+    syncMessages().then(() => { if (!cancelled) scheduleNext(); });
 
     window.addEventListener('ovora_chat_update', loadMessages);
     return () => {
+      cancelled = true;
       window.removeEventListener('ovora_chat_update', loadMessages);
-      if (pollRef.current) clearInterval(pollRef.current);
+      if (pollRef.current) clearTimeout(pollRef.current);
       // Освобождаем микрофон при размонтировании (защита от утечки stream)
       if (mediaStreamRef.current) {
         mediaStreamRef.current.getTracks().forEach(t => t.stop());

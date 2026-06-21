@@ -357,35 +357,34 @@ export async function fetchMessages(chatId: string): Promise<ChatMessage[]> {
   if (!myEmail) return getMessages(chatId);
   const myRole  = sessionStorage.getItem('userRole') || 'sender';
 
-  try {
-    const serverMsgs = await apiGetMessages(chatId, myEmail);
-    if (serverMsgs && serverMsgs.length > 0) {
-      const mapped = serverMsgs.map((m: any) => _mapServerMsg(m, myRole, myEmail));
+  // ✅ Сетевая/серверная ошибка теперь прокидывается наружу (а не глушится
+  // тут же) — ChatPage использует это, чтобы делать exponential backoff
+  // поллинга при подряд идущих сбоях, вместо долбления сервера каждые 4с.
+  const serverMsgs = await apiGetMessages(chatId, myEmail);
+  if (serverMsgs && serverMsgs.length > 0) {
+    const mapped = serverMsgs.map((m: any) => _mapServerMsg(m, myRole, myEmail));
 
-      // ── Merge: keep local optimistic messages not yet confirmed by server ──
-      // This prevents proposals/messages from disappearing during API latency
-      const localMsgs = getMessages(chatId);
-      const serverIds = new Set(mapped.map((m: ChatMessage) => m.id));
-      // ✅ Also collect proposal IDs from server to deduplicate optimistic proposals
-      const serverProposalIds = new Set(
-        mapped.filter((m: ChatMessage) => m.proposal?.id).map((m: ChatMessage) => m.proposal!.id)
-      );
-      const pendingLocal = localMsgs.filter(m => {
-        if (serverIds.has(m.id)) return false; // already matched by ID
-        if (m.proposal?.id && serverProposalIds.has(m.proposal.id)) return false; // proposal already on server
-        return true;
-      });
-      const merged = [...mapped, ...pendingLocal].sort((a, b) => a.ts - b.ts);
+    // ── Merge: keep local optimistic messages not yet confirmed by server ──
+    // This prevents proposals/messages from disappearing during API latency
+    const localMsgs = getMessages(chatId);
+    const serverIds = new Set(mapped.map((m: ChatMessage) => m.id));
+    // ✅ Also collect proposal IDs from server to deduplicate optimistic proposals
+    const serverProposalIds = new Set(
+      mapped.filter((m: ChatMessage) => m.proposal?.id).map((m: ChatMessage) => m.proposal!.id)
+    );
+    const pendingLocal = localMsgs.filter(m => {
+      if (serverIds.has(m.id)) return false; // already matched by ID
+      if (m.proposal?.id && serverProposalIds.has(m.proposal.id)) return false; // proposal already on server
+      return true;
+    });
+    const merged = [...mapped, ...pendingLocal].sort((a, b) => a.ts - b.ts);
 
-      saveMessages(chatId, merged);
-      emit();
-      return merged;
-    }
-  } catch {
-    // Fallback to local cache
+    saveMessages(chatId, merged);
+    emit();
+    return merged;
   }
 
-  // Fallback: local cache
+  // Server confirmed: no messages yet (not an error) — fall back to local cache
   return getMessages(chatId);
 }
 
