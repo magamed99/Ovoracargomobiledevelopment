@@ -2002,8 +2002,21 @@ app.post("/make-server-4e36197a/reviews", async (c) => {
         const validReviews = targetReviews.filter(r => r != null);
         if (validReviews.length > 0) {
           const avgRating = calculateAverageRating(validReviews.map(r => r.rating));
-          const allTrips: any[] = await kv.getByPrefix(`ovora:trip:`);
-          const driverTrips = allTrips.filter(t => t && !t.deletedAt && t.driverEmail === review.targetEmail);
+          // ✅ FIX: читаем индекс ovora:drivertrips:* вместо full-scan по ВСЕМ
+          // поездкам всех водителей (см. /trips/my чуть выше — тот же паттерн).
+          const driverTripsIndex: any[] = await kv.getByPrefix(`ovora:drivertrips:${review.targetEmail}:`);
+          let driverTrips: any[];
+          if (driverTripsIndex.length > 0) {
+            const tripIds = driverTripsIndex.map((e: any) => e.tripId).filter(Boolean);
+            const fetchedTrips: any[] = tripIds.length > 0
+              ? await kv.mget(tripIds.map((id: string) => `ovora:trip:${id}`))
+              : [];
+            driverTrips = fetchedTrips.filter(t => t && !t.deletedAt);
+          } else {
+            // Индекс ещё не построен (legacy) — fallback на full-scan
+            const allTrips: any[] = await kv.getByPrefix(`ovora:trip:`);
+            driverTrips = allTrips.filter(t => t && !t.deletedAt && t.driverEmail === review.targetEmail);
+          }
           for (const trip of driverTrips) {
             await kv.set(`ovora:trip:${trip.id}`, { ...trip, driverRating: avgRating });
           }
