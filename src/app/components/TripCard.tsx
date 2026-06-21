@@ -610,20 +610,20 @@ export function TripCard({
             <div className="flex items-center gap-2 pt-0.5" onClick={e => e.stopPropagation()}>
               {trip.status === 'planned' && (
                 <button onClick={onStart} aria-label="Начать поездку"
-                  className="flex-1 h-10 flex items-center justify-center gap-2 rounded-xl bg-[#5ba3f5] hover:bg-[#4a90e0] text-white text-[12px] font-bold transition-all active:scale-95">
-                  <Play className="w-3.5 h-3.5" /> Начать поездку
+                  className="flex-1 min-h-10 flex items-center justify-center gap-2 rounded-xl bg-[#5ba3f5] hover:bg-[#4a90e0] text-white text-[12px] font-bold transition-all active:scale-95 px-1">
+                  <Play className="w-3.5 h-3.5 shrink-0" /> Начать поездку
                 </button>
               )}
               {trip.status === 'frozen' && (
                 <button onClick={onFreeze} aria-label="Возобновить поездку"
-                  className="flex-1 h-10 flex items-center justify-center gap-2 rounded-xl bg-[#5ba3f5] hover:bg-[#4a90e0] text-white text-[12px] font-bold transition-all active:scale-95">
-                  <Play className="w-3.5 h-3.5" /> Возобновить
+                  className="flex-1 min-h-10 flex items-center justify-center gap-2 rounded-xl bg-[#5ba3f5] hover:bg-[#4a90e0] text-white text-[12px] font-bold transition-all active:scale-95 px-1">
+                  <Play className="w-3.5 h-3.5 shrink-0" /> Возобновить
                 </button>
               )}
               {trip.status === 'inProgress' && (
                 <button onClick={onTrack} aria-label="Управлять поездкой"
-                  className="flex-1 h-10 flex items-center justify-center gap-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-[12px] font-bold transition-all active:scale-95">
-                  <Navigation className="w-3.5 h-3.5" /> Управлять
+                  className="flex-1 min-h-10 flex items-center justify-center gap-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-[12px] font-bold transition-all active:scale-95 px-1">
+                  <Navigation className="w-3.5 h-3.5 shrink-0" /> Управлять
                 </button>
               )}
 
@@ -677,8 +677,8 @@ export function TripCard({
               {trip.status === 'inProgress' && (
                 <>
                   <button onClick={onTrack} aria-label="Смотреть трекинг"
-                    className="flex-1 h-10 flex items-center justify-center gap-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-[12px] font-bold transition-all active:scale-95">
-                    <MapIcon className="w-3.5 h-3.5" /> Смотреть трекинг
+                    className="flex-1 min-h-10 flex items-center justify-center gap-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-[12px] font-bold transition-all active:scale-95 px-1">
+                    <MapIcon className="w-3.5 h-3.5 shrink-0" /> Смотреть трекинг
                   </button>
                   <div title="Отмена недоступна — рейс в пути" aria-label="Отмена недоступна"
                     className="w-10 h-10 rounded-xl flex items-center justify-center bg-white/[0.03] border border-white/[0.06] text-[#475569] cursor-default">
@@ -688,7 +688,7 @@ export function TripCard({
               )}
               {trip.status === 'frozen' && (
                 <div className="flex items-center gap-2 w-full">
-                  <div className="flex-1 h-10 flex items-center gap-2 px-3 rounded-xl bg-cyan-500/10 border border-cyan-500/20">
+                  <div className="flex-1 min-h-10 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20">
                     <Snowflake className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
                     <span className="text-[12px] font-semibold text-cyan-400">Водитель поставил паузу</span>
                   </div>
@@ -703,7 +703,7 @@ export function TripCard({
               )}
               {trip.status === 'accepted' && (
                 <>
-                  <div className="flex-1 h-10 flex items-center gap-2 px-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                  <div className="flex-1 min-h-10 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
                     <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                     <span className="text-[12px] font-semibold text-emerald-400">Принята · Ожидание отправления</span>
                   </div>
@@ -717,7 +717,7 @@ export function TripCard({
               )}
               {trip.status === 'planned' && (
                 <>
-                  <div className="flex-1 h-10 flex items-center gap-2 px-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                  <div className="flex-1 min-h-10 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
                     <span className="relative flex h-2 w-2 shrink-0">
                       <span className="animate-ping absolute inset-0 rounded-full bg-amber-400 opacity-75" />
                       <span className="relative rounded-full h-2 w-2 bg-amber-400 block" />
