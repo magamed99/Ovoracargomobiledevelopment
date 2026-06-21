@@ -203,13 +203,24 @@ export function SearchPage() {
     }, 180);
   };
 
+  // addCustomCity разрешает добавление только водителям (см. cities.ts) — раньше
+  // здесь был зашит литерал 'sender', из-за чего вызов всегда проваливался
+  // (для любой роли), а toast.success показывался независимо от результата.
   const handleAddFrom = () => {
     const country = prompt(`Страна для «${fromCity}»:`, 'Таджикистан');
-    if (country) { addCustomCity({ name: fromCity, country: country.trim(), region: '' }, 'sender'); toast.success(`Город «${fromCity}» добавлен`); setShowAddFrom(false); }
+    if (!country) return;
+    const userRole = sessionStorage.getItem('userRole') || '';
+    const added = addCustomCity({ name: fromCity, country: country.trim(), region: '' }, userRole);
+    if (added) { toast.success(`Город «${fromCity}» добавлен`); setShowAddFrom(false); }
+    else { toast.error(userRole !== 'driver' ? 'Добавлять города может только водитель' : 'Такой город уже есть в списке'); }
   };
   const handleAddTo = () => {
     const country = prompt(`Страна для «${toCity}»:`, 'Россия');
-    if (country) { addCustomCity({ name: toCity, country: country.trim(), region: '' }, 'sender'); toast.success(`Город «${toCity}» добавлен`); setShowAddTo(false); }
+    if (!country) return;
+    const userRole = sessionStorage.getItem('userRole') || '';
+    const added = addCustomCity({ name: toCity, country: country.trim(), region: '' }, userRole);
+    if (added) { toast.success(`Город «${toCity}» добавлен`); setShowAddTo(false); }
+    else { toast.error(userRole !== 'driver' ? 'Добавлять города может только водитель' : 'Такой город уже есть в списке'); }
   };
 
   const doSearch = () => {
