@@ -211,6 +211,7 @@ export function ChatPage() {
   const isDriver = userRole === 'driver';
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [firstSyncDone, setFirstSyncDone] = useState(false);
   const [contact, setContact] = useState<ChatContact | null>(null);
   const [tripId, setTripId] = useState<string | undefined>(undefined);
   const [tripData, setTripData] = useState<any>(null); // ✅ Store full trip object
@@ -246,11 +247,14 @@ export function ChatPage() {
       const fresh = await fetchMessages(chatId);
       setMessages([...fresh]);
       markRead(chatId);
-    } catch { /* use local cache */ }
+    } catch { /* use local cache */ } finally {
+      setFirstSyncDone(true);
+    }
   }, [chatId]);
 
   useEffect(() => {
     if (!chatId) return;
+    setFirstSyncDone(false);
 
     // Find contact from chats list
     const chat = getChats().find(c => c.id === chatId);
@@ -780,6 +784,18 @@ export function ChatPage() {
 
       {/* ── MESSAGES ───────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto py-4 space-y-3" style={{ touchAction: 'pan-y', WebkitOverflowScrolling: 'touch' }}>
+        {!firstSyncDone && messages.length === 0 ? (
+          // Skeleton вместо "прыжка" пустой → заполненной ленты при первой синхронизации
+          <div className="space-y-3 animate-pulse">
+            {[0, 1, 2, 3].map(i => (
+              <div key={i} className={`flex px-4 ${i % 2 ? 'justify-end' : 'justify-start'}`}>
+                <div
+                  className={`h-9 rounded-2xl ${i % 2 ? 'w-40' : 'w-52'} ${isDark ? 'bg-[#1e2d3d]' : 'bg-[#f0f2f5]'}`}
+                />
+              </div>
+            ))}
+          </div>
+        ) : (
         <AnimatePresence initial={false}>
           {messages.map(msg => {
             const isMine = msg.from === userRole || msg.from === 'system' && false;
@@ -897,6 +913,7 @@ export function ChatPage() {
             );
           })}
         </AnimatePresence>
+        )}
 
         <div ref={messagesEndRef} />
       </div>
