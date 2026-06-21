@@ -18,7 +18,7 @@ type Tab = typeof TABS[number]['key'];
 
 function Toast({ msg, ok }: { msg: string; ok: boolean }) {
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-2xl shadow-xl text-sm font-semibold text-white"
+    <div className="fixed bottom-6 left-4 right-4 sm:left-auto sm:right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-2xl shadow-xl text-sm font-semibold text-white"
       style={{ background: ok ? '#10b981' : '#ef4444', animation: 'fadeSlideUp 0.25s ease' }}>
       {ok ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
       {msg}
@@ -168,14 +168,14 @@ export function SiteSettingsPage() {
       {toast && <Toast msg={toast.msg} ok={toast.ok} />}
 
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <Globe className="w-5 h-5 text-blue-600" /> Настройки сайта
+            <Globe className="w-5 h-5 text-blue-600 flex-shrink-0" /> Настройки сайта
           </h1>
           <p className="text-sm text-gray-500 mt-0.5">Управляй партнёрами и медиафайлами главной страницы</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <button onClick={reset}
             className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors border border-gray-200">
             <RefreshCw className="w-3.5 h-3.5" /> Сбросить
@@ -218,7 +218,7 @@ export function SiteSettingsPage() {
                 /* Edit form */
                 <div className="rounded-2xl border border-blue-200 bg-blue-50/40 p-4 space-y-3">
                   <p className="text-sm font-bold text-blue-700">Редактирование</p>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="text-xs font-semibold text-gray-600 mb-1 block">Название *</label>
                       <input value={editingPartner.name}
@@ -269,13 +269,13 @@ export function SiteSettingsPage() {
                     {p.mark.slice(0, 3)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="font-bold text-gray-900 text-sm">{p.name}</p>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <p className="font-bold text-gray-900 text-sm truncate">{p.name}</p>
                       <ColorDot color={p.color} />
                     </div>
-                    <p className="text-xs text-gray-400">{p.sub}</p>
+                    <p className="text-xs text-gray-400 truncate">{p.sub}</p>
                   </div>
-                  <div className="flex gap-1">
+                  <div className="flex gap-1 flex-shrink-0">
                     <button onClick={() => setEditingPartner(p)}
                       className="p-2 rounded-xl text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
                       <Edit3 className="w-4 h-4" />
@@ -294,7 +294,7 @@ export function SiteSettingsPage() {
           {addingNew ? (
             <div className="rounded-2xl border border-green-200 bg-green-50/40 p-4 space-y-3">
               <p className="text-sm font-bold text-green-700">Новый партнёр</p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-semibold text-gray-600 mb-1 block">Название *</label>
                   <input value={newPartner.name} placeholder="Например: FedEx"

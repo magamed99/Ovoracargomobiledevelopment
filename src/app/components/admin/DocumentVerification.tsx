@@ -121,14 +121,14 @@ export function DocumentVerification() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Верификация документов</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Верификация документов</h1>
           <p className="text-gray-500 mt-1 text-sm">
             Реальные данные &bull; Всего: <strong>{docs.length}</strong> &bull; Ожидают: <strong className="text-orange-600">{counts.pending}</strong>
           </p>
         </div>
-        <button onClick={load} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
+        <button onClick={load} className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium w-full sm:w-auto">
           <RefreshCw className="w-4 h-4" />
           Обновить
         </button>
@@ -213,9 +213,9 @@ export function DocumentVerification() {
                 </div>
 
                 {/* Meta */}
-                <div className="flex items-center justify-between mt-3 text-xs text-gray-500">
+                <div className="flex items-center justify-between gap-2 mt-3 text-xs text-gray-500 flex-wrap">
                   <span>Загружен: <RelTime iso={doc.createdAt} /></span>
-                  {doc.documentNumber && <span className="font-mono text-gray-600">{doc.documentNumber}</span>}
+                  {doc.documentNumber && <span className="font-mono text-gray-600 break-all">{doc.documentNumber}</span>}
                 </div>
 
                 {/* Expanded */}
@@ -238,7 +238,7 @@ export function DocumentVerification() {
                     )}
 
                     {/* Fields */}
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {doc.extractedFullName && (
                         <div>
                           <p className="text-xs text-gray-500 font-medium">ФИО из документа</p>

@@ -196,7 +196,7 @@ export function AdminDashboard() {
 
       {/* ── Welcome banner ── */}
       <div
-        className="rounded-2xl px-6 py-5 flex items-center justify-between gap-4 flex-wrap"
+        className="rounded-2xl px-4 sm:px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
         style={{
           background: 'linear-gradient(135deg, #1565d8 0%, #2385f4 60%, #3b9ef8 100%)',
           boxShadow: '0 8px 32px #1565d840',
@@ -213,7 +213,7 @@ export function AdminDashboard() {
             )}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {/* Conversion rate pill */}
           <div className="px-3 py-2 rounded-xl flex items-center gap-2" style={{ background: '#ffffff20' }}>
             <TrendingUp className="w-4 h-4 text-white" />
@@ -231,7 +231,7 @@ export function AdminDashboard() {
               Экспорт CSV
             </button>
             {exportOpen && (
-              <div className="absolute right-0 top-full mt-2 w-44 bg-white border border-gray-200 rounded-xl shadow-2xl z-50 overflow-hidden">
+              <div className="absolute right-0 top-full mt-2 w-44 max-w-[calc(100vw-2rem)] bg-white border border-gray-200 rounded-xl shadow-2xl z-50 overflow-hidden">
                 {[
                   {
                     label: 'Поездки', icon: Route, color: 'text-blue-500',
@@ -283,31 +283,31 @@ export function AdminDashboard() {
           <p className="text-sm text-amber-800 font-medium flex-1">
             Есть <strong>{stats?.pendingOffers}</strong> оферт, ожидающих рассмотрения
           </p>
-          <ArrowRight className="w-4 h-4 text-amber-600" />
+          <ArrowRight className="w-4 h-4 text-amber-600 flex-shrink-0" />
         </Link>
       )}
 
       {/* ── Stat cards ── */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
         {statCards.map(card => (
           <Link key={card.title} to={card.to} className="group">
             <div
-              className="rounded-2xl p-4 transition-all hover:shadow-lg hover:-translate-y-0.5 relative overflow-hidden"
+              className="rounded-2xl p-3 sm:p-4 transition-all hover:shadow-lg hover:-translate-y-0.5 relative overflow-hidden"
               style={{ background: '#ffffff', border: '1px solid #f0f4f8' }}
             >
               {/* Icon */}
               <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 relative"
+                className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center mb-3 relative"
                 style={{ background: card.gradient }}
               >
-                <card.icon className="w-5 h-5 text-white" />
+                <card.icon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                 {card.badge != null && card.badge > 0 && (
                   <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-white text-[9px] font-bold">
                     {card.badge > 9 ? '9+' : card.badge}
                   </span>
                 )}
               </div>
-              <p className="text-2xl font-bold text-gray-900">{card.value}</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900">{card.value}</p>
               <p className="text-xs font-semibold text-gray-700 mt-0.5">{card.title}</p>
               <p className="text-xs text-gray-400 mt-0.5">{card.sub}</p>
               {/* Hover arrow */}
@@ -320,10 +320,10 @@ export function AdminDashboard() {
       {/* ── Charts row 1 ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Activity bar chart */}
-        <div className="lg:col-span-2 bg-white rounded-2xl p-5" style={{ border: '1px solid #f0f4f8' }}>
-          <div className="flex items-center justify-between mb-4">
+        <div className="lg:col-span-2 bg-white rounded-2xl p-4 sm:p-5" style={{ border: '1px solid #f0f4f8' }}>
+          <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: '#eff6ff' }}>
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#eff6ff' }}>
                 <Activity className="w-4 h-4 text-blue-600" />
               </div>
               <div>
@@ -331,7 +331,7 @@ export function AdminDashboard() {
                 <p className="text-xs text-gray-500">Количество новых поездок</p>
               </div>
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 flex-shrink-0">
               <Zap className="w-3.5 h-3.5 text-amber-500" />
               <span className="text-xs font-semibold text-gray-600">
                 Итого: {activityBarData.reduce((s, d) => s + d.value, 0)}
@@ -339,7 +339,9 @@ export function AdminDashboard() {
             </div>
           </div>
           {activityBarData.some(d => d.value > 0) ? (
-            <SimpleBarChart data={activityBarData} color="#3b82f6" height={200} />
+            <div className="w-full overflow-x-auto">
+              <SimpleBarChart data={activityBarData} color="#3b82f6" height={200} />
+            </div>
           ) : (
             <div className="h-[200px] flex flex-col items-center justify-center text-gray-400">
               <Activity className="w-10 h-10 mb-2 text-gray-200" />
@@ -349,7 +351,7 @@ export function AdminDashboard() {
         </div>
 
         {/* Trip status donut */}
-        <div className="bg-white rounded-2xl p-5" style={{ border: '1px solid #f0f4f8' }}>
+        <div className="bg-white rounded-2xl p-4 sm:p-5" style={{ border: '1px solid #f0f4f8' }}>
           <div className="flex items-center gap-2 mb-4">
             <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: '#eff6ff' }}>
               <Route className="w-4 h-4 text-blue-600" />
@@ -385,7 +387,7 @@ export function AdminDashboard() {
       {/* ── Charts row 2 ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Offers status */}
-        <div className="bg-white rounded-2xl p-5" style={{ border: '1px solid #f0f4f8' }}>
+        <div className="bg-white rounded-2xl p-4 sm:p-5" style={{ border: '1px solid #f0f4f8' }}>
           <div className="flex items-center gap-2 mb-4">
             <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: '#fff7ed' }}>
               <Package className="w-4 h-4 text-orange-500" />
@@ -415,7 +417,7 @@ export function AdminDashboard() {
         </div>
 
         {/* Users by role */}
-        <div className="bg-white rounded-2xl p-5" style={{ border: '1px solid #f0f4f8' }}>
+        <div className="bg-white rounded-2xl p-4 sm:p-5" style={{ border: '1px solid #f0f4f8' }}>
           <div className="flex items-center gap-2 mb-4">
             <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: '#f5f3ff' }}>
               <Users className="w-4 h-4 text-purple-600" />
@@ -451,7 +453,7 @@ export function AdminDashboard() {
       {/* ── Bottom row ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Recent trips */}
-        <div className="lg:col-span-2 bg-white rounded-2xl p-5" style={{ border: '1px solid #f0f4f8' }}>
+        <div className="lg:col-span-2 bg-white rounded-2xl p-4 sm:p-5" style={{ border: '1px solid #f0f4f8' }}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: '#eff6ff' }}>
@@ -505,7 +507,7 @@ export function AdminDashboard() {
         </div>
 
         {/* Top drivers */}
-        <div className="bg-white rounded-2xl p-5" style={{ border: '1px solid #f0f4f8' }}>
+        <div className="bg-white rounded-2xl p-4 sm:p-5" style={{ border: '1px solid #f0f4f8' }}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: '#f0fdf4' }}>

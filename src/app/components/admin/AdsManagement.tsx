@@ -415,20 +415,20 @@ export function AdsManagement() {
     <div className="space-y-6">
       {/* Toast */}
       {toast && (
-        <div className={`fixed top-5 right-5 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-white text-sm font-medium ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
+        <div className={`fixed top-5 right-5 left-5 sm:left-auto sm:max-w-sm z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-white text-sm font-medium ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
           {toast.type === 'success' ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
           {toast.msg}
         </div>
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Рекламные баннеры</h1>
           <p className="text-sm text-gray-500 mt-0.5">Загружайте фото и видео прямо в облако</p>
         </div>
         <button onClick={openCreate}
-          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium text-sm transition-colors shadow-sm">
+          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium text-sm transition-colors shadow-sm w-full sm:w-auto">
           <Plus className="w-4 h-4" /> Добавить баннер
         </button>
       </div>
@@ -495,9 +495,9 @@ export function AdsManagement() {
           {ads.map(ad => (
             <div key={ad.id}
               className={`bg-white rounded-2xl border overflow-hidden transition-all ${ad.isActive ? 'border-gray-200' : 'border-gray-200 opacity-60'}`}>
-              <div className="flex items-stretch gap-0">
+              <div className="flex flex-col sm:flex-row items-stretch gap-0">
                 {/* Media preview */}
-                <div className="w-56 flex-shrink-0 self-stretch min-h-[120px] relative overflow-hidden bg-gray-900">
+                <div className="w-full sm:w-56 flex-shrink-0 self-stretch min-h-[120px] relative overflow-hidden bg-gray-900">
                   {ad.image && (
                     <img src={ad.image} alt={ad.title}
                       className="absolute inset-0 w-full h-full object-cover opacity-70"
@@ -525,9 +525,9 @@ export function AdsManagement() {
                 </div>
 
                 {/* Info */}
-                <div className="flex-1 p-4 flex flex-col justify-between">
+                <div className="flex-1 p-4 flex flex-col justify-between min-w-0">
                   <div>
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <GripVertical className="w-4 h-4 text-gray-300" />
                       <span className="text-xs text-gray-400">Позиция #{ad.order + 1}</span>
                       {ad.videoUrl && (
@@ -546,31 +546,31 @@ export function AdsManagement() {
                          ad.placement === 'avia' ? '✈️ AVIA' : '🌐 Везде'}
                       </span>
                     </div>
-                    <h3 className="font-semibold text-gray-900 text-sm">{ad.title || <span className="text-gray-400 italic">Без названия</span>}</h3>
-                    <p className="text-xs text-gray-500 mt-0.5">{ad.description}</p>
-                    <div className="mt-2 space-y-1">
+                    <h3 className="font-semibold text-gray-900 text-sm truncate">{ad.title || <span className="text-gray-400 italic">Без названия</span>}</h3>
+                    <p className="text-xs text-gray-500 mt-0.5 truncate">{ad.description}</p>
+                    <div className="mt-2 space-y-1 min-w-0">
                       {ad.image && (
-                        <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-                          <Image className="w-3 h-3 text-blue-400" />
-                          <span className="truncate max-w-[200px]">{ad.image.split('/').pop()}</span>
+                        <div className="flex items-center gap-1.5 text-[11px] text-gray-400 min-w-0">
+                          <Image className="w-3 h-3 text-blue-400 flex-shrink-0" />
+                          <span className="truncate max-w-full sm:max-w-[200px]">{ad.image.split('/').pop()}</span>
                         </div>
                       )}
                       {ad.videoUrl && (
-                        <div className="flex items-center gap-1.5 text-[11px] text-purple-500">
-                          <Video className="w-3 h-3" />
-                          <span className="truncate max-w-[200px]">{ad.videoUrl.split('/').pop()}</span>
+                        <div className="flex items-center gap-1.5 text-[11px] text-purple-500 min-w-0">
+                          <Video className="w-3 h-3 flex-shrink-0" />
+                          <span className="truncate max-w-full sm:max-w-[200px]">{ad.videoUrl.split('/').pop()}</span>
                         </div>
                       )}
                       {ad.url && ad.url !== '#' && (
                         <a href={ad.url} target="_blank" rel="noopener noreferrer"
-                          className="flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-800">
-                          <ExternalLink className="w-3 h-3" />
-                          {ad.url.length > 40 ? ad.url.slice(0, 40) + '…' : ad.url}
+                          className="flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-800 min-w-0">
+                          <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                          <span className="truncate">{ad.url.length > 40 ? ad.url.slice(0, 40) + '…' : ad.url}</span>
                         </a>
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 mt-3">
+                  <div className="flex items-center gap-2 mt-3 flex-wrap">
                     <button onClick={() => openEdit(ad)}
                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
                       <Pencil className="w-3.5 h-3.5" />Изменить
@@ -580,7 +580,7 @@ export function AdsManagement() {
                       {ad.isActive ? <><EyeOff className="w-3.5 h-3.5" />Скрыть</> : <><Eye className="w-3.5 h-3.5" />Показать</>}
                     </button>
                     <button onClick={() => setDeleteConfirm(ad.id)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors ml-auto">
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors sm:ml-auto">
                       <Trash2 className="w-3.5 h-3.5" />Удалить
                     </button>
                   </div>
@@ -589,13 +589,15 @@ export function AdsManagement() {
 
               {/* Delete confirm */}
               {deleteConfirm === ad.id && (
-                <div className="border-t border-red-100 bg-red-50 px-4 py-3 flex items-center gap-3">
+                <div className="border-t border-red-100 bg-red-50 px-4 py-3 flex flex-wrap items-center gap-3">
                   <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
-                  <p className="text-sm text-red-700 flex-1">Удалить «{ad.title}»? Действие необратимо.</p>
-                  <button onClick={() => handleDelete(ad.id)}
-                    className="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-colors">Удалить</button>
-                  <button onClick={() => setDeleteConfirm(null)}
-                    className="px-3 py-1.5 bg-white text-gray-600 text-xs font-medium rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">Отмена</button>
+                  <p className="text-sm text-red-700 flex-1 min-w-[140px]">Удалить «{ad.title}»? Действие необратимо.</p>
+                  <div className="flex items-center gap-2 ml-auto">
+                    <button onClick={() => handleDelete(ad.id)}
+                      className="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-colors">Удалить</button>
+                    <button onClick={() => setDeleteConfirm(null)}
+                      className="px-3 py-1.5 bg-white text-gray-600 text-xs font-medium rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">Отмена</button>
+                  </div>
                 </div>
               )}
             </div>
@@ -605,18 +607,18 @@ export function AdsManagement() {
 
       {/* ── Form Modal ── */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[92vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-0 sm:p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-none sm:rounded-2xl shadow-2xl w-full max-w-xl h-full sm:h-auto max-h-full sm:max-h-[92vh] overflow-y-auto">
 
             {/* Modal header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+            <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
               <h2 className="font-bold text-gray-900 text-base">{editAd ? 'Редактировать баннер' : 'Новый баннер'}</h2>
               <button onClick={closeForm} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
+            <form onSubmit={handleSubmit} className="px-4 sm:px-6 py-5 space-y-5">
 
               {/* Live preview */}
               <div>

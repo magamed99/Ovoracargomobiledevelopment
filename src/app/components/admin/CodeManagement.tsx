@@ -166,7 +166,7 @@ export function CodeManagement() {
       </div>
 
       {/* ── Filters ── */}
-      <div className="bg-white rounded-2xl p-4 space-y-3" style={{ border: '1px solid #f0f4f8' }}>
+      <div className="bg-white rounded-2xl p-3 sm:p-4 space-y-3" style={{ border: '1px solid #f0f4f8' }}>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
@@ -185,6 +185,7 @@ export function CodeManagement() {
           )}
         </div>
         <FilterChips
+          className="overflow-x-auto flex-nowrap sm:flex-wrap pb-1 -mx-1 px-1"
           value={statusFilter}
           onChange={setStatusFilter}
           options={[
@@ -198,6 +199,8 @@ export function CodeManagement() {
 
       {/* ── Table ── */}
       <div className="bg-white rounded-2xl overflow-hidden" style={{ border: '1px solid #f0f4f8' }}>
+        <div className="overflow-x-auto">
+        <div className="min-w-[640px]">
         {/* Header */}
         <div
           className="grid gap-4 px-5 py-3 text-xs font-bold uppercase tracking-wider"
@@ -240,7 +243,7 @@ export function CodeManagement() {
             >
               {/* Email + status */}
               <div className="min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 min-w-0">
                   <div
                     className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-white text-xs font-bold"
                     style={{
@@ -253,7 +256,7 @@ export function CodeManagement() {
                   >
                     {(entry.email[0] || '?').toUpperCase()}
                   </div>
-                  <p className="text-sm font-semibold text-gray-900 truncate">{entry.email}</p>
+                  <p className="text-sm font-semibold text-gray-900 truncate min-w-0">{entry.email}</p>
                 </div>
                 <div className="mt-1.5 pl-9">
                   <StatusBadge entry={entry} />
@@ -324,6 +327,8 @@ export function CodeManagement() {
             </div>
           ))
         )}
+        </div>
+        </div>
       </div>
 
       {filtered.length > 0 && (

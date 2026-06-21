@@ -138,7 +138,7 @@ export function DriversManagement() {
             onBlur={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.boxShadow = 'none'; }}
           />
         </div>
-        <div className="flex flex-wrap gap-4">
+        <div className="flex flex-col sm:flex-row flex-wrap gap-4">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400 mb-1.5">Статус</p>
             <FilterChips
@@ -212,7 +212,7 @@ export function DriversManagement() {
                   }}
                 />
 
-                <div className="p-5">
+                <div className="p-4 sm:p-5">
                   <div className="flex items-start gap-3">
                     {/* Avatar */}
                     <div className="relative flex-shrink-0">
@@ -237,10 +237,10 @@ export function DriversManagement() {
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className={`font-bold text-sm ${isBlocked ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
-                          {fullName}
-                        </h3>
+                      <h3 className={`font-bold text-sm truncate ${isBlocked ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                        {fullName}
+                      </h3>
+                      <div className="flex items-center gap-1.5 flex-wrap mt-1">
                         {isVerified && (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xl text-xs font-semibold" style={{ background: '#eff6ff', color: '#1565d8' }}>
                             <CheckCircle className="w-3 h-3" /> Верифицирован
@@ -250,7 +250,7 @@ export function DriversManagement() {
                           <span className="px-2 py-0.5 rounded-xl text-xs font-semibold bg-red-100 text-red-600">🚫 Заблокирован</span>
                         )}
                       </div>
-                      <p className="text-xs text-gray-400 mt-0.5 truncate">{driver.email}</p>
+                      <p className="text-xs text-gray-400 mt-1 truncate">{driver.email}</p>
                       {driver.phone && <p className="text-xs text-gray-500 mt-0.5">{driver.phone}</p>}
                     </div>
 
@@ -288,7 +288,7 @@ export function DriversManagement() {
 
                   {/* Stats */}
                   <div className="mt-4 pt-3" style={{ borderTop: '1px solid #f0f4f8' }}>
-                    <div className="flex items-center gap-4 mb-3">
+                    <div className="flex items-center gap-4 mb-3 flex-wrap">
                       <div className="text-center">
                         <p className="text-xl font-black text-gray-900">{tripsCount}</p>
                         <p className="text-[11px] text-gray-500 font-medium">Поездок</p>
@@ -298,7 +298,7 @@ export function DriversManagement() {
                         <p className="text-[11px] text-gray-500 font-medium">Принято</p>
                       </div>
                       {driver.vehicle && (
-                        <div className="flex-1 text-right">
+                        <div className="flex-1 min-w-0 text-right">
                           <p className="text-xs font-semibold text-gray-700 truncate">
                             {driver.vehicle.model || driver.vehicle.type || '—'}
                           </p>
@@ -331,7 +331,7 @@ export function DriversManagement() {
 
                   {/* Expanded */}
                   {isExpanded && (
-                    <div className="mt-3 pt-3 grid grid-cols-2 gap-3" style={{ borderTop: '1px solid #f0f4f8' }}>
+                    <div className="mt-3 pt-3 grid grid-cols-1 sm:grid-cols-2 gap-3" style={{ borderTop: '1px solid #f0f4f8' }}>
                       {[
                         { label: 'Регистрация', value: driver.createdAt ? new Date(driver.createdAt).toLocaleDateString('ru-RU') : '—' },
                         { label: 'Город', value: driver.city || '—' },
@@ -344,7 +344,7 @@ export function DriversManagement() {
                         </div>
                       ))}
                       {driver.vehicle?.model && (
-                        <div className="col-span-2">
+                        <div className="col-span-1 sm:col-span-2">
                           <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1">Транспорт</p>
                           <p className="text-sm text-gray-900">
                             {[driver.vehicle.model, driver.vehicle.year, '•', driver.vehicle.plate].filter(Boolean).join(' ')}

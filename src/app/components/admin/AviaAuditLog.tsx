@@ -96,8 +96,8 @@ export function AviaAuditLog() {
         }
       />
 
-      <form onSubmit={handleSearch} className="bg-white rounded-2xl p-4 flex flex-wrap gap-3" style={{ border: '1px solid #f0f4f8' }}>
-        <div className="relative flex-1 min-w-[200px]">
+      <form onSubmit={handleSearch} className="bg-white rounded-2xl p-4 flex flex-col sm:flex-row sm:flex-wrap gap-3" style={{ border: '1px solid #f0f4f8' }}>
+        <div className="relative flex-1 sm:min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
@@ -111,7 +111,7 @@ export function AviaAuditLog() {
         <select
           value={actionFilter}
           onChange={e => { setActionFilter(e.target.value); setPage(0); }}
-          className="px-3 py-2.5 rounded-xl text-sm text-gray-700 outline-none"
+          className="w-full sm:w-auto px-3 py-2.5 rounded-xl text-sm text-gray-700 outline-none"
           style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
         >
           <option value="">Все действия</option>
@@ -119,7 +119,7 @@ export function AviaAuditLog() {
             <option key={k} value={k}>{v}</option>
           ))}
         </select>
-        <button type="submit" className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white" style={{ background: '#64748b' }}>
+        <button type="submit" className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-sm font-semibold text-white" style={{ background: '#64748b' }}>
           Найти
         </button>
       </form>
@@ -135,19 +135,24 @@ export function AviaAuditLog() {
         ) : (
           <div className="divide-y divide-gray-50">
             {entries.map(entry => (
-              <div key={entry.id} className="flex items-center gap-3 px-5 py-3">
+              <div key={entry.id} className="flex items-start gap-3 px-3 sm:px-5 py-3">
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-base" style={{ background: '#f1f5f9' }}>
                   {(ACTION_LABELS[entry.action] || '').slice(0, 2) || '•'}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900">{ACTION_LABELS[entry.action] || entry.action}</p>
-                  <p className="text-xs text-gray-400 truncate">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <p className="text-sm font-semibold text-gray-900">{ACTION_LABELS[entry.action] || entry.action}</p>
+                    <span className="text-xs text-gray-400 sm:hidden">
+                      {new Date(entry.timestamp).toLocaleString('ru-RU')}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-400 break-words">
                     {entry.actorPhone}
                     {entry.targetId && entry.targetId !== entry.actorPhone ? ` → ${entry.targetId}` : ''}
                     {entry.details && Object.keys(entry.details).length > 0 ? ` · ${JSON.stringify(entry.details)}` : ''}
                   </p>
                 </div>
-                <div className="text-xs text-gray-400 flex-shrink-0">
+                <div className="hidden sm:block text-xs text-gray-400 flex-shrink-0">
                   {new Date(entry.timestamp).toLocaleString('ru-RU')}
                 </div>
               </div>

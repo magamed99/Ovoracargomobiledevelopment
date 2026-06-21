@@ -189,7 +189,7 @@ export function CargosManagement() {
               return (
                 <div key={id}>
                   <div
-                    className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                    className="flex items-start sm:items-center gap-3 sm:gap-4 px-3 sm:px-5 py-3 sm:py-4 cursor-pointer hover:bg-gray-50 transition-colors"
                     onClick={() => setExpandedId(isExpanded ? null : id)}
                   >
                     <div className="flex-shrink-0">
@@ -211,20 +211,20 @@ export function CargosManagement() {
                           <span className="text-sm font-bold text-gray-900 ml-1">{cargo.budget} {cargo.currency || ''}</span>
                         )}
                       </div>
-                      <div className="flex items-center gap-4 text-xs text-gray-500 flex-wrap">
-                        <span className="flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />
-                          {cargo.from || '—'}
+                      <div className="flex items-center gap-2 sm:gap-4 text-xs text-gray-500 flex-wrap">
+                        <span className="flex items-center gap-1 min-w-0">
+                          <MapPin className="w-3 h-3 flex-shrink-0" />
+                          <span className="truncate">{cargo.from || '—'}</span>
                         </span>
                         <span className="text-gray-300">→</span>
-                        <span>{cargo.to || '—'}</span>
+                        <span className="truncate">{cargo.to || '—'}</span>
                         {cargo.cargoWeight && (
                           <span className="flex items-center gap-1">
                             <Weight className="w-3 h-3" />
                             {cargo.cargoWeight} кг
                           </span>
                         )}
-                        <span className="flex items-center gap-1 ml-auto">
+                        <span className="flex items-center gap-1 sm:ml-auto">
                           <Clock className="w-3 h-3" />
                           <RelTime iso={cargo.createdAt} />
                         </span>
@@ -232,13 +232,13 @@ export function CargosManagement() {
                     </div>
 
                     <ChevronDown
-                      className="w-4 h-4 text-gray-400 flex-shrink-0 transition-transform"
+                      className="w-4 h-4 text-gray-400 flex-shrink-0 transition-transform mt-1 sm:mt-0"
                       style={{ transform: isExpanded ? 'rotate(180deg)' : 'none' }}
                     />
                   </div>
 
                   {isExpanded && (
-                    <div className="px-5 pb-4 pt-3 grid grid-cols-2 md:grid-cols-3 gap-3" style={{ background: '#f8fafc', borderTop: '1px solid #f0f4f8' }}>
+                    <div className="px-3 sm:px-5 pb-4 pt-3 grid grid-cols-2 md:grid-cols-3 gap-3" style={{ background: '#f8fafc', borderTop: '1px solid #f0f4f8' }}>
                       {[
                         { label: 'Отправитель', value: cargo.senderName || '—' },
                         { label: 'Email отправителя', value: cargo.senderEmail || '—' },

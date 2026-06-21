@@ -175,7 +175,7 @@ export function TripsManagement() {
             { value: 'cancelled', label: '❌ Отменены',    count: statusCounts.cancelled },
           ]}
         />
-        <div className="flex gap-3 items-center">
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
@@ -235,7 +235,8 @@ export function TripsManagement() {
                 }}
               >
                 <div className="p-4">
-                  <div className="flex items-start gap-3">
+                  <div className="flex flex-col sm:flex-row items-start gap-3">
+                    <div className="flex items-start gap-3 flex-1 min-w-0 w-full">
                     {/* Status icon */}
                     <div
                       className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
@@ -247,7 +248,7 @@ export function TripsManagement() {
                     {/* Route */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <span className="font-bold text-gray-900 text-sm">
+                        <span className="font-bold text-gray-900 text-sm truncate">
                           {trip.from} → {trip.to}
                         </span>
                         <span
@@ -284,9 +285,10 @@ export function TripsManagement() {
                         </span>
                       </div>
                     </div>
+                    </div>
 
                     {/* Price + actions */}
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-2 flex-shrink-0 self-end sm:self-start">
                       {(trip.pricePerSeat || trip.pricePerKg) && (
                         <div
                           className="hidden sm:block px-3 py-1.5 rounded-xl text-right"
@@ -351,9 +353,9 @@ export function TripsManagement() {
                           </p>
                           <div className="space-y-1.5">
                             {tripOffers.slice(0, 5).map(offer => (
-                              <div key={offer.offerId} className="flex items-center gap-3 p-2 rounded-xl text-xs" style={{ background: '#f8fafc' }}>
+                              <div key={offer.offerId} className="flex items-center gap-2 sm:gap-3 p-2 rounded-xl text-xs flex-wrap" style={{ background: '#f8fafc' }}>
                                 <span
-                                  className="px-2 py-0.5 rounded-lg font-semibold"
+                                  className="px-2 py-0.5 rounded-lg font-semibold flex-shrink-0"
                                   style={
                                     offer.status === 'accepted' ? { background: '#f0fdf4', color: '#15803d' } :
                                     offer.status === 'pending'  ? { background: '#fffbeb', color: '#b45309' } :
@@ -362,8 +364,8 @@ export function TripsManagement() {
                                 >
                                   {offer.status === 'accepted' ? 'Принята' : offer.status === 'pending' ? 'Ожидает' : 'Отклонена'}
                                 </span>
-                                <span className="text-gray-700 flex-1">{offer.senderName || offer.senderEmail || '—'}</span>
-                                <span className="font-bold text-gray-900">{offer.price || '—'} ТЖС</span>
+                                <span className="text-gray-700 flex-1 min-w-0 truncate">{offer.senderName || offer.senderEmail || '—'}</span>
+                                <span className="font-bold text-gray-900 flex-shrink-0">{offer.price || '—'} ТЖС</span>
                               </div>
                             ))}
                             {tripOffers.length > 5 && (
