@@ -831,9 +831,7 @@ export function AviaDealsPage() {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
         >
-          <motion.div animate={{ rotate: refreshing ? 360 : 0 }} transition={refreshing ? { repeat: Infinity, duration: 0.8, ease: 'linear' } : {}}>
-            <RefreshCw style={{ width: 14, height: 14 }} />
-          </motion.div>
+          <RefreshCw style={{ width: 14, height: 14 }} className={refreshing ? 'animate-spin' : ''} />
         </button>
 
         {/* Bell — возврат на dashboard с бейджем */}
