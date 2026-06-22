@@ -106,6 +106,26 @@ app.use("/*", async (c, next) => {
 // Логика вынесена в adminAuth.tsx (юнит-тестируется отдельно от Hono/Deno-обвязки).
 type AdminRole = AdminRoleType;
 
+// ── JWT revocation (logout-all при компрометации) ───────────────────────────
+// KV: ovora:admin:jwt_revoked_at → number (Date.now() в момент revoke-all).
+// Любой admin-JWT с iat (сек) раньше этой метки считается отозванным независимо
+// от своего TTL (8ч) — даёт мгновенный «разлогинить всех админов» при утечке токена.
+// Fail-open при ошибке чтения KV: отзыв — defense-in-depth поверх подписи JWT,
+// а не единственная защита, поэтому сбой хранилища не должен блокировать всех админов.
+async function isAdminJwtRevoked(issuedAtSec: number): Promise<boolean> {
+  try {
+    const revokedAt = await kv.get('ovora:admin:jwt_revoked_at') as number | null;
+    if (!revokedAt) return false;
+    return issuedAtSec * 1000 < revokedAt;
+  } catch (err) {
+    console.warn('[AdminAuth] Не удалось проверить отзыв JWT (fail-open):', err);
+    return false;
+  }
+}
+async function requireAdminChecked(c: any, next: any) {
+  return await requireAdmin(c, next, isAdminJwtRevoked);
+}
+
 // Применяем middleware ко всем /admin/* и /kv/* маршрутам (КРОМЕ /admin/auth).
 // CARGO-эндпоинты доступны cargo-admin и super-admin (см. CLAUDE.md RBAC).
 app.use('/make-server-4e36197a/admin/*', async (c, next) => {
@@ -113,7 +133,7 @@ app.use('/make-server-4e36197a/admin/*', async (c, next) => {
   if (c.req.path === '/make-server-4e36197a/admin/auth') {
     return await next();
   }
-  return await requireAdmin(c, next);
+  return await requireAdminChecked(c, next);
 });
 app.use('/make-server-4e36197a/admin/*', async (c, next) => {
   if (c.req.path === '/make-server-4e36197a/admin/auth') {
@@ -123,11 +143,11 @@ app.use('/make-server-4e36197a/admin/*', async (c, next) => {
 });
 
 // Защищаем все /kv/* маршруты (они очень опасны — прямой доступ к БД)
-app.use('/make-server-4e36197a/kv/*', requireAdmin);
+app.use('/make-server-4e36197a/kv/*', requireAdminChecked);
 
 // Защищаем все /avia/admin/* маршруты (управление AVIA-пользователями/карточками/аудитом).
 // AVIA-эндпоинты доступны avia-admin и super-admin.
-app.use('/make-server-4e36197a/avia/admin/*', requireAdmin);
+app.use('/make-server-4e36197a/avia/admin/*', requireAdminChecked);
 app.use('/make-server-4e36197a/avia/admin/*', requireRole(['avia-admin']));
 
 // ── Supabase client (for storage) ─────────────────────────────────────────────
@@ -384,6 +404,20 @@ app.post("/make-server-4e36197a/admin/auth",
   }
 });
 
+// ── Admin: отозвать все выданные admin-JWT (logout-all при компрометации) ────
+// Под /admin/* — уже защищён глобальным requireAdminChecked; requireRole здесь
+// сужает доступ до super-admin (разлогинивает абсолютно всех, включая себя).
+app.post("/make-server-4e36197a/admin/auth/revoke-all", requireRole(['super-admin']), async (c) => {
+  try {
+    await kv.set('ovora:admin:jwt_revoked_at', Date.now());
+    console.warn('[AdminAuth] Все admin-JWT отозваны (logout-all) вызывающим super-admin');
+    return c.json({ success: true });
+  } catch (err) {
+    console.log('Error POST /admin/auth/revoke-all:', err);
+    return c.json({ success: false, error: `${err}` }, 500);
+  }
+});
+
 // ── Config: Yandex API Key ────────────────────────────────────────────────────
 app.get("/make-server-4e36197a/config/yandex-key", (c) => {
   try {
@@ -428,7 +462,7 @@ app.get("/make-server-4e36197a/config/ocr-status", (c) => {
 });
 
 // ── Direct OCR API Test (admin only) ─────────────────────────────────────────
-app.get("/make-server-4e36197a/config/test-ocr-direct", requireAdmin, async (c) => {
+app.get("/make-server-4e36197a/config/test-ocr-direct", requireAdminChecked, async (c) => {
   const apiKey = Deno.env.get('OCR_SPACE_API_KEY');
   
   console.log('[TEST] Starting direct OCR.space API test...');
@@ -1044,7 +1078,7 @@ app.put("/make-server-4e36197a/trips/:id", async (c) => {
     if (!existing) return c.json({ error: "Trip not found" }, 404);
 
     // ✅ FIX C-2: проверка владельца (пропускаем для admin-оверрайда — X-Admin-Code или JWT)
-    const isAdmin = await isAdminCaller(c);
+    const isAdmin = await isAdminCaller(c, isAdminJwtRevoked);
     if (!isAdmin) {
       const { callerEmail } = body;
       if (!callerEmail) {
@@ -1128,7 +1162,7 @@ app.delete("/make-server-4e36197a/trips/:id", async (c) => {
     if (!existing) return c.json({ error: "Trip not found" }, 404);
 
     // ✅ FIX C-2: проверка владельца (пропускаем для admin-оверрайда — X-Admin-Code или JWT)
-    const isAdmin = await isAdminCaller(c);
+    const isAdmin = await isAdminCaller(c, isAdminJwtRevoked);
     if (!isAdmin) {
       let callerEmail = '';
       try { callerEmail = (await c.req.json()).callerEmail || ''; } catch { /* тело может отсутствовать */ }
@@ -2764,7 +2798,7 @@ app.get("/make-server-4e36197a/chats/user/:email", async (c) => {
 });
 
 // Одноразовая очистка демо-чатов из KV
-app.delete("/make-server-4e36197a/chats/cleanup-demo", requireAdmin, async (c) => {
+app.delete("/make-server-4e36197a/chats/cleanup-demo", requireAdminChecked, async (c) => {
   try {
     const allMeta: any[] = await kv.getByPrefix(`ovora:chatmeta:`);
     const demoMetas = allMeta.filter(m => m?.chatId?.startsWith('demo_'));
@@ -4478,7 +4512,7 @@ app.post("/make-server-4e36197a/documents/analyze/:documentId", async (c) => {
 /**
  * 🧪 Test OCR endpoint - для тестирования распозна��ания документов
  */
-app.post("/make-server-4e36197a/test-ocr", requireAdmin, async (c) => {
+app.post("/make-server-4e36197a/test-ocr", requireAdminChecked, async (c) => {
   try {
     const { imageBase64, documentType } = await c.req.json();
 
@@ -5104,7 +5138,7 @@ app.put("/make-server-4e36197a/tracking/:tripId", async (c) => {
 });
 
 // DELETE shipment (hard delete from KV) — не используется клиентом, только админ
-app.delete("/make-server-4e36197a/tracking/:tripId", requireAdmin, async (c) => {
+app.delete("/make-server-4e36197a/tracking/:tripId", requireAdminChecked, async (c) => {
   try {
     const tripId = c.req.param("tripId");
     await kv.del(`ovora:shipment:${tripId}`);
@@ -5645,7 +5679,7 @@ app.get("/make-server-4e36197a/auth/backup/exists/:email", handleBackupExists);
 // ═══════════���══════════════════════════════════════════════════════════════════
 
 // Admin: upload ad media (image or video) to Supabase Storage
-app.post("/make-server-4e36197a/admin/ads/upload", requireAdmin, async (c) => {
+app.post("/make-server-4e36197a/admin/ads/upload", requireAdminChecked, async (c) => {
   try {
     const formData = await c.req.formData();
     const file = formData.get("file") as File | null;
@@ -5703,7 +5737,7 @@ app.get("/make-server-4e36197a/ads", async (c) => {
 });
 
 // Admin: get all ads (including inactive)
-app.get("/make-server-4e36197a/admin/ads", requireAdmin, async (c) => {
+app.get("/make-server-4e36197a/admin/ads", requireAdminChecked, async (c) => {
   try {
     const ads: any[] = await kv.getByPrefix("ovora:ad:");
     const sorted = ads.filter(a => a).sort((a: any, b: any) => (a.order ?? 999) - (b.order ?? 999));
@@ -5715,7 +5749,7 @@ app.get("/make-server-4e36197a/admin/ads", requireAdmin, async (c) => {
 });
 
 // Admin: create new ad
-app.post("/make-server-4e36197a/admin/ads", requireAdmin, async (c) => {
+app.post("/make-server-4e36197a/admin/ads", requireAdminChecked, async (c) => {
   try {
     const body = await c.req.json();
     const id = `ad_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -5745,7 +5779,7 @@ app.post("/make-server-4e36197a/admin/ads", requireAdmin, async (c) => {
 });
 
 // Admin: update ad
-app.put("/make-server-4e36197a/admin/ads/:id", requireAdmin, async (c) => {
+app.put("/make-server-4e36197a/admin/ads/:id", requireAdminChecked, async (c) => {
   try {
     const id = c.req.param("id");
     const body = await c.req.json();
@@ -5763,7 +5797,7 @@ app.put("/make-server-4e36197a/admin/ads/:id", requireAdmin, async (c) => {
 });
 
 // Admin: delete ad
-app.delete("/make-server-4e36197a/admin/ads/:id", requireAdmin, async (c) => {
+app.delete("/make-server-4e36197a/admin/ads/:id", requireAdminChecked, async (c) => {
   try {
     const id = c.req.param("id");
     await kv.del(`ovora:ad:${id}`);

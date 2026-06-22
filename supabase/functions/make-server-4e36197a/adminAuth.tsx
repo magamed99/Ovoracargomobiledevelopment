@@ -10,7 +10,12 @@ import { jwtVerify } from "npm:jose";
 
 export type AdminRole = 'super-admin' | 'cargo-admin' | 'avia-admin';
 
-export async function resolveAdminRole(c: any): Promise<AdminRole | null> {
+// Проверка отзыва JWT (logout-all при компрометации) — внедряется снаружи (index.ts
+// читает метку времени из KV), чтобы adminAuth.tsx оставался юнит-тестируемым без
+// реального хранилища: по умолчанию (без аргумента) проверка просто не выполняется.
+export type RevocationCheck = (issuedAtSec: number) => Promise<boolean>;
+
+export async function resolveAdminRole(c: any, isRevoked?: RevocationCheck): Promise<AdminRole | null> {
   // ── Primary: X-Admin-Code plaintext — всегда super-admin (backward-compat) ──
   const adminCode = (c.req.header('X-Admin-Code') || '').trim();
   if (adminCode) {
@@ -30,6 +35,10 @@ export async function resolveAdminRole(c: any): Promise<AdminRole | null> {
       try {
         const secret = new TextEncoder().encode(jwtSecret);
         const { payload } = await jwtVerify(adminToken, secret);
+        if (isRevoked && typeof payload.iat === 'number' && await isRevoked(payload.iat)) {
+          console.warn('[requireAdmin] Admin JWT revoked (issued before logout-all)');
+          return null;
+        }
         return (payload.role as AdminRole) || 'super-admin';
       } catch (err) {
         console.warn('[requireAdmin] Invalid/expired admin JWT:', err);
@@ -40,8 +49,8 @@ export async function resolveAdminRole(c: any): Promise<AdminRole | null> {
   return null;
 }
 
-export async function requireAdmin(c: any, next: any) {
-  const role = await resolveAdminRole(c);
+export async function requireAdmin(c: any, next: any, isRevoked?: RevocationCheck) {
+  const role = await resolveAdminRole(c, isRevoked);
   if (!role) {
     console.warn('[requireAdmin] No valid admin credentials for:', c.req.path);
     return c.json({ error: 'Unauthorized: Admin access required' }, 401);
@@ -68,6 +77,6 @@ export function requireRole(allowed: AdminRole[]) {
 // (владелец ресурса ИЛИ админ-оверрайд), где requireAdmin как middleware
 // не подходит, потому что обычные пользователи тоже должны иметь доступ.
 // Проверяет и X-Admin-Code, и X-Admin-Token, как requireAdmin.
-export async function isAdminCaller(c: any): Promise<boolean> {
-  return (await resolveAdminRole(c)) !== null;
+export async function isAdminCaller(c: any, isRevoked?: RevocationCheck): Promise<boolean> {
+  return (await resolveAdminRole(c, isRevoked)) !== null;
 }

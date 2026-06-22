@@ -16,7 +16,7 @@ function makeContext(headers: Record<string, string> = {}) {
 }
 
 async function signRoleToken(role: string, secret: string) {
-  return await new SignJWT({ role }).setProtectedHeader({ alg: 'HS256' }).sign(new TextEncoder().encode(secret));
+  return await new SignJWT({ role }).setProtectedHeader({ alg: 'HS256' }).setIssuedAt().sign(new TextEncoder().encode(secret));
 }
 
 describe('resolveAdminRole', () => {
@@ -75,6 +75,26 @@ describe('resolveAdminRole', () => {
   it('возвращает null без заголовков', async () => {
     const c = makeContext();
     expect(await resolveAdminRole(c)).toBeNull();
+  });
+
+  it('отказывает, если токен отозван (logout-all) — isRevoked возвращает true', async () => {
+    const token = await signRoleToken('cargo-admin', process.env.ADMIN_JWT_SECRET!);
+    const c = makeContext({ 'X-Admin-Token': token });
+    const isRevoked = async () => true;
+    expect(await resolveAdminRole(c, isRevoked)).toBeNull();
+  });
+
+  it('пропускает токен, если isRevoked возвращает false', async () => {
+    const token = await signRoleToken('cargo-admin', process.env.ADMIN_JWT_SECRET!);
+    const c = makeContext({ 'X-Admin-Token': token });
+    const isRevoked = async () => false;
+    expect(await resolveAdminRole(c, isRevoked)).toBe('cargo-admin');
+  });
+
+  it('без isRevoked не выполняет проверку отзыва (обратная совместимость)', async () => {
+    const token = await signRoleToken('cargo-admin', process.env.ADMIN_JWT_SECRET!);
+    const c = makeContext({ 'X-Admin-Token': token });
+    expect(await resolveAdminRole(c)).toBe('cargo-admin');
   });
 });
 

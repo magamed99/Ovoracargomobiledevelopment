@@ -515,6 +515,10 @@ export async function searchAdmin(q: string) {
   return req('GET', `/admin/search?q=${encodeURIComponent(q)}`);
 }
 
+export async function revokeAllAdminSessions() {
+  return req('POST', '/admin/auth/revoke-all');
+}
+
 // ── Admin documents ────────────────────────────────────────────────
 export async function getAdminDocuments() {
   const data = await req('GET', '/admin/documents');

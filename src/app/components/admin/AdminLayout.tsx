@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { YandexMetrikaTracker } from '../YandexMetrika';
-import { getAdminStats, searchAdmin } from '../../api/dataApi';
+import { getAdminStats, searchAdmin, revokeAllAdminSessions } from '../../api/dataApi';
 import { usePolling } from '../../hooks/usePolling';
 import { AdminAuthGate } from './AdminAuthGate';
 import { PLATFORM_THEME, GROUP_PLATFORM } from './platformTheme';
@@ -367,6 +367,27 @@ export function AdminLayout() {
               </p>
             </div>
           </div>
+          {adminRole === 'super-admin' && (
+            <button
+              onClick={async () => {
+                if (!window.confirm('Отозвать все выданные admin-токены? Все админы (включая вас) будут разлогинены немедленно.')) return;
+                try {
+                  await revokeAllAdminSessions();
+                } catch (err) {
+                  console.error('[AdminLayout] revoke-all failed:', err);
+                }
+                sessionStorage.removeItem(PIN_SESSION_KEY);
+                sessionStorage.removeItem('ovora_admin_token');
+                sessionStorage.removeItem('ovora_admin_jwt');
+                sessionStorage.removeItem('ovora_admin_role');
+                window.location.reload();
+              }}
+              className="flex items-center gap-2 w-full px-3 py-2 text-xs font-medium rounded-xl transition-colors text-gray-400 hover:text-orange-500 hover:bg-orange-50"
+            >
+              <ShieldOff className="w-3.5 h-3.5" />
+              Завершить все сессии
+            </button>
+          )}
           <button
             onClick={() => {
               sessionStorage.removeItem(PIN_SESSION_KEY);
