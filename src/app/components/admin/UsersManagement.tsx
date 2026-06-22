@@ -67,6 +67,8 @@ export function UsersManagement() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
   const [searchParams] = useSearchParams();
 
   // Переход из глобального поиска в шапке админки (AdminLayout) — подставляем
@@ -119,6 +121,44 @@ export function UsersManagement() {
     }
   };
 
+  const toggleSelect = (email: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(email) ? next.delete(email) : next.add(email);
+      return next;
+    });
+  };
+
+  const handleBulkStatus = async (status: 'blocked' | 'active') => {
+    if (selected.size === 0) return;
+    if (!confirm(`${status === 'blocked' ? 'Заблокировать' : 'Разблокировать'} ${selected.size} пользователей?`)) return;
+    setBulkLoading(true);
+    const emails = Array.from(selected);
+    const results = await Promise.allSettled(emails.map(email => setUserStatus(email, status)));
+    const okEmails = emails.filter((_, i) => results[i].status === 'fulfilled');
+    setUsers(prev => prev.map(u => okEmails.includes(u.email) ? { ...u, status } : u));
+    const failed = results.length - okEmails.length;
+    if (okEmails.length) toast.success(`Обновлено: ${okEmails.length}`);
+    if (failed) toast.error(`Не удалось обновить: ${failed}`);
+    setSelected(new Set());
+    setBulkLoading(false);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selected.size === 0) return;
+    if (!confirm(`Удалить ${selected.size} пользователей? Это нельзя отменить.`)) return;
+    setBulkLoading(true);
+    const emails = Array.from(selected);
+    const results = await Promise.allSettled(emails.map(email => deleteUser(email)));
+    const okEmails = emails.filter((_, i) => results[i].status === 'fulfilled');
+    setUsers(prev => prev.filter(u => !okEmails.includes(u.email)));
+    const failed = results.length - okEmails.length;
+    if (okEmails.length) toast.success(`Удалено: ${okEmails.length}`);
+    if (failed) toast.error(`Не удалось удалить: ${failed}`);
+    setSelected(new Set());
+    setBulkLoading(false);
+  };
+
   const drivers = users.filter(u => u?.role === 'driver').length;
   const senders = users.filter(u => u?.role === 'sender').length;
   const blocked = users.filter(u => u?.status === 'blocked').length;
@@ -144,6 +184,11 @@ export function UsersManagement() {
       const tb = new Date(b.createdAt || 0).getTime();
       return sortDir === 'asc' ? ta - tb : tb - ta;
     });
+
+  const allVisibleSelected = filtered.length > 0 && filtered.every(u => selected.has(u.email));
+  const toggleSelectAll = () => {
+    setSelected(allVisibleSelected ? new Set() : new Set(filtered.map(u => u.email)));
+  };
 
   return (
     <div className="space-y-5">
@@ -241,6 +286,49 @@ export function UsersManagement() {
         </div>
       </div>
 
+      {/* ── Bulk actions ── */}
+      {selected.size > 0 && (
+        <div
+          className="flex flex-wrap items-center gap-3 px-4 py-3 rounded-2xl"
+          style={{ background: '#f5f3ff', border: '1px solid #ddd6fe' }}
+        >
+          <span className="text-sm font-semibold text-violet-700">Выбрано: {selected.size}</span>
+          <div className="flex items-center gap-2 ml-auto">
+            <button
+              disabled={bulkLoading}
+              onClick={() => handleBulkStatus('blocked')}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl transition-colors disabled:opacity-50"
+              style={{ background: '#fff7ed', color: '#c2410c' }}
+            >
+              <UserX className="w-3.5 h-3.5" /> Заблокировать
+            </button>
+            <button
+              disabled={bulkLoading}
+              onClick={() => handleBulkStatus('active')}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl transition-colors disabled:opacity-50"
+              style={{ background: '#ecfdf5', color: '#047857' }}
+            >
+              <UserCheck className="w-3.5 h-3.5" /> Разблокировать
+            </button>
+            <button
+              disabled={bulkLoading}
+              onClick={handleBulkDelete}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl transition-colors disabled:opacity-50"
+              style={{ background: '#fef2f2', color: '#dc2626' }}
+            >
+              <Trash2 className="w-3.5 h-3.5" /> Удалить
+            </button>
+            <button
+              disabled={bulkLoading}
+              onClick={() => setSelected(new Set())}
+              className="px-3 py-1.5 text-xs font-semibold rounded-xl text-gray-500 hover:bg-gray-100 transition-colors disabled:opacity-50"
+            >
+              Снять выделение
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── List ── */}
       <div className="bg-white rounded-2xl overflow-hidden" style={{ border: '1px solid #f0f4f8' }}>
         {loading ? (
@@ -253,16 +341,33 @@ export function UsersManagement() {
           </div>
         ) : (
           <div className="divide-y divide-gray-50">
+            <div className="flex items-center gap-3 px-4 sm:px-5 py-2" style={{ background: '#f8fafc' }}>
+              <input
+                type="checkbox"
+                checked={allVisibleSelected}
+                onChange={toggleSelectAll}
+                className="w-4 h-4 rounded cursor-pointer accent-violet-600"
+              />
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Выбрать все</span>
+            </div>
             {filtered.map(user => {
               const isBlocked = user.status === 'blocked';
               const isExpanded = expandedId === user.email;
               const isLoading = actionLoading === user.email;
+              const isSelected = selected.has(user.email);
               const initials = `${(user.firstName || '?')[0]}${(user.lastName || '?')[0]}`.toUpperCase();
               const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
 
               return (
-                <div key={user.email} style={{ background: isBlocked ? '#fef2f210' : undefined }}>
+                <div key={user.email} style={{ background: isSelected ? '#f5f3ff' : isBlocked ? '#fef2f210' : undefined }}>
                   <div className="flex items-start sm:items-center gap-3 px-4 sm:px-5 py-3.5 hover:bg-gray-50 transition-colors">
+                    {/* Checkbox */}
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleSelect(user.email)}
+                      className="w-4 h-4 rounded cursor-pointer accent-violet-600 flex-shrink-0"
+                    />
                     {/* Avatar */}
                     <div
                       className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 overflow-hidden"
