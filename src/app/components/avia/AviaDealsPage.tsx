@@ -646,6 +646,8 @@ export function AviaDealsPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>('active');
   const [highlightDealId, setHighlightDealId] = useState<string | null>(null);
+  const DEALS_PAGE_SIZE = 20;
+  const [visibleCount, setVisibleCount] = useState(DEALS_PAGE_SIZE);
 
   // Чат перенесён на /avia/messages
 
@@ -695,6 +697,8 @@ export function AviaDealsPage() {
     if (!target) return;
     setActiveTab(dealBucket(target));
     setHighlightDealId(dealIdParam);
+    // Сделка может быть за пределами текущей "страницы" — показываем весь список вкладки
+    setVisibleCount(Number.MAX_SAFE_INTEGER);
     const scrollTimer = setTimeout(() => {
       document.getElementById(`deal-${dealIdParam}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 100);
@@ -728,6 +732,11 @@ export function AviaDealsPage() {
     }
     return items;
   }, [filtered]);
+
+  // ── Пагинация ("Показать ещё") — список может расти неограниченно ──────────
+  useEffect(() => { setVisibleCount(DEALS_PAGE_SIZE); }, [activeTab]);
+  const visibleItems = renderItems.slice(0, visibleCount);
+  const hasMore = renderItems.length > visibleItems.length;
 
   // ── Badges ────────────────────────────────────────────────────────────────
   const activeCount    = deals.filter(d => dealBucket(d) === 'active').length;
@@ -942,34 +951,48 @@ export function AviaDealsPage() {
             </p>
           </motion.div>
         ) : (
-          <AnimatePresence>
-            {renderItems.map(item => item.kind === 'flightGroup' ? (
-              <FlightGroupCard key={`flight-${item.deals[0].adId}`} deals={item.deals} />
-            ) : (
-              <div
-                key={item.deal.id}
-                id={`deal-${item.deal.id}`}
-                style={highlightDealId === item.deal.id ? {
-                  borderRadius: 20, outline: '2px solid #34d399', outlineOffset: 2,
-                  transition: 'outline-color 0.3s',
-                } : undefined}
+          <>
+            <AnimatePresence>
+              {visibleItems.map(item => item.kind === 'flightGroup' ? (
+                <FlightGroupCard key={`flight-${item.deals[0].adId}`} deals={item.deals} />
+              ) : (
+                <div
+                  key={item.deal.id}
+                  id={`deal-${item.deal.id}`}
+                  style={highlightDealId === item.deal.id ? {
+                    borderRadius: 20, outline: '2px solid #34d399', outlineOffset: 2,
+                    transition: 'outline-color 0.3s',
+                  } : undefined}
+                >
+                  <DealCard
+                    deal={item.deal}
+                    myPhone={myPhone}
+                    onAccept={handleAccept}
+                    onReject={handleReject}
+                    onCancel={handleCancel}
+                    onComplete={handleComplete}
+                    onOpenChat={handleOpenChat}
+                    onReview={handleReview}
+                    onPODUploaded={handlePODUploaded}
+                    onDeleteStuck={handleDeleteStuck}
+                    alreadyReviewed={!!reviewedDeals[item.deal.id]}
+                  />
+                </div>
+              ))}
+            </AnimatePresence>
+            {hasMore && (
+              <button
+                onClick={() => setVisibleCount(c => c + DEALS_PAGE_SIZE)}
+                style={{
+                  display: 'block', width: '100%', marginTop: 4, padding: '12px',
+                  borderRadius: 14, border: '1px solid #ffffff10', background: '#ffffff06',
+                  color: '#8aa3ba', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                }}
               >
-                <DealCard
-                  deal={item.deal}
-                  myPhone={myPhone}
-                  onAccept={handleAccept}
-                  onReject={handleReject}
-                  onCancel={handleCancel}
-                  onComplete={handleComplete}
-                  onOpenChat={handleOpenChat}
-                  onReview={handleReview}
-                  onPODUploaded={handlePODUploaded}
-                  onDeleteStuck={handleDeleteStuck}
-                  alreadyReviewed={!!reviewedDeals[item.deal.id]}
-                />
-              </div>
-            ))}
-          </AnimatePresence>
+                Показать ещё ({renderItems.length - visibleItems.length})
+              </button>
+            )}
+          </>
         )}
       </div>
 
