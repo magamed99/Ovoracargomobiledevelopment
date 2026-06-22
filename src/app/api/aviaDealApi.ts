@@ -58,6 +58,8 @@ export interface AviaDeal {
   podPhotos?: AviaPODPhoto[];
   /** Статус рейса (только для adType === 'flight') — подмешивается бэкендом в /avia/deals/user/:phone */
   flightStatus?: string;
+  /** Напоминание о зависшей в pending сделке (>24ч) уже отправлено — выставляется бэкендом */
+  reminderSent?: boolean;
 }
 
 export type AviaPODPhotoType = 'pickup' | 'delivery';

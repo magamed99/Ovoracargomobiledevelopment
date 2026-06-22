@@ -147,6 +147,8 @@ export interface AviaDeal {
   cancelReason   ?: string;
   deletedAt      ?: string;
   podPhotos      ?: AviaPODPhoto[];
+  /** Напоминание о зависшей в pending сделке (>24ч) уже отправлено — чтобы не дублировать */
+  reminderSent   ?: boolean;
 }
 
 export interface AviaPODPhoto {

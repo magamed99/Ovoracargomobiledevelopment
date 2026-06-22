@@ -1258,6 +1258,25 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
         enriched.push(d.adType === 'flight' ? { ...d, flightStatus: flightStatusById[d.adId] } : d);
       }
 
+      // Напоминание о зависшей в pending сделке (>24ч без ответа получателя).
+      // Нет cron в Supabase Edge Functions — проверяем лениво на каждой загрузке
+      // списка сделок (любым из участников) и шлём один раз получателю,
+      // отмечая reminderSent, чтобы не дублировать при повторных загрузках.
+      const PENDING_REMINDER_MS = 24 * 60 * 60 * 1000;
+      for (const d of enriched) {
+        if (d.status !== 'pending' || d.reminderSent) continue;
+        if (Date.now() - new Date(d.createdAt).getTime() < PENDING_REMINDER_MS) continue;
+        await Deals.set(d.id, { ...d, reminderSent: true });
+        d.reminderSent = true;
+        await Notifs.push(d.recipientPhone, {
+          id: aviaId('deal_reminder'), phone: d.recipientPhone, type: 'reminder',
+          iconName: 'Clock', iconBg: 'bg-amber-500/10 text-amber-400',
+          title: 'Предложение ждёт ответа',
+          description: `${d.initiatorName || d.initiatorPhone} предложил сделку по маршруту ${d.adFrom} → ${d.adTo} больше суток назад`,
+          isUnread: true, createdAt: now, meta: { dealId: d.id },
+        });
+      }
+
       return c.json({ deals: enriched });
     } catch (err) {
       console.log('Error GET /avia/deals/user/:phone:', err);
