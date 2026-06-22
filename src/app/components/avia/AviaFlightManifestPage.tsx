@@ -130,7 +130,7 @@ function ManifestRow({
               ? (deal.senderName || 'Отправитель')
               : (deal.courierName || 'Курьер')}
           </div>
-          <div style={{ fontSize: 10, color: '#3d5268', fontWeight: 600 }}>
+          <div style={{ fontSize: 10, color: '#8aa3ba', fontWeight: 600 }}>
             {maskPhone(chatPhone)}
           </div>
         </div>

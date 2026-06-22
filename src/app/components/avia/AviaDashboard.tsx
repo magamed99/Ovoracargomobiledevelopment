@@ -315,7 +315,7 @@ function FlightCard({
           }}>
             <User style={{ width: 10, height: 10, color: isDone ? '#4a6080' : '#0ea5e9' }} />
           </div>
-          <span style={{ fontSize: 11, color: '#4a6080', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 11, color: '#8aa3ba', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {flight.courierName || maskPhone(flight.courierId)}
           </span>
         </div>
@@ -849,7 +849,7 @@ export function AviaDashboard() {
             <div className="hidden md:block" style={{ fontSize: 18, fontWeight: 800, color: '#e2eaf3', letterSpacing: '-0.3px', lineHeight: 1 }}>
               Главная
             </div>
-            <div style={{ fontSize: 10, color: '#1e3a55', fontWeight: 600, marginTop: 3 }}>
+            <div style={{ fontSize: 10, color: '#8aa3ba', fontWeight: 600, marginTop: 3 }}>
               {user.firstName
                 ? `${user.firstName} ${user.lastName || ''}`.trim()
                 : maskPhone(myPhone)}
