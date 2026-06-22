@@ -758,6 +758,10 @@ export function DriverTripsPage() {
           onClick={() => setConfirmModal(null)}>
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
           <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="driver-confirm-modal-title"
+            aria-describedby="driver-confirm-modal-message"
             className="relative w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl"
             style={{ background: '#162030', border: '1px solid #1e2d3d' }}
             onClick={e => e.stopPropagation()}
@@ -772,10 +776,10 @@ export function DriverTripsPage() {
                   ? <AlertTriangle style={{ width: 24, height: 24, color: '#f87171' }} />
                   : <CheckCircle2 style={{ width: 24, height: 24, color: '#5ba3f5' }} />}
               </div>
-              <h3 className="text-[17px] font-black text-white text-center mb-2">
+              <h3 id="driver-confirm-modal-title" className="text-[17px] font-black text-white text-center mb-2">
                 {confirmModal.title}
               </h3>
-              <p className="text-[13px] text-center leading-relaxed" style={{ color: '#607080' }}>
+              <p id="driver-confirm-modal-message" className="text-[13px] text-center leading-relaxed" style={{ color: '#607080' }}>
                 {confirmModal.msg}
               </p>
             </div>

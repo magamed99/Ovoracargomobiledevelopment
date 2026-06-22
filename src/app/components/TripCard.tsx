@@ -254,6 +254,10 @@ function ConfirmDialog({ open, title, message, confirmLabel, confirmColor = 'ros
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onCancel}>
       <motion.div
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="tripcard-confirm-title"
+        aria-describedby="tripcard-confirm-message"
         initial={{ opacity: 0, scale: 0.92 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.92 }}
@@ -261,8 +265,8 @@ function ConfirmDialog({ open, title, message, confirmLabel, confirmColor = 'ros
         className="w-full max-w-[320px] rounded-2xl bg-[#0f1f35] border border-white/[0.1] p-5 space-y-4 shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
-        <h3 className="text-[15px] font-bold text-white">{title}</h3>
-        <p className="text-[13px] text-[#8a9baa] leading-relaxed">{message}</p>
+        <h3 id="tripcard-confirm-title" className="text-[15px] font-bold text-white">{title}</h3>
+        <p id="tripcard-confirm-message" className="text-[13px] text-[#8a9baa] leading-relaxed">{message}</p>
         <div className="flex gap-2">
           <button
             onClick={onCancel}

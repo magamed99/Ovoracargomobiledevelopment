@@ -651,7 +651,7 @@ export function SenderTripsPage() {
       {confirmModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center" onClick={() => setConfirmModal(null)}>
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-          <div className="relative w-full max-w-sm mx-4 rounded-3xl shadow-2xl bg-[#162030] overflow-hidden" onClick={e => e.stopPropagation()}>
+          <div role="alertdialog" aria-modal="true" aria-labelledby="confirm-modal-title" aria-describedby="confirm-modal-message" className="relative w-full max-w-sm mx-4 rounded-3xl shadow-2xl bg-[#162030] overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="px-6 pt-6 pb-2">
               <div className="flex items-start gap-3">
                 {confirmModal.isDanger && (
@@ -660,8 +660,8 @@ export function SenderTripsPage() {
                   </div>
                 )}
                 <div>
-                  <h3 className="text-base font-bold text-white">{confirmModal.title}</h3>
-                  <p className="text-sm text-[#475569] mt-1">{confirmModal.message}</p>
+                  <h3 id="confirm-modal-title" className="text-base font-bold text-white">{confirmModal.title}</h3>
+                  <p id="confirm-modal-message" className="text-sm text-[#475569] mt-1">{confirmModal.message}</p>
                 </div>
               </div>
             </div>
