@@ -283,6 +283,34 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       if (!updated) return c.json({ error: 'User not found' }, 404);
       await AuditLog.record({ action: 'user.profile_update', actorPhone: clean, targetId: clean, targetType: 'user', details: { fields: Object.keys(updates) } });
 
+      // Каскадное обновление денормализованного имени (initiatorName/recipientName/
+      // courierName/senderName) в активных сделках и courierName в активных рейсах —
+      // иначе после переименования в профиле собеседники продолжат видеть старое имя
+      // в чате/манифесте/уведомлениях до завершения сделки.
+      if (updates.firstName !== undefined || updates.lastName !== undefined) {
+        const newName = `${updated.firstName || ''} ${updated.lastName || ''}`.trim() || clean;
+        const now = new Date().toISOString();
+
+        const deals = await Deals.listByUser(clean);
+        for (const d of deals) {
+          if (d.status !== 'pending' && d.status !== 'accepted') continue;
+          const patch: Partial<AviaDeal> = {};
+          if (d.initiatorPhone === clean) patch.initiatorName = newName;
+          if (d.recipientPhone === clean) patch.recipientName = newName;
+          if (d.courierId === clean) patch.courierName = newName;
+          if (d.senderId === clean) patch.senderName = newName;
+          if (Object.keys(patch).length > 0) {
+            await Deals.set(d.id, { ...d, ...patch, updatedAt: now });
+          }
+        }
+
+        const flights = await Flights.listByCourier(clean);
+        for (const f of flights) {
+          if (f.isDeleted || f.status === 'closed' || f.status === 'completed') continue;
+          await Flights.set(f.id, { ...f, courierName: newName, updatedAt: now });
+        }
+      }
+
       console.log(`[AVIA] Profile updated: ${clean}`);
       return c.json({ success: true, user: updated });
     } catch (err) {
