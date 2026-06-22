@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { useNavigate } from 'react-router';
 import { Plane, User, Package, ShieldAlert, ShieldX, Calendar, Plus, RefreshCw, ArrowRight, AlertTriangle, Phone, Copy, Check, XCircle, SlidersHorizontal, X, Search, ArrowDown, Bell, MessageCircle, Handshake, FileText, ClipboardList, Zap } from 'lucide-react';
 import { NotificationCenter } from './NotificationCenter';
@@ -148,7 +148,7 @@ function ContactButton({ phone, accentColor }: { phone: string; accentColor: str
 
 // ── Карточка рейса ────────────────────────────────────────────────────────────
 
-function FlightCard({
+const FlightCard = memo(function FlightCard({
   flight, isMine, onDetail, onChat, onOffer, chatUnread, hasMyDeal,
 }: {
   flight: AviaFlight;
@@ -409,7 +409,7 @@ function FlightCard({
     </motion.div>
     </>
   );
-}
+});
 
 // ── Пустой стейт ──────────────────────────────────────────────────────────────
 
@@ -560,7 +560,7 @@ export function AviaDashboard() {
   // ── Пакет H: Чат → навигация на /avia/messages ────────────────────────────
   const { chatUnreadCount } = useAvia();
 
-  const handleOpenChat = (otherPhone: string, adRef: AviaChatAdRef) => {
+  const handleOpenChat = useCallback((otherPhone: string, adRef: AviaChatAdRef) => {
     const chatId = makeAviaChatId(user!.phone, otherPhone);
     const params = new URLSearchParams({
       chatId, otherPhone,
@@ -569,7 +569,7 @@ export function AviaDashboard() {
       ...(adRef.date ? { adDate: adRef.date } : {}),
     });
     navigate(`/avia/messages?${params.toString()}`);
-  };
+  }, [user, navigate]);
 
   // ── Пакет E+F: Поиск + Сортировка ──
   const [searchQuery, setSearchQuery] = useState('');
@@ -1334,7 +1334,7 @@ export function AviaDashboard() {
                           onDetail={setDetailFlight}
                           onChat={f.courierId !== myPhone ? handleOpenChat : undefined}
                           onOffer={f.courierId !== myPhone && user.role === 'sender'
-                            ? (fl) => setDealOfferFlight(fl) : undefined}
+                            ? setDealOfferFlight : undefined}
                           chatUnread={f.courierId !== myPhone ? (chatUnreadByPhone.current[f.courierId] || 0) : undefined}
                           hasMyDeal={f.courierId !== myPhone && myDealFlightIds.has(f.id)}
                         />

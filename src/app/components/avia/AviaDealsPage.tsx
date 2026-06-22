@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -85,7 +85,7 @@ function maskPhone(phone: string) {
 
 // ── Карточка сделки ──────────────────────────────────────────────────────────
 
-function DealCard({
+const DealCard = memo(function DealCard({
   deal,
   myPhone,
   onAccept, onReject, onCancel, onComplete, onOpenChat, onReview, onPODUploaded, onDeleteStuck,
@@ -538,13 +538,13 @@ function DealCard({
       )}
     </motion.div>
   );
-}
+});
 
 // ── Карточка рейса с несколькими отправителями ────────────────────────────────
 // Когда у одного рейса несколько принятых/завершённых сделок (разные отправители),
 // показываем одну карточку рейса вместо дублей — детали каждого отправителя (фото
 // получения/передачи) находятся на странице манифеста.
-function FlightGroupCard({ deals }: { deals: AviaDeal[] }) {
+const FlightGroupCard = memo(function FlightGroupCard({ deals }: { deals: AviaDeal[] }) {
   const navigate = useNavigate();
   const first = deals[0];
   const allCompleted = deals.every(d => effectiveDealStatus(d) === 'completed');
@@ -631,7 +631,7 @@ function FlightGroupCard({ deals }: { deals: AviaDeal[] }) {
       </button>
     </motion.div>
   );
-}
+});
 
 // ── Главный компонент ─────────────────────────────────────────────────────────
 
@@ -744,52 +744,52 @@ export function AviaDealsPage() {
   const cancelledCount = deals.filter(d => dealBucket(d) === 'cancelled').length;
 
   // ── Handlers ──────────────────────────────────────────────────────────────
-  const handleAccept = async (id: string) => {
+  const handleAccept = useCallback(async (id: string) => {
     const res = await acceptAviaDeal(id, myPhone);
     if (!res.success) { toast.error(res.error || 'Ошибка принятия'); return; }
     toast.success('Предложение принято! Свяжитесь через чат.');
     setDeals(prev => prev.map(d => d.id === id ? { ...d, status: 'accepted', acceptedAt: new Date().toISOString() } : d));
-  };
+  }, [myPhone]);
 
-  const handleReject = async (id: string) => {
+  const handleReject = useCallback(async (id: string) => {
     const res = await rejectAviaDeal(id, myPhone);
     if (!res.success) { toast.error(res.error || 'Ошибка отклонения'); return; }
     toast('Предложение отклонено');
     setDeals(prev => prev.map(d => d.id === id ? { ...d, status: 'rejected', rejectedAt: new Date().toISOString() } : d));
-  };
+  }, [myPhone]);
 
-  const handleCancel = async (id: string) => {
+  const handleCancel = useCallback(async (id: string) => {
     const res = await cancelAviaDeal(id, myPhone);
     if (!res.success) { toast.error(res.error || 'Ошибка отмены'); return; }
     toast('Предложение отменено');
     setDeals(prev => prev.map(d => d.id === id ? { ...d, status: 'cancelled', cancelledAt: new Date().toISOString() } : d));
-  };
+  }, [myPhone]);
 
-  const handleComplete = async (id: string) => {
+  const handleComplete = useCallback(async (id: string) => {
     const res = await completeAviaDeal(id, myPhone);
     if (!res.success) { toast.error(res.error || 'Ошибка завершения'); return; }
     toast.success('Сделка завершена!');
     setDeals(prev => prev.map(d => d.id === id ? { ...d, status: 'completed', completedAt: new Date().toISOString() } : d));
-  };
+  }, [myPhone]);
 
-  const handleDeleteStuck = async (id: string) => {
+  const handleDeleteStuck = useCallback(async (id: string) => {
     const res = await deleteAviaDealsByIds([id], myPhone);
     if (!res.success) { toast.error(res.error || 'Ошибка удаления'); return; }
     toast('Сделка удалена');
     setDeals(prev => prev.filter(d => d.id !== id));
-  };
+  }, [myPhone]);
 
-  const handleOpenChat = (otherPhone: string) => {
+  const handleOpenChat = useCallback((otherPhone: string) => {
     const chatId = makeAviaChatId(myPhone, otherPhone);
     const params = new URLSearchParams({ chatId, otherPhone });
     navigate(`/avia/messages?${params.toString()}`);
-  };
+  }, [myPhone, navigate]);
 
-  const handleReview = (deal: AviaDeal) => setReviewDeal(deal);
+  const handleReview = useCallback((deal: AviaDeal) => setReviewDeal(deal), []);
 
-  const handlePODUploaded = (dealId: string, photo: AviaPODPhoto) => {
+  const handlePODUploaded = useCallback((dealId: string, photo: AviaPODPhoto) => {
     setDeals(prev => prev.map(d => d.id === dealId ? { ...d, podPhotos: [...(d.podPhotos || []), photo] } : d));
-  };
+  }, []);
 
   const handleReviewed = (dealId: string) => {
     setReviewedDeals(prev => ({ ...prev, [dealId]: true }));
