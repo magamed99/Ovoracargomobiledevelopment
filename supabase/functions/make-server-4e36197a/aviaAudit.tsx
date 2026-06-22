@@ -19,7 +19,8 @@ export type AviaAuditAction =
   | 'flight.start' | 'flight.close' | 'flight.complete'
   | 'deal.create' | 'deal.accept' | 'deal.reject' | 'deal.cancel' | 'deal.complete'
   | 'deal.pod_upload' | 'deal.delete' | 'deal.admin_delete'
-  | 'chat.delete';
+  | 'chat.delete'
+  | 'blacklist.admin_remove';
 
 export interface AviaAuditEntry {
   id        : string;
@@ -28,7 +29,7 @@ export interface AviaAuditEntry {
   actorPhone: string;
   /** Затронутый объект (dealId / flightId / phone пользователя) */
   targetId  ?: string;
-  targetType?: 'deal' | 'flight' | 'user' | 'chat';
+  targetType?: 'deal' | 'flight' | 'user' | 'chat' | 'blacklist';
   details   ?: Record<string, unknown>;
 }
 

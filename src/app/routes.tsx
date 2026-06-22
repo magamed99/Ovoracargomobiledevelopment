@@ -433,6 +433,11 @@ export const router = createBrowserRouter([
             lazy: () => import("./components/admin/AviaAuditLog")
               .then(m => ({ Component: m.AviaAuditLog })),
           },
+          {
+            path: "avia/blacklist",
+            lazy: () => import("./components/admin/AviaBlacklistManagement")
+              .then(m => ({ Component: m.AviaBlacklistManagement })),
+          },
         ],
       },
 

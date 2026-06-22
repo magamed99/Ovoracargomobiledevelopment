@@ -2011,5 +2011,40 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
     }
   });
 
+  // ══════════════════════════════════════════════════════════════════════════
+  //  ADMIN — BLACKLIST (AVIA-срез общего чёрного списка)
+  //  Без этих эндпоинтов avia-admin не имел доступа к чёрному списку вообще:
+  //  /admin/blacklist в index.ts защищён requireRole(['cargo-admin']), куда
+  //  avia-admin не входит.
+  // ══════════════════════════════════════════════════════════════════════════
+
+  app.get(`${P}/admin/blacklist`, async (c) => {
+    try {
+      const all = await Blacklist.listAll();
+      const entries = all.filter(e => e.source === 'avia');
+      return c.json({ entries });
+    } catch (err) {
+      console.log('Error GET /avia/admin/blacklist:', err);
+      return c.json({ error: `${err}` }, 500);
+    }
+  });
+
+  app.delete(`${P}/admin/blacklist/:phone`, async (c) => {
+    try {
+      const phone = aviaClean(decodeURIComponent(c.req.param('phone')));
+      const existing = await Blacklist.check(phone);
+      if (!existing) return c.json({ error: 'Запись не найдена' }, 404);
+      if (existing.source !== 'avia') {
+        return c.json({ error: 'Эта запись относится к CARGO — снять блокировку может только cargo-admin' }, 403);
+      }
+      await Blacklist.remove(phone);
+      await AuditLog.record({ action: 'blacklist.admin_remove', actorPhone: 'admin', targetId: phone, targetType: 'blacklist' });
+      return c.json({ success: true });
+    } catch (err) {
+      console.log('Error DELETE /avia/admin/blacklist/:phone:', err);
+      return c.json({ error: `${err}` }, 500);
+    }
+  });
+
   console.log('[AVIA] Routes registered. Architecture: Repository + Cache + RateLimit');
 }

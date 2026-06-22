@@ -53,6 +53,15 @@ export async function deleteAviaAdminDeal(id: string) {
   return req('DELETE', `/deals/${encodeURIComponent(id)}`);
 }
 
+export async function getAviaAdminBlacklist() {
+  const data = await req('GET', '/blacklist');
+  return data.entries || [];
+}
+
+export async function removeFromAviaBlacklist(phone: string) {
+  return req('DELETE', `/blacklist/${encodeURIComponent(phone)}`);
+}
+
 export async function getAviaAdminAudit(filter?: {
   actorPhone?: string; targetId?: string; action?: string; limit?: number; offset?: number;
 }) {
