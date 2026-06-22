@@ -485,7 +485,9 @@ function ChatPanel({ myPhone, chatId, otherPhone, adRef, onBack, onDeleted, onCh
       onChatsUpdate();
     } catch {
       setMessages(prev => prev.filter(m => m.id !== optimistic.id));
-      toast.error('Не удалось отправить сообщение');
+      // Не перетираем текст, если пользователь уже успел начать печатать новое сообщение
+      setInputText(curr => curr.trim() ? curr : text);
+      toast.error('Не удалось отправить сообщение', { description: 'Текст сохранён в поле ввода — попробуйте снова' });
     } finally {
       setSending(false);
       inputRef.current?.focus();
