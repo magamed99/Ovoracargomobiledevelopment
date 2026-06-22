@@ -349,7 +349,16 @@ export function SenderTripsPage() {
           await deleteCargo(cargoId);
           setPublishedCargos(prev => prev.filter(c => c.id !== cargoId));
           toast.success('Объявление удалено');
-        } catch { toast.error('Ошибка при удалении'); }
+        } catch (err: any) {
+          if (err?.status === 404) {
+            // Груз уже удалён (например, с другого устройства) — для
+            // пользователя это не ошибка, просто синхронизируем список.
+            setPublishedCargos(prev => prev.filter(c => c.id !== cargoId));
+            toast.success('Объявление уже было удалено');
+          } else {
+            toast.error('Ошибка при удалении');
+          }
+        }
       },
       true
     );
