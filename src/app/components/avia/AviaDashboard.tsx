@@ -234,10 +234,22 @@ const FlightCard = memo(function FlightCard({
           }}>
             <Plane style={{ width: 15, height: 15, color: isClosed ? '#2a3d50' : '#38bdf8' }} />
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 15, fontWeight: 800, color: isClosed ? '#3a5268' : '#e2eaf3', letterSpacing: '-0.2px', overflowWrap: 'anywhere' }}>{flight.from}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
+            <span
+              title={flight.from}
+              style={{
+                fontSize: 15, fontWeight: 800, color: isClosed ? '#3a5268' : '#e2eaf3', letterSpacing: '-0.2px',
+                maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}
+            >{flight.from}</span>
             <ArrowRight style={{ width: 12, height: 12, color: isClosed ? '#1a2d40' : '#1e4a6a', flexShrink: 0 }} />
-            <span style={{ fontSize: 15, fontWeight: 800, color: isClosed ? '#3a5268' : '#e2eaf3', letterSpacing: '-0.2px', overflowWrap: 'anywhere' }}>{flight.to}</span>
+            <span
+              title={flight.to}
+              style={{
+                fontSize: 15, fontWeight: 800, color: isClosed ? '#3a5268' : '#e2eaf3', letterSpacing: '-0.2px',
+                maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}
+            >{flight.to}</span>
           </div>
         </div>
         {isMine && !isClosed && (
@@ -308,7 +320,7 @@ const FlightCard = memo(function FlightCard({
 
       {/* Footer: author + action */}
       <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: '1 1 auto' }}>
           <div style={{
             width: 20, height: 20, borderRadius: 6, flexShrink: 0,
             background: isDone ? '#ffffff08' : '#0ea5e918',
@@ -316,7 +328,10 @@ const FlightCard = memo(function FlightCard({
           }}>
             <User style={{ width: 10, height: 10, color: isDone ? '#4a6080' : '#0ea5e9' }} />
           </div>
-          <span style={{ fontSize: 11, color: '#8aa3ba', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <span
+            title={flight.courierName || maskPhone(flight.courierId)}
+            style={{ fontSize: 11, color: '#8aa3ba', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}
+          >
             {flight.courierName || maskPhone(flight.courierId)}
           </span>
         </div>
