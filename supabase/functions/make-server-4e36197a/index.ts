@@ -4778,6 +4778,34 @@ app.delete("/make-server-4e36197a/admin/cargos/:id", async (c) => {
   }
 });
 
+// ✅ Admin: редактирование груза (модерация/разрешение спора, без проверки владельца)
+const CARGO_ADMIN_EDITABLE = ['from', 'to', 'cargoWeight', 'budget', 'currency', 'notes', 'status'] as const;
+app.put("/make-server-4e36197a/admin/cargos/:id", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const existing: any = await kv.get(`ovora:cargo:${id}`);
+    if (!existing) return c.json({ error: "Cargo not found" }, 404);
+
+    const body = await c.req.json();
+    const updates: Record<string, unknown> = {};
+    for (const field of CARGO_ADMIN_EDITABLE) {
+      if (field in body) updates[field] = body[field];
+    }
+    if (updates.from) updates.from = cleanAddress(String(updates.from));
+    if (updates.to) updates.to = cleanAddress(String(updates.to));
+
+    const updated = { ...existing, ...updates, id, updatedAt: new Date().toISOString() };
+    await kv.set(`ovora:cargo:${id}`, updated);
+
+    const adminRole = c.get('adminRole') || 'admin';
+    await CargoAuditLog.record({ action: 'cargo.admin_edit', actorEmail: `admin:${adminRole}`, targetId: id, targetType: 'cargo', details: { fields: Object.keys(updates) } });
+    return c.json({ success: true, cargo: updated });
+  } catch (err) {
+    console.log("Error PUT /admin/cargos/:id:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
 // ✅ Admin: разрешение спора между водителем и отправителем — смена статуса оферты.
 // Если отменяется ранее принятая оферта — возвращаем списанную вместимость поездке.
 app.put("/make-server-4e36197a/admin/offers/:tripId/:offerId/status", async (c) => {

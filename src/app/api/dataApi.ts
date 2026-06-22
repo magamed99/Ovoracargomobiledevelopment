@@ -526,6 +526,11 @@ export async function deleteAdminCargo(cargoId: string) {
   return req('DELETE', `/admin/cargos/${encodeURIComponent(cargoId)}`);
 }
 
+export async function updateAdminCargo(cargoId: string, updates: Record<string, unknown>) {
+  const data = await req('PUT', `/admin/cargos/${encodeURIComponent(cargoId)}`, updates);
+  return data.cargo;
+}
+
 export async function searchAdmin(q: string) {
   return req('GET', `/admin/search?q=${encodeURIComponent(q)}`);
 }

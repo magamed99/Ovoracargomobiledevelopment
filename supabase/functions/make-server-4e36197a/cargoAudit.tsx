@@ -12,7 +12,7 @@
 import * as kv from "./kv_store.tsx";
 
 export type CargoAuditAction =
-  | 'cargo.admin_delete'
+  | 'cargo.admin_delete' | 'cargo.admin_edit'
   | 'offer.admin_status_change'
   | 'review.admin_delete'
   | 'document.admin_status_change'
