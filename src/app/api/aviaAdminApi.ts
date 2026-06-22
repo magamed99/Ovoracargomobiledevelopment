@@ -53,6 +53,11 @@ export async function deleteAviaAdminDeal(id: string) {
   return req('DELETE', `/deals/${encodeURIComponent(id)}`);
 }
 
+export async function updateAviaAdminFlightStatus(id: string, status: 'active' | 'closed' | 'cancelled') {
+  const data = await req('PUT', `/flights/${encodeURIComponent(id)}/status`, { status });
+  return data.flight;
+}
+
 export async function getAviaAdminBlacklist() {
   const data = await req('GET', '/blacklist');
   return data.entries || [];

@@ -1998,6 +1998,28 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
     }
   });
 
+  // ✅ Admin: модерация рейса — форс-смена статуса (закрыть/отменить/вернуть в активные)
+  app.put(`${P}/admin/flights/:id/status`, async (c) => {
+    try {
+      const id = c.req.param('id');
+      const { status } = await c.req.json();
+      const allowed = ['active', 'closed', 'cancelled'];
+      if (!allowed.includes(status)) return c.json({ error: `status must be one of: ${allowed.join(', ')}` }, 400);
+
+      const flight = await Flights.get(id);
+      if (!flight) return c.json({ error: 'Flight not found' }, 404);
+
+      const previousStatus = flight.status;
+      const updated = { ...flight, status, updatedAt: new Date().toISOString() };
+      await Flights.set(id, updated);
+      await AuditLog.record({ action: 'flight.admin_status_change', actorPhone: 'admin', targetId: id, targetType: 'flight', details: { status, previousStatus } });
+      return c.json({ success: true, flight: updated });
+    } catch (err) {
+      console.log('Error PUT /avia/admin/flights/:id/status:', err);
+      return c.json({ error: `${err}` }, 500);
+    }
+  });
+
   app.delete(`${P}/admin/deals/:id`, async (c) => {
     try {
       const id   = c.req.param('id');

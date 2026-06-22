@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Boxes, RefreshCw, Loader2, Download, Trash2, Plane, Package, Search } from 'lucide-react';
 import { toast } from 'sonner';
-import { getAviaAdminDeals, getAviaAdminFlights, deleteAviaAdminDeal } from '../../api/aviaAdminApi';
+import { getAviaAdminDeals, getAviaAdminFlights, deleteAviaAdminDeal, updateAviaAdminFlightStatus } from '../../api/aviaAdminApi';
 import { AdminPageHeader, HeaderBtn, FilterChips, SkeletonList } from './AdminPageHeader';
 import { exportCsv } from '../../utils/adminCsvExport';
 
@@ -44,6 +44,20 @@ export function AviaCardsManagement() {
       toast.success('Сделка удалена');
     } catch {
       toast.error('Ошибка удаления');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleFlightStatusChange = async (flight: any, status: 'active' | 'closed' | 'cancelled') => {
+    if (status === flight.status) return;
+    setActionLoading(flight.id);
+    try {
+      const updated = await updateAviaAdminFlightStatus(flight.id, status);
+      setFlights(prev => prev.map(f => f.id === flight.id ? { ...f, ...updated } : f));
+      toast.success('Статус рейса изменён');
+    } catch {
+      toast.error('Ошибка изменения статуса');
     } finally {
       setActionLoading(null);
     }
@@ -223,6 +237,17 @@ export function AviaCardsManagement() {
                   <div className="text-xs text-gray-400 flex-shrink-0 hidden md:block">
                     {flight.createdAt ? new Date(flight.createdAt).toLocaleDateString('ru-RU') : '—'}
                   </div>
+                  <select
+                    value={flight.status}
+                    disabled={actionLoading === flight.id}
+                    onChange={e => handleFlightStatusChange(flight, e.target.value as 'active' | 'closed' | 'cancelled')}
+                    className="text-xs rounded-lg px-2 py-1.5 outline-none flex-shrink-0"
+                    style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
+                  >
+                    <option value="active">✅ Активен</option>
+                    <option value="closed">🔒 Закрыт</option>
+                    <option value="cancelled">🚫 Отменён</option>
+                  </select>
                 </div>
               ))}
             </div>

@@ -18,6 +18,7 @@ export type AviaAuditAction =
   | 'user.admin_delete' | 'user.admin_reset_code'
   | 'flight.create' | 'flight.edit' | 'flight.delete'
   | 'flight.start' | 'flight.close' | 'flight.complete'
+  | 'flight.admin_status_change'
   | 'deal.create' | 'deal.accept' | 'deal.reject' | 'deal.cancel' | 'deal.complete'
   | 'deal.pod_upload' | 'deal.delete' | 'deal.admin_delete'
   | 'chat.delete'
