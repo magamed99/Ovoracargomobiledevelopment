@@ -38,9 +38,9 @@ export function usePassportUpload({
 
   const processPassportFile = async (file: File, skipOcr: boolean = false) => {
     if (isUploadingRef.current) return;
-    if (file.size > 20 * 1024 * 1024) {
-      setError('Файл слишком большой (макс 20 МБ)');
-      toast.error('Файл слишком большой', { description: 'Максимальный размер — 20 МБ' });
+    if (file.size > 10 * 1024 * 1024) {
+      setError('Файл слишком большой (макс 10 МБ)');
+      toast.error('Файл слишком большой', { description: 'Максимальный размер — 10 МБ' });
       return;
     }
     isUploadingRef.current = true;
