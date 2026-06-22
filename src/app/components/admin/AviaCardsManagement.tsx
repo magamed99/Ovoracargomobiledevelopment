@@ -143,6 +143,12 @@ export function AviaCardsManagement() {
                     <p className="text-xs text-gray-400 mt-0.5 break-words">
                       {deal.initiatorPhone} → {deal.recipientPhone} · {deal.dealType === 'docs' ? 'документы' : `${deal.weightKg} кг`}{deal.price ? ` · $${deal.price}` : ''}
                     </p>
+                    {(deal.rejectReason || deal.cancelReason) && (
+                      <p className="text-xs text-red-500 mt-1 break-words">
+                        {deal.status === 'rejected' ? 'Причина отказа: ' : 'Причина отмены: '}
+                        {deal.rejectReason || deal.cancelReason}
+                      </p>
+                    )}
                     <div className="text-xs text-gray-400 mt-0.5 md:hidden">
                       {deal.createdAt ? new Date(deal.createdAt).toLocaleDateString('ru-RU') : '—'}
                     </div>
