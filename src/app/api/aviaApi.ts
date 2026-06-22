@@ -260,7 +260,7 @@ export async function uploadPassport(
   file: File,
   expiryDate?: string,
   skipOcr: boolean = false
-): Promise<{ user: AviaUser; photoUrl: string; expiryDate: string; isExpired: boolean; ocrFullName?: string }> {
+): Promise<{ user: AviaUser; photoUrl: string; expiryDate: string; isExpired: boolean; ocrFullName?: string; ocrFailed?: boolean }> {
   const formData = new FormData();
   formData.append('phone', phone.replace(/\D/g, ''));
   formData.append('file', file);
