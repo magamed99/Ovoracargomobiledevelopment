@@ -145,7 +145,13 @@ export function AviaUsersManagement() {
               icon={Download}
               variant="ghost"
               onClick={() => exportCsv(
-                filtered.map(u => ({ phone: u.phone, name: `${u.firstName || ''} ${u.lastName || ''}`.trim(), role: u.role, city: u.city || '', blocked: !!u.blocked, created: u.createdAt || '' })),
+                filtered.map(u => ({
+                  phone: u.phone, name: `${u.firstName || ''} ${u.lastName || ''}`.trim(), role: u.role, city: u.city || '',
+                  blocked: !!u.blocked,
+                  passportVerified: !!u.passportVerified, passportExpired: !!u.passportExpired,
+                  likes: ratings[u.phone]?.likes ?? '', dislikes: ratings[u.phone]?.dislikes ?? '',
+                  lastLoginAt: u.lastLoginAt || '', created: u.createdAt || '',
+                })),
                 `avia_users_export_${new Date().toISOString().slice(0, 10)}.csv`
               )}
             >

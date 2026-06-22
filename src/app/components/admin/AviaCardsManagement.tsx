@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Boxes, RefreshCw, Loader2, Download, Trash2, Plane, Package } from 'lucide-react';
+import { Boxes, RefreshCw, Loader2, Download, Trash2, Plane, Package, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { getAviaAdminDeals, getAviaAdminFlights, deleteAviaAdminDeal } from '../../api/aviaAdminApi';
 import { AdminPageHeader, HeaderBtn, FilterChips, SkeletonList } from './AdminPageHeader';
@@ -17,6 +17,7 @@ export function AviaCardsManagement() {
   const [flights, setFlights] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -51,8 +52,20 @@ export function AviaCardsManagement() {
   const activeDeals = deals.filter(d => !d.deletedAt);
   const deletedDeals = deals.filter(d => d.deletedAt);
 
-  const filteredDeals = (statusFilter === 'all' ? deals : deals.filter(d => d.status === statusFilter));
-  const filteredFlights = (statusFilter === 'all' ? flights : flights.filter(f => f.status === statusFilter));
+  const filteredDeals = deals
+    .filter(d => statusFilter === 'all' || d.status === statusFilter)
+    .filter(d => {
+      const q = searchQuery.toLowerCase().trim();
+      if (!q) return true;
+      return [d.adFrom, d.adTo, d.initiatorPhone, d.recipientPhone].some(v => (v || '').toLowerCase().includes(q));
+    });
+  const filteredFlights = flights
+    .filter(f => statusFilter === 'all' || f.status === statusFilter)
+    .filter(f => {
+      const q = searchQuery.toLowerCase().trim();
+      if (!q) return true;
+      return [f.from, f.to, f.courierId].some(v => (v || '').toLowerCase().includes(q));
+    });
 
   const dealStatuses = Array.from(new Set(deals.map(d => d.status))).filter(Boolean);
   const flightStatuses = Array.from(new Set(flights.map(f => f.status))).filter(Boolean);
@@ -79,7 +92,7 @@ export function AviaCardsManagement() {
               onClick={() => exportCsv(
                 tab === 'deals'
                   ? filteredDeals.map(d => ({ id: d.id, status: d.status, initiator: d.initiatorPhone, recipient: d.recipientPhone, dealType: d.dealType, weightKg: d.weightKg, price: d.price, created: d.createdAt, deleted: d.deletedAt || '' }))
-                  : filteredFlights.map(f => ({ id: f.id, status: f.status, courier: f.courierId, from: f.from, to: f.to, date: f.date, freeKg: f.freeKg, created: f.createdAt })),
+                  : filteredFlights.map(f => ({ id: f.id, status: f.status, courier: f.courierId, courierName: f.courierName, from: f.from, to: f.to, date: f.date, freeKg: f.freeKg, pricePerKg: f.pricePerKg, currency: f.currency, created: f.createdAt })),
                 `avia_${tab}_export_${new Date().toISOString().slice(0, 10)}.csv`
               )}
             >
@@ -114,6 +127,17 @@ export function AviaCardsManagement() {
               ]}
             />
           </div>
+        </div>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder={tab === 'deals' ? 'Поиск по маршруту, телефону...' : 'Поиск по маршруту, курьеру...'}
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm text-gray-700 outline-none transition-all"
+            style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
+          />
         </div>
       </div>
 
