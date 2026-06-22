@@ -1875,7 +1875,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       const existing = await Users.get(phone);
       if (!existing) return c.json({ error: 'AVIA user not found' }, 404);
 
-      const ALLOWED = ['firstName', 'lastName', 'middleName', 'birthDate', 'city', 'telegram', 'role'] as const;
+      const ALLOWED = ['firstName', 'lastName', 'middleName', 'birthDate', 'city', 'telegram', 'role', 'passportVerified', 'passportExpired'] as const;
       const updates: Partial<AviaUser> = {};
       for (const field of ALLOWED) {
         if (body[field] !== undefined) (updates as any)[field] = body[field];
@@ -1883,7 +1883,23 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       if (Object.keys(updates).length === 0) return c.json({ error: 'No allowed fields provided' }, 400);
 
       const updated = await Users.update(phone, updates);
-      await AuditLog.record({ action: 'user.admin_edit', actorPhone: 'admin', targetId: phone, targetType: 'user', details: { fields: Object.keys(updates) } });
+
+      if ('passportVerified' in updates || 'passportExpired' in updates) {
+        await AuditLog.record({
+          action: 'user.passport_verification_status_changed',
+          actorPhone: 'admin', targetId: phone, targetType: 'user',
+          details: {
+            passportVerified: updates.passportVerified,
+            passportExpired : updates.passportExpired,
+            previousPassportVerified: existing.passportVerified,
+            previousPassportExpired : existing.passportExpired,
+          },
+        });
+      }
+      const otherFields = Object.keys(updates).filter(f => f !== 'passportVerified' && f !== 'passportExpired');
+      if (otherFields.length > 0) {
+        await AuditLog.record({ action: 'user.admin_edit', actorPhone: 'admin', targetId: phone, targetType: 'user', details: { fields: otherFields } });
+      }
       return c.json({ success: true, user: updated });
     } catch (err) {
       console.log('Error PUT /avia/admin/users/:phone:', err);

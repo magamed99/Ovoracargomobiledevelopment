@@ -319,6 +319,16 @@ export function AviaUsersManagement() {
                         { label: 'Город', value: user.city || '—' },
                         { label: 'Telegram', value: user.telegram || '—' },
                         { label: 'Регистрация', value: user.createdAt ? new Date(user.createdAt).toLocaleDateString('ru-RU') : '—' },
+                        {
+                          label: 'Паспорт',
+                          value: !user.passportPhoto && !user.passportPhotoPath
+                            ? '— не загружен'
+                            : user.passportExpired
+                            ? '⏳ просрочен'
+                            : user.passportVerified
+                            ? '✅ подтверждён'
+                            : '🕒 на проверке',
+                        },
                       ].map(f => (
                         <div key={f.label}>
                           <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">{f.label}</p>
@@ -369,6 +379,8 @@ function EditUserModal({ user, onClose, onSave }: { user: any; onClose: () => vo
   const [lastName, setLastName] = useState(user.lastName || '');
   const [city, setCity] = useState(user.city || '');
   const [telegram, setTelegram] = useState(user.telegram || '');
+  const [passportVerified, setPassportVerified] = useState(!!user.passportVerified);
+  const [passportExpired, setPassportExpired] = useState(!!user.passportExpired);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: '#00000060' }} onClick={onClose}>
@@ -392,13 +404,27 @@ function EditUserModal({ user, onClose, onSave }: { user: any; onClose: () => vo
             <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Telegram</label>
             <input value={telegram} onChange={e => setTelegram(e.target.value)} className="w-full mt-1 px-3 py-2 rounded-xl text-sm outline-none" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }} />
           </div>
+          <div className="pt-2 space-y-2" style={{ borderTop: '1px solid #f1f5f9' }}>
+            <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide pt-2">Паспорт</p>
+            {!user.passportPhoto && !user.passportPhotoPath && (
+              <p className="text-xs text-gray-400">Паспорт не загружен</p>
+            )}
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input type="checkbox" checked={passportVerified} onChange={e => setPassportVerified(e.target.checked)} />
+              Паспорт подтверждён
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input type="checkbox" checked={passportExpired} onChange={e => setPassportExpired(e.target.checked)} />
+              Паспорт просрочен
+            </label>
+          </div>
         </div>
         <div className="flex gap-2 pt-2">
           <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-600" style={{ background: '#f1f5f9' }}>
             Отмена
           </button>
           <button
-            onClick={() => onSave({ firstName, lastName, city, telegram })}
+            onClick={() => onSave({ firstName, lastName, city, telegram, passportVerified, passportExpired })}
             className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-white"
             style={{ background: '#0ea5e9' }}
           >

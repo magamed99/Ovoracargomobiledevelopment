@@ -14,6 +14,7 @@ export type AviaAuditAction =
   | 'user.register' | 'user.login' | 'user.profile_update' | 'user.passport_upload'
   | 'user.pin_change'
   | 'user.admin_edit' | 'user.admin_block' | 'user.admin_unblock'
+  | 'user.passport_verification_status_changed'
   | 'user.admin_delete' | 'user.admin_reset_code'
   | 'flight.create' | 'flight.edit' | 'flight.delete'
   | 'flight.start' | 'flight.close' | 'flight.complete'
