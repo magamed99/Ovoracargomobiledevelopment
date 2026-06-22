@@ -148,6 +148,15 @@ function SwipeableMessage({ messageId, isMine, isDark: _isDark, onDelete, onCopy
     }, 300);
   };
 
+  // ── Keyboard equivalent для swipe-to-delete (своих сообщений) ────────────────
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (isMine && (e.key === 'Delete' || e.key === 'Backspace')) {
+      e.preventDefault();
+      setIsDeleting(true);
+      setTimeout(() => onDelete(messageId), 200);
+    }
+  };
+
   return (
     <div className="relative overflow-hidden">
       {/* Action buttons (revealed on swipe) */}
@@ -183,6 +192,9 @@ function SwipeableMessage({ messageId, isMine, isDark: _isDark, onDelete, onCopy
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
         onMouseDown={onMouseDown}
+        onKeyDown={onKeyDown}
+        tabIndex={isMine ? 0 : undefined}
+        aria-label={isMine ? 'Сообщение. Нажмите Delete или Backspace, чтобы удалить' : undefined}
         className={`transition-all duration-200 select-none cursor-grab active:cursor-grabbing ${
           isDeleting ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
         }`}
