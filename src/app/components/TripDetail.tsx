@@ -445,8 +445,10 @@ function ActiveTripDetail({ trip, isDark, userRole }: { trip: any; isDark: boole
       await updateOffer(String(id), offer.offerId, { status: 'accepted' });
       setIncomingOffers(prev => prev.map(o => o.offerId === offer.offerId ? { ...o, status: 'accepted' } : o));
       toast.success(`Оферта от ${offer.senderName} принята!`);
-    } catch {
-      toast.error('Ошибка при принятии оферты');
+    } catch (err: any) {
+      toast.error(err?.status === 409
+        ? 'Недостаточно мест/вместимости на рейсе для этой оферты'
+        : 'Ошибка при принятии оферты');
     } finally {
       setOfferActionId(null);
     }

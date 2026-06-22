@@ -424,8 +424,10 @@ export function DriverTripsPage() {
       await updateOffer(String(offer.tripId), oid, { status: 'accepted' });
       setOffers(prev => prev.map(o => (o.offerId || o.id) === oid ? { ...o, status: 'accepted' } : o));
       toast.success(`Оферта от ${offer.senderName || 'отправителя'} принята!`);
-    } catch {
-      toast.error('Ошибка при принятии оферты');
+    } catch (err: any) {
+      toast.error(err?.status === 409
+        ? 'Недостаточно мест/вместимости на рейсе для этой оферты'
+        : 'Ошибка при принятии оферты');
     } finally {
       setOfferActionId(null);
     }

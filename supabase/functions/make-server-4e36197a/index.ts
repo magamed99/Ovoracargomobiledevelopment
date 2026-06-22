@@ -1606,6 +1606,28 @@ app.put("/make-server-4e36197a/offers/:tripId/:offerId", async (c) => {
 
     const { callerEmail: _drop, ...safeBody } = body;
     const updated = { ...existing, ...safeBody, tripId, offerId, updatedAt: new Date().toISOString() };
+
+    // ── Защита от overbooking: при ACCEPT проверяем, что у рейса всё ещё
+    // хватает мест/груза, ДО того как пометить оферту принятой. Без этого два
+    // параллельных accept на разные оферты одного рейса могли оба пройти —
+    // вместимость просто клампилась к 0, а обе оферты считались принятыми.
+    if (updated.status === 'accepted' && existing.status !== 'accepted') {
+      const trip: any = await kv.get(`ovora:trip:${tripId}`);
+      if (trip) {
+        const needSeats = existing.requestedSeats || 0;
+        const needChildren = existing.requestedChildren || 0;
+        const needCargo = existing.requestedCargo || 0;
+        if (
+          needSeats > (trip.availableSeats || 0) ||
+          needChildren > (trip.childSeats || 0) ||
+          needCargo > (trip.cargoCapacity || 0)
+        ) {
+          console.warn(`[PUT /offers] Accept rejected: insufficient capacity on trip ${tripId} for offer ${offerId}`);
+          return c.json({ error: "INSUFFICIENT_CAPACITY: not enough seats/cargo capacity left on this trip" }, 409);
+        }
+      }
+    }
+
     await kv.set(key, updated);
 
     // ── Reduce trip capacity when this route is the one accepting the offer ──
@@ -2515,6 +2537,27 @@ app.put("/make-server-4e36197a/chat/:chatId/proposal/:proposalId", async (c) => 
           }
 
           if (matchingOffer) {
+            // ── Защита от overbooking: проверяем вместимость рейса ДО того как
+            // помечать оферту принятой — иначе два параллельных accept на разные
+            // оферты одного рейса могли оба пройти (вместимость просто клампилась
+            // к 0). При недостатке возвращаем proposal-сообщение к 'pending'.
+            const tripForCheck: any = await kv.get(`ovora:trip:${tripId}`);
+            if (tripForCheck) {
+              const needSeats = matchingOffer.requestedSeats || 0;
+              const needChildren = matchingOffer.requestedChildren || 0;
+              const needCargo = matchingOffer.requestedCargo || 0;
+              if (
+                needSeats > (tripForCheck.availableSeats || 0) ||
+                needChildren > (tripForCheck.childSeats || 0) ||
+                needCargo > (tripForCheck.cargoCapacity || 0)
+              ) {
+                console.warn(`[accept] Insufficient capacity on trip ${tripId} — reverting proposal to pending`);
+                await kv.set(`ovora:chat:${chatId}:${msg.msgId}`, msg);
+                await kv.set(metaKey, meta);
+                return c.json({ error: "INSUFFICIENT_CAPACITY: not enough seats/cargo capacity left on this trip" }, 409);
+              }
+            }
+
             // 1. Mark offer as accepted
             const offerKey = `ovora:offer:${matchingOffer.tripId}:${matchingOffer.offerId}`;
             await kv.set(offerKey, { ...matchingOffer, status: 'accepted', acceptedAt: new Date().toISOString() });

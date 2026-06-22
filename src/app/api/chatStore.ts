@@ -512,6 +512,9 @@ export async function updateProposalStatus(
 ): Promise<ChatMessage[]> {
   const myEmail = getCachedUser()?.email || 'guest';
 
+  const previousStatus: ProposalStatus = getMessages(chatId)
+    .find(m => m.type === 'proposal' && m.proposal?.id === proposalId)?.proposal?.status ?? 'pending';
+
   // 1. Local optimistic update
   const msgs = getMessages(chatId).map(m => {
     if (m.type === 'proposal' && m.proposal?.id === proposalId) {
@@ -538,8 +541,20 @@ export async function updateProposalStatus(
   }
   emit();
 
-  // 3. API call
-  apiUpdateProposal(chatId, proposalId, status as 'accepted' | 'rejected', myEmail).catch(() => {});
+  // 3. API call — на 409 (например, вместимость рейса уже занята другой
+  // принятой офертой) откатываем оптимистичное обновление, иначе UI навсегда
+  // показывает "принято" хотя backend отказал.
+  apiUpdateProposal(chatId, proposalId, status as 'accepted' | 'rejected', myEmail).catch((err: any) => {
+    if (err?.status === 409) {
+      const reverted = getMessages(chatId).map(m =>
+        m.type === 'proposal' && m.proposal?.id === proposalId
+          ? { ...m, proposal: { ...m.proposal!, status: previousStatus } }
+          : m
+      );
+      saveMessages(chatId, reverted);
+      emit();
+    }
+  });
 
   return msgs;
 }
