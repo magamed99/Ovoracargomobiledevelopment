@@ -90,12 +90,19 @@ export function AviaDealOfferModal({ me, flight, onClose, onSuccess, onOpenChat,
     if (t === 'docs') setWeightKg('');
   };
 
+  // ref вместо стейта: при быстром даблклике второй вызов handleSubmit может
+  // выполниться до того, как React отрисует loading=true и задизейблит кнопку
+  // (стейт читается из стейл-замыкания) — ref мутируется синхронно и блокирует
+  // повторный сабмит независимо от рендера.
+  const submittingRef = useRef(false);
+
   const handleSubmit = async () => {
-    if (loading) return;
+    if (loading || submittingRef.current) return;
     if (dealType === 'cargo' && (!weightKg || Number(weightKg) <= 0)) {
       setError('Укажите вес в кг');
       return;
     }
+    submittingRef.current = true;
     setLoading(true);
     setError('');
     setExistingDealId(null);
@@ -123,6 +130,7 @@ export function AviaDealOfferModal({ me, flight, onClose, onSuccess, onOpenChat,
 
     setLoading(false);
     if (!result.success) {
+      submittingRef.current = false;
       setError(result.dealId ? 'У вас уже есть предложение по этому рейсу' : (result.error || 'Ошибка отправки предложения'));
       setExistingDealId(result.dealId || null);
       return;
