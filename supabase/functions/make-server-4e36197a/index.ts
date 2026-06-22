@@ -1995,11 +1995,23 @@ app.post("/make-server-4e36197a/reviews", async (c) => {
       return c.json({ error: 'Можно оценивать только завершённые поездки' }, 400);
     }
     const tripDriver = String(trip.driverEmail || '').toLowerCase().trim();
+    const offers: any[] = await kv.getByPrefix(`ovora:offer:${tripId}:`);
     let validPair = false;
     if (tripDriver && (tripDriver === authorEmail || tripDriver === targetEmail)) {
       const otherEmail = tripDriver === authorEmail ? targetEmail : authorEmail;
-      const offers: any[] = await kv.getByPrefix(`ovora:offer:${tripId}:`);
       validPair = offers.some(o => o && o.status === 'accepted' && String(o.senderEmail || '').toLowerCase().trim() === otherEmail);
+    } else if (!tripDriver) {
+      // ✅ Явный guard для старых рейсов без driverEmail (поле появилось не
+      // сразу) — driverEmail у самой оферты мог сохраниться независимо от
+      // trip-записи (берётся из контакта чата на момент создания оферты),
+      // поэтому сверяем пару прямо по оферте, а не только по trip.driverEmail.
+      validPair = offers.some(o => {
+        if (!o || o.status !== 'accepted') return false;
+        const offerDriver = String(o.driverEmail || '').toLowerCase().trim();
+        const offerSender = String(o.senderEmail || '').toLowerCase().trim();
+        return (offerDriver === authorEmail && offerSender === targetEmail) ||
+               (offerDriver === targetEmail && offerSender === authorEmail);
+      });
     }
     if (!validPair) {
       console.warn(`[POST /reviews] Rejected: ${authorEmail} <-> ${targetEmail} have no completed trip ${tripId} together`);
