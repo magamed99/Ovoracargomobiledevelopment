@@ -853,6 +853,13 @@ app.post("/make-server-4e36197a/trips", async (c) => {
     const lenErr = assertMaxLen(body, { from: 200, to: 200, notes: 1000, vehicle: 100, email: 254 });
     if (lenErr) return c.json({ error: lenErr }, 400);
 
+    // ✅ Рейс без мест И без вместимости для груза одновременно — бессмысленный
+    // рейс, который никто не сможет забронировать (SearchResults и так
+    // отфильтровывает такие рейсы из выдачи).
+    if (!(Number(body.availableSeats) > 0) && !(Number(body.cargoCapacity) > 0)) {
+      return c.json({ error: "Trip must have either availableSeats or cargoCapacity greater than 0" }, 400);
+    }
+
     const id = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const now = new Date().toISOString();
 
