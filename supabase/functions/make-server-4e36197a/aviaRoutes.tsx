@@ -1395,6 +1395,53 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
     }
   });
 
+  // Окно отмены отклонения — получатель может «передумать» в течение 5 минут после reject
+  const UNDO_REJECT_WINDOW_MS = 5 * 60 * 1000;
+
+  app.patch(`${P}/deals/:id/undo-reject`, async (c) => {
+    try {
+      const id    = c.req.param('id');
+      const { phone } = await c.req.json();
+      if (!phone) return c.json({ error: 'phone required' }, 400);
+      const clean = aviaClean(phone);
+      if (!(await verifyAviaActor(c, clean))) return c.json({ error: 'Unauthorized' }, 401);
+      const deal  = await Deals.get(id);
+      if (!deal) return c.json({ error: 'Deal not found' }, 404);
+      if (deal.recipientPhone !== clean) return c.json({ error: 'Forbidden: not the recipient' }, 403);
+      if (deal.status !== 'rejected')    return c.json({ error: `Cannot undo: deal status is ${deal.status}` }, 400);
+      if (!deal.rejectedAt || Date.now() - new Date(deal.rejectedAt).getTime() > UNDO_REJECT_WINDOW_MS) {
+        return c.json({ error: 'Окно отмены истекло (5 минут)' }, 400);
+      }
+
+      const now = new Date().toISOString();
+      const { rejectedAt: _r, rejectReason: _rr, ...rest } = deal;
+      const updated = { ...rest, status: 'pending', updatedAt: now };
+      await Deals.set(id, updated);
+
+      // Возвращаем резервирование, которое reject снял
+      if ((deal.dealType === 'cargo' || !deal.dealType) && deal.adType === 'flight') {
+        const flight = await Flights.get(deal.adId);
+        if (flight) await Flights.set(deal.adId, { ...flight, reservedKg: (flight.reservedKg || 0) + (deal.weightKg || 0), updatedAt: now });
+      }
+
+      await AuditLog.record({ action: 'deal.undo-reject', actorPhone: clean, targetId: id, targetType: 'deal' });
+      await injectDealUpdateMessage(deal, 'Отклонение отменено — предложение снова активно', 'pending');
+      await Notifs.push(deal.initiatorPhone, {
+        id: aviaId('deal_undo_reject'), phone: deal.initiatorPhone, type: 'request',
+        iconName: 'RotateCcw', iconBg: 'bg-sky-500/10 text-sky-400',
+        title: 'Отклонение отменено',
+        description: `${deal.recipientName || deal.recipientPhone} отменил отклонение · предложение снова активно`,
+        isUnread: true, createdAt: now, meta: { dealId: id },
+      });
+
+      console.log(`[AVIA Deals] Undo-reject deal ${id} by ${clean}`);
+      return c.json({ success: true, deal: updated });
+    } catch (err) {
+      console.log('Error PATCH /avia/deals/:id/undo-reject:', err);
+      return c.json({ error: `${err}` }, 500);
+    }
+  });
+
   app.patch(`${P}/deals/:id/cancel`, async (c) => {
     try {
       const id     = c.req.param('id');

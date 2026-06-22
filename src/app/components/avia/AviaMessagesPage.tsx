@@ -17,7 +17,7 @@ import {
   Plane, Package, MessagesSquare, Clock,
   CheckCircle2, XCircle, AlertCircle,
   ArrowRight, Scale, DollarSign, Loader2, Ban, Star, Trash2,
-  Search, ChevronUp, ChevronDown, X,
+  Search, ChevronUp, ChevronDown, X, RotateCcw,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { AviaChatMessage, AviaChat, AviaChatAdRef } from '../../api/aviaChatApi';
@@ -25,7 +25,7 @@ import {
   initAviaChat, getAviaChatMessages, sendAviaChatMessage,
   markAviaChatSeen, getAviaUserChats, makeAviaChatId, deleteAviaChat,
 } from '../../api/aviaChatApi';
-import { getAviaDeal, acceptAviaDeal, rejectAviaDeal, cancelAviaDeal } from '../../api/aviaDealApi';
+import { getAviaDeal, acceptAviaDeal, rejectAviaDeal, cancelAviaDeal, undoRejectAviaDeal } from '../../api/aviaDealApi';
 import type { AviaDeal } from '../../api/aviaDealApi';
 import { useAvia } from './AviaContext';
 import { getAviaProfile } from '../../api/aviaApi';
@@ -75,10 +75,11 @@ function fmtDate(iso: string): string {
 // ── Bubble: системный статус сделки ──────────────────────────────────────────
 
 const DEAL_STATUS_MAP: Record<string, { label: string; color: string; icon: typeof CheckCircle2 }> = {
-  accepted:  { label: 'Принято',   color: '#34d399', icon: CheckCircle2 },
-  rejected:  { label: 'Отклонено', color: '#f87171', icon: XCircle     },
-  cancelled: { label: 'Отменено',  color: '#f87171', icon: Ban         },
-  completed: { label: 'Завершено', color: '#fbbf24', icon: Star        },
+  accepted:  { label: 'Принято',    color: '#34d399', icon: CheckCircle2 },
+  rejected:  { label: 'Отклонено',  color: '#f87171', icon: XCircle     },
+  cancelled: { label: 'Отменено',   color: '#f87171', icon: Ban         },
+  completed: { label: 'Завершено',  color: '#fbbf24', icon: Star        },
+  pending:   { label: 'Возобновлено', color: '#38bdf8', icon: RotateCcw },
 };
 
 function DealUpdateBubble({ msg }: { msg: AviaChatMessage }) {
@@ -104,9 +105,10 @@ function DealUpdateBubble({ msg }: { msg: AviaChatMessage }) {
 function DealOfferBubble({ msg, myPhone, refreshTick }: { msg: AviaChatMessage; myPhone: string; refreshTick?: number }) {
   const [deal, setDeal]               = useState<AviaDeal | null>(null);
   const [loading, setLoading]         = useState(true);
-  const [acting, setActing]           = useState<'accept' | 'reject' | 'cancel' | null>(null);
+  const [acting, setActing]           = useState<'accept' | 'reject' | 'cancel' | 'undo' | null>(null);
   const [showReject, setShowReject]   = useState(false);
   const [rejectReason, setRejectReason] = useState('');
+  const [nowTick, setNowTick]         = useState(() => Date.now());
 
   const cleanMyPhone = myPhone.replace(/\D/g, '');
   const isMine       = msg.senderPhone.replace(/\D/g, '') === cleanMyPhone;
@@ -166,10 +168,32 @@ function DealOfferBubble({ msg, myPhone, refreshTick }: { msg: AviaChatMessage; 
     });
   };
 
+  const handleUndoReject = async () => {
+    if (!deal || acting) return;
+    setActing('undo');
+    const result = await undoRejectAviaDeal(deal.id, myPhone);
+    if (result.success) {
+      setDeal(result.deal || { ...deal, status: 'pending' });
+      toast.success('Отклонение отменено — предложение снова активно');
+    } else toast.error(result.error || 'Ошибка отмены отклонения');
+    setActing(null);
+  };
+
   const status      = deal?.status;
   const isPending   = status === 'pending';
   const amRecipient = deal?.recipientPhone === cleanMyPhone;
   const amInitiator = deal?.initiatorPhone === cleanMyPhone;
+
+  const rejectedAtMs    = deal?.rejectedAt ? new Date(deal.rejectedAt).getTime() : null;
+  const undoWindowMs    = 5 * 60 * 1000;
+  const undoRemainingMs = rejectedAtMs != null ? rejectedAtMs + undoWindowMs - nowTick : 0;
+  const canUndo         = status === 'rejected' && amRecipient && undoRemainingMs > 0;
+
+  useEffect(() => {
+    if (status !== 'rejected') return;
+    const timer = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [status]);
 
   return (
     <>
@@ -256,6 +280,14 @@ function DealOfferBubble({ msg, myPhone, refreshTick }: { msg: AviaChatMessage; 
                   </motion.div>
                 )}
               </AnimatePresence>
+            )}
+            {!loading && canUndo && !isMine && (
+              <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} style={{ marginTop: 10 }}>
+                <button onClick={handleUndoReject} disabled={!!acting} style={{ width: '100%', padding: '8px', borderRadius: 10, cursor: acting ? 'wait' : 'pointer', background: 'rgba(56,189,248,0.1)', border: '1px solid rgba(56,189,248,0.3)', color: '#38bdf8', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, opacity: acting ? 0.6 : 1 }}>
+                  {acting === 'undo' ? <Loader2 style={{ width: 12, height: 12, animation: 'spin 1s linear infinite' }} /> : <RotateCcw style={{ width: 12, height: 12 }} />}
+                  Отменить отклонение ({Math.floor(undoRemainingMs / 60000)}:{String(Math.floor((undoRemainingMs % 60000) / 1000)).padStart(2, '0')})
+                </button>
+              </motion.div>
             )}
             {!loading && isPending && (isMine || amInitiator) && !amRecipient && (
               <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} style={{ marginTop: 10 }}>

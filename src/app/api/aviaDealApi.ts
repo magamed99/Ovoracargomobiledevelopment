@@ -189,6 +189,26 @@ export async function rejectAviaDeal(
   }
 }
 
+/** Отменить отклонение сделки (получатель, в течение 5 минут после reject) */
+export async function undoRejectAviaDeal(
+  dealId: string,
+  phone: string,
+): Promise<{ success: boolean; deal?: AviaDeal; error?: string }> {
+  try {
+    const res = await fetch(`${BASE}/avia/deals/${encodeURIComponent(dealId)}/undo-reject`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify({ phone: phone.replace(/\D/g, '') }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) return { success: false, error: data.error || 'Ошибка отмены отклонения' };
+    return { success: true, deal: data.deal };
+  } catch (err: any) {
+    console.error('[aviaDealApi] undoRejectAviaDeal error:', err);
+    return { success: false, error: err.message };
+  }
+}
+
 /** Отменить сделку (инициатор) */
 export async function cancelAviaDeal(
   dealId: string,
