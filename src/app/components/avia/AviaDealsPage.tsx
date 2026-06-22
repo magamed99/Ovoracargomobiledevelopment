@@ -4,11 +4,12 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   ArrowLeft, Handshake, Plane, Package, ArrowRight,
   CheckCircle2, XCircle, Clock, ThumbsUp, RefreshCw,
-  Loader2, MessageCircle, Scale, DollarSign,
+  Loader2, MessageCircle, Scale, DollarSign, Download,
   ChevronRight, ChevronDown, Bell, Camera, Info, ClipboardList, Users, Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAvia } from './AviaContext';
+import { exportAviaDealsToCSV } from '../../utils/exportUtils';
 import {
   getAviaDeals,
   acceptAviaDeal,
@@ -743,6 +744,13 @@ export function AviaDealsPage() {
   const completedCount = deals.filter(d => dealBucket(d) === 'completed').length;
   const cancelledCount = deals.filter(d => dealBucket(d) === 'cancelled').length;
 
+  const handleExportCSV = useCallback(() => {
+    if (deals.length === 0) { toast.error('Нет сделок для экспорта'); return; }
+    const ok = exportAviaDealsToCSV(deals, myPhone);
+    if (ok) toast.success('Список сделок экспортирован в CSV');
+    else toast.error('Ошибка экспорта');
+  }, [deals, myPhone]);
+
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleAccept = useCallback(async (id: string) => {
     const res = await acceptAviaDeal(id, myPhone);
@@ -846,6 +854,19 @@ export function AviaDealsPage() {
         </div>
 
         <button
+          onClick={handleExportCSV}
+          style={{
+            width: 32, height: 32, borderRadius: 9,
+            border: '1px solid #ffffff12', background: '#ffffff08',
+            color: '#6b8299', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+          aria-label="Экспортировать сделки в CSV"
+        >
+          <Download style={{ width: 14, height: 14 }} />
+        </button>
+
+        <button
           onClick={() => fetchDeals(true)}
           disabled={refreshing}
           style={{
@@ -854,6 +875,7 @@ export function AviaDealsPage() {
             color: refreshing ? '#0ea5e9' : '#6b8299', cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
+          aria-label="Обновить"
         >
           <RefreshCw style={{ width: 14, height: 14 }} className={refreshing ? 'animate-spin' : ''} />
         </button>
