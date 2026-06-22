@@ -16,6 +16,20 @@ import { PLATFORM_THEME, GROUP_PLATFORM } from './platformTheme';
 
 const PIN_SESSION_KEY = 'ovora_admin_auth';
 
+// ── Авто-logout по неактивности ──────────────────────────────────────────────
+// JWT-сессия живёт 8ч (ADMIN_JWT_SECRET, см. CLAUDE.md), но без идле-таймера
+// открытая вкладка с правами админа остаётся залогиненной все 8ч независимо от
+// активности — отдельный, более короткий таймер неактивности снижает это окно.
+const IDLE_LOGOUT_MS = 25 * 60 * 1000; // 25 мин без активности → авто-выход
+const IDLE_WARNING_MS = 2 * 60 * 1000; // предупреждение за 2 мин до выхода
+
+function clearAdminSession() {
+  sessionStorage.removeItem(PIN_SESSION_KEY);
+  sessionStorage.removeItem('ovora_admin_token');
+  sessionStorage.removeItem('ovora_admin_jwt');
+  sessionStorage.removeItem('ovora_admin_role');
+}
+
 const navGroups = [
   {
     label: 'Главная',
@@ -89,6 +103,7 @@ export function AdminLayout() {
     sessionStorage.getItem(PIN_SESSION_KEY) === 'true' &&
     (!!sessionStorage.getItem('ovora_admin_token') || !!sessionStorage.getItem('ovora_admin_jwt'))
   );
+  const [idleWarningSecs, setIdleWarningSecs] = useState<number | null>(null);
   const adminRole = (sessionStorage.getItem('ovora_admin_role') || 'super-admin') as 'super-admin' | 'cargo-admin' | 'avia-admin';
   const visibleNavGroups = navGroups.filter(group => {
     if (adminRole === 'super-admin') return true;
@@ -142,6 +157,53 @@ export function AdminLayout() {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [searchOpen]);
+
+  // Авто-logout по неактивности — отдельно от 8ч TTL самого JWT. Любая активность
+  // (клик, клавиатура, тач, скролл) перезапускает таймер и убирает предупреждение.
+  // resetIdleRef даёт кнопке «Остаться в системе» прямой вызов arm() без необходимости
+  // полагаться на то, что её клик случайно забублится до window-листенера ниже.
+  const resetIdleRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    if (!authed) return;
+    let warnTimer: ReturnType<typeof setTimeout>;
+    let logoutTimer: ReturnType<typeof setTimeout>;
+    let countdownInterval: ReturnType<typeof setInterval>;
+
+    const clearAll = () => {
+      clearTimeout(warnTimer);
+      clearTimeout(logoutTimer);
+      clearInterval(countdownInterval);
+    };
+
+    const arm = () => {
+      clearAll();
+      setIdleWarningSecs(null);
+      warnTimer = setTimeout(() => {
+        let secsLeft = Math.floor(IDLE_WARNING_MS / 1000);
+        setIdleWarningSecs(secsLeft);
+        countdownInterval = setInterval(() => {
+          secsLeft -= 1;
+          setIdleWarningSecs(secsLeft);
+          if (secsLeft <= 0) clearInterval(countdownInterval);
+        }, 1000);
+        logoutTimer = setTimeout(() => {
+          clearAll();
+          clearAdminSession();
+          window.location.reload();
+        }, IDLE_WARNING_MS);
+      }, IDLE_LOGOUT_MS - IDLE_WARNING_MS);
+    };
+
+    resetIdleRef.current = arm;
+    const events: (keyof WindowEventMap)[] = ['mousedown', 'keydown', 'touchstart', 'scroll'];
+    events.forEach(ev => window.addEventListener(ev, arm, { passive: true }));
+    arm();
+
+    return () => {
+      clearAll();
+      events.forEach(ev => window.removeEventListener(ev, arm));
+    };
+  }, [authed]);
 
   if (!authed) {
     return <AdminAuthGate onSuccess={() => setAuthed(true)} />;
@@ -240,6 +302,38 @@ export function AdminLayout() {
   return (
     <div className="min-h-screen bg-[#f1f5f9]">
       <YandexMetrikaTracker />
+
+      {/* Предупреждение об авто-выходе по неактивности */}
+      <AnimatePresence>
+        {idleWarningSecs !== null && (
+          <motion.div
+            initial={{ opacity: 0, y: 16, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 16, scale: 0.96 }}
+            className="fixed bottom-5 right-5 z-[100] w-[300px] rounded-2xl p-4"
+            style={{ background: '#1e1b2e', border: '1px solid #3a3550', boxShadow: '0 16px 40px #00000050' }}
+          >
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#f59e0b22' }}>
+                <Clock className="w-4.5 h-4.5" style={{ color: '#f59e0b' }} />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-bold text-white">Сессия скоро завершится</p>
+                <p className="text-xs mt-1" style={{ color: '#a3a0b8' }}>
+                  Из-за неактивности выход произойдёт через {Math.max(0, idleWarningSecs)} сек.
+                </p>
+                <button
+                  onClick={() => resetIdleRef.current()}
+                  className="mt-3 w-full py-2 rounded-xl text-xs font-bold text-white transition-colors"
+                  style={{ background: 'linear-gradient(135deg,#1565d8,#2385f4)' }}
+                >
+                  Остаться в системе
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Mobile backdrop */}
       <AnimatePresence>
@@ -376,10 +470,7 @@ export function AdminLayout() {
                 } catch (err) {
                   console.error('[AdminLayout] revoke-all failed:', err);
                 }
-                sessionStorage.removeItem(PIN_SESSION_KEY);
-                sessionStorage.removeItem('ovora_admin_token');
-                sessionStorage.removeItem('ovora_admin_jwt');
-                sessionStorage.removeItem('ovora_admin_role');
+                clearAdminSession();
                 window.location.reload();
               }}
               className="flex items-center gap-2 w-full px-3 py-2 text-xs font-medium rounded-xl transition-colors text-gray-400 hover:text-orange-500 hover:bg-orange-50"
@@ -390,10 +481,7 @@ export function AdminLayout() {
           )}
           <button
             onClick={() => {
-              sessionStorage.removeItem(PIN_SESSION_KEY);
-              sessionStorage.removeItem('ovora_admin_token');
-              sessionStorage.removeItem('ovora_admin_jwt');
-              sessionStorage.removeItem('ovora_admin_role');
+              clearAdminSession();
               window.location.reload();
             }}
             className="flex items-center gap-2 w-full px-3 py-2 text-xs font-medium rounded-xl transition-colors text-gray-400 hover:text-red-500 hover:bg-red-50"
