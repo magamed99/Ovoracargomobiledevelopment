@@ -21,7 +21,7 @@ import {
 import type { AviaDeal, AviaDealStatus, AviaPODPhoto, AviaPODPhotoType } from '../../api/aviaDealApi';
 import { makeAviaChatId } from '../../api/aviaChatApi';
 import { AviaReviewModal } from './AviaReviewModal';
-import { getAviaDealReviewStatus } from '../../api/aviaReviewApi';
+import { getAviaDealReviewStatusBatch } from '../../api/aviaReviewApi';
 
 // ── Статус ────────────────────────────────────────────────────────────────────
 
@@ -664,18 +664,15 @@ export function AviaDealsPage() {
       const data = await getAviaDeals(myPhone);
       setDeals(data);
 
-      // загружаем статусы отзывов только для завершённых сделок
+      // загружаем статусы отзывов только для завершённых сделок (1 batch-запрос вместо N)
       const completed = data.filter(d => d.status === 'completed');
+      const statusMap = await getAviaDealReviewStatusBatch(completed.map(d => d.id));
       const statuses: Record<string, boolean> = {};
-      await Promise.all(completed.map(async d => {
-        try {
-          const s = await getAviaDealReviewStatus(d.id);
-          const isInit = d.initiatorPhone === myPhone;
-          statuses[d.id] = isInit ? !!s.byInitiator : !!s.byRecipient;
-        } catch {
-          statuses[d.id] = false;
-        }
-      }));
+      for (const d of completed) {
+        const s = statusMap[d.id] || {};
+        const isInit = d.initiatorPhone === myPhone;
+        statuses[d.id] = isInit ? !!s.byInitiator : !!s.byRecipient;
+      }
       setReviewedDeals(statuses);
     } catch {
     } finally {

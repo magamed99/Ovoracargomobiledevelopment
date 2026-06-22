@@ -6603,7 +6603,6 @@ app.post("/make-server-4e36197a/avia/upload-passport", async (c) => {
     // 3. OCR — пытаемся извлечь expiryDate
     let ocrExpiryDate: string | null = null;
     let ocrFullName: string | null = null;
-    let ocrFailed = false;
 
     if (!skipOcr) {
       try {
@@ -6639,7 +6638,6 @@ app.post("/make-server-4e36197a/avia/upload-passport", async (c) => {
         }
       } catch (ocrErr) {
         console.warn('[AVIA] OCR failed (non-critical):', ocrErr);
-        ocrFailed = true;
       }
     } else {
       console.log('[AVIA] skipOcr is true, skipping extractDocumentData');
@@ -6677,7 +6675,6 @@ app.post("/make-server-4e36197a/avia/upload-passport", async (c) => {
       expiryDate: finalExpiryDate,
       isExpired,
       ocrFullName,
-      ocrFailed,
     });
   } catch (err) {
     console.log('[AVIA] Upload passport error:', err);

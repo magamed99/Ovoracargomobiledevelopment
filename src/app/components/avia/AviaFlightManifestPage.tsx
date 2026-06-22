@@ -14,7 +14,7 @@ import type { AviaFlight } from '../../api/aviaApi';
 import { getAviaDeals, uploadAviaDealPOD, completeAviaDeal } from '../../api/aviaDealApi';
 import type { AviaDeal, AviaDealStatus, AviaPODPhoto, AviaPODPhotoType } from '../../api/aviaDealApi';
 import { makeAviaChatId } from '../../api/aviaChatApi';
-import { getAviaDealReviewStatus } from '../../api/aviaReviewApi';
+import { getAviaDealReviewStatusBatch } from '../../api/aviaReviewApi';
 import { AviaReviewModal } from './AviaReviewModal';
 import { AviaConfirmSheet } from './AviaConfirmSheet';
 
@@ -327,16 +327,13 @@ export function AviaFlightManifestPage() {
         setDeals(flightDeals);
 
         const completed = flightDeals.filter(d => d.status === 'completed');
+        const statusMap = await getAviaDealReviewStatusBatch(completed.map(d => d.id));
         const statuses: Record<string, boolean> = {};
-        await Promise.all(completed.map(async d => {
-          try {
-            const s = await getAviaDealReviewStatus(d.id);
-            const isInit = d.initiatorPhone === user.phone;
-            statuses[d.id] = isInit ? !!s.byInitiator : !!s.byRecipient;
-          } catch {
-            statuses[d.id] = false;
-          }
-        }));
+        for (const d of completed) {
+          const s = statusMap[d.id] || {};
+          const isInit = d.initiatorPhone === user.phone;
+          statuses[d.id] = isInit ? !!s.byInitiator : !!s.byRecipient;
+        }
         setReviewedDeals(statuses);
       })
       .catch(() => setError('Ошибка загрузки'))

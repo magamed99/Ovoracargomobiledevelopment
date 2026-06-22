@@ -594,6 +594,13 @@ export const Reviews = {
     return result;
   },
 
+  /** Статус по списку сделок за один проход (вместо N отдельных HTTP-запросов с фронта) */
+  async getDealStatusBatch(dealIds: string[]): Promise<Record<string, { byInitiator: boolean; byRecipient: boolean }>> {
+    const unique = [...new Set(dealIds)];
+    const entries = await Promise.all(unique.map(async (dealId) => [dealId, await this.getDealStatus(dealId)] as const));
+    return Object.fromEntries(entries);
+  },
+
   /** MIGRATION → INSERT INTO avia_reviews ... */
   async add(review: AviaReview): Promise<void> {
     await kv.set(`ovora:avia-review:${review.id}`, review);

@@ -362,6 +362,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
 
       let ocrExpiryDate: string | null = null;
       let ocrFullName: string | null   = null;
+      let ocrFailed = false;
       const profileUpdates: Partial<AviaUser> = {};
 
       if (!skipOcr) {
@@ -393,7 +394,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
           if (ocrResult.documentNumber && !existing.passportNumber) {
             profileUpdates.passportNumber = ocrResult.documentNumber;
           }
-        } catch (ocrErr) { console.warn('[AVIA] OCR failed (non-critical):', ocrErr); }
+        } catch (ocrErr) { console.warn('[AVIA] OCR failed (non-critical):', ocrErr); ocrFailed = true; }
       }
 
       const finalExpiry = ocrExpiryDate || expiryDateManual || '';
@@ -412,7 +413,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
 
       await AuditLog.record({ action: 'user.passport_upload', actorPhone: clean, targetId: clean, targetType: 'user', details: { isExpired } });
       console.log(`[AVIA] Passport uploaded for ${clean}: expired=${isExpired}`);
-      return c.json({ success: true, user: updated, photoUrl, expiryDate: finalExpiry, isExpired, ocrFullName });
+      return c.json({ success: true, user: updated, photoUrl, expiryDate: finalExpiry, isExpired, ocrFullName, ocrFailed });
     } catch (err) {
       console.log('[AVIA] Upload passport error:', err);
       return c.json({ error: `${err}` }, 500);
@@ -1628,6 +1629,19 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ reviewed });
     } catch (err) {
       console.log('Error GET /avia/reviews/deal/:dealId:', err);
+      return c.json({ error: `${err}` }, 500);
+    }
+  });
+
+  app.post(`${P}/reviews/deal-batch`, async (c) => {
+    try {
+      const { dealIds } = await c.req.json();
+      if (!Array.isArray(dealIds) || dealIds.length === 0) return c.json({ statuses: {} });
+      const cleanIds = dealIds.filter((id): id is string => typeof id === 'string').slice(0, 200);
+      const statuses = await Reviews.getDealStatusBatch(cleanIds);
+      return c.json({ statuses });
+    } catch (err) {
+      console.log('Error POST /avia/reviews/deal-batch:', err);
       return c.json({ error: `${err}` }, 500);
     }
   });

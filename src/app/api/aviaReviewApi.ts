@@ -68,15 +68,18 @@ export async function createAviaReview(params: {
   }
 }
 
-/** Статус отзывов по сделке (кто уже оставил) */
-export async function getAviaDealReviewStatus(dealId: string): Promise<AviaDealReviewedStatus> {
+/** Статус отзывов по списку сделок за один запрос (вместо N запросов per-deal) */
+export async function getAviaDealReviewStatusBatch(dealIds: string[]): Promise<Record<string, AviaDealReviewedStatus>> {
+  if (dealIds.length === 0) return {};
   try {
-    const res = await fetch(`${BASE}/avia/reviews/deal/${encodeURIComponent(dealId)}`, {
+    const res = await fetch(`${BASE}/avia/reviews/deal-batch`, {
+      method: 'POST',
       headers: HEADERS,
+      body: JSON.stringify({ dealIds }),
     });
     if (!res.ok) return {};
     const data = await res.json();
-    return data.reviewed || {};
+    return data.statuses || {};
   } catch {
     return {};
   }
