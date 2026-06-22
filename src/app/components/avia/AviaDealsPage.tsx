@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ArrowLeft, Handshake, Plane, Package, ArrowRight,
@@ -637,12 +637,15 @@ function FlightGroupCard({ deals }: { deals: AviaDeal[] }) {
 
 export function AviaDealsPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const dealIdParam = searchParams.get('dealId');
   const { user, isAuth, unreadCount } = useAvia();
 
   const [deals, setDeals] = useState<AviaDeal[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>('active');
+  const [highlightDealId, setHighlightDealId] = useState<string | null>(null);
 
   // Чат перенесён на /avia/messages
 
@@ -686,6 +689,21 @@ export function AviaDealsPage() {
   useEffect(() => {
     if (isAuth) fetchDeals();
   }, [isAuth, myPhone]);
+
+  // ── Открытие конкретной сделки по ?dealId= (например, после попытки создать
+  // дубль предложения — backend вернул 409 и id уже существующей сделки) ──────
+  useEffect(() => {
+    if (!dealIdParam || loading || deals.length === 0) return;
+    const target = deals.find(d => d.id === dealIdParam);
+    if (!target) return;
+    setActiveTab(dealBucket(target));
+    setHighlightDealId(dealIdParam);
+    const scrollTimer = setTimeout(() => {
+      document.getElementById(`deal-${dealIdParam}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+    const clearTimer = setTimeout(() => setHighlightDealId(null), 2500);
+    return () => { clearTimeout(scrollTimer); clearTimeout(clearTimer); };
+  }, [dealIdParam, loading, deals]);
 
   // ── Фильтрация ────────────────────────────────────────────────────────────
   const filtered = deals.filter(d => dealBucket(d) === activeTab);
@@ -931,20 +949,28 @@ export function AviaDealsPage() {
             {renderItems.map(item => item.kind === 'flightGroup' ? (
               <FlightGroupCard key={`flight-${item.deals[0].adId}`} deals={item.deals} />
             ) : (
-              <DealCard
+              <div
                 key={item.deal.id}
-                deal={item.deal}
-                myPhone={myPhone}
-                onAccept={handleAccept}
-                onReject={handleReject}
-                onCancel={handleCancel}
-                onComplete={handleComplete}
-                onOpenChat={handleOpenChat}
-                onReview={handleReview}
-                onPODUploaded={handlePODUploaded}
-                onDeleteStuck={handleDeleteStuck}
-                alreadyReviewed={!!reviewedDeals[item.deal.id]}
-              />
+                id={`deal-${item.deal.id}`}
+                style={highlightDealId === item.deal.id ? {
+                  borderRadius: 20, outline: '2px solid #34d399', outlineOffset: 2,
+                  transition: 'outline-color 0.3s',
+                } : undefined}
+              >
+                <DealCard
+                  deal={item.deal}
+                  myPhone={myPhone}
+                  onAccept={handleAccept}
+                  onReject={handleReject}
+                  onCancel={handleCancel}
+                  onComplete={handleComplete}
+                  onOpenChat={handleOpenChat}
+                  onReview={handleReview}
+                  onPODUploaded={handlePODUploaded}
+                  onDeleteStuck={handleDeleteStuck}
+                  alreadyReviewed={!!reviewedDeals[item.deal.id]}
+                />
+              </div>
             ))}
           </AnimatePresence>
         )}

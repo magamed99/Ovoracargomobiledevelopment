@@ -21,9 +21,11 @@ interface AviaDealOfferModalProps {
   onSuccess?: (deal: AviaDeal) => void;
   /** Открыть чат после отправки предложения */
   onOpenChat?: (chatId: string, otherPhone: string, adRef: AviaChatAdRef) => void;
+  /** У отправителя уже есть сделка по этому объявлению (backend вернул 409 + dealId) */
+  onOpenExistingDeal?: (dealId: string) => void;
 }
 
-export function AviaDealOfferModal({ me, flight, onClose, onSuccess, onOpenChat }: AviaDealOfferModalProps) {
+export function AviaDealOfferModal({ me, flight, onClose, onSuccess, onOpenChat, onOpenExistingDeal }: AviaDealOfferModalProps) {
   // Определяем доступные типы на основе настроек рейса курьера
   const isCargoAvail = flight.cargoEnabled ?? true;
   const isDocsAvail  = flight.docsEnabled ?? false;
@@ -36,6 +38,7 @@ export function AviaDealOfferModal({ me, flight, onClose, onSuccess, onOpenChat 
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [existingDealId, setExistingDealId] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -84,6 +87,7 @@ export function AviaDealOfferModal({ me, flight, onClose, onSuccess, onOpenChat 
     }
     setLoading(true);
     setError('');
+    setExistingDealId(null);
 
     const result = await createAviaDeal({
       initiatorPhone: me.phone,
@@ -108,7 +112,8 @@ export function AviaDealOfferModal({ me, flight, onClose, onSuccess, onOpenChat 
 
     setLoading(false);
     if (!result.success) {
-      setError(result.error || 'Ошибка отправки предложения');
+      setError(result.dealId ? 'У вас уже есть предложение по этому рейсу' : (result.error || 'Ошибка отправки предложения'));
+      setExistingDealId(result.dealId || null);
       return;
     }
     setDone(true);
@@ -449,7 +454,19 @@ export function AviaDealOfferModal({ me, flight, onClose, onSuccess, onOpenChat 
                     }}
                   >
                     <AlertCircle style={{ width: 15, height: 15, color: '#f87171', flexShrink: 0 }} />
-                    <span style={{ fontSize: 12, color: '#f87171' }}>{error}</span>
+                    <span style={{ fontSize: 12, color: '#f87171', flex: 1 }}>{error}</span>
+                    {existingDealId && onOpenExistingDeal && (
+                      <button
+                        onClick={() => { onOpenExistingDeal(existingDealId); onClose(); }}
+                        style={{
+                          fontSize: 11, fontWeight: 700, color: '#f87171',
+                          background: '#ef444418', border: '1px solid #ef444440',
+                          borderRadius: 8, padding: '5px 10px', cursor: 'pointer', flexShrink: 0,
+                        }}
+                      >
+                        Открыть
+                      </button>
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>

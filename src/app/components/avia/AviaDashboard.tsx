@@ -1407,6 +1407,10 @@ export function AviaDashboard() {
               });
               navigate(`/avia/messages?${params.toString()}`);
             }}
+            onOpenExistingDeal={(dealId) => {
+              setDealOfferFlight(null);
+              navigate(`/avia/deals?dealId=${encodeURIComponent(dealId)}`);
+            }}
           />
         )}
       </AnimatePresence>
