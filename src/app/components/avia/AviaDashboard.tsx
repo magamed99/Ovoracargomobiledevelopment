@@ -693,6 +693,7 @@ export function AviaDashboard() {
   const [pullY, setPullY] = useState(0);
   const [isPulling, setIsPulling] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isDragging, setIsDragging] = useState(false); // true только во время активного касания — 1:1 движение без анимации
   const touchStartY = useRef(0);
   const touchActive = useRef(false);
   const PULL_THRESHOLD = 70;
@@ -702,6 +703,7 @@ export function AviaDashboard() {
     if (!el || el.scrollTop > 5) return;
     touchStartY.current = e.touches[0].clientY;
     touchActive.current = true;
+    setIsDragging(true);
   }, []);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
@@ -715,6 +717,7 @@ export function AviaDashboard() {
 
   const handleTouchEnd = useCallback(() => {
     touchActive.current = false;
+    setIsDragging(false); // дальше полоса возвращается плавной анимацией, а не скачком
     if (isPulling && !isRefreshing) {
       setIsRefreshing(true);
       setPullY(50);
@@ -932,7 +935,7 @@ export function AviaDashboard() {
               initial={{ opacity: 0 }}
               animate={{ opacity: Math.min(pullY / PULL_THRESHOLD, 1), y: pullY - 40 }}
               exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.15 }}
+              transition={isDragging ? { duration: 0 } : { duration: 0.28, ease: 'easeOut' }}
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                 padding: '8px 0', marginBottom: 4,
