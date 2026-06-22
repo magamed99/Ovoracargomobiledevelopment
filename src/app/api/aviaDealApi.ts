@@ -1,12 +1,19 @@
 import { projectId, publicAnonKey } from '../../../utils/supabase/info';
 import { CSRF_HEADER, CSRF_TOKEN } from './csrfToken';
+import { getAviaSession } from './aviaApi';
 
 const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;
-const HEADERS = {
+const BASE_HEADERS = {
   'Content-Type': 'application/json',
   Authorization: `Bearer ${publicAnonKey}`,
   [CSRF_HEADER]: CSRF_TOKEN,
 };
+
+/** anon key + CSRF + (если есть сессия) X-Avia-Token владельца сессии */
+function getHeaders(): Record<string, string> {
+  const token = getAviaSession()?.token;
+  return token ? { ...BASE_HEADERS, 'X-Avia-Token': token } : BASE_HEADERS;
+}
 
 // ── Типы ─────────────────────────────────────────────────────────────────────
 
@@ -99,7 +106,7 @@ export async function createAviaDeal(params: {
   try {
     const res = await fetch(`${BASE}/avia/deals`, {
       method: 'POST',
-      headers: HEADERS,
+      headers: getHeaders(),
       body: JSON.stringify({ ...params, callerPhone: params.initiatorPhone }),
     });
     const data = await res.json();
@@ -116,7 +123,7 @@ export async function getAviaDeal(dealId: string, callerPhone: string): Promise<
   try {
     const clean = callerPhone.replace(/\D/g, '');
     const res = await fetch(`${BASE}/avia/deals/${encodeURIComponent(dealId)}?callerPhone=${encodeURIComponent(clean)}`, {
-      headers: HEADERS,
+      headers: getHeaders(),
     });
     if (!res.ok) return null;
     const data = await res.json();
@@ -131,7 +138,7 @@ export async function getAviaDeals(phone: string): Promise<AviaDeal[]> {
   try {
     const clean = phone.replace(/\D/g, '');
     const res = await fetch(`${BASE}/avia/deals/user/${encodeURIComponent(clean)}?callerPhone=${encodeURIComponent(clean)}`, {
-      headers: HEADERS,
+      headers: getHeaders(),
     });
     if (!res.ok) return [];
     const data = await res.json();
@@ -149,7 +156,7 @@ export async function acceptAviaDeal(
   try {
     const res = await fetch(`${BASE}/avia/deals/${encodeURIComponent(dealId)}/accept`, {
       method: 'PATCH',
-      headers: HEADERS,
+      headers: getHeaders(),
       body: JSON.stringify({ phone: phone.replace(/\D/g, '') }),
     });
     const data = await res.json();
@@ -170,7 +177,7 @@ export async function rejectAviaDeal(
   try {
     const res = await fetch(`${BASE}/avia/deals/${encodeURIComponent(dealId)}/reject`, {
       method: 'PATCH',
-      headers: HEADERS,
+      headers: getHeaders(),
       body: JSON.stringify({ phone: phone.replace(/\D/g, ''), reason }),
     });
     const data = await res.json();
@@ -190,7 +197,7 @@ export async function cancelAviaDeal(
   try {
     const res = await fetch(`${BASE}/avia/deals/${encodeURIComponent(dealId)}/cancel`, {
       method: 'PATCH',
-      headers: HEADERS,
+      headers: getHeaders(),
       body: JSON.stringify({ phone: phone.replace(/\D/g, '') }),
     });
     const data = await res.json();
@@ -210,7 +217,7 @@ export async function completeAviaDeal(
   try {
     const res = await fetch(`${BASE}/avia/deals/${encodeURIComponent(dealId)}/complete`, {
       method: 'PATCH',
-      headers: HEADERS,
+      headers: getHeaders(),
       body: JSON.stringify({ phone: phone.replace(/\D/g, '') }),
     });
     const data = await res.json();
@@ -232,7 +239,7 @@ export async function uploadAviaDealPOD(
   try {
     const res = await fetch(`${BASE}/avia/deals/${encodeURIComponent(dealId)}/pod`, {
       method: 'POST',
-      headers: HEADERS,
+      headers: getHeaders(),
       body: JSON.stringify({ base64, type, callerPhone: callerPhone.replace(/\D/g, '') }),
     });
     const data = await res.json();
@@ -252,7 +259,7 @@ export async function deleteAviaDealsByIds(
   try {
     const res = await fetch(`${BASE}/avia/deals/delete-by-id`, {
       method: 'POST',
-      headers: HEADERS,
+      headers: getHeaders(),
       body: JSON.stringify({ dealIds, callerPhone: callerPhone.replace(/\D/g, '') }),
     });
     const data = await res.json();
@@ -269,7 +276,7 @@ export async function getAviaStats(phone: string): Promise<AviaStats | null> {
   try {
     const clean = phone.replace(/\D/g, '');
     const res = await fetch(`${BASE}/avia/stats/${encodeURIComponent(clean)}`, {
-      headers: HEADERS,
+      headers: getHeaders(),
     });
     if (!res.ok) return null;
     const data = await res.json();
