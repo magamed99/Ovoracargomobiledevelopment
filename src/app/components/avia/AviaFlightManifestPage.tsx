@@ -9,6 +9,7 @@ import {
   PlayCircle, Flag, Loader2,
 } from 'lucide-react';
 import { useAvia } from './AviaContext';
+import { usePolling } from '../../hooks/usePolling';
 import { getAviaFlight, startAviaFlight, completeAviaFlight } from '../../api/aviaApi';
 import type { AviaFlight } from '../../api/aviaApi';
 import { getAviaDeals, uploadAviaDealPOD, completeAviaDeal } from '../../api/aviaDealApi';
@@ -303,24 +304,27 @@ export function AviaFlightManifestPage() {
 
   const isCourierView = !!(flight && user && flight.courierId === user.phone);
 
-  const load = useCallback(() => {
+  const load = useCallback((opts?: { silent?: boolean }) => {
     if (!id || !user?.phone) return;
-    setLoading(true);
-    setError('');
-    // Сбрасываем данные предыдущего рейса — иначе при смене :id на рейс без
-    // доступа в шапке/манифесте мелькают данные ПРЕЖНЕГО успешно загруженного рейса.
-    setFlight(null);
-    setDeals([]);
+    const silent = !!opts?.silent;
+    if (!silent) {
+      setLoading(true);
+      setError('');
+      // Сбрасываем данные предыдущего рейса — иначе при смене :id на рейс без
+      // доступа в шапке/манифесте мелькают данные ПРЕЖНЕГО успешно загруженного рейса.
+      setFlight(null);
+      setDeals([]);
+    }
     Promise.all([
       getAviaFlight(id, user.phone),
       getAviaDeals(user.phone),
     ])
       .then(async ([f, allDeals]) => {
-        if (!f) { setError('Рейс не найден'); return; }
+        if (!f) { if (!silent) setError('Рейс не найден'); return; }
         const flightDeals = allDeals.filter(d => d.adType === 'flight' && d.adId === id);
         // Доступ: владелец рейса (курьер) или отправитель, у которого есть сделка на этот рейс
         if (f.courierId !== user.phone && flightDeals.length === 0) {
-          setError('Доступ запрещён: у вас нет сделки на этот рейс');
+          if (!silent) setError('Доступ запрещён: у вас нет сделки на этот рейс');
           return;
         }
         setFlight(f);
@@ -336,11 +340,16 @@ export function AviaFlightManifestPage() {
         }
         setReviewedDeals(statuses);
       })
-      .catch(() => setError('Ошибка загрузки'))
-      .finally(() => setLoading(false));
+      .catch(() => { if (!silent) setError('Ошибка загрузки'); })
+      .finally(() => { if (!silent) setLoading(false); });
   }, [id, user?.phone]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Статусы сделок (accept/reject/cancel/undo) меняются в чате на другом экране —
+  // тихий polling без спиннера, чтобы манифест не "застывал" со старыми данными,
+  // плюс мгновенный рефреш при возврате на вкладку (см. usePolling).
+  usePolling(async () => { load({ silent: true }); }, 20_000);
 
   const handlePODUploaded = (dealId: string, photo: AviaPODPhoto) => {
     setDeals(prev => prev.map(d => d.id === dealId ? { ...d, podPhotos: [...(d.podPhotos || []), photo] } : d));
@@ -439,7 +448,7 @@ export function AviaFlightManifestPage() {
             </div>
           )}
         </div>
-        <button onClick={load} style={{
+        <button onClick={() => load()} style={{
           width: 34, height: 34, borderRadius: 10,
           border: '1px solid #ffffff10', background: '#ffffff06',
           color: '#4a6080', cursor: 'pointer',
