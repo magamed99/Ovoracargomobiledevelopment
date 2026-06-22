@@ -114,7 +114,7 @@ export async function getAviaPublicProfile(phone: string): Promise<{
 } | null> {
   try {
     const clean = phone.replace(/\D/g, '');
-    const res = await fetch(`${BASE}/avia/profile/${encodeURIComponent(clean)}`, {
+    const res = await fetch(`${BASE}/avia/public-profile/${encodeURIComponent(clean)}`, {
       headers: getHeaders(),
     });
     if (!res.ok) return null;

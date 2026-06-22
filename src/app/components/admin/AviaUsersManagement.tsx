@@ -11,6 +11,7 @@ import {
   getAviaAdminUsers, setAviaUserBlocked, deleteAviaAdminUser,
   resetAviaUserCode, updateAviaAdminUser,
 } from '../../api/aviaAdminApi';
+import { getAviaPublicProfile, type AviaPublicProfile } from '../../api/aviaReviewApi';
 import { AdminPageHeader, HeaderBtn, FilterChips, SkeletonList } from './AdminPageHeader';
 import { exportCsv } from '../../utils/adminCsvExport';
 
@@ -36,6 +37,7 @@ export function AviaUsersManagement() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<any | null>(null);
+  const [ratings, setRatings] = useState<Record<string, AviaPublicProfile | null>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -241,7 +243,15 @@ export function AviaUsersManagement() {
 
                     <div className="flex items-center gap-1 flex-shrink-0 order-2 sm:order-none ml-auto sm:ml-0">
                       <button
-                        onClick={() => setExpandedId(isExpanded ? null : user.phone)}
+                        onClick={() => {
+                          const next = isExpanded ? null : user.phone;
+                          setExpandedId(next);
+                          if (next && !(next in ratings)) {
+                            getAviaPublicProfile(next).then(data => {
+                              setRatings(prev => ({ ...prev, [next]: data?.profile || null }));
+                            });
+                          }
+                        }}
                         className="p-1.5 hover:bg-gray-100 rounded-xl text-gray-400 transition-colors"
                       >
                         {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -315,6 +325,21 @@ export function AviaUsersManagement() {
                           <p className="text-sm text-gray-900 break-all">{f.value}</p>
                         </div>
                       ))}
+                      <div className="col-span-2 md:col-span-4 pt-2" style={{ borderTop: '1px solid #e2e8f0' }}>
+                        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Рейтинг и сделки</p>
+                        {!(user.phone in ratings) ? (
+                          <Loader2 className="w-4 h-4 animate-spin text-gray-300" />
+                        ) : ratings[user.phone] ? (
+                          <div className="flex gap-4 flex-wrap">
+                            <span className="text-sm text-emerald-600 font-semibold">👍 {ratings[user.phone]!.likes}</span>
+                            <span className="text-sm text-red-500 font-semibold">👎 {ratings[user.phone]!.dislikes}</span>
+                            <span className="text-sm text-gray-600 font-semibold">🤝 {ratings[user.phone]!.dealsCompleted} сделок завершено</span>
+                            <span className="text-sm text-gray-400">{ratings[user.phone]!.reviewsCount} отзывов</span>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-gray-400">Нет данных</p>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
