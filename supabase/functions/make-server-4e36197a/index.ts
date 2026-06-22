@@ -4672,6 +4672,29 @@ app.get("/make-server-4e36197a/admin/shipments", async (c) => {
   }
 });
 
+// ✅ Admin: список чатов (модерация, read-only) — без проверки participants,
+// т.к. эндпоинт уже защищён глобальным requireAdminChecked + requireRole(['cargo-admin'])
+app.get("/make-server-4e36197a/admin/chats", async (c) => {
+  try {
+    const chats: any[] = await kv.getByPrefix("ovora:chatmeta:");
+    return c.json({ chats: chats.filter(ch => ch && ch.chatId) });
+  } catch (err) {
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ✅ Admin: сообщения конкретного чата (модерация, read-only)
+app.get("/make-server-4e36197a/admin/chat/:chatId/messages", async (c) => {
+  try {
+    const chatId = c.req.param("chatId");
+    const messages: any[] = await kv.getByPrefix(`ovora:chat:${chatId}:`);
+    const sorted = messages.filter(m => m && m.msgId).sort((a, b) => (a.ts || 0) - (b.ts || 0));
+    return c.json({ messages: sorted });
+  } catch (err) {
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
 // ✅ Admin: список грузов отправителей (для управления/модерации)
 app.get("/make-server-4e36197a/admin/cargos", async (c) => {
   try {

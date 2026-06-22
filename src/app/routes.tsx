@@ -414,6 +414,11 @@ export const router = createBrowserRouter([
               .then(m => ({ Component: m.CargoAuditLog })),
           },
           {
+            path: "cargo/chats",
+            lazy: () => import("./components/admin/ChatsManagement")
+              .then(m => ({ Component: m.ChatsManagement })),
+          },
+          {
             path: "site",
             lazy: () => import("./components/admin/SiteSettingsPage")
               .then(m => ({ Component: m.SiteSettingsPage })),

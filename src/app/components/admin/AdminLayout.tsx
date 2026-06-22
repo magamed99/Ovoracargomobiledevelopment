@@ -5,7 +5,7 @@ import {
   MessageSquare, Bell, Search, ClipboardList as RequestIcon, Star,
   Menu, X, ChevronRight, Truck, ClipboardList, Megaphone,
   LogOut, Clock, TrendingUp, Database, Crown, Globe, Boxes, Plane, History, ShieldOff,
-  KeyRound, SlidersHorizontal,
+  KeyRound, SlidersHorizontal, MessageCircle,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { YandexMetrikaTracker } from '../YandexMetrika';
@@ -47,6 +47,7 @@ const navGroups = [
       { name: 'Оферты', href: '/admin/cargo/offers', icon: ClipboardList },
       { name: 'Верификация', href: '/admin/cargo/verification', icon: FileCheck },
       { name: 'Отзывы', href: '/admin/cargo/reviews', icon: MessageSquare },
+      { name: 'Чаты', href: '/admin/cargo/chats', icon: MessageCircle },
       { name: 'Аналитика', href: '/admin/cargo/analytics', icon: BarChart3 },
       { name: 'Подписки', href: '/admin/cargo/subscriptions', icon: Crown },
       { name: 'Настройки CARGO', href: '/admin/cargo/settings', icon: SlidersHorizontal },

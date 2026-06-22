@@ -498,6 +498,16 @@ export async function getAdminShipments() {
   return data.shipments;
 }
 
+export async function getAdminChats() {
+  const data = await req('GET', '/admin/chats');
+  return data.chats;
+}
+
+export async function getAdminChatMessages(chatId: string) {
+  const data = await req('GET', `/admin/chat/${encodeURIComponent(chatId)}/messages`);
+  return data.messages;
+}
+
 export async function deleteAdminReview(reviewId: string) {
   return req('DELETE', `/admin/reviews/${encodeURIComponent(reviewId)}`);
 }
