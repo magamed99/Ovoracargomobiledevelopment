@@ -42,6 +42,11 @@ export function CargosManagement() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [currencyFilter, setCurrencyFilter] = useState('all');
+  const [weightMin, setWeightMin] = useState('');
+  const [weightMax, setWeightMax] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [editingCargo, setEditingCargo] = useState<any | null>(null);
@@ -102,18 +107,28 @@ export function CargosManagement() {
   const matched   = cargos.filter(cg => cg?.status === 'matched').length;
   const cancelled = cargos.filter(cg => cg?.status === 'cancelled').length;
 
+  const currencies = Array.from(new Set(cargos.map(cg => cg?.currency).filter(Boolean)));
+
   const filtered = cargos.filter(cg => {
     if (!cg) return false;
     const q = search.toLowerCase();
     const matchSearch = !q
       || (cg.senderEmail || '').toLowerCase().includes(q)
       || (cg.senderName || '').toLowerCase().includes(q)
+      || (cg.senderPhone || '').includes(q)
       || (cg.from || '').toLowerCase().includes(q)
       || (cg.to || '').toLowerCase().includes(q)
       || (cg.notes || '').toLowerCase().includes(q);
     const st = cg.status || 'active';
     const matchStatus = statusFilter === 'all' || st === statusFilter;
-    return matchSearch && matchStatus;
+    const matchCurrency = currencyFilter === 'all' || cg.currency === currencyFilter;
+    const weight = parseFloat(cg.cargoWeight);
+    const matchWeightMin = !weightMin || (!isNaN(weight) && weight >= parseFloat(weightMin));
+    const matchWeightMax = !weightMax || (!isNaN(weight) && weight <= parseFloat(weightMax));
+    const createdTime = cg.createdAt ? new Date(cg.createdAt).getTime() : 0;
+    const matchDateFrom = !dateFrom || createdTime >= new Date(dateFrom).getTime();
+    const matchDateTo = !dateTo || createdTime <= new Date(dateTo).getTime() + 86400000;
+    return matchSearch && matchStatus && matchCurrency && matchWeightMin && matchWeightMax && matchDateFrom && matchDateTo;
   });
 
   return (
@@ -136,10 +151,10 @@ export function CargosManagement() {
               icon={Download}
               variant="ghost"
               onClick={() => exportCsv(
-                cargos.map(cg => ({
+                filtered.map(cg => ({
                   id: cg.id, from: cg.from, to: cg.to,
-                  sender: cg.senderEmail, status: cg.status,
-                  weight: cg.cargoWeight, budget: cg.budget,
+                  sender: cg.senderEmail, senderPhone: cg.senderPhone || '', status: cg.status,
+                  weight: cg.cargoWeight, budget: cg.budget, currency: cg.currency || '',
                   created: cg.createdAt,
                 })),
                 `cargos_export_${new Date().toISOString().slice(0, 10)}.csv`
@@ -168,7 +183,7 @@ export function CargosManagement() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Поиск по email, маршруту..."
+            placeholder="Поиск по email, телефону, маршруту..."
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm text-gray-700 outline-none transition-all"
@@ -176,6 +191,56 @@ export function CargosManagement() {
             onFocus={e => { e.currentTarget.style.borderColor = '#0891b266'; e.currentTarget.style.boxShadow = '0 0 0 3px #0891b212'; }}
             onBlur={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.boxShadow = 'none'; }}
           />
+        </div>
+
+        {currencies.length > 0 && (
+          <FilterChips
+            value={currencyFilter}
+            onChange={setCurrencyFilter}
+            options={[{ value: 'all', label: 'Все валюты' }, ...currencies.map(c => ({ value: c, label: c }))]}
+          />
+        )}
+
+        <div className="flex flex-wrap gap-3">
+          <div className="flex items-center gap-2">
+            <Weight className="w-3.5 h-3.5 text-gray-400" />
+            <input
+              type="number"
+              placeholder="Вес от"
+              value={weightMin}
+              onChange={e => setWeightMin(e.target.value)}
+              className="w-24 px-3 py-1.5 rounded-xl text-sm text-gray-700 outline-none"
+              style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
+            />
+            <span className="text-gray-400">—</span>
+            <input
+              type="number"
+              placeholder="до"
+              value={weightMax}
+              onChange={e => setWeightMax(e.target.value)}
+              className="w-24 px-3 py-1.5 rounded-xl text-sm text-gray-700 outline-none"
+              style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
+            />
+            <span className="text-xs text-gray-400">кг</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Clock className="w-3.5 h-3.5 text-gray-400" />
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={e => setDateFrom(e.target.value)}
+              className="px-3 py-1.5 rounded-xl text-sm text-gray-700 outline-none"
+              style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
+            />
+            <span className="text-gray-400">—</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={e => setDateTo(e.target.value)}
+              className="px-3 py-1.5 rounded-xl text-sm text-gray-700 outline-none"
+              style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
+            />
+          </div>
         </div>
       </div>
 

@@ -150,8 +150,9 @@ export function Reviews() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [ratingFilter, setRatingFilter] = useState('all');
+  const [roleFilter, setRoleFilter] = useState('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [groupByTrip, setGroupByTrip] = useState(false);
+  const [groupBy, setGroupBy] = useState<'none' | 'trip' | 'recipient'>('none');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [searchParams] = useSearchParams();
 
@@ -206,7 +207,8 @@ export function Reviews() {
         || (ratingFilter === '5' && rating === 5)
         || (ratingFilter === '4' && rating === 4)
         || (ratingFilter === '1-3' && rating <= 3);
-      return matchSearch && matchRating;
+      const matchRole = roleFilter === 'all' || r.role === roleFilter;
+      return matchSearch && matchRating && matchRole;
     })
     .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 
@@ -224,7 +226,7 @@ export function Reviews() {
     ? Math.round((reviews.filter(r => (r?.rating || 0) >= 4).length / reviews.length) * 100)
     : 0;
 
-  const tripGroups = groupByTrip
+  const tripGroups = groupBy === 'trip'
     ? Object.entries(
         filtered.reduce((acc: Record<string, any[]>, r) => {
           const key = r.tripId || 'без поездки';
@@ -232,6 +234,16 @@ export function Reviews() {
           return acc;
         }, {})
       ).sort((a, b) => new Date(b[1][0]?.createdAt || 0).getTime() - new Date(a[1][0]?.createdAt || 0).getTime())
+    : [];
+
+  const recipientGroups = groupBy === 'recipient'
+    ? Object.entries(
+        filtered.reduce((acc: Record<string, any[]>, r) => {
+          const key = r.targetEmail || r.targetName || 'без получателя';
+          (acc[key] = acc[key] || []).push(r);
+          return acc;
+        }, {})
+      ).sort((a, b) => b[1].length - a[1].length)
     : [];
 
   return (
@@ -249,8 +261,11 @@ export function Reviews() {
         ]}
         actions={
           <>
-            <HeaderBtn icon={Layers} onClick={() => setGroupByTrip(g => !g)}>
-              {groupByTrip ? 'Список' : 'По поездкам'}
+            <HeaderBtn
+              icon={Layers}
+              onClick={() => setGroupBy(g => g === 'none' ? 'trip' : g === 'trip' ? 'recipient' : 'none')}
+            >
+              {groupBy === 'none' ? 'По поездкам' : groupBy === 'trip' ? 'По получателям' : 'Список'}
             </HeaderBtn>
             <HeaderBtn icon={RefreshCw} onClick={load}>Обновить</HeaderBtn>
           </>
@@ -340,6 +355,15 @@ export function Reviews() {
             { value: '1-3', label: '≤3 звезды', count: ratingCounts.slice(2).reduce((s, r) => s + r.count, 0) },
           ]}
         />
+        <FilterChips
+          value={roleFilter}
+          onChange={setRoleFilter}
+          options={[
+            { value: 'all', label: 'Все авторы', count: reviews.length },
+            { value: 'driver', label: '🚛 От водителей', count: reviews.filter(r => r?.role === 'driver').length },
+            { value: 'sender', label: '📦 От отправителей', count: reviews.filter(r => r?.role === 'sender').length },
+          ]}
+        />
       </div>
 
       {/* ── Reviews list ── */}
@@ -357,7 +381,7 @@ export function Reviews() {
             <p className="text-gray-400 text-sm mt-1">Отзывы появятся после завершения первых поездок</p>
           )}
         </div>
-      ) : groupByTrip ? (
+      ) : groupBy === 'trip' ? (
         <div className="space-y-5">
           {tripGroups.map(([tripId, groupReviews]) => (
             <div key={tripId} className="space-y-2">
@@ -365,6 +389,34 @@ export function Reviews() {
                 <Route className="w-4 h-4 text-gray-400" />
                 <p className="text-xs font-bold uppercase tracking-wide text-gray-500">
                   {tripId === 'без поездки' ? 'Без привязки к поездке' : `Поездка #${tripId.slice(0, 12)}...`}
+                </p>
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: '#f1f5f9', color: '#64748b' }}>
+                  {groupReviews.length}
+                </span>
+              </div>
+              <div className="space-y-3">
+                {groupReviews.map(review => (
+                  <ReviewCard
+                    key={review.reviewId}
+                    review={review}
+                    isExpanded={expandedId === review.reviewId}
+                    onToggleExpand={() => setExpandedId(expandedId === review.reviewId ? null : review.reviewId)}
+                    onDelete={() => handleDelete(review)}
+                    deleting={deletingId === review.reviewId}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : groupBy === 'recipient' ? (
+        <div className="space-y-5">
+          {recipientGroups.map(([recipient, groupReviews]) => (
+            <div key={recipient} className="space-y-2">
+              <div className="flex items-center gap-2 px-1">
+                <Layers className="w-4 h-4 text-gray-400" />
+                <p className="text-xs font-bold uppercase tracking-wide text-gray-500">
+                  {groupReviews[0]?.targetName || recipient}
                 </p>
                 <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: '#f1f5f9', color: '#64748b' }}>
                   {groupReviews.length}
