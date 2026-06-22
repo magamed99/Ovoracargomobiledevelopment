@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { Plane, User, Package, ShieldAlert, ShieldX, Calendar, Plus, RefreshCw, ArrowRight, AlertTriangle, Phone, Copy, Check, XCircle, SlidersHorizontal, X, Search, ArrowDown, Bell, MessageCircle, Handshake, FileText, ClipboardList, Zap } from 'lucide-react';
 import { NotificationCenter } from './NotificationCenter';
@@ -738,6 +738,40 @@ export function AviaDashboard() {
     }
   }, [isPulling, isRefreshing, fetchMainData, fetchMyData]);
 
+  // ── Пакет M: фильтрация + поиск + сортировка рейсов (мемоизировано — иначе
+  // applyFlightFilters() пересчитывался бы на каждый ререндер дашборда,
+  // включая ререндеры от polling/pull-to-refresh, не связанные со списком). ──
+  const searchLower = searchQuery.toLowerCase().trim();
+  const displayFlights = useMemo(() => {
+    if (!user) return [];
+    // Для курьера вкладка «Мои рейсы» — это его собственные рейсы любого статуса
+    // (публичный список flights отдаёт только active, поэтому берём из myFlights,
+    // чтобы рейс не пропадал с главной после старта поездки). Завершённые рейсы
+    // на главной не нужны — управлять ими можно через «Сделки»/Манифест.
+    const preFilteredFlights = (user.role === 'courier' ? myFlights : flights)
+      .filter(fl => fl.status !== 'completed');
+
+    const matchesFlight = (f: AviaFlight) => {
+      if (!searchLower) return true;
+      return [f.from, f.to, f.flightNo, f.courierName, f.id]
+        .filter(Boolean)
+        .some(v => v!.toLowerCase().includes(searchLower));
+    };
+
+    const filtered = applyFlightFilters(preFilteredFlights, flightFS, user.phone).filter(matchesFlight);
+
+    const sorted = [...filtered];
+    switch (sortKey) {
+      case 'date-desc': sorted.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); break;
+      case 'date-asc':  sorted.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()); break;
+      case 'weight-desc': sorted.sort((a, b) => (b.freeKg || 0) - (a.freeKg || 0)); break;
+      case 'weight-asc':  sorted.sort((a, b) => (a.freeKg || 0) - (b.freeKg || 0)); break;
+      case 'price-asc':  sorted.sort((a, b) => (a.pricePerKg || 0) - (b.pricePerKg || 0)); break;
+      case 'price-desc': sorted.sort((a, b) => (b.pricePerKg || 0) - (a.pricePerKg || 0)); break;
+    }
+    return sorted;
+  }, [user, myFlights, flights, flightFS, searchLower, sortKey]);
+
   if (!isAuth || !user) return null;
 
   // ── Производные значения ──────────────────────────────────────────────────
@@ -749,42 +783,6 @@ export function AviaDashboard() {
     if (!user.passportExpiryDate) return false;
     return new Date(user.passportExpiryDate).getTime() < Date.now();
   })();
-
-  // ── Пакет E: Локальный текстовый поиск ─────────────────────────────────────
-  const searchLower = searchQuery.toLowerCase().trim();
-
-  const matchesFlight = (f: AviaFlight) => {
-    if (!searchLower) return true;
-    return [f.from, f.to, f.flightNo, f.courierName, f.id]
-      .filter(Boolean)
-      .some(v => v!.toLowerCase().includes(searchLower));
-  };
-
-  // ── Пакет F: Сортировка ──────────────────────────────────────────────────
-  const sortFlights = (arr: AviaFlight[]) => {
-    const sorted = [...arr];
-    switch (sortKey) {
-      case 'date-desc': sorted.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); break;
-      case 'date-asc':  sorted.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()); break;
-      case 'weight-desc': sorted.sort((a, b) => (b.freeKg || 0) - (a.freeKg || 0)); break;
-      case 'weight-asc':  sorted.sort((a, b) => (a.freeKg || 0) - (b.freeKg || 0)); break;
-      case 'price-asc':  sorted.sort((a, b) => (a.pricePerKg || 0) - (b.pricePerKg || 0)); break;
-      case 'price-desc': sorted.sort((a, b) => (b.pricePerKg || 0) - (a.pricePerKg || 0)); break;
-    }
-    return sorted;
-  };
-
-  // Для курьера вкладка «Мои рейсы» — это его собственные рейсы любого статуса
-  // (публичный список flights отдаёт только active, поэтому берём из myFlights,
-  // чтобы рейс не пропадал с главной после старта поездки). Завершённые рейсы
-  // на главной не нужны — управлять ими можно через «Сделки»/Манифест.
-  const preFilteredFlights = (user.role === 'courier' ? myFlights : flights)
-    .filter(fl => fl.status !== 'completed');
-
-  // Пакет M: клиентская фильтрация поверх role-prefilter
-  const displayFlights = sortFlights(
-    applyFlightFilters(preFilteredFlights, flightFS, myPhone).filter(matchesFlight)
-  );
 
   // Пакет M: производные для chips + filter badge
   const activeFilterCount = countActiveFilters(flightFS);
