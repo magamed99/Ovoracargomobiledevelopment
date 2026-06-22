@@ -4633,6 +4633,59 @@ app.get("/make-server-4e36197a/admin/cargos", async (c) => {
   }
 });
 
+// ✅ Admin: глобальный поиск по сущностям для шапки админки — находит конкретного
+// пользователя/поездку/оферту/груз/отзыв по email/телефону/имени/ID, а не просто
+// маршрутизирует по ключевым словам раздела (см. AdminLayout.tsx).
+app.get("/make-server-4e36197a/admin/search", async (c) => {
+  try {
+    const q = (c.req.query("q") || "").trim().toLowerCase();
+    if (q.length < 2) {
+      return c.json({ users: [], trips: [], offers: [], cargos: [], reviews: [] });
+    }
+
+    const [users, trips, offers, cargos, reviews]: any[] = await Promise.all([
+      kv.getByPrefix("ovora:user:email:"),
+      kv.getByPrefix("ovora:trip:"),
+      kv.getByPrefix("ovora:offer:"),
+      kv.getByPrefix("ovora:cargo:"),
+      kv.getByPrefix("ovora:review:"),
+    ]);
+
+    const LIMIT = 5;
+    const has = (...vals: any[]) => vals.some(v => v != null && String(v).toLowerCase().includes(q));
+
+    const matchedUsers = users
+      .filter((u: any) => u && has(u.email, u.phone, u.firstName, u.lastName, `${u.firstName || ''} ${u.lastName || ''}`))
+      .slice(0, LIMIT)
+      .map((u: any) => ({ email: u.email, name: `${u.firstName || ''} ${u.lastName || ''}`.trim(), phone: u.phone || '', role: u.role || '' }));
+
+    const matchedTrips = trips
+      .filter((t: any) => t && !t.deletedAt && has(t.id, t.from, t.to, t.driverEmail, t.driverName))
+      .slice(0, LIMIT)
+      .map((t: any) => ({ id: t.id, from: t.from, to: t.to, driverName: t.driverName || t.driverEmail || '' }));
+
+    const matchedOffers = offers
+      .filter((o: any) => o && has(o.offerId, o.tripId, o.senderEmail, o.senderName, o.driverEmail, o.driverName))
+      .slice(0, LIMIT)
+      .map((o: any) => ({ offerId: o.offerId, tripId: o.tripId, senderName: o.senderName || o.senderEmail || '', driverName: o.driverName || o.driverEmail || '' }));
+
+    const matchedCargos = cargos
+      .filter((cg: any) => cg && !cg.deletedAt && has(cg.id, cg.from, cg.to, cg.senderEmail, cg.senderName, cg.senderPhone))
+      .slice(0, LIMIT)
+      .map((cg: any) => ({ id: cg.id, from: cg.from, to: cg.to, senderName: cg.senderName || cg.senderEmail || '' }));
+
+    const matchedReviews = reviews
+      .filter((r: any) => r && has(r.reviewId, r.authorEmail, r.authorName, r.targetEmail, r.targetName))
+      .slice(0, LIMIT)
+      .map((r: any) => ({ reviewId: r.reviewId, authorName: r.authorName || r.authorEmail || '', targetName: r.targetName || r.targetEmail || '' }));
+
+    return c.json({ users: matchedUsers, trips: matchedTrips, offers: matchedOffers, cargos: matchedCargos, reviews: matchedReviews });
+  } catch (err) {
+    console.log("Error GET /admin/search:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
 // ✅ Admin: force soft-delete груза (модерация, без проверки владельца — уже под requireAdmin)
 app.delete("/make-server-4e36197a/admin/cargos/:id", async (c) => {
   try {

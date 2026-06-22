@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { YandexMetrikaTracker } from '../YandexMetrika';
-import { getAdminStats } from '../../api/dataApi';
+import { getAdminStats, searchAdmin } from '../../api/dataApi';
 import { usePolling } from '../../hooks/usePolling';
 import { AdminAuthGate } from './AdminAuthGate';
 import { PLATFORM_THEME, GROUP_PLATFORM } from './platformTheme';
@@ -82,6 +82,9 @@ export function AdminLayout() {
   const [notifOpen, setNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
   const [authed, setAuthed] = useState(() =>
     sessionStorage.getItem(PIN_SESSION_KEY) === 'true' &&
     (!!sessionStorage.getItem('ovora_admin_token') || !!sessionStorage.getItem('ovora_admin_jwt'))
@@ -109,20 +112,101 @@ export function AdminLayout() {
     return () => document.removeEventListener('mousedown', handler);
   }, [notifOpen]);
 
+  // Поиск по сущностям (находит конкретного пользователя/поездку/оферту/груз/отзыв
+  // по email/телефону/имени/ID), а не просто роутинг по ключевым словам раздела.
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (q.length < 2) {
+      setSearchResults(null);
+      setSearchOpen(false);
+      return;
+    }
+    const id = setTimeout(async () => {
+      try {
+        const res = await searchAdmin(q);
+        setSearchResults(res);
+        setSearchOpen(true);
+      } catch {
+        setSearchResults(null);
+      }
+    }, 300);
+    return () => clearTimeout(id);
+  }, [searchQuery]);
+
+  // Закрытие выпадающего списка результатов поиска по клику снаружи
+  useEffect(() => {
+    if (!searchOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) setSearchOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [searchOpen]);
+
   if (!authed) {
     return <AdminAuthGate onSuccess={() => setAuthed(true)} />;
   }
 
+  // Каждый пункт несёт href целевого раздела + q/expand для него: q подставляется
+  // в его собственный локальный фильтр (гарантированно совпадающее поле), expand —
+  // в его expandedId, чтобы сразу раскрыть найденную карточку.
+  const searchHits = searchResults ? [
+    ...(searchResults.users || []).map((u: any) => ({
+      key: `user-${u.email}`,
+      icon: u.role === 'driver' ? Car : Users,
+      label: u.name || u.email,
+      sublabel: u.role === 'driver' ? (u.phone || u.email) : u.email,
+      href: u.role === 'driver' ? '/admin/cargo/drivers' : '/admin/cargo/users',
+      q: u.email,
+      expand: u.email,
+    })),
+    ...(searchResults.trips || []).map((t: any) => ({
+      key: `trip-${t.id}`,
+      icon: Truck,
+      label: `${t.from} → ${t.to}`,
+      sublabel: t.driverName,
+      href: '/admin/cargo/trips',
+      q: t.driverName,
+      expand: t.id,
+    })),
+    ...(searchResults.offers || []).map((o: any) => ({
+      key: `offer-${o.offerId}`,
+      icon: RequestIcon,
+      label: `${o.senderName} ↔ ${o.driverName}`,
+      sublabel: o.tripId,
+      href: '/admin/cargo/offers',
+      q: o.tripId,
+      expand: o.offerId,
+    })),
+    ...(searchResults.cargos || []).map((cg: any) => ({
+      key: `cargo-${cg.id}`,
+      icon: Boxes,
+      label: `${cg.from} → ${cg.to}`,
+      sublabel: cg.senderName,
+      href: '/admin/cargo/cargos',
+      q: cg.senderName,
+      expand: cg.id,
+    })),
+    ...(searchResults.reviews || []).map((r: any) => ({
+      key: `review-${r.reviewId}`,
+      icon: Star,
+      label: r.authorName,
+      sublabel: r.targetName,
+      href: '/admin/cargo/reviews',
+      q: r.authorName,
+      expand: r.reviewId,
+    })),
+  ] : [];
+
+  const goToHit = (hit: { href: string; q: string; expand: string }) => {
+    setSearchOpen(false);
+    setSearchQuery('');
+    navigate(`${hit.href}?q=${encodeURIComponent(hit.q)}&expand=${encodeURIComponent(hit.expand)}`);
+  };
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!searchQuery.trim()) return;
-    const q = searchQuery.toLowerCase();
-    if (q.includes('водитель') || q.includes('driver')) navigate('/admin/cargo/drivers');
-    else if (q.includes('пользователь') || q.includes('user')) navigate('/admin/cargo/users');
-    else if (q.includes('поездк') || q.includes('trip')) navigate('/admin/cargo/trips');
-    else if (q.includes('аналитик') || q.includes('analytic')) navigate('/admin/cargo/analytics');
-    else if (q.includes('отзыв') || q.includes('review')) navigate('/admin/cargo/reviews');
-    setSearchQuery('');
+    if (searchHits[0]) goToHit(searchHits[0]);
   };
 
   const isActive = (item: { href: string; exact?: boolean }) => {
@@ -340,21 +424,63 @@ export function AdminLayout() {
             </div>
 
             {/* Search */}
-            <form onSubmit={handleSearch} className="flex-1 max-w-sm mx-auto lg:mx-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Поиск разделов..."
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 text-sm text-gray-700 placeholder-gray-400 rounded-xl outline-none transition-all"
-                  style={{ background: '#f1f5f9', border: '1px solid #e2e8f0' }}
-                  onFocus={e => { e.currentTarget.style.borderColor = '#1565d866'; e.currentTarget.style.boxShadow = '0 0 0 3px #1565d815'; }}
-                  onBlur={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.boxShadow = 'none'; }}
-                />
-              </div>
-            </form>
+            <div ref={searchRef} className="relative flex-1 max-w-sm mx-auto lg:mx-4">
+              <form onSubmit={handleSearch}>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Поиск по email, телефону, имени, ID..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    onFocus={e => {
+                      e.currentTarget.style.borderColor = '#1565d866';
+                      e.currentTarget.style.boxShadow = '0 0 0 3px #1565d815';
+                      if (searchResults) setSearchOpen(true);
+                    }}
+                    onBlur={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.boxShadow = 'none'; }}
+                    className="w-full pl-9 pr-4 py-2 text-sm text-gray-700 placeholder-gray-400 rounded-xl outline-none transition-all"
+                    style={{ background: '#f1f5f9', border: '1px solid #e2e8f0' }}
+                  />
+                </div>
+              </form>
+
+              <AnimatePresence>
+                {searchOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute left-0 top-full mt-2 w-full rounded-2xl shadow-lg overflow-hidden z-50"
+                    style={{ background: '#fff', border: '1px solid #e2e8f0' }}
+                  >
+                    <div className="max-h-80 overflow-y-auto">
+                      {searchHits.length === 0 ? (
+                        <p className="px-4 py-6 text-sm text-gray-400 text-center">Ничего не найдено</p>
+                      ) : (
+                        searchHits.map(hit => (
+                          <button
+                            key={hit.key}
+                            onClick={() => goToHit(hit)}
+                            className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+                            style={{ borderBottom: '1px solid #f8fafc' }}
+                          >
+                            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#eff6ff' }}>
+                              <hit.icon className="w-4 h-4" style={{ color: '#2563eb' }} />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm text-gray-700 font-medium truncate">{hit.label}</p>
+                              {hit.sublabel && <p className="text-xs text-gray-400 truncate">{hit.sublabel}</p>}
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
 
             {/* Right side */}
             <div className="flex items-center gap-2 ml-auto">

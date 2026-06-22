@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { Search, Users as UsersIcon, Car, RefreshCw, Loader2, Download, Trash2, UserCheck, UserX, ChevronDown, ChevronUp, MoreVertical } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -67,6 +67,16 @@ export function UsersManagement() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+
+  // Переход из глобального поиска в шапке админки (AdminLayout) — подставляем
+  // запрос в локальный фильтр и раскрываем найденную карточку.
+  useEffect(() => {
+    const q = searchParams.get('q');
+    const expand = searchParams.get('expand');
+    if (q) setSearchQuery(q);
+    if (expand) setExpandedId(expand);
+  }, [searchParams]);
 
   const load = useCallback(async () => {
     setLoading(true);

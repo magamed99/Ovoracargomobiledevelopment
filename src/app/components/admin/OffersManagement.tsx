@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router';
 import { Search, RefreshCw, Package, Clock, CheckCircle, XCircle, ChevronDown, User, Truck, Weight, Download, ClipboardList, Ban } from 'lucide-react';
 import { toast } from 'sonner';
 import { getAdminOffers, updateAdminOfferStatus } from '../../api/dataApi';
@@ -56,6 +57,15 @@ export function OffersManagement() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+
+  // Переход из глобального поиска в шапке админки (AdminLayout)
+  useEffect(() => {
+    const q = searchParams.get('q');
+    const expand = searchParams.get('expand');
+    if (q) setSearch(q);
+    if (expand) setExpandedId(expand);
+  }, [searchParams]);
 
   const handleCancel = async (offer: any) => {
     const id = offer.offerId || offer.id;

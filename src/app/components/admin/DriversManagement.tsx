@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router';
 import { Search, MoreVertical, Car, CheckCircle, RefreshCw, Loader2, UserX, UserCheck, Trash2, ChevronDown, ChevronUp, TrendingUp, Award } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import { toast } from 'sonner';
@@ -32,6 +33,15 @@ export function DriversManagement() {
   const [sortBy, setSortBy] = useState('trips');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+
+  // Переход из глобального поиска в шапке админки (AdminLayout)
+  useEffect(() => {
+    const q = searchParams.get('q');
+    const expand = searchParams.get('expand');
+    if (q) setSearchQuery(q);
+    if (expand) setExpandedId(expand);
+  }, [searchParams]);
 
   const load = useCallback(async () => {
     setLoading(true);

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router';
 import { Search, Clock, Package, Car, Calendar, XCircle, RefreshCw, Loader2, ChevronDown, ChevronUp, Share2, Download, Route } from 'lucide-react';
 import { toast } from 'sonner';
 import { getAdminTrips, getAdminOffers, adminHeaders } from '../../api/dataApi';
@@ -47,6 +48,15 @@ export function TripsManagement() {
   const [sortBy, setSortBy] = useState('date_desc');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+
+  // Переход из глобального поиска в шапке админки (AdminLayout)
+  useEffect(() => {
+    const q = searchParams.get('q');
+    const expand = searchParams.get('expand');
+    if (q) setSearchQuery(q);
+    if (expand) setExpandedId(expand);
+  }, [searchParams]);
 
   const load = useCallback(async () => {
     setLoading(true);

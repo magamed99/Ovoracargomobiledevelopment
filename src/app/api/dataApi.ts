@@ -511,6 +511,10 @@ export async function deleteAdminCargo(cargoId: string) {
   return req('DELETE', `/admin/cargos/${encodeURIComponent(cargoId)}`);
 }
 
+export async function searchAdmin(q: string) {
+  return req('GET', `/admin/search?q=${encodeURIComponent(q)}`);
+}
+
 // ── Admin documents ────────────────────────────────────────────────
 export async function getAdminDocuments() {
   const data = await req('GET', '/admin/documents');

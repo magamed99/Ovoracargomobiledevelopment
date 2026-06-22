@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router';
 import { Search, RefreshCw, Boxes, Clock, CheckCircle, XCircle, ChevronDown, Weight, Download, MapPin, Ban } from 'lucide-react';
 import { toast } from 'sonner';
 import { getAdminCargos, deleteAdminCargo } from '../../api/dataApi';
@@ -55,6 +56,15 @@ export function CargosManagement() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+
+  // Переход из глобального поиска в шапке админки (AdminLayout)
+  useEffect(() => {
+    const q = searchParams.get('q');
+    const expand = searchParams.get('expand');
+    if (q) setSearch(q);
+    if (expand) setExpandedId(expand);
+  }, [searchParams]);
 
   const handleRemove = async (cargo: any) => {
     if (!cargo.id) return;
