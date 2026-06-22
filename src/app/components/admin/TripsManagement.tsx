@@ -5,21 +5,9 @@ import { toast } from 'sonner';
 import { getAdminTrips, getAdminOffers, adminHeaders } from '../../api/dataApi';
 import { projectId } from '../../../../utils/supabase/info';
 import { AdminPageHeader, HeaderBtn, FilterChips, SkeletonList } from './AdminPageHeader';
+import { exportCsv } from '../../utils/adminCsvExport';
 
 const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;
-
-// ── CSV export ────────────────────────────────────────────────────────────────
-function exportCsv(rows: Record<string, any>[], filename: string) {
-  if (!rows.length) return;
-  const keys = Object.keys(rows[0]);
-  const esc = (v: any) => { const s = String(v ?? '').replace(/"/g, '""'); return /[,"\n]/.test(s) ? `"${s}"` : s; };
-  const csv = [keys.join(','), ...rows.map(r => keys.map(k => esc(r[k])).join(','))].join('\n');
-  const a = Object.assign(document.createElement('a'), {
-    href: URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })),
-    download: filename,
-  });
-  a.click(); URL.revokeObjectURL(a.href);
-}
 
 async function cancelTrip(id: string) {
   const res = await fetch(`${BASE}/trips/${id}`, {

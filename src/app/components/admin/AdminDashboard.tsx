@@ -11,25 +11,9 @@ import { getAdminTrips, getAdminUsers, getAdminOffers, getAdminReviews } from '.
 import { getAviaAdminUsers, getAviaAdminDeals, getAviaAdminFlights } from '../../api/aviaAdminApi';
 import { PLATFORM_THEME } from './platformTheme';
 import { toast } from 'sonner';
+import { exportCsv } from '../../utils/adminCsvExport';
 
 type AdminPlatform = 'cargo' | 'avia';
-
-// ── CSV export ────────────────────────────────────────────────────────────────
-function exportCsv(rows: Record<string, unknown>[], filename: string) {
-  if (!rows.length) return;
-  const keys = Object.keys(rows[0]);
-  const esc = (v: unknown) => {
-    const s = String(v ?? '').replace(/"/g, '""');
-    return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s}"` : s;
-  };
-  const csv = [keys.join(','), ...rows.map(r => keys.map(k => esc(r[k])).join(','))].join('\n');
-  const a = Object.assign(document.createElement('a'), {
-    href: URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })),
-    download: filename,
-  });
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
 
 function RelTime({ iso }: { iso: string }) {
   if (!iso) return <span className="text-gray-400">—</span>;

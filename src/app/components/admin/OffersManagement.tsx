@@ -4,19 +4,7 @@ import { Search, RefreshCw, Package, Clock, CheckCircle, XCircle, ChevronDown, U
 import { toast } from 'sonner';
 import { getAdminOffers, updateAdminOfferStatus } from '../../api/dataApi';
 import { AdminPageHeader, HeaderBtn, FilterChips, SkeletonList } from './AdminPageHeader';
-
-// ── CSV export ─────────────────────────────────────────────────────────────────
-function exportCsv(rows: Record<string, any>[], filename: string) {
-  if (!rows.length) return;
-  const keys = Object.keys(rows[0]);
-  const esc = (v: any) => { const s = String(v ?? '').replace(/"/g, '""'); return /[,"\n]/.test(s) ? `"${s}"` : s; };
-  const csv = [keys.join(','), ...rows.map(r => keys.map(k => esc(r[k])).join(','))].join('\n');
-  const a = Object.assign(document.createElement('a'), {
-    href: URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })),
-    download: filename,
-  });
-  a.click(); URL.revokeObjectURL(a.href);
-}
+import { exportCsv } from '../../utils/adminCsvExport';
 
 type StatusFilter = 'all' | 'pending' | 'accepted' | 'rejected';
 
