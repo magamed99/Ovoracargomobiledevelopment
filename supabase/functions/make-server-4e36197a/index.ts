@@ -1195,7 +1195,9 @@ app.delete("/make-server-4e36197a/trips/:id", async (c) => {
 //  KV: ovora:cargo:{id} → cargo object
 // ══════════════════════════════════════════════════════════════════════════════
 
-app.post("/make-server-4e36197a/cargos", async (c) => {
+app.post("/make-server-4e36197a/cargos",
+  rateLimitMiddleware(RL.GENERAL_WRITE, (c) => `cargo-create:${c.req.header('x-forwarded-for') || 'unknown'}`),
+  async (c) => {
   try {
     const body = await c.req.json();
 
@@ -1348,7 +1350,9 @@ app.delete("/make-server-4e36197a/cargos/:id", async (c) => {
 //  KV: ovora:offer:{tripId}:{offerId} → offer object
 // ══════════════════════════════════════════════════════════════════════════════
 
-app.post("/make-server-4e36197a/offers", async (c) => {
+app.post("/make-server-4e36197a/offers",
+  rateLimitMiddleware(RL.GENERAL_WRITE, (c) => `offer-create:${c.req.header('x-forwarded-for') || 'unknown'}`),
+  async (c) => {
   try {
     const body = await c.req.json();
     const { tripId, senderEmail, senderName } = body;
@@ -1997,7 +2001,9 @@ app.put("/make-server-4e36197a/cargo-offers/:cargoId/:offerId", async (c) => {
   }
 });
 
-app.post("/make-server-4e36197a/reviews", async (c) => {
+app.post("/make-server-4e36197a/reviews",
+  rateLimitMiddleware(RL.GENERAL_WRITE, (c) => `review-create:${c.req.header('x-forwarded-for') || 'unknown'}`),
+  async (c) => {
   try {
     const body = await c.req.json();
 
@@ -4855,7 +4861,8 @@ app.put("/make-server-4e36197a/admin/documents/:documentId/status", async (c) =>
       const user: any = await kv.get(userKey);
       if (user) await kv.set(userKey, { ...user, isVerified: true, documentsVerified: true, updatedAt: new Date().toISOString() });
     }
-    await CargoAuditLog.record({ action: 'document.admin_status_change', actorEmail: 'admin', targetId: documentId, targetType: 'document', details: { userEmail, status, notes } });
+    const adminRole = c.get('adminRole') || 'admin';
+    await CargoAuditLog.record({ action: 'document.admin_status_change', actorEmail: `admin:${adminRole}`, targetId: documentId, targetType: 'document', details: { userEmail, status, notes } });
     console.log(`[admin/documents] ${documentId} for ${userEmail} → ${status}`);
     return c.json({ success: true, document: updated });
   } catch (err) {
@@ -5228,7 +5235,9 @@ app.post("/make-server-4e36197a/tracking/:tripId/status", async (c) => {
 //  Storage: make-4e36197a-pod/{tripId}/{type}-{ts}.jpg
 // ══════════════════════════════════════════════════════════════════════════════
 
-app.post("/make-server-4e36197a/tracking/:tripId/pod", async (c) => {
+app.post("/make-server-4e36197a/tracking/:tripId/pod",
+  rateLimitMiddleware(RL.GENERAL_WRITE, (c) => `pod-upload:${c.req.header('x-forwarded-for') || 'unknown'}`),
+  async (c) => {
   try {
     const tripId = c.req.param("tripId");
     const { base64, type, driverEmail } = await c.req.json();

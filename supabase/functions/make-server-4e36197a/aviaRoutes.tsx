@@ -250,7 +250,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
     }
   });
 
-  app.put(`${P}/profile`, async (c) => {
+  app.put(`${P}/profile`, rlIp(RL.GENERAL_WRITE), async (c) => {
     try {
       const body  = await c.req.json();
       const { phone, ...updates } = body;
@@ -361,7 +361,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
   //  PASSPORT
   // ══════════════════════════════════════════════════════════════════════════
 
-  app.post(`${P}/upload-passport`, rlPhone(RL.UPLOAD), async (c) => {
+  app.post(`${P}/upload-passport`, async (c) => {
     try {
       const formData        = await c.req.formData();
       const phone           = formData.get('phone') as string;
@@ -375,10 +375,19 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       const existing = await Users.get(clean);
       if (!existing) return c.json({ error: 'User not found' }, 404);
 
-      // 🔒 Уже загружен
+      // 🔒 Уже загружен — отдаём 409 без расхода лимита (повторный клик/рефреш
+      // не должен жечь попытки реальной загрузки)
       if (existing.passportPhoto || existing.passportPhotoPath) {
         return c.json({ error: 'Паспорт уже загружен. Изменить фото нельзя.' }, 409);
       }
+
+      const rl = aviaRL.check(`avia-passport-upload:${clean}`, RL.UPLOAD.max, RL.UPLOAD.windowMs);
+      c.header('X-RateLimit-Limit', String(RL.UPLOAD.max));
+      c.header('X-RateLimit-Remaining', String(rl.remaining));
+      if (!rl.allowed) {
+        return c.json({ error: 'Слишком много попыток загрузки. Подождите и попробуйте снова.', retryAfterMs: rl.retryAfterMs }, 429);
+      }
+
       if (file.size > 10 * 1024 * 1024) return c.json({ error: 'Файл слишком большой (макс 10 МБ)' }, 413);
 
       const ext         = file.name?.split('.').pop() || 'jpg';
