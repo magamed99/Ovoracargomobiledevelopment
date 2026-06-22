@@ -934,6 +934,10 @@ app.post("/make-server-4e36197a/trips", async (c) => {
       await kv.set(`ovora:drivertrips:${trip.driverEmail}:${id}`, { tripId: id, driverEmail: trip.driverEmail }).catch(() => {});
     }
 
+    if (trip.driverEmail) {
+      await CargoAuditLog.record({ action: 'trip.create', actorEmail: trip.driverEmail, targetId: id, targetType: 'trip', details: { from: trip.from, to: trip.to } });
+    }
+
     return c.json({ success: true, trip });
   } catch (err) {
     console.log("Error POST /trips:", err);
@@ -1148,6 +1152,11 @@ app.put("/make-server-4e36197a/trips/:id", async (c) => {
       })();
     }
 
+    const editorEmail = (body as any).callerEmail || existing.driverEmail;
+    if (editorEmail) {
+      await CargoAuditLog.record({ action: 'trip.edit', actorEmail: editorEmail, targetId: id, targetType: 'trip', details: { fields: Object.keys(cleanedBody) } });
+    }
+
     return c.json({ success: true, trip: updated });
   } catch (err) {
     console.log("Error PUT /trips/:id:", err);
@@ -1163,8 +1172,8 @@ app.delete("/make-server-4e36197a/trips/:id", async (c) => {
 
     // ✅ FIX C-2: проверка владельца (пропускаем для admin-оверрайда — X-Admin-Code или JWT)
     const isAdmin = await isAdminCaller(c, isAdminJwtRevoked);
+    let callerEmail = '';
     if (!isAdmin) {
-      let callerEmail = '';
       try { callerEmail = (await c.req.json()).callerEmail || ''; } catch { /* тело может отсутствовать */ }
       if (!callerEmail) {
         return c.json({ error: 'callerEmail required' }, 400);
@@ -1181,6 +1190,11 @@ app.delete("/make-server-4e36197a/trips/:id", async (c) => {
     if (existing.driverEmail) {
       await kv.del(`ovora:drivertrips:${existing.driverEmail}:${id}`).catch(() => {});
       console.log(`[DELETE /trips] Removed driver index for ${existing.driverEmail}:${id}`);
+    }
+
+    const deleterEmail = callerEmail || existing.driverEmail;
+    if (deleterEmail) {
+      await CargoAuditLog.record({ action: 'trip.delete', actorEmail: deleterEmail, targetId: id, targetType: 'trip' });
     }
 
     return c.json({ success: true });
@@ -1226,6 +1240,7 @@ app.post("/make-server-4e36197a/cargos",
 
     if (cargo.senderEmail) {
       await kv.set(`ovora:sendercargos:${cargo.senderEmail}:${id}`, { cargoId: id, senderEmail: cargo.senderEmail }).catch(() => {});
+      await CargoAuditLog.record({ action: 'cargo.create', actorEmail: cargo.senderEmail, targetId: id, targetType: 'cargo', details: { from: cargo.from, to: cargo.to } });
     }
 
     return c.json({ success: true, cargo });
@@ -1313,6 +1328,7 @@ app.put("/make-server-4e36197a/cargos/:id", async (c) => {
 
     const updated = { ...existing, ...cleanedBody, id, updatedAt: new Date().toISOString() };
     await kv.set(`ovora:cargo:${id}`, updated);
+    await CargoAuditLog.record({ action: 'cargo.edit', actorEmail: callerEmail, targetId: id, targetType: 'cargo', details: { fields: Object.keys(cleanedBody) } });
     return c.json({ success: true, cargo: updated });
   } catch (err) {
     console.log("Error PUT /cargos/:id:", err);
@@ -1338,6 +1354,7 @@ app.delete("/make-server-4e36197a/cargos/:id", async (c) => {
     if (existing.senderEmail) {
       await kv.del(`ovora:sendercargos:${existing.senderEmail}:${id}`).catch(() => {});
     }
+    await CargoAuditLog.record({ action: 'cargo.delete', actorEmail: callerEmail, targetId: id, targetType: 'cargo' });
     return c.json({ success: true });
   } catch (err) {
     console.log("Error DELETE /cargos/:id:", err);
@@ -1436,6 +1453,8 @@ app.post("/make-server-4e36197a/offers",
     } catch (notifErr) {
       console.log('[offers] Error creating notification:', notifErr);
     }
+
+    await CargoAuditLog.record({ action: 'offer.create', actorEmail: senderEmail, targetId: `${tripId}:${offerId}`, targetType: 'offer', details: { driverEmail: offer.driverEmail } });
 
     return c.json({ success: true, offer });
   } catch (err) {
@@ -2129,6 +2148,8 @@ app.post("/make-server-4e36197a/reviews",
         console.log("[POST /reviews] Failed to refresh driverRating snapshot:", e);
       }
     }
+
+    await CargoAuditLog.record({ action: 'review.create', actorEmail: authorEmail, targetId: reviewId, targetType: 'review', details: { targetEmail, tripId } });
 
     return c.json({ success: true, review });
   } catch (err) {
@@ -5284,6 +5305,9 @@ app.post("/make-server-4e36197a/tracking/:tripId/status", async (c) => {
     }
 
     console.log(`[tracking/status] Trip ${tripId}: ${existing.status} → ${status}`);
+
+    await CargoAuditLog.record({ action: 'tracking.status_change', actorEmail: driverEmail, targetId: tripId, targetType: 'tracking', details: { status, previousStatus: existing.status } });
+
     return c.json({ success: true, value: updated });
   } catch (err) {
     console.log("Error POST /tracking/:tripId/status:", err);
@@ -5362,6 +5386,9 @@ app.post("/make-server-4e36197a/tracking/:tripId/pod",
     }
 
     console.log(`[tracking/pod] ${type} photo uploaded for trip ${tripId}`);
+
+    await CargoAuditLog.record({ action: 'tracking.pod_upload', actorEmail: driverEmail, targetId: tripId, targetType: 'tracking', details: { type } });
+
     return c.json({ success: true, photo: podEntry });
   } catch (err) {
     console.log("Error POST /tracking/:tripId/pod:", err);
