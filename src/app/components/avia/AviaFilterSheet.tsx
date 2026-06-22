@@ -189,6 +189,7 @@ export function AviaFilterSheet({
               </div>
               <button
                 onClick={onClose}
+                aria-label="Закрыть"
                 style={{
                   width: 30, height: 30, borderRadius: 9,
                   border: '1px solid #ffffff10', background: '#ffffff06',

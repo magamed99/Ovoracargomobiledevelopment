@@ -1,11 +1,13 @@
 import { projectId, publicAnonKey } from '../../../utils/supabase/info';
 import { cacheClear as clearApiCache } from './dataApi';
+import { CSRF_HEADER, CSRF_TOKEN } from './csrfToken';
 
 // authApi v2 - with getCachedUser export
 const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;
 const HEADERS = {
   'Content-Type': 'application/json',
   Authorization: `Bearer ${publicAnonKey}`,
+  [CSRF_HEADER]: CSRF_TOKEN,
 };
 
 export interface OvoraUser {

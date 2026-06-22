@@ -300,6 +300,7 @@ export function AviaVerificationSheet({
               {/* Close */}
               <button
                 onClick={onClose}
+                aria-label="Закрыть"
                 style={{
                   width: 32, height: 32, borderRadius: 10, flexShrink: 0,
                   background: '#ffffff08', border: '1px solid #ffffff10',
@@ -619,8 +620,8 @@ export function AviaVerificationSheet({
                         toast.error('Неверный формат файла', { description: 'Поддерживаются только изображения: JPG, PNG, WEBP' });
                         return;
                       }
-                      if (file.size > 20 * 1024 * 1024) {
-                        toast.error('Файл слишком большой', { description: `Максимум 20 МБ. Ваш файл: ${(file.size / 1024 / 1024).toFixed(1)} МБ` });
+                      if (file.size > 10 * 1024 * 1024) {
+                        toast.error('Файл слишком большой', { description: `Максимум 10 МБ. Ваш файл: ${(file.size / 1024 / 1024).toFixed(1)} МБ` });
                         return;
                       }
                       const wasReplaced = !!previewFile;
@@ -649,8 +650,8 @@ export function AviaVerificationSheet({
                           toast.error('Неверный формат файла', { description: 'Поддерживаются только изображения: JPG, PNG, WEBP' });
                           return;
                         }
-                        if (file.size > 20 * 1024 * 1024) {
-                          toast.error('Файл слишком большой', { description: `Максимум 20 МБ. Ваш файл: ${(file.size / 1024 / 1024).toFixed(1)} МБ` });
+                        if (file.size > 10 * 1024 * 1024) {
+                          toast.error('Файл слишком большой', { description: `Максимум 10 МБ. Ваш файл: ${(file.size / 1024 / 1024).toFixed(1)} МБ` });
                           return;
                         }
                         const wasReplaced = !!previewFile;

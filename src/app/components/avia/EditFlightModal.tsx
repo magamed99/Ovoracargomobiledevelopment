@@ -123,6 +123,7 @@ export function EditFlightModal({ flight, onClose, onSaved }: Props) {
             </div>
             <button
               onClick={onClose}
+              aria-label="Закрыть"
               style={{
                 width: 34, height: 34, borderRadius: 10,
                 border: '1px solid #ffffff12', background: '#ffffff08',

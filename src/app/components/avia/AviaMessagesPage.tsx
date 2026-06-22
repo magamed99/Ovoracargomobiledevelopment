@@ -17,6 +17,7 @@ import {
   Plane, Package, MessagesSquare, Clock,
   CheckCircle2, XCircle, AlertCircle,
   ArrowRight, Scale, DollarSign, Loader2, Ban, Star, Trash2,
+  Search, ChevronUp, ChevronDown, X, RotateCcw,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { AviaChatMessage, AviaChat, AviaChatAdRef } from '../../api/aviaChatApi';
@@ -24,7 +25,7 @@ import {
   initAviaChat, getAviaChatMessages, sendAviaChatMessage,
   markAviaChatSeen, getAviaUserChats, makeAviaChatId, deleteAviaChat,
 } from '../../api/aviaChatApi';
-import { getAviaDeal, acceptAviaDeal, rejectAviaDeal, cancelAviaDeal } from '../../api/aviaDealApi';
+import { getAviaDeal, acceptAviaDeal, rejectAviaDeal, cancelAviaDeal, undoRejectAviaDeal } from '../../api/aviaDealApi';
 import type { AviaDeal } from '../../api/aviaDealApi';
 import { useAvia } from './AviaContext';
 import { getAviaProfile } from '../../api/aviaApi';
@@ -74,10 +75,11 @@ function fmtDate(iso: string): string {
 // ── Bubble: системный статус сделки ──────────────────────────────────────────
 
 const DEAL_STATUS_MAP: Record<string, { label: string; color: string; icon: typeof CheckCircle2 }> = {
-  accepted:  { label: 'Принято',   color: '#34d399', icon: CheckCircle2 },
-  rejected:  { label: 'Отклонено', color: '#f87171', icon: XCircle     },
-  cancelled: { label: 'Отменено',  color: '#f87171', icon: Ban         },
-  completed: { label: 'Завершено', color: '#fbbf24', icon: Star        },
+  accepted:  { label: 'Принято',    color: '#34d399', icon: CheckCircle2 },
+  rejected:  { label: 'Отклонено',  color: '#f87171', icon: XCircle     },
+  cancelled: { label: 'Отменено',   color: '#f87171', icon: Ban         },
+  completed: { label: 'Завершено',  color: '#fbbf24', icon: Star        },
+  pending:   { label: 'Возобновлено', color: '#38bdf8', icon: RotateCcw },
 };
 
 function DealUpdateBubble({ msg }: { msg: AviaChatMessage }) {
@@ -103,9 +105,10 @@ function DealUpdateBubble({ msg }: { msg: AviaChatMessage }) {
 function DealOfferBubble({ msg, myPhone, refreshTick }: { msg: AviaChatMessage; myPhone: string; refreshTick?: number }) {
   const [deal, setDeal]               = useState<AviaDeal | null>(null);
   const [loading, setLoading]         = useState(true);
-  const [acting, setActing]           = useState<'accept' | 'reject' | 'cancel' | null>(null);
+  const [acting, setActing]           = useState<'accept' | 'reject' | 'cancel' | 'undo' | null>(null);
   const [showReject, setShowReject]   = useState(false);
   const [rejectReason, setRejectReason] = useState('');
+  const [nowTick, setNowTick]         = useState(() => Date.now());
 
   const cleanMyPhone = myPhone.replace(/\D/g, '');
   const isMine       = msg.senderPhone.replace(/\D/g, '') === cleanMyPhone;
@@ -165,10 +168,32 @@ function DealOfferBubble({ msg, myPhone, refreshTick }: { msg: AviaChatMessage; 
     });
   };
 
+  const handleUndoReject = async () => {
+    if (!deal || acting) return;
+    setActing('undo');
+    const result = await undoRejectAviaDeal(deal.id, myPhone);
+    if (result.success) {
+      setDeal(result.deal || { ...deal, status: 'pending' });
+      toast.success('Отклонение отменено — предложение снова активно');
+    } else toast.error(result.error || 'Ошибка отмены отклонения');
+    setActing(null);
+  };
+
   const status      = deal?.status;
   const isPending   = status === 'pending';
   const amRecipient = deal?.recipientPhone === cleanMyPhone;
   const amInitiator = deal?.initiatorPhone === cleanMyPhone;
+
+  const rejectedAtMs    = deal?.rejectedAt ? new Date(deal.rejectedAt).getTime() : null;
+  const undoWindowMs    = 5 * 60 * 1000;
+  const undoRemainingMs = rejectedAtMs != null ? rejectedAtMs + undoWindowMs - nowTick : 0;
+  const canUndo         = status === 'rejected' && amRecipient && undoRemainingMs > 0;
+
+  useEffect(() => {
+    if (status !== 'rejected') return;
+    const timer = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [status]);
 
   return (
     <>
@@ -255,6 +280,14 @@ function DealOfferBubble({ msg, myPhone, refreshTick }: { msg: AviaChatMessage; 
                   </motion.div>
                 )}
               </AnimatePresence>
+            )}
+            {!loading && canUndo && !isMine && (
+              <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} style={{ marginTop: 10 }}>
+                <button onClick={handleUndoReject} disabled={!!acting} style={{ width: '100%', padding: '8px', borderRadius: 10, cursor: acting ? 'wait' : 'pointer', background: 'rgba(56,189,248,0.1)', border: '1px solid rgba(56,189,248,0.3)', color: '#38bdf8', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, opacity: acting ? 0.6 : 1 }}>
+                  {acting === 'undo' ? <Loader2 style={{ width: 12, height: 12, animation: 'spin 1s linear infinite' }} /> : <RotateCcw style={{ width: 12, height: 12 }} />}
+                  Отменить отклонение ({Math.floor(undoRemainingMs / 60000)}:{String(Math.floor((undoRemainingMs % 60000) / 1000)).padStart(2, '0')})
+                </button>
+              </motion.div>
             )}
             {!loading && isPending && (isMine || amInitiator) && !amRecipient && (
               <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} style={{ marginTop: 10 }}>
@@ -410,10 +443,15 @@ function ChatPanel({ myPhone, chatId, otherPhone, adRef, onBack, onDeleted, onCh
   const [resolvedOtherPhone, setResolvedOtherPhone] = useState(otherPhone);
   const [otherName, setOtherName] = useState<string>(contactNameProp || '');
   const [refreshTick, setRefreshTick] = useState(0);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeMatchIndex, setActiveMatchIndex] = useState(0);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef       = useRef<HTMLTextAreaElement>(null);
   const pollTimer      = useRef<ReturnType<typeof setInterval> | null>(null);
+  const messageRefs    = useRef<Record<string, HTMLDivElement | null>>({});
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const loadMessages = useCallback(async () => {
     if (!chatId) return;
@@ -479,7 +517,9 @@ function ChatPanel({ myPhone, chatId, otherPhone, adRef, onBack, onDeleted, onCh
       onChatsUpdate();
     } catch {
       setMessages(prev => prev.filter(m => m.id !== optimistic.id));
-      toast.error('Не удалось отправить сообщение');
+      // Не перетираем текст, если пользователь уже успел начать печатать новое сообщение
+      setInputText(curr => curr.trim() ? curr : text);
+      toast.error('Не удалось отправить сообщение', { description: 'Текст сохранён в поле ввода — попробуйте снова' });
     } finally {
       setSending(false);
       inputRef.current?.focus();
@@ -528,6 +568,39 @@ function ChatPanel({ myPhone, chatId, otherPhone, adRef, onBack, onDeleted, onCh
     return groups;
   }, [messages]);
 
+  // ── Поиск по истории сообщений ──────────────────────────────────────────
+  const searchMatchIds = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return [];
+    return messages.filter(m => m.text?.toLowerCase().includes(q)).map(m => m.id);
+  }, [messages, searchQuery]);
+
+  useEffect(() => { setActiveMatchIndex(0); }, [searchQuery]);
+
+  const activeMatchId = searchMatchIds.length > 0
+    ? searchMatchIds[((activeMatchIndex % searchMatchIds.length) + searchMatchIds.length) % searchMatchIds.length]
+    : null;
+
+  useEffect(() => {
+    if (!activeMatchId) return;
+    messageRefs.current[activeMatchId]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [activeMatchId]);
+
+  useEffect(() => {
+    if (searchOpen) searchInputRef.current?.focus();
+  }, [searchOpen]);
+
+  const goToMatch = (dir: 1 | -1) => {
+    if (searchMatchIds.length === 0) return;
+    setActiveMatchIndex(i => i + dir);
+  };
+
+  const closeSearch = () => {
+    setSearchOpen(false);
+    setSearchQuery('');
+    setActiveMatchIndex(0);
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%' }}>
       {/* ── Header ── */}
@@ -562,6 +635,13 @@ function ChatPanel({ myPhone, chatId, otherPhone, adRef, onBack, onDeleted, onCh
           )}
         </div>
         <button
+          onClick={() => setSearchOpen(o => !o)}
+          style={{ width: 32, height: 32, borderRadius: 9, border: `1px solid ${searchOpen ? 'rgba(14,165,233,0.25)' : 'rgba(255,255,255,0.08)'}`, background: searchOpen ? 'rgba(14,165,233,0.08)' : 'rgba(255,255,255,0.04)', color: searchOpen ? '#38bdf8' : '#4a6080', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+          aria-label="Поиск по сообщениям"
+        >
+          <Search style={{ width: 14, height: 14 }} />
+        </button>
+        <button
           onClick={handleDeleteChat}
           disabled={deleting}
           style={{ width: 32, height: 32, borderRadius: 9, border: '1px solid rgba(239,68,68,0.18)', background: deleting ? 'rgba(239,68,68,0.15)' : 'rgba(239,68,68,0.06)', color: '#f87171', cursor: deleting ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: deleting ? 0.6 : 1, transition: 'background 0.2s, opacity 0.2s' }}
@@ -570,6 +650,62 @@ function ChatPanel({ myPhone, chatId, otherPhone, adRef, onBack, onDeleted, onCh
           {deleting ? <Loader2 style={{ width: 14, height: 14, animation: 'spin 1s linear infinite' }} /> : <Trash2 style={{ width: 14, height: 14 }} />}
         </button>
       </div>
+
+      {/* ── Search bar ── */}
+      {searchOpen && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '8px 16px',
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          background: 'rgba(8,15,31,0.6)', flexShrink: 0,
+        }}>
+          <Search style={{ width: 14, height: 14, color: '#4a6080', flexShrink: 0 }} />
+          <input
+            ref={searchInputRef}
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') { e.preventDefault(); goToMatch(e.shiftKey ? -1 : 1); }
+              if (e.key === 'Escape') closeSearch();
+            }}
+            placeholder="Поиск по сообщениям..."
+            aria-label="Поиск по сообщениям"
+            style={{
+              flex: 1, padding: '6px 0', border: 'none', background: 'transparent',
+              color: '#e2eaf3', fontSize: 13, fontWeight: 500, outline: 'none',
+            }}
+          />
+          {searchQuery.trim() && (
+            <span style={{ fontSize: 11, color: '#4a6080', fontWeight: 600, whiteSpace: 'nowrap' }}>
+              {searchMatchIds.length > 0 ? `${((activeMatchIndex % searchMatchIds.length) + searchMatchIds.length) % searchMatchIds.length + 1}/${searchMatchIds.length}` : '0/0'}
+            </span>
+          )}
+          <button
+            onClick={() => goToMatch(-1)}
+            disabled={searchMatchIds.length === 0}
+            style={{ width: 26, height: 26, borderRadius: 7, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', color: searchMatchIds.length === 0 ? '#2a3d50' : '#9fb4c7', cursor: searchMatchIds.length === 0 ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+            aria-label="Предыдущее совпадение"
+          >
+            <ChevronUp style={{ width: 13, height: 13 }} />
+          </button>
+          <button
+            onClick={() => goToMatch(1)}
+            disabled={searchMatchIds.length === 0}
+            style={{ width: 26, height: 26, borderRadius: 7, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', color: searchMatchIds.length === 0 ? '#2a3d50' : '#9fb4c7', cursor: searchMatchIds.length === 0 ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+            aria-label="Следующее совпадение"
+          >
+            <ChevronDown style={{ width: 13, height: 13 }} />
+          </button>
+          <button
+            onClick={closeSearch}
+            style={{ width: 26, height: 26, borderRadius: 7, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', color: '#9fb4c7', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+            aria-label="Закрыть поиск"
+          >
+            <X style={{ width: 13, height: 13 }} />
+          </button>
+        </div>
+      )}
 
       {/* ── Messages ── */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px 6px', scrollbarWidth: 'none' }}>
@@ -590,13 +726,19 @@ function ChatPanel({ myPhone, chatId, otherPhone, adRef, onBack, onDeleted, onCh
             <div key={group.date}>
               <DateDivider date={group.date} />
               {group.msgs.map(msg => (
-                msg.type === 'deal_update' ? (
-                  <DealUpdateBubble key={msg.id} msg={msg} />
-                ) : msg.type === 'deal_offer' ? (
-                  <DealOfferBubble key={msg.id} msg={msg} myPhone={myPhone} refreshTick={refreshTick} />
-                ) : (
-                  <MessageBubble key={msg.id} msg={msg} isMine={msg.senderPhone === myPhone} />
-                )
+                <div
+                  key={msg.id}
+                  ref={el => { messageRefs.current[msg.id] = el; }}
+                  style={msg.id === activeMatchId ? { outline: '2px solid #0ea5e9', borderRadius: 14, transition: 'outline 0.2s' } : undefined}
+                >
+                  {msg.type === 'deal_update' ? (
+                    <DealUpdateBubble msg={msg} />
+                  ) : msg.type === 'deal_offer' ? (
+                    <DealOfferBubble msg={msg} myPhone={myPhone} refreshTick={refreshTick} />
+                  ) : (
+                    <MessageBubble msg={msg} isMine={msg.senderPhone === myPhone} />
+                  )}
+                </div>
               ))}
             </div>
           ))

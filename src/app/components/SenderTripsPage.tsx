@@ -13,7 +13,7 @@ import { useUser } from '../contexts/UserContext';
 import { useIsMounted } from '../hooks/useIsMounted';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { toast } from 'sonner';
-import { getTripsByIds, getOffersForUser, getMyCargos, updateOffer, deleteCargo, getCargoOffersForCargo } from '../api/dataApi';
+import { getTripsByIds, getOffersForUser, getMyCargos, updateOffer, deleteCargo, getCargoOffersForSender } from '../api/dataApi';
 import { initChatRoom, getChats } from '../api/chatStore';
 import { generatePairChatId } from '../api/chatUtils';
 import { TripCardSkeleton } from './SkeletonCard';
@@ -144,6 +144,9 @@ export function SenderTripsPage() {
   const { user: currentUser } = useUser();
   const isMountedRef = useIsMounted();
   const [activeTab, setActiveTab] = useState<'active' | 'completed' | 'cancelled'>('active');
+  const PAGE_SIZE = 20;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [activeTab]);
 
   const [reviewedTrips, setReviewedTrips] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem(REVIEWED_TRIPS_KEY) || '[]'); }
@@ -166,6 +169,10 @@ export function SenderTripsPage() {
   const [pullY, setPullY]   = useState(0);
   const pullStartY          = useRef(0);
   const isPullingRef        = useRef(false);
+  // ✅ FIX: версия запроса — pull-to-refresh и кнопка обновления могут запустить
+  // loadData() параллельно; без версионирования более старый ответ мог прилететь
+  // позже и перезаписать стейт свежими данными более нового запроса.
+  const loadVersionRef = useRef(0);
 
   const showConfirm = (
     title: string, message: string, confirmLabel: string,
@@ -173,44 +180,44 @@ export function SenderTripsPage() {
   ) => setConfirmModal({ title, message, confirmLabel, onConfirm, isDanger });
 
   // ── Load cargos ────────────────────────────────────────────────────────────
-  const loadCargos = useCallback(async () => {
+  const loadCargos = useCallback(async (version: number) => {
     if (!currentUser?.email) return;
     try {
-      const cargos = await getMyCargos(currentUser.email);
-      if (!isMountedRef.current) return;
+      // ✅ FIX: один батч-запрос (по всем грузам отправителя сразу) вместо
+      // N параллельных getCargoOffersForCargo — при 20 грузах это было 20
+      // отдельных запросов на каждую загрузку/обновление страницы.
+      const [cargos, allOffers] = await Promise.all([
+        getMyCargos(currentUser.email),
+        getCargoOffersForSender(currentUser.email).catch(() => [] as any[]),
+      ]);
+      if (!isMountedRef.current || version !== loadVersionRef.current) return;
       setPublishedCargos(cargos);
-      // Load offers for each cargo
       const offersMap: Record<string, any[]> = {};
-      await Promise.all(
-        cargos.map(async (cargo: any) => {
-          try {
-            const offers = await getCargoOffersForCargo(cargo.id);
-            offersMap[cargo.id] = offers;
-          } catch { offersMap[cargo.id] = []; }
-        })
-      );
-      if (isMountedRef.current) setCargoOffersMap(offersMap);
+      for (const offer of allOffers) {
+        if (!offer?.cargoId) continue;
+        (offersMap[offer.cargoId] ??= []).push(offer);
+      }
+      setCargoOffersMap(offersMap);
     } catch {}
   }, [currentUser?.email]);
 
   // ── Main data load ─────────────────────────────────────────────────────────
   const loadData = useCallback(async (silent = false) => {
     if (!currentUser?.email) return;
+    const version = ++loadVersionRef.current;
     if (!silent) setLoading(true);
     else setIsRefreshing(true);
     try {
-      const [offerList, chatList] = await Promise.all([
-        getOffersForUser(currentUser.email),
-        getChats(currentUser.email),
-      ]);
-      if (!isMountedRef.current) return;
+      const offerList = await getOffersForUser(currentUser.email);
+      const chatList = getChats();
+      if (!isMountedRef.current || version !== loadVersionRef.current) return;
       setChats(chatList);
 
       const acceptedOffers = offerList.filter((o: any) => o.status === 'accepted');
       const tripIds = [...new Set(acceptedOffers.map((o: any) => o.tripId).filter(Boolean))] as string[];
       if (tripIds.length > 0) {
         const trips = await getTripsByIds(tripIds);
-        if (!isMountedRef.current) return;
+        if (!isMountedRef.current || version !== loadVersionRef.current) return;
         const merged = acceptedOffers.map((offer: any) => {
           const trip = trips.find((t: any) => t.id === offer.tripId);
           // ✅ FIX: реальный груз/цена живут в оферте, а не в Trip — без этого
@@ -235,10 +242,10 @@ export function SenderTripsPage() {
       } else {
         setSenderTrips([]);
       }
-      await loadCargos();
+      await loadCargos(version);
     } catch {}
     finally {
-      if (isMountedRef.current) { setLoading(false); setIsRefreshing(false); }
+      if (isMountedRef.current && version === loadVersionRef.current) { setLoading(false); setIsRefreshing(false); }
     }
   }, [currentUser?.email, loadCargos]);
 
@@ -263,14 +270,21 @@ export function SenderTripsPage() {
   };
 
   // ── Computed values ────────────────────────────────────────────────────────
-  const activeCount  = senderTrips.filter(t => t.status === 'active' || t.status === 'inProgress').length;
+  // 'frozen' — водитель поставил поездку на паузу, но бронирование остаётся
+  // активным (см. карточка в TripCard.tsx с пояснением и кнопкой отмены) —
+  // должна оставаться в «Бронированиях», иначе поездка пропадает из всех табов.
+  const activeCount  = senderTrips.filter(t => t.status === 'active' || t.status === 'inProgress' || t.status === 'frozen').length;
   const cargosCount  = publishedCargos.length;
   const filteredTrips = senderTrips.filter(t => {
-    if (activeTab === 'active')    return t.status === 'active' || t.status === 'inProgress';
+    if (activeTab === 'active')    return t.status === 'active' || t.status === 'inProgress' || t.status === 'frozen';
     if (activeTab === 'completed') return t.status === 'completed';
     if (activeTab === 'cancelled') return t.status === 'cancelled';
     return false;
   });
+  // ✅ FIX: пагинация — список бронирований у активного отправителя со временем
+  // растёт (особенно "Завершённые"), рендерить всё сразу дорого по DOM/памяти.
+  const visibleTrips = filteredTrips.slice(0, visibleCount);
+  const hasMoreTrips = filteredTrips.length > visibleCount;
   const senderAllCargos = publishedCargos;
 
   const getUnread = (trip: any) => {
@@ -283,9 +297,16 @@ export function SenderTripsPage() {
     e.stopPropagation();
     if (!currentUser?.email || !trip.driverEmail) return;
     const chatId = generatePairChatId(currentUser.email, trip.driverEmail);
-    await initChatRoom(chatId, currentUser.email, trip.driverEmail,
-      `${currentUser.firstName} ${currentUser.lastName}`, trip.driverName || 'Водитель',
-      currentUser.avatarUrl || null, trip.driverAvatar || null);
+    await initChatRoom(chatId, {
+      id: trip.driverEmail,
+      name: trip.driverName || 'Водитель',
+      avatar: trip.driverAvatar || '',
+      role: 'driver',
+      sub: 'Водитель',
+      online: true,
+      verified: true,
+      email: trip.driverEmail,
+    }, String(trip.tripId ?? trip.id), `${trip.from} → ${trip.to}`, trip);
     navigate(`/chat/${chatId}`);
   };
 
@@ -307,7 +328,7 @@ export function SenderTripsPage() {
       'Отменить',
       async () => {
         try {
-          await updateOffer(trip.offerId, { status: 'cancelled', callerEmail: currentUser?.email });
+          await updateOffer(trip.tripId ?? trip.id, trip.offerId, { status: 'cancelled', callerEmail: currentUser?.email });
           setSenderTrips(prev =>
             prev.map(t => t.offerId === trip.offerId ? { ...t, status: 'cancelled' } : t)
           );
@@ -328,7 +349,16 @@ export function SenderTripsPage() {
           await deleteCargo(cargoId);
           setPublishedCargos(prev => prev.filter(c => c.id !== cargoId));
           toast.success('Объявление удалено');
-        } catch { toast.error('Ошибка при удалении'); }
+        } catch (err: any) {
+          if (err?.status === 404) {
+            // Груз уже удалён (например, с другого устройства) — для
+            // пользователя это не ошибка, просто синхронизируем список.
+            setPublishedCargos(prev => prev.filter(c => c.id !== cargoId));
+            toast.success('Объявление уже было удалено');
+          } else {
+            toast.error('Ошибка при удалении');
+          }
+        }
       },
       true
     );
@@ -444,7 +474,7 @@ export function SenderTripsPage() {
                   )}
                 </div>
               )}
-              {!loading && filteredTrips.map(trip => (
+              {!loading && visibleTrips.map(trip => (
                 <div key={trip.id} className="px-4 py-2">
                   <SwipeableCard
                     enabled={trip.status === 'cancelled'}
@@ -471,6 +501,14 @@ export function SenderTripsPage() {
                   </SwipeableCard>
                 </div>
               ))}
+              {!loading && hasMoreTrips && (
+                <div className="px-4 py-2">
+                  <button onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
+                    className={`w-full h-10 rounded-xl text-[13px] font-semibold ${isDark ? 'bg-white/[0.06] text-[#94a3b8] hover:bg-white/10' : 'bg-black/[0.04] text-[#64748b] hover:bg-black/[0.08]'}`}>
+                    Показать ещё ({filteredTrips.length - visibleCount})
+                  </button>
+                </div>
+              )}
             </>
           <div style={{ height: 'env(safe-area-inset-bottom, 16px)', minHeight: 80 }} />
         </div>
@@ -573,26 +611,36 @@ export function SenderTripsPage() {
                   </div>
                 )}
                 {!loading && filteredTrips.length > 0 && (
-                  <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
-                    {filteredTrips.map(trip => (
-                      <TripCard
-                        key={trip.id}
-                        trip={trip}
-                        mode="sender"
-                        alreadyReviewed={reviewedTrips.includes(String(trip.id))}
-                        unreadMessages={getUnread(trip)}
-                        onChat={e => openDriverChat(e, trip)}
-                        onTrack={e => {
-                          e.stopPropagation();
-                          // ✅ FIX: см. mobile-версию выше — сохраняем полный объект поездки.
-                          localStorage.setItem('ovora_sender_tracking_trip', JSON.stringify(trip));
-                          navigate('/tracking');
-                        }}
-                        onReview={e => openReview(e, trip)}
-                        onCancelBooking={e => handleCancelBooking(e, trip)}
-                      />
-                    ))}
-                  </div>
+                  <>
+                    <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
+                      {visibleTrips.map(trip => (
+                        <TripCard
+                          key={trip.id}
+                          trip={trip}
+                          mode="sender"
+                          alreadyReviewed={reviewedTrips.includes(String(trip.id))}
+                          unreadMessages={getUnread(trip)}
+                          onChat={e => openDriverChat(e, trip)}
+                          onTrack={e => {
+                            e.stopPropagation();
+                            // ✅ FIX: см. mobile-версию выше — сохраняем полный объект поездки.
+                            localStorage.setItem('ovora_sender_tracking_trip', JSON.stringify(trip));
+                            navigate('/tracking');
+                          }}
+                          onReview={e => openReview(e, trip)}
+                          onCancelBooking={e => handleCancelBooking(e, trip)}
+                        />
+                      ))}
+                    </div>
+                    {hasMoreTrips && (
+                      <div className="flex justify-center mt-6">
+                        <button onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
+                          className={`px-5 h-10 rounded-xl text-[13px] font-semibold ${isDark ? 'bg-white/[0.06] text-[#94a3b8] hover:bg-white/10' : 'bg-black/[0.04] text-[#64748b] hover:bg-black/[0.08]'}`}>
+                          Показать ещё ({filteredTrips.length - visibleCount})
+                        </button>
+                      </div>
+                    )}
+                  </>
                 )}
               </>
           </div>
@@ -603,7 +651,7 @@ export function SenderTripsPage() {
       {confirmModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center" onClick={() => setConfirmModal(null)}>
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-          <div className="relative w-full max-w-sm mx-4 rounded-3xl shadow-2xl bg-[#162030] overflow-hidden" onClick={e => e.stopPropagation()}>
+          <div role="alertdialog" aria-modal="true" aria-labelledby="confirm-modal-title" aria-describedby="confirm-modal-message" className="relative w-full max-w-sm mx-4 rounded-3xl shadow-2xl bg-[#162030] overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="px-6 pt-6 pb-2">
               <div className="flex items-start gap-3">
                 {confirmModal.isDanger && (
@@ -612,8 +660,8 @@ export function SenderTripsPage() {
                   </div>
                 )}
                 <div>
-                  <h3 className="text-base font-bold text-white">{confirmModal.title}</h3>
-                  <p className="text-sm text-[#475569] mt-1">{confirmModal.message}</p>
+                  <h3 id="confirm-modal-title" className="text-base font-bold text-white">{confirmModal.title}</h3>
+                  <p id="confirm-modal-message" className="text-sm text-[#475569] mt-1">{confirmModal.message}</p>
                 </div>
               </div>
             </div>

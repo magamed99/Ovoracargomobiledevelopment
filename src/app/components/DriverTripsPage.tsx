@@ -30,6 +30,9 @@ export function DriverTripsPage() {
   const { user: currentUser } = useUser();
   const isMountedRef = useIsMounted();
   const [activeTab, setActiveTab] = useState<'active' | 'completed' | 'cancelled'>('active');
+  const PAGE_SIZE = 20;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [activeTab]);
 
   const [reviewedTrips, setReviewedTrips] = useState<string[]>([]);
   const [publishedTrips, setPublishedTrips] = useState<any[]>([]);
@@ -37,6 +40,11 @@ export function DriverTripsPage() {
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const loadDataRef = useRef<(silent?: boolean) => Promise<void>>(async () => {});
+  // ✅ FIX: версия запроса — несколько loadData() могут лететь параллельно
+  // (8с polling, pull-to-refresh, кнопка обновления, cleanup orphaned offers),
+  // и без версионирования более старый ответ мог прилететь позже и
+  // перезаписать стейт свежими данными более нового запроса.
+  const loadVersionRef = useRef(0);
   const [weatherData, setWeatherData] = useState<Record<number, WeatherData>>({});
 
   // ── Confirm modal (вместо window.confirm) ────────────────────────────────────
@@ -60,13 +68,14 @@ export function DriverTripsPage() {
     // User context may still be loading from localStorage on first render.
     // Return early (keep loading=true) rather than replacing state with empty arrays.
     if (!currentUser?.email) return;
+    const version = ++loadVersionRef.current;
     if (!silent) setLoading(true); else setIsRefreshing(true);
     try {
       const [tripsData, offersData] = await Promise.all([
         getMyTrips(currentUser.email),
         getOffersForDriver(currentUser.email),
       ]);
-      if (!isMountedRef.current) return;
+      if (!isMountedRef.current || version !== loadVersionRef.current) return;
       const MS_48H = 48 * 60 * 60 * 1000;
       const activeOffers = offersData.filter((o: any) => {
         if (o.status === 'cancelled' || o.status === 'deleted') return false;
@@ -82,12 +91,12 @@ export function DriverTripsPage() {
       const pending = activeOffers.filter((o: any) => o.status === 'pending').length;
       window.dispatchEvent(new CustomEvent('ovora_pending_offers', { detail: pending }));
     } catch {
+      if (!isMountedRef.current || version !== loadVersionRef.current) return;
       const cachedTrips = JSON.parse(localStorage.getItem('ovora_all_trips') || '[]');
-      if (!isMountedRef.current) return;
       setPublishedTrips(cachedTrips);
       setOffers(JSON.parse(localStorage.getItem('ovora_cached_offers') || '[]'));
     } finally {
-      if (isMountedRef.current) { if (!silent) setLoading(false); else setIsRefreshing(false); }
+      if (isMountedRef.current && version === loadVersionRef.current) { if (!silent) setLoading(false); else setIsRefreshing(false); }
     }
   }, [currentUser?.email, isMountedRef]);
 
@@ -201,6 +210,12 @@ export function DriverTripsPage() {
 
   const activeCount = driverTrips.filter(t => ['planned', 'inProgress', 'frozen'].includes(t.status)).length;
 
+  // ✅ FIX: пагинация вместо рендера всего списка сразу — у активных
+  // водителей со временем накапливаются сотни поездок (особенно в табе
+  // "Завершённые"), и рендерить их все одновременно дорого по DOM/памяти.
+  const visibleTrips = filteredTrips.slice(0, visibleCount);
+  const hasMoreTrips = filteredTrips.length > visibleCount;
+
   // ── Actions ──────────────────────────────────────────────────────────────────
   // На поездке может быть несколько отправителей (разные accepted-офферы) —
   // собираем уникальный список, чтобы можно было оценить каждого отдельно.
@@ -281,14 +296,18 @@ export function DriverTripsPage() {
             status: 'inProgress' as const,
           };
           localStorage.setItem('ovora_active_shipment', JSON.stringify(shipmentData));
-          try { await saveActiveShipment(shipmentData, currentUser?.email || ''); } catch {}
+          try {
+            await saveActiveShipment(shipmentData, currentUser?.email || '');
+          } catch (err: any) {
+            toast.error(`Не удалось сохранить данные трекинга: ${err?.message || 'неизвестная ошибка'}`);
+          }
           await updateTrip(String(trip.id), { status: 'inProgress' });
           setPublishedTrips(prev => prev.map(t => t.id === trip.id ? { ...t, status: 'inProgress' } : t));
           toast.success('Поездка начата!', {
             action: { label: 'Перейти к трекингу', onClick: () => navigate('/tracking') },
             duration: 7000,
           });
-        } catch { toast.error('Ошибка при запуске поездки'); }
+        } catch (err: any) { toast.error(`Ошибка при запуске поездки: ${err?.message || 'неизвестная ошибка'}`); }
       }
     );
   };
@@ -307,7 +326,7 @@ export function DriverTripsPage() {
             action: { label: 'Оценить отправителя', onClick: () => openReview({ stopPropagation: () => {} } as any, trip) },
             duration: 8000,
           });
-        } catch { toast.error('Ошибка при завершении'); }
+        } catch (err: any) { toast.error(`Ошибка при завершении: ${err?.message || 'неизвестная ошибка'}`); }
       }
     );
   };
@@ -326,7 +345,7 @@ export function DriverTripsPage() {
         setPublishedTrips(prev => prev.map(t => t.id === trip.id ? { ...t, status: 'frozen', prevStatus: trip.status } : t));
         toast.success('Поездка заморожена — отдыхайте!');
       }
-    } catch { toast.error('Ошибка'); }
+    } catch (err: any) { toast.error(`Ошибка: ${err?.message || 'неизвестная ошибка'}`); }
   };
 
   const handleCancelTrip = async (e: React.MouseEvent, trip: any) => {
@@ -340,7 +359,7 @@ export function DriverTripsPage() {
           await updateTrip(String(trip.id), { status: 'cancelled' });
           setPublishedTrips(prev => prev.map(t => t.id === trip.id ? { ...t, status: 'cancelled' } : t));
           toast.success('Поездка отменена');
-        } catch { toast.error('Ошибка при отмене'); }
+        } catch (err: any) { toast.error(`Ошибка при отмене: ${err?.message || 'неизвестная ошибка'}`); }
       },
       true
     );
@@ -405,8 +424,10 @@ export function DriverTripsPage() {
       await updateOffer(String(offer.tripId), oid, { status: 'accepted' });
       setOffers(prev => prev.map(o => (o.offerId || o.id) === oid ? { ...o, status: 'accepted' } : o));
       toast.success(`Оферта от ${offer.senderName || 'отправителя'} принята!`);
-    } catch {
-      toast.error('Ошибка при принятии оферты');
+    } catch (err: any) {
+      toast.error(err?.status === 409
+        ? 'Недостаточно мест/вместимости на рейсе для этой оферты'
+        : 'Ошибка при принятии оферты');
     } finally {
       setOfferActionId(null);
     }
@@ -519,7 +540,7 @@ export function DriverTripsPage() {
               )}
             </div>
           )}
-          {!loading && filteredTrips.map(trip => (
+          {!loading && visibleTrips.map(trip => (
             <div key={trip.id} className="px-4 py-2">
               <TripCard
                 trip={trip}
@@ -540,6 +561,14 @@ export function DriverTripsPage() {
               />
             </div>
           ))}
+          {!loading && hasMoreTrips && (
+            <div className="px-4 py-2">
+              <button onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
+                className={`w-full h-10 rounded-xl text-[13px] font-semibold ${isDark ? 'bg-white/[0.06] text-[#94a3b8] hover:bg-white/10' : 'bg-black/[0.04] text-[#64748b] hover:bg-black/[0.08]'}`}>
+                Показать ещё ({filteredTrips.length - visibleCount})
+              </button>
+            </div>
+          )}
           <div style={{ height: 'env(safe-area-inset-bottom, 16px)', minHeight: 80 }} />
         </div>
       </div>
@@ -646,28 +675,38 @@ export function DriverTripsPage() {
               </div>
             )}
             {!loading && filteredTrips.length > 0 && (
-              <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
-                {filteredTrips.map(trip => (
-                  <TripCard
-                    key={trip.id}
-                    trip={trip}
-                    mode="driver"
-                    weather={weatherData[trip.id]}
-                    alreadyReviewed={isTripFullyReviewed(trip)}
-                    unreadMessages={getUnread(trip)}
-                    onStart={e => startTrip(e, trip)}
-                    onFreeze={e => handleFreezeTrip(e, trip)}
-                    onComplete={e => completeTrip(e, trip)}
-                    onCancel={e => handleCancelTrip(e, trip)}
-                    onMessages={e => openSenderChat(e, trip)}
-                    onTrack={e => navigateToTracking(e, trip)}
-                    onReview={e => openReview(e, trip)}
-                    onAcceptOffer={handleAcceptOffer}
-                    onDeclineOffer={handleDeclineOffer}
-                    offerActionId={offerActionId}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
+                  {visibleTrips.map(trip => (
+                    <TripCard
+                      key={trip.id}
+                      trip={trip}
+                      mode="driver"
+                      weather={weatherData[trip.id]}
+                      alreadyReviewed={isTripFullyReviewed(trip)}
+                      unreadMessages={getUnread(trip)}
+                      onStart={e => startTrip(e, trip)}
+                      onFreeze={e => handleFreezeTrip(e, trip)}
+                      onComplete={e => completeTrip(e, trip)}
+                      onCancel={e => handleCancelTrip(e, trip)}
+                      onMessages={e => openSenderChat(e, trip)}
+                      onTrack={e => navigateToTracking(e, trip)}
+                      onReview={e => openReview(e, trip)}
+                      onAcceptOffer={handleAcceptOffer}
+                      onDeclineOffer={handleDeclineOffer}
+                      offerActionId={offerActionId}
+                    />
+                  ))}
+                </div>
+                {hasMoreTrips && (
+                  <div className="flex justify-center mt-6">
+                    <button onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
+                      className={`px-5 h-10 rounded-xl text-[13px] font-semibold ${isDark ? 'bg-white/[0.06] text-[#94a3b8] hover:bg-white/10' : 'bg-black/[0.04] text-[#64748b] hover:bg-black/[0.08]'}`}>
+                      Показать ещё ({filteredTrips.length - visibleCount})
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -719,6 +758,10 @@ export function DriverTripsPage() {
           onClick={() => setConfirmModal(null)}>
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
           <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="driver-confirm-modal-title"
+            aria-describedby="driver-confirm-modal-message"
             className="relative w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl"
             style={{ background: '#162030', border: '1px solid #1e2d3d' }}
             onClick={e => e.stopPropagation()}
@@ -733,10 +776,10 @@ export function DriverTripsPage() {
                   ? <AlertTriangle style={{ width: 24, height: 24, color: '#f87171' }} />
                   : <CheckCircle2 style={{ width: 24, height: 24, color: '#5ba3f5' }} />}
               </div>
-              <h3 className="text-[17px] font-black text-white text-center mb-2">
+              <h3 id="driver-confirm-modal-title" className="text-[17px] font-black text-white text-center mb-2">
                 {confirmModal.title}
               </h3>
-              <p className="text-[13px] text-center leading-relaxed" style={{ color: '#607080' }}>
+              <p id="driver-confirm-modal-message" className="text-[13px] text-center leading-relaxed" style={{ color: '#607080' }}>
                 {confirmModal.msg}
               </p>
             </div>

@@ -1,24 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router';
 import { Search, Clock, Package, Car, Calendar, XCircle, RefreshCw, Loader2, ChevronDown, ChevronUp, Share2, Download, Route } from 'lucide-react';
 import { toast } from 'sonner';
 import { getAdminTrips, getAdminOffers, adminHeaders } from '../../api/dataApi';
 import { projectId } from '../../../../utils/supabase/info';
 import { AdminPageHeader, HeaderBtn, FilterChips, SkeletonList } from './AdminPageHeader';
+import { exportCsv } from '../../utils/adminCsvExport';
 
 const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;
-
-// ── CSV export ────────────────────────────────────────────────────────────────
-function exportCsv(rows: Record<string, any>[], filename: string) {
-  if (!rows.length) return;
-  const keys = Object.keys(rows[0]);
-  const esc = (v: any) => { const s = String(v ?? '').replace(/"/g, '""'); return /[,"\n]/.test(s) ? `"${s}"` : s; };
-  const csv = [keys.join(','), ...rows.map(r => keys.map(k => esc(r[k])).join(','))].join('\n');
-  const a = Object.assign(document.createElement('a'), {
-    href: URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })),
-    download: filename,
-  });
-  a.click(); URL.revokeObjectURL(a.href);
-}
 
 async function cancelTrip(id: string) {
   const res = await fetch(`${BASE}/trips/${id}`, {
@@ -47,6 +36,15 @@ export function TripsManagement() {
   const [sortBy, setSortBy] = useState('date_desc');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+
+  // Переход из глобального поиска в шапке админки (AdminLayout)
+  useEffect(() => {
+    const q = searchParams.get('q');
+    const expand = searchParams.get('expand');
+    if (q) setSearchQuery(q);
+    if (expand) setExpandedId(expand);
+  }, [searchParams]);
 
   const load = useCallback(async () => {
     setLoading(true);

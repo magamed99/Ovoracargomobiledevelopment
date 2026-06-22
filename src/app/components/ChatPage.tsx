@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Phone, Send, Paperclip, CheckCheck, Check, FileText, X, Shield, Mic, Trash2, Copy, MapPin, MoreVertical, UserX, Eraser, StopCircle } from 'lucide-react';
+import { ArrowLeft, Phone, Send, Paperclip, CheckCheck, Check, FileText, X, Shield, Mic, Trash2, Copy, MapPin, MoreVertical, UserX, Eraser, StopCircle, AlertCircle, RotateCw } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../contexts/UserContext';
@@ -8,7 +8,7 @@ import { ProposalCard } from './ProposalCard';
 import { ProposalFormModal } from './ProposalFormModal';
 import { VoiceMessage } from './VoiceMessage';
 import { toast } from 'sonner';
-import { getChats, getMessages, pushMessage, markRead, updateProposalStatus, fetchMessages, deleteMessage, deleteChat, ChatMessage, ChatProposal, ChatContact } from '../api/chatStore';
+import { getChats, getMessages, pushMessage, retryMessage, markRead, updateProposalStatus, fetchMessages, deleteMessage, deleteChat, ChatMessage, ChatProposal, ChatContact } from '../api/chatStore';
 
 // ── SwipeableMessage Component ─────────────────────────────────────────────────
 interface SwipeableMessageProps {
@@ -148,6 +148,15 @@ function SwipeableMessage({ messageId, isMine, isDark: _isDark, onDelete, onCopy
     }, 300);
   };
 
+  // ── Keyboard equivalent для swipe-to-delete (своих сообщений) ────────────────
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (isMine && (e.key === 'Delete' || e.key === 'Backspace')) {
+      e.preventDefault();
+      setIsDeleting(true);
+      setTimeout(() => onDelete(messageId), 200);
+    }
+  };
+
   return (
     <div className="relative overflow-hidden">
       {/* Action buttons (revealed on swipe) */}
@@ -183,6 +192,9 @@ function SwipeableMessage({ messageId, isMine, isDark: _isDark, onDelete, onCopy
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
         onMouseDown={onMouseDown}
+        onKeyDown={onKeyDown}
+        tabIndex={isMine ? 0 : undefined}
+        aria-label={isMine ? 'Сообщение. Нажмите Delete или Backspace, чтобы удалить' : undefined}
         className={`transition-all duration-200 select-none cursor-grab active:cursor-grabbing ${
           isDeleting ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
         }`}
@@ -211,6 +223,7 @@ export function ChatPage() {
   const isDriver = userRole === 'driver';
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [firstSyncDone, setFirstSyncDone] = useState(false);
   const [contact, setContact] = useState<ChatContact | null>(null);
   const [tripId, setTripId] = useState<string | undefined>(undefined);
   const [tripData, setTripData] = useState<any>(null); // ✅ Store full trip object
@@ -240,17 +253,34 @@ export function ChatPage() {
     markRead(chatId);
   }, [chatId]);
 
+  // ✅ FIX: exponential backoff поллинга при подряд идущих сбоях синхронизации
+  // (сервер недоступен/таймаут) — раньше poll долбил сервер каждые 4с даже
+  // если он явно не отвечает, лишь молча используя локальный кэш.
+  const POLL_BASE_MS = 4_000;
+  const POLL_MAX_MS = 60_000;
+  const pollDelayRef = useRef(POLL_BASE_MS);
+  const consecutiveFailuresRef = useRef(0);
+
   const syncMessages = useCallback(async () => {
     if (!chatId) return;
     try {
       const fresh = await fetchMessages(chatId);
       setMessages([...fresh]);
       markRead(chatId);
-    } catch { /* use local cache */ }
+      consecutiveFailuresRef.current = 0;
+      pollDelayRef.current = POLL_BASE_MS;
+    } catch {
+      // use local cache, but slow down polling — server is having trouble
+      consecutiveFailuresRef.current += 1;
+      pollDelayRef.current = Math.min(POLL_BASE_MS * 2 ** consecutiveFailuresRef.current, POLL_MAX_MS);
+    } finally {
+      setFirstSyncDone(true);
+    }
   }, [chatId]);
 
   useEffect(() => {
     if (!chatId) return;
+    setFirstSyncDone(false);
 
     // Find contact from chats list
     const chat = getChats().find(c => c.id === chatId);
@@ -263,16 +293,25 @@ export function ChatPage() {
     // 1. Instant render from cache
     loadMessages();
 
-    // 2. Sync from API
-    syncMessages();
-
-    // 3. Poll every 4s for new messages from server
-    pollRef.current = setInterval(syncMessages, 4_000);
+    // 2. Sync from API, then poll with exponential backoff on failure
+    // (fixed setInterval can't slow itself down, so we self-reschedule).
+    let cancelled = false;
+    pollDelayRef.current = POLL_BASE_MS;
+    consecutiveFailuresRef.current = 0;
+    const scheduleNext = () => {
+      pollRef.current = setTimeout(async () => {
+        if (cancelled) return;
+        await syncMessages();
+        if (!cancelled) scheduleNext();
+      }, pollDelayRef.current);
+    };
+    syncMessages().then(() => { if (!cancelled) scheduleNext(); });
 
     window.addEventListener('ovora_chat_update', loadMessages);
     return () => {
+      cancelled = true;
       window.removeEventListener('ovora_chat_update', loadMessages);
-      if (pollRef.current) clearInterval(pollRef.current);
+      if (pollRef.current) clearTimeout(pollRef.current);
       // Освобождаем микрофон при размонтировании (защита от утечки stream)
       if (mediaStreamRef.current) {
         mediaStreamRef.current.getTracks().forEach(t => t.stop());
@@ -556,6 +595,13 @@ export function ChatPage() {
     }
   };
 
+  // ── Retry a failed message send ─────────────────────────────────────────────
+  const handleRetryMessage = async (messageId: string) => {
+    if (!chatId) return;
+    await retryMessage(chatId, messageId);
+    loadMessages();
+  };
+
   // ── Copy message ──────────────────────────────────────────────────────────
   const handleCopyMessage = (text: string) => {
     if (text.startsWith('__IMG__')) {
@@ -780,6 +826,18 @@ export function ChatPage() {
 
       {/* ── MESSAGES ───────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto py-4 space-y-3" style={{ touchAction: 'pan-y', WebkitOverflowScrolling: 'touch' }}>
+        {!firstSyncDone && messages.length === 0 ? (
+          // Skeleton вместо "прыжка" пустой → заполненной ленты при первой синхронизации
+          <div className="space-y-3 animate-pulse">
+            {[0, 1, 2, 3].map(i => (
+              <div key={i} className={`flex px-4 ${i % 2 ? 'justify-end' : 'justify-start'}`}>
+                <div
+                  className={`h-9 rounded-2xl ${i % 2 ? 'w-40' : 'w-52'} ${isDark ? 'bg-[#1e2d3d]' : 'bg-[#f0f2f5]'}`}
+                />
+              </div>
+            ))}
+          </div>
+        ) : (
         <AnimatePresence initial={false}>
           {messages.map(msg => {
             const isMine = msg.from === userRole || msg.from === 'system' && false;
@@ -841,7 +899,7 @@ export function ChatPage() {
                 {!isMine && (
                   <div className="w-7 h-7 rounded-full shrink-0 overflow-hidden">
                     {contact.avatar
-                      ? <img src={contact.avatar} className="w-full h-full object-cover" />
+                      ? <img src={contact.avatar} alt="" className="w-full h-full object-cover" />
                       : <div className={`w-full h-full flex items-center justify-center text-[10px] font-bold ${isDark ? 'bg-[#1978e5]/20 text-[#1978e5]' : 'bg-[#e6f2f6] text-[#1978e5]'}`}>{(contact.name || '??').slice(0,2).toUpperCase()}</div>
                     }
                   </div>
@@ -891,12 +949,23 @@ export function ChatPage() {
                       : <Check className="w-3 h-3" />
                     )}
                   </div>
+                  {isMine && msg.failed && (
+                    <button
+                      onClick={() => handleRetryMessage(msg.id)}
+                      className="flex items-center gap-1 text-[10px] font-semibold px-1 text-[#ef4444] active:opacity-70"
+                    >
+                      <AlertCircle className="w-3 h-3" />
+                      Не отправлено · Повторить
+                      <RotateCw className="w-3 h-3" />
+                    </button>
+                  )}
                 </div>
               </motion.div>
               </SwipeableMessage>
             );
           })}
         </AnimatePresence>
+        )}
 
         <div ref={messagesEndRef} />
       </div>

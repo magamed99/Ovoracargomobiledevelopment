@@ -1,10 +1,19 @@
 import { projectId, publicAnonKey } from '../../../utils/supabase/info';
+import { CSRF_HEADER, CSRF_TOKEN } from './csrfToken';
+import { getAviaSession } from './aviaApi';
 
 const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;
-const HEADERS = {
+const BASE_HEADERS = {
   'Content-Type': 'application/json',
   Authorization: `Bearer ${publicAnonKey}`,
+  [CSRF_HEADER]: CSRF_TOKEN,
 };
+
+/** anon key + CSRF + (если есть сессия) X-Avia-Token владельца сессии */
+function getHeaders(): Record<string, string> {
+  const token = getAviaSession()?.token;
+  return token ? { ...BASE_HEADERS, 'X-Avia-Token': token } : BASE_HEADERS;
+}
 
 // ── Типы ─────────────────────────────────────────────────────────────────────
 
@@ -49,6 +58,8 @@ export interface AviaDeal {
   podPhotos?: AviaPODPhoto[];
   /** Статус рейса (только для adType === 'flight') — подмешивается бэкендом в /avia/deals/user/:phone */
   flightStatus?: string;
+  /** Напоминание о зависшей в pending сделке (>24ч) уже отправлено — выставляется бэкендом */
+  reminderSent?: boolean;
 }
 
 export type AviaPODPhotoType = 'pickup' | 'delivery';
@@ -97,7 +108,7 @@ export async function createAviaDeal(params: {
   try {
     const res = await fetch(`${BASE}/avia/deals`, {
       method: 'POST',
-      headers: HEADERS,
+      headers: getHeaders(),
       body: JSON.stringify({ ...params, callerPhone: params.initiatorPhone }),
     });
     const data = await res.json();
@@ -114,7 +125,7 @@ export async function getAviaDeal(dealId: string, callerPhone: string): Promise<
   try {
     const clean = callerPhone.replace(/\D/g, '');
     const res = await fetch(`${BASE}/avia/deals/${encodeURIComponent(dealId)}?callerPhone=${encodeURIComponent(clean)}`, {
-      headers: HEADERS,
+      headers: getHeaders(),
     });
     if (!res.ok) return null;
     const data = await res.json();
@@ -129,7 +140,7 @@ export async function getAviaDeals(phone: string): Promise<AviaDeal[]> {
   try {
     const clean = phone.replace(/\D/g, '');
     const res = await fetch(`${BASE}/avia/deals/user/${encodeURIComponent(clean)}?callerPhone=${encodeURIComponent(clean)}`, {
-      headers: HEADERS,
+      headers: getHeaders(),
     });
     if (!res.ok) return [];
     const data = await res.json();
@@ -147,7 +158,7 @@ export async function acceptAviaDeal(
   try {
     const res = await fetch(`${BASE}/avia/deals/${encodeURIComponent(dealId)}/accept`, {
       method: 'PATCH',
-      headers: HEADERS,
+      headers: getHeaders(),
       body: JSON.stringify({ phone: phone.replace(/\D/g, '') }),
     });
     const data = await res.json();
@@ -168,7 +179,7 @@ export async function rejectAviaDeal(
   try {
     const res = await fetch(`${BASE}/avia/deals/${encodeURIComponent(dealId)}/reject`, {
       method: 'PATCH',
-      headers: HEADERS,
+      headers: getHeaders(),
       body: JSON.stringify({ phone: phone.replace(/\D/g, ''), reason }),
     });
     const data = await res.json();
@@ -176,6 +187,26 @@ export async function rejectAviaDeal(
     return { success: true, deal: data.deal };
   } catch (err: any) {
     console.error('[aviaDealApi] rejectAviaDeal error:', err);
+    return { success: false, error: err.message };
+  }
+}
+
+/** Отменить отклонение сделки (получатель, в течение 5 минут после reject) */
+export async function undoRejectAviaDeal(
+  dealId: string,
+  phone: string,
+): Promise<{ success: boolean; deal?: AviaDeal; error?: string }> {
+  try {
+    const res = await fetch(`${BASE}/avia/deals/${encodeURIComponent(dealId)}/undo-reject`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify({ phone: phone.replace(/\D/g, '') }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) return { success: false, error: data.error || 'Ошибка отмены отклонения' };
+    return { success: true, deal: data.deal };
+  } catch (err: any) {
+    console.error('[aviaDealApi] undoRejectAviaDeal error:', err);
     return { success: false, error: err.message };
   }
 }
@@ -188,7 +219,7 @@ export async function cancelAviaDeal(
   try {
     const res = await fetch(`${BASE}/avia/deals/${encodeURIComponent(dealId)}/cancel`, {
       method: 'PATCH',
-      headers: HEADERS,
+      headers: getHeaders(),
       body: JSON.stringify({ phone: phone.replace(/\D/g, '') }),
     });
     const data = await res.json();
@@ -208,7 +239,7 @@ export async function completeAviaDeal(
   try {
     const res = await fetch(`${BASE}/avia/deals/${encodeURIComponent(dealId)}/complete`, {
       method: 'PATCH',
-      headers: HEADERS,
+      headers: getHeaders(),
       body: JSON.stringify({ phone: phone.replace(/\D/g, '') }),
     });
     const data = await res.json();
@@ -230,7 +261,7 @@ export async function uploadAviaDealPOD(
   try {
     const res = await fetch(`${BASE}/avia/deals/${encodeURIComponent(dealId)}/pod`, {
       method: 'POST',
-      headers: HEADERS,
+      headers: getHeaders(),
       body: JSON.stringify({ base64, type, callerPhone: callerPhone.replace(/\D/g, '') }),
     });
     const data = await res.json();
@@ -250,7 +281,7 @@ export async function deleteAviaDealsByIds(
   try {
     const res = await fetch(`${BASE}/avia/deals/delete-by-id`, {
       method: 'POST',
-      headers: HEADERS,
+      headers: getHeaders(),
       body: JSON.stringify({ dealIds, callerPhone: callerPhone.replace(/\D/g, '') }),
     });
     const data = await res.json();
@@ -267,7 +298,7 @@ export async function getAviaStats(phone: string): Promise<AviaStats | null> {
   try {
     const clean = phone.replace(/\D/g, '');
     const res = await fetch(`${BASE}/avia/stats/${encodeURIComponent(clean)}`, {
-      headers: HEADERS,
+      headers: getHeaders(),
     });
     if (!res.ok) return null;
     const data = await res.json();

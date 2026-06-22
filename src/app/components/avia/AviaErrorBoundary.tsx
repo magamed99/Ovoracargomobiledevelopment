@@ -1,9 +1,15 @@
 import { useRouteError, isRouteErrorResponse, useNavigate } from 'react-router';
 import { AlertTriangle, RotateCcw, Plane } from 'lucide-react';
+import { useEffect } from 'react';
+import { Sentry } from '../../config/sentry';
 
 export function AviaErrorBoundary() {
   const error = useRouteError();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    Sentry.captureException(error);
+  }, [error]);
 
   let title = 'Что-то пошло не так';
   let detail = 'Произошла непредвиденная ошибка. Попробуйте обновить страницу.';

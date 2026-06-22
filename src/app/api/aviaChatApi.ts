@@ -1,10 +1,19 @@
 import { projectId, publicAnonKey } from '../../../utils/supabase/info';
+import { CSRF_HEADER, CSRF_TOKEN } from './csrfToken';
+import { getAviaSession } from './aviaApi';
 
 const BASE    = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;
-const HEADERS = {
+const BASE_HEADERS = {
   'Content-Type': 'application/json',
   Authorization:  `Bearer ${publicAnonKey}`,
+  [CSRF_HEADER]: CSRF_TOKEN,
 };
+
+/** anon key + CSRF + (если есть сессия) X-Avia-Token владельца сессии */
+function getHeaders(): Record<string, string> {
+  const token = getAviaSession()?.token;
+  return token ? { ...BASE_HEADERS, 'X-Avia-Token': token } : BASE_HEADERS;
+}
 
 // ── Fetch timeout ─────────────────────────────────────────────────────────────
 
@@ -95,7 +104,7 @@ export async function initAviaChat(
 ): Promise<{ chatId: string; meta: AviaChatMeta; isNew: boolean }> {
   const res  = await fetch(`${BASE}/avia/chat/init`, {
     method:  'POST',
-    headers: HEADERS,
+    headers: getHeaders(),
     body:    JSON.stringify({ senderPhone, recipientPhone, adRef }),
     signal:  withTimeout(),
   });
@@ -112,7 +121,7 @@ export async function getAviaChatMessages(
   try {
     const url = `${BASE}/avia/chat/${encodeURIComponent(chatId)}/messages?callerPhone=${encodeURIComponent(callerPhone)}`;
     const res  = await fetch(url, {
-      headers: HEADERS,
+      headers: getHeaders(),
       signal:  withTimeout(),
     });
     if (!res.ok) return { messages: [], meta: { chatId, participants: [], unread: 0 } as any };
@@ -130,7 +139,7 @@ export async function sendAviaChatMessage(
 ): Promise<AviaChatMessage> {
   const res  = await fetch(`${BASE}/avia/chat/${encodeURIComponent(chatId)}/messages`, {
     method:  'POST',
-    headers: HEADERS,
+    headers: getHeaders(),
     body:    JSON.stringify({ senderPhone, text, type: 'text' }),
     signal:  withTimeout(),
   });
@@ -149,7 +158,7 @@ export async function sendTypedChatMessage(
 ): Promise<AviaChatMessage> {
   const res  = await fetch(`${BASE}/avia/chat/${encodeURIComponent(chatId)}/messages`, {
     method:  'POST',
-    headers: HEADERS,
+    headers: getHeaders(),
     body:    JSON.stringify({ senderPhone, text, type, meta }),
     signal:  withTimeout(),
   });
@@ -169,7 +178,7 @@ export async function markAviaChatSeen(
   try {
     await fetch(`${BASE}/avia/chat/${encodeURIComponent(chatId.trim())}/seen`, {
       method:  'POST',
-      headers: HEADERS,
+      headers: getHeaders(),
       body:    JSON.stringify({ phone: phone.trim() }),
       signal:  withTimeout(signal),
     });
@@ -187,7 +196,7 @@ export async function deleteAviaChat(
   try {
     const res = await fetch(`${BASE}/avia/chat/${encodeURIComponent(chatId)}`, {
       method:  'DELETE',
-      headers: HEADERS,
+      headers: getHeaders(),
       body:    JSON.stringify({ phone }),
       signal:  withTimeout(),
     });
@@ -206,7 +215,7 @@ export async function getAviaUserChats(phone: string): Promise<AviaChat[]> {
   try {
     const clean = phone.replace(/\D/g, '');
     const res   = await fetch(`${BASE}/avia/chats/user/${encodeURIComponent(clean)}?callerPhone=${encodeURIComponent(clean)}`, {
-      headers: HEADERS,
+      headers: getHeaders(),
       signal:  withTimeout(),
     });
     if (!res.ok) return [];

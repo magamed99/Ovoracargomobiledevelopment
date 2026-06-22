@@ -38,9 +38,9 @@ export function usePassportUpload({
 
   const processPassportFile = async (file: File, skipOcr: boolean = false) => {
     if (isUploadingRef.current) return;
-    if (file.size > 20 * 1024 * 1024) {
-      setError('Файл слишком большой (макс 20 МБ)');
-      toast.error('Файл слишком большой', { description: 'Максимальный размер — 20 МБ' });
+    if (file.size > 10 * 1024 * 1024) {
+      setError('Файл слишком большой (макс 10 МБ)');
+      toast.error('Файл слишком большой', { description: 'Максимальный размер — 10 МБ' });
       return;
     }
     isUploadingRef.current = true;
@@ -78,11 +78,17 @@ export function usePassportUpload({
           ? 'Фото загружено. Пожалуйста, введите данные ниже.'
           : result.ocrFullName
             ? 'Паспорт загружен! Данные распознаны автоматически.'
-            : 'Паспорт загружен! При необходимости заполните данные вручную.';
+            : result.ocrFailed
+              ? 'Паспорт загружен, но автоматическое распознавание не сработало. Заполните данные вручную.'
+              : 'Паспорт загружен! При необходимости заполните данные вручную.';
       setUploadSuccess(msg);
-      toast.success(skipOcr ? 'Фото сохранено' : 'Паспорт загружен', {
-        description: skipOcr ? 'Заполните данные паспорта вручную' : result.ocrFullName ? 'Данные распознаны через OCR' : 'Заполните данные вручную',
-      });
+      if (!skipOcr && result.ocrFailed) {
+        toast.warning('Паспорт загружен', { description: 'Распознавание не сработало — заполните данные вручную' });
+      } else {
+        toast.success(skipOcr ? 'Фото сохранено' : 'Паспорт загружен', {
+          description: skipOcr ? 'Заполните данные паспорта вручную' : result.ocrFullName ? 'Данные распознаны через OCR' : 'Заполните данные вручную',
+        });
+      }
     } catch (err: any) {
       setError(err.message || 'Ошибка загрузки паспорта');
       toast.error('Ошибка загрузки паспорта', { description: err.message || 'Попробуйте ещё раз' });

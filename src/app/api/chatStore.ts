@@ -67,6 +67,7 @@ export interface ChatMessage {
   time: string;         // HH:mm display
   ts: number;           // unix ms
   read: boolean;
+  failed?: boolean;     // true — не дошло до сервера, доступен ретрай (см. retryMessage)
 }
 
 export interface Chat {
@@ -254,9 +255,57 @@ export async function initChatRoom(
     contactInfo,
     senderInfo,
     tripData, // ✅ Pass tripData to API
+    myEmail,
   ).catch(() => {});
 
   return existing || getChats().find(c => c.id === chatId)!;
+}
+
+/**
+ * Sync an already-optimistically-inserted message to the API. Marks the
+ * message as `failed: true` (visible in UI for retry) if the request fails,
+ * and clears the flag + swaps in the server-assigned msgId on success.
+ */
+async function _syncMessageToServer(chatId: string, msg: ChatMessage): Promise<void> {
+  const currentUser = getCachedUser();
+  const myEmail = currentUser?.email || 'guest';
+  const myRole  = sessionStorage.getItem('userRole') || 'sender';
+  const myName  = currentUser
+    ? `${currentUser.firstName} ${currentUser.lastName || ''}`.trim() || (myRole === 'driver' ? 'Водитель' : 'Отправитель')
+    : (myRole === 'driver' ? 'Водитель' : 'Отправитель');
+  const contact = loadContact(chatId);
+  const participants = contact?.email
+    ? [myEmail, contact.email].filter(Boolean)
+    : undefined;
+
+  try {
+    const serverMsg = await apiSendMessage({
+      chatId,
+      senderId: myEmail,
+      senderName: myName,
+      text: msg.text,
+      type: msg.type,
+      proposal: msg.proposal,
+      from: msg.from,
+      participants,
+    });
+    // ✅ Replace optimistic ID with server-assigned msgId, clear failed flag
+    // This prevents duplication when fetchMessages() merges server + local messages
+    const currentMsgs = getMessages(chatId);
+    const confirmedMsgs = currentMsgs.map(m =>
+      m.id === msg.id ? { ...m, id: serverMsg?.msgId || m.id, failed: false } : m
+    );
+    saveMessages(chatId, confirmedMsgs);
+    // No emit on success — avoid extra re-render; next poll will show consistent state
+  } catch {
+    // ✅ Помечаем сообщение как недоставленное — ChatPage показывает
+    // индикатор ошибки с кнопкой "Повторить" (retryMessage), вместо того
+    // чтобы молча оставлять его выглядящим отправленным навсегда.
+    const currentMsgs = getMessages(chatId);
+    const failedMsgs = currentMsgs.map(m => m.id === msg.id ? { ...m, failed: true } : m);
+    saveMessages(chatId, failedMsgs);
+    emit();
+  }
 }
 
 /**
@@ -266,14 +315,6 @@ export async function pushMessage(
   chatId: string,
   msg: ChatMessage,
 ): Promise<ChatMessage[]> {
-  const currentUser = getCachedUser();
-  const myEmail = currentUser?.email || 'guest';
-  const myRole  = sessionStorage.getItem('userRole') || 'sender';
-  const myName  = currentUser
-    ? `${currentUser.firstName} ${currentUser.lastName || ''}`.trim() || (myRole === 'driver' ? 'Водитель' : 'Отправитель')
-    : (myRole === 'driver' ? 'Водитель' : 'Отправитель');
-  const contact = loadContact(chatId);
-
   // 1. Optimistic insert into local cache
   const msgs = getMessages(chatId);
   const updated = [...msgs, msg];
@@ -291,36 +332,22 @@ export async function pushMessage(
   emit();
 
   // 3. Sync to API
-  const participants = contact?.email
-    ? [myEmail, contact.email].filter(Boolean)
-    : undefined;
-
-  try {
-    const serverMsg = await apiSendMessage({
-      chatId,
-      senderId: myEmail,
-      senderName: myName,
-      text: msg.text,
-      type: msg.type,
-      proposal: msg.proposal,
-      from: msg.from,
-      participants,
-    });
-    // ✅ Replace optimistic ID with server-assigned msgId
-    // This prevents duplication when fetchMessages() merges server + local messages
-    if (serverMsg?.msgId && serverMsg.msgId !== msg.id) {
-      const currentMsgs = getMessages(chatId);
-      const confirmedMsgs = currentMsgs.map(m =>
-        m.id === msg.id ? { ...m, id: serverMsg.msgId } : m
-      );
-      saveMessages(chatId, confirmedMsgs);
-      // No emit — avoid extra re-render; next poll will show consistent state
-    }
-  } catch {
-    // Keep optimistic message — offline mode
-  }
+  await _syncMessageToServer(chatId, msg);
 
   return updated;
+}
+
+/**
+ * Retry a previously-failed message send (see `failed` flag on ChatMessage).
+ */
+export async function retryMessage(chatId: string, messageId: string): Promise<void> {
+  const msgs = getMessages(chatId);
+  const msg = msgs.find(m => m.id === messageId);
+  if (!msg) return;
+  // Clear failed flag while retry is in flight
+  saveMessages(chatId, msgs.map(m => m.id === messageId ? { ...m, failed: false } : m));
+  emit();
+  await _syncMessageToServer(chatId, msg);
 }
 
 /**
@@ -331,35 +358,34 @@ export async function fetchMessages(chatId: string): Promise<ChatMessage[]> {
   if (!myEmail) return getMessages(chatId);
   const myRole  = sessionStorage.getItem('userRole') || 'sender';
 
-  try {
-    const serverMsgs = await apiGetMessages(chatId, myEmail);
-    if (serverMsgs && serverMsgs.length > 0) {
-      const mapped = serverMsgs.map((m: any) => _mapServerMsg(m, myRole, myEmail));
+  // ✅ Сетевая/серверная ошибка теперь прокидывается наружу (а не глушится
+  // тут же) — ChatPage использует это, чтобы делать exponential backoff
+  // поллинга при подряд идущих сбоях, вместо долбления сервера каждые 4с.
+  const serverMsgs = await apiGetMessages(chatId, myEmail);
+  if (serverMsgs && serverMsgs.length > 0) {
+    const mapped = serverMsgs.map((m: any) => _mapServerMsg(m, myRole, myEmail));
 
-      // ── Merge: keep local optimistic messages not yet confirmed by server ──
-      // This prevents proposals/messages from disappearing during API latency
-      const localMsgs = getMessages(chatId);
-      const serverIds = new Set(mapped.map((m: ChatMessage) => m.id));
-      // ✅ Also collect proposal IDs from server to deduplicate optimistic proposals
-      const serverProposalIds = new Set(
-        mapped.filter((m: ChatMessage) => m.proposal?.id).map((m: ChatMessage) => m.proposal!.id)
-      );
-      const pendingLocal = localMsgs.filter(m => {
-        if (serverIds.has(m.id)) return false; // already matched by ID
-        if (m.proposal?.id && serverProposalIds.has(m.proposal.id)) return false; // proposal already on server
-        return true;
-      });
-      const merged = [...mapped, ...pendingLocal].sort((a, b) => a.ts - b.ts);
+    // ── Merge: keep local optimistic messages not yet confirmed by server ──
+    // This prevents proposals/messages from disappearing during API latency
+    const localMsgs = getMessages(chatId);
+    const serverIds = new Set(mapped.map((m: ChatMessage) => m.id));
+    // ✅ Also collect proposal IDs from server to deduplicate optimistic proposals
+    const serverProposalIds = new Set(
+      mapped.filter((m: ChatMessage) => m.proposal?.id).map((m: ChatMessage) => m.proposal!.id)
+    );
+    const pendingLocal = localMsgs.filter(m => {
+      if (serverIds.has(m.id)) return false; // already matched by ID
+      if (m.proposal?.id && serverProposalIds.has(m.proposal.id)) return false; // proposal already on server
+      return true;
+    });
+    const merged = [...mapped, ...pendingLocal].sort((a, b) => a.ts - b.ts);
 
-      saveMessages(chatId, merged);
-      emit();
-      return merged;
-    }
-  } catch {
-    // Fallback to local cache
+    saveMessages(chatId, merged);
+    emit();
+    return merged;
   }
 
-  // Fallback: local cache
+  // Server confirmed: no messages yet (not an error) — fall back to local cache
   return getMessages(chatId);
 }
 
@@ -486,6 +512,9 @@ export async function updateProposalStatus(
 ): Promise<ChatMessage[]> {
   const myEmail = getCachedUser()?.email || 'guest';
 
+  const previousStatus: ProposalStatus = getMessages(chatId)
+    .find(m => m.type === 'proposal' && m.proposal?.id === proposalId)?.proposal?.status ?? 'pending';
+
   // 1. Local optimistic update
   const msgs = getMessages(chatId).map(m => {
     if (m.type === 'proposal' && m.proposal?.id === proposalId) {
@@ -512,8 +541,20 @@ export async function updateProposalStatus(
   }
   emit();
 
-  // 3. API call
-  apiUpdateProposal(chatId, proposalId, status as 'accepted' | 'rejected', myEmail).catch(() => {});
+  // 3. API call — на 409 (например, вместимость рейса уже занята другой
+  // принятой офертой) откатываем оптимистичное обновление, иначе UI навсегда
+  // показывает "принято" хотя backend отказал.
+  apiUpdateProposal(chatId, proposalId, status as 'accepted' | 'rejected', myEmail).catch((err: any) => {
+    if (err?.status === 409) {
+      const reverted = getMessages(chatId).map(m =>
+        m.type === 'proposal' && m.proposal?.id === proposalId
+          ? { ...m, proposal: { ...m.proposal!, status: previousStatus } }
+          : m
+      );
+      saveMessages(chatId, reverted);
+      emit();
+    }
+  });
 
   return msgs;
 }

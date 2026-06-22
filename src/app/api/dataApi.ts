@@ -1,4 +1,5 @@
 import { projectId, publicAnonKey } from '../../../utils/supabase/info';
+import { CSRF_HEADER, CSRF_TOKEN } from './csrfToken';
 
 const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;
 
@@ -41,6 +42,7 @@ function getAdminAuthHeader(): Record<string, string> {
 function getHeaders(path: string, isFormData: boolean): Record<string, string> {
   const headers: Record<string, string> = {
     Authorization: `Bearer ${publicAnonKey}`,
+    [CSRF_HEADER]: CSRF_TOKEN,
   };
   if (!isFormData) {
     headers['Content-Type'] = 'application/json';
@@ -58,6 +60,7 @@ export function adminHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${publicAnonKey}`,
+    [CSRF_HEADER]: CSRF_TOKEN,
   };
   Object.assign(headers, getAdminAuthHeader());
   return headers;
@@ -81,14 +84,16 @@ async function reqWithRetry(method: string, path: string, body?: any, attempts =
       clearTimeout(timer);
       if (!res.ok) {
         const text = await res.text();
-        throw new Error(`API ${method} ${path} failed (${res.status}): ${text}`);
+        const httpErr: any = new Error(`API ${method} ${path} failed (${res.status}): ${text}`);
+        httpErr.status = res.status;
+        throw httpErr;
       }
       return res.json();
     } catch (err: any) {
       clearTimeout(timer);
       lastErr = err;
       // Don't retry on explicit HTTP errors (4xx/5xx) — only on network errors
-      if (err?.message?.includes('failed (')) throw err;
+      if (err?.status !== undefined) throw err;
       if (i < attempts - 1) {
         await new Promise(r => setTimeout(r, 800 * (i + 1))); // 800ms, 1600ms backoff
       }
@@ -332,8 +337,10 @@ export async function submitReview(review: any) {
     if (review.authorEmail) cacheClear(`stats:${review.authorEmail}`);
     return data.review;
   } catch (err: any) {
-    // ✅ FIX #3: Обработка дубликата (409)
-    if (err?.message?.includes('409')) {
+    // ✅ FIX #3: Обработка дубликата (409) — проверяем реальный HTTP-статус,
+    // а не подстроку '409' в тексте сообщения (могла случайно совпасть с
+    // содержимым текста ошибки или путём запроса).
+    if (err?.status === 409) {
       throw new Error('DUPLICATE_REVIEW');
     }
     throw err;
@@ -345,8 +352,12 @@ export async function getReviewsForUser(email: string): Promise<any[]> {
   return data.reviews;
 }
 
-export async function getAllReviews(): Promise<any[]> {
-  const data = await req('GET', '/reviews');
+export async function getAllReviews(opts?: { minRating?: number; limit?: number }): Promise<any[]> {
+  const params = new URLSearchParams();
+  if (opts?.minRating !== undefined) params.set('minRating', String(opts.minRating));
+  if (opts?.limit !== undefined) params.set('limit', String(opts.limit));
+  const qs = params.toString();
+  const data = await req('GET', `/reviews${qs ? `?${qs}` : ''}`);
   return data.reviews;
 }
 
@@ -362,8 +373,9 @@ export async function initChat(
   contactInfo?: Record<string, any>,   // { [viewerEmail]: ContactInfo }
   senderInfo?: Record<string, any>,
   tripData?: any, // ✅ Add tripData parameter
+  callerEmail?: string,
 ) {
-  await req('POST', '/chat/init', { chatId, participants, tripId, tripRoute, contactInfo, senderInfo, tripData });
+  await req('POST', '/chat/init', { chatId, participants, tripId, tripRoute, contactInfo, senderInfo, tripData, callerEmail });
 }
 
 export async function sendMessage(msg: {
@@ -497,6 +509,14 @@ export async function getAdminCargos() {
 
 export async function deleteAdminCargo(cargoId: string) {
   return req('DELETE', `/admin/cargos/${encodeURIComponent(cargoId)}`);
+}
+
+export async function searchAdmin(q: string) {
+  return req('GET', `/admin/search?q=${encodeURIComponent(q)}`);
+}
+
+export async function revokeAllAdminSessions() {
+  return req('POST', '/admin/auth/revoke-all');
 }
 
 // ── Admin documents ────────────────────────────────────────────────

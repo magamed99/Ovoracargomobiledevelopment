@@ -1,10 +1,19 @@
 import { projectId, publicAnonKey } from '../../../utils/supabase/info';
+import { CSRF_HEADER, CSRF_TOKEN } from './csrfToken';
+import { getAviaSession } from './aviaApi';
 
 const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;
-const HEADERS = {
+const BASE_HEADERS = {
   'Content-Type': 'application/json',
   Authorization: `Bearer ${publicAnonKey}`,
+  [CSRF_HEADER]: CSRF_TOKEN,
 };
+
+/** anon key + CSRF + (если есть сессия) X-Avia-Token владельца сессии */
+function getHeaders(): Record<string, string> {
+  const token = getAviaSession()?.token;
+  return token ? { ...BASE_HEADERS, 'X-Avia-Token': token } : BASE_HEADERS;
+}
 
 // ── Типы ─────────────────────────────────────────────────────────────────────
 
@@ -51,7 +60,7 @@ export async function createAviaReview(params: {
   try {
     const res = await fetch(`${BASE}/avia/reviews`, {
       method: 'POST',
-      headers: HEADERS,
+      headers: getHeaders(),
       body: JSON.stringify({
         ...params,
         authorPhone: params.authorPhone.replace(/\D/g, ''),
@@ -66,15 +75,18 @@ export async function createAviaReview(params: {
   }
 }
 
-/** Статус отзывов по сделке (кто уже оставил) */
-export async function getAviaDealReviewStatus(dealId: string): Promise<AviaDealReviewedStatus> {
+/** Статус отзывов по списку сделок за один запрос (вместо N запросов per-deal) */
+export async function getAviaDealReviewStatusBatch(dealIds: string[]): Promise<Record<string, AviaDealReviewedStatus>> {
+  if (dealIds.length === 0) return {};
   try {
-    const res = await fetch(`${BASE}/avia/reviews/deal/${encodeURIComponent(dealId)}`, {
-      headers: HEADERS,
+    const res = await fetch(`${BASE}/avia/reviews/deal-batch`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ dealIds }),
     });
     if (!res.ok) return {};
     const data = await res.json();
-    return data.reviewed || {};
+    return data.statuses || {};
   } catch {
     return {};
   }
@@ -85,7 +97,7 @@ export async function getAviaUserReviews(phone: string): Promise<AviaReview[]> {
   try {
     const clean = phone.replace(/\D/g, '');
     const res = await fetch(`${BASE}/avia/reviews/user/${encodeURIComponent(clean)}`, {
-      headers: HEADERS,
+      headers: getHeaders(),
     });
     if (!res.ok) return [];
     const data = await res.json();
@@ -103,7 +115,7 @@ export async function getAviaPublicProfile(phone: string): Promise<{
   try {
     const clean = phone.replace(/\D/g, '');
     const res = await fetch(`${BASE}/avia/profile/${encodeURIComponent(clean)}`, {
-      headers: HEADERS,
+      headers: getHeaders(),
     });
     if (!res.ok) return null;
     const data = await res.json();

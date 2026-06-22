@@ -158,7 +158,7 @@ export function RoleSelect() {
       .then(s => setLiveStats(s))
       .catch(() => {});
 
-    getAllReviews()
+    getAllReviews({ minRating: 5, limit: 20 })
       .then(reviews => {
         const fiveStars = reviews
           .filter((r: any) => r && (r.rating ?? 0) >= 5 && r.comment?.trim())

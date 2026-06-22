@@ -1,19 +1,34 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router';
 import {
   LayoutDashboard, Users, Car, Package, FileCheck, BarChart3,
-  MessageSquare, Bell, Search,
+  MessageSquare, Bell, Search, ClipboardList as RequestIcon, Star,
   Menu, X, ChevronRight, Truck, ClipboardList, Megaphone,
   LogOut, Clock, TrendingUp, Database, Crown, Globe, Boxes, Plane, History, ShieldOff,
   KeyRound, SlidersHorizontal,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { YandexMetrikaTracker } from '../YandexMetrika';
-import { getAdminStats } from '../../api/dataApi';
+import { getAdminStats, searchAdmin, revokeAllAdminSessions } from '../../api/dataApi';
+import { usePolling } from '../../hooks/usePolling';
 import { AdminAuthGate } from './AdminAuthGate';
 import { PLATFORM_THEME, GROUP_PLATFORM } from './platformTheme';
 
 const PIN_SESSION_KEY = 'ovora_admin_auth';
+
+// ── Авто-logout по неактивности ──────────────────────────────────────────────
+// JWT-сессия живёт 8ч (ADMIN_JWT_SECRET, см. CLAUDE.md), но без идле-таймера
+// открытая вкладка с правами админа остаётся залогиненной все 8ч независимо от
+// активности — отдельный, более короткий таймер неактивности снижает это окно.
+const IDLE_LOGOUT_MS = 25 * 60 * 1000; // 25 мин без активности → авто-выход
+const IDLE_WARNING_MS = 2 * 60 * 1000; // предупреждение за 2 мин до выхода
+
+function clearAdminSession() {
+  sessionStorage.removeItem(PIN_SESSION_KEY);
+  sessionStorage.removeItem('ovora_admin_token');
+  sessionStorage.removeItem('ovora_admin_jwt');
+  sessionStorage.removeItem('ovora_admin_role');
+}
 
 const navGroups = [
   {
@@ -78,11 +93,17 @@ export function AdminLayout() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [stats, setStats] = useState<any>(null);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
   const [authed, setAuthed] = useState(() =>
     sessionStorage.getItem(PIN_SESSION_KEY) === 'true' &&
     (!!sessionStorage.getItem('ovora_admin_token') || !!sessionStorage.getItem('ovora_admin_jwt'))
   );
+  const [idleWarningSecs, setIdleWarningSecs] = useState<number | null>(null);
   const adminRole = (sessionStorage.getItem('ovora_admin_role') || 'super-admin') as 'super-admin' | 'cargo-admin' | 'avia-admin';
   const visibleNavGroups = navGroups.filter(group => {
     if (adminRole === 'super-admin') return true;
@@ -91,26 +112,163 @@ export function AdminLayout() {
     return true;
   });
 
+  usePolling(async () => {
+    const s = await getAdminStats();
+    setStats(s);
+  }, 30_000, authed);
+
+  // Закрытие панели уведомлений по клику снаружи
   useEffect(() => {
-    if (authed) {
-      getAdminStats().then(s => setStats(s)).catch(() => {});
+    if (!notifOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [notifOpen]);
+
+  // Поиск по сущностям (находит конкретного пользователя/поездку/оферту/груз/отзыв
+  // по email/телефону/имени/ID), а не просто роутинг по ключевым словам раздела.
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (q.length < 2) {
+      setSearchResults(null);
+      setSearchOpen(false);
+      return;
     }
+    const id = setTimeout(async () => {
+      try {
+        const res = await searchAdmin(q);
+        setSearchResults(res);
+        setSearchOpen(true);
+      } catch {
+        setSearchResults(null);
+      }
+    }, 300);
+    return () => clearTimeout(id);
+  }, [searchQuery]);
+
+  // Закрытие выпадающего списка результатов поиска по клику снаружи
+  useEffect(() => {
+    if (!searchOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) setSearchOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [searchOpen]);
+
+  // Авто-logout по неактивности — отдельно от 8ч TTL самого JWT. Любая активность
+  // (клик, клавиатура, тач, скролл) перезапускает таймер и убирает предупреждение.
+  // resetIdleRef даёт кнопке «Остаться в системе» прямой вызов arm() без необходимости
+  // полагаться на то, что её клик случайно забублится до window-листенера ниже.
+  const resetIdleRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    if (!authed) return;
+    let warnTimer: ReturnType<typeof setTimeout>;
+    let logoutTimer: ReturnType<typeof setTimeout>;
+    let countdownInterval: ReturnType<typeof setInterval>;
+
+    const clearAll = () => {
+      clearTimeout(warnTimer);
+      clearTimeout(logoutTimer);
+      clearInterval(countdownInterval);
+    };
+
+    const arm = () => {
+      clearAll();
+      setIdleWarningSecs(null);
+      warnTimer = setTimeout(() => {
+        let secsLeft = Math.floor(IDLE_WARNING_MS / 1000);
+        setIdleWarningSecs(secsLeft);
+        countdownInterval = setInterval(() => {
+          secsLeft -= 1;
+          setIdleWarningSecs(secsLeft);
+          if (secsLeft <= 0) clearInterval(countdownInterval);
+        }, 1000);
+        logoutTimer = setTimeout(() => {
+          clearAll();
+          clearAdminSession();
+          window.location.reload();
+        }, IDLE_WARNING_MS);
+      }, IDLE_LOGOUT_MS - IDLE_WARNING_MS);
+    };
+
+    resetIdleRef.current = arm;
+    const events: (keyof WindowEventMap)[] = ['mousedown', 'keydown', 'touchstart', 'scroll'];
+    events.forEach(ev => window.addEventListener(ev, arm, { passive: true }));
+    arm();
+
+    return () => {
+      clearAll();
+      events.forEach(ev => window.removeEventListener(ev, arm));
+    };
   }, [authed]);
 
   if (!authed) {
     return <AdminAuthGate onSuccess={() => setAuthed(true)} />;
   }
 
+  // Каждый пункт несёт href целевого раздела + q/expand для него: q подставляется
+  // в его собственный локальный фильтр (гарантированно совпадающее поле), expand —
+  // в его expandedId, чтобы сразу раскрыть найденную карточку.
+  const searchHits = searchResults ? [
+    ...(searchResults.users || []).map((u: any) => ({
+      key: `user-${u.email}`,
+      icon: u.role === 'driver' ? Car : Users,
+      label: u.name || u.email,
+      sublabel: u.role === 'driver' ? (u.phone || u.email) : u.email,
+      href: u.role === 'driver' ? '/admin/cargo/drivers' : '/admin/cargo/users',
+      q: u.email,
+      expand: u.email,
+    })),
+    ...(searchResults.trips || []).map((t: any) => ({
+      key: `trip-${t.id}`,
+      icon: Truck,
+      label: `${t.from} → ${t.to}`,
+      sublabel: t.driverName,
+      href: '/admin/cargo/trips',
+      q: t.driverName,
+      expand: t.id,
+    })),
+    ...(searchResults.offers || []).map((o: any) => ({
+      key: `offer-${o.offerId}`,
+      icon: RequestIcon,
+      label: `${o.senderName} ↔ ${o.driverName}`,
+      sublabel: o.tripId,
+      href: '/admin/cargo/offers',
+      q: o.tripId,
+      expand: o.offerId,
+    })),
+    ...(searchResults.cargos || []).map((cg: any) => ({
+      key: `cargo-${cg.id}`,
+      icon: Boxes,
+      label: `${cg.from} → ${cg.to}`,
+      sublabel: cg.senderName,
+      href: '/admin/cargo/cargos',
+      q: cg.senderName,
+      expand: cg.id,
+    })),
+    ...(searchResults.reviews || []).map((r: any) => ({
+      key: `review-${r.reviewId}`,
+      icon: Star,
+      label: r.authorName,
+      sublabel: r.targetName,
+      href: '/admin/cargo/reviews',
+      q: r.authorName,
+      expand: r.reviewId,
+    })),
+  ] : [];
+
+  const goToHit = (hit: { href: string; q: string; expand: string }) => {
+    setSearchOpen(false);
+    setSearchQuery('');
+    navigate(`${hit.href}?q=${encodeURIComponent(hit.q)}&expand=${encodeURIComponent(hit.expand)}`);
+  };
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!searchQuery.trim()) return;
-    const q = searchQuery.toLowerCase();
-    if (q.includes('водитель') || q.includes('driver')) navigate('/admin/cargo/drivers');
-    else if (q.includes('пользователь') || q.includes('user')) navigate('/admin/cargo/users');
-    else if (q.includes('поездк') || q.includes('trip')) navigate('/admin/cargo/trips');
-    else if (q.includes('аналитик') || q.includes('analytic')) navigate('/admin/cargo/analytics');
-    else if (q.includes('отзыв') || q.includes('review')) navigate('/admin/cargo/reviews');
-    setSearchQuery('');
+    if (searchHits[0]) goToHit(searchHits[0]);
   };
 
   const isActive = (item: { href: string; exact?: boolean }) => {
@@ -123,9 +281,59 @@ export function AdminLayout() {
   const currentPlatform = currentGroup ? GROUP_PLATFORM[currentGroup.label] : undefined;
   const today = new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
 
+  const notifItems = [
+    ...(stats?.pendingOffers > 0 ? [{
+      href: '/admin/cargo/offers',
+      label: `${stats.pendingOffers} новых заявок`,
+      icon: RequestIcon,
+      bg: '#eff6ff',
+      color: '#2563eb',
+    }] : []),
+    ...(stats?.recentReviews > 0 ? [{
+      href: '/admin/cargo/reviews',
+      label: `${stats.recentReviews} новых отзывов`,
+      icon: Star,
+      bg: '#fffbeb',
+      color: '#d97706',
+    }] : []),
+  ];
+  const notifTotal = (stats?.pendingOffers || 0) + (stats?.recentReviews || 0);
+
   return (
     <div className="min-h-screen bg-[#f1f5f9]">
       <YandexMetrikaTracker />
+
+      {/* Предупреждение об авто-выходе по неактивности */}
+      <AnimatePresence>
+        {idleWarningSecs !== null && (
+          <motion.div
+            initial={{ opacity: 0, y: 16, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 16, scale: 0.96 }}
+            className="fixed bottom-5 right-5 z-[100] w-[300px] rounded-2xl p-4"
+            style={{ background: '#1e1b2e', border: '1px solid #3a3550', boxShadow: '0 16px 40px #00000050' }}
+          >
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#f59e0b22' }}>
+                <Clock className="w-4.5 h-4.5" style={{ color: '#f59e0b' }} />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-bold text-white">Сессия скоро завершится</p>
+                <p className="text-xs mt-1" style={{ color: '#a3a0b8' }}>
+                  Из-за неактивности выход произойдёт через {Math.max(0, idleWarningSecs)} сек.
+                </p>
+                <button
+                  onClick={() => resetIdleRef.current()}
+                  className="mt-3 w-full py-2 rounded-xl text-xs font-bold text-white transition-colors"
+                  style={{ background: 'linear-gradient(135deg,#1565d8,#2385f4)' }}
+                >
+                  Остаться в системе
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Mobile backdrop */}
       <AnimatePresence>
@@ -253,12 +461,27 @@ export function AdminLayout() {
               </p>
             </div>
           </div>
+          {adminRole === 'super-admin' && (
+            <button
+              onClick={async () => {
+                if (!window.confirm('Отозвать все выданные admin-токены? Все админы (включая вас) будут разлогинены немедленно.')) return;
+                try {
+                  await revokeAllAdminSessions();
+                } catch (err) {
+                  console.error('[AdminLayout] revoke-all failed:', err);
+                }
+                clearAdminSession();
+                window.location.reload();
+              }}
+              className="flex items-center gap-2 w-full px-3 py-2 text-xs font-medium rounded-xl transition-colors text-gray-400 hover:text-orange-500 hover:bg-orange-50"
+            >
+              <ShieldOff className="w-3.5 h-3.5" />
+              Завершить все сессии
+            </button>
+          )}
           <button
             onClick={() => {
-              sessionStorage.removeItem(PIN_SESSION_KEY);
-              sessionStorage.removeItem('ovora_admin_token');
-              sessionStorage.removeItem('ovora_admin_jwt');
-              sessionStorage.removeItem('ovora_admin_role');
+              clearAdminSession();
               window.location.reload();
             }}
             className="flex items-center gap-2 w-full px-3 py-2 text-xs font-medium rounded-xl transition-colors text-gray-400 hover:text-red-500 hover:bg-red-50"
@@ -310,21 +533,63 @@ export function AdminLayout() {
             </div>
 
             {/* Search */}
-            <form onSubmit={handleSearch} className="flex-1 max-w-sm mx-auto lg:mx-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Поиск разделов..."
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 text-sm text-gray-700 placeholder-gray-400 rounded-xl outline-none transition-all"
-                  style={{ background: '#f1f5f9', border: '1px solid #e2e8f0' }}
-                  onFocus={e => { e.currentTarget.style.borderColor = '#1565d866'; e.currentTarget.style.boxShadow = '0 0 0 3px #1565d815'; }}
-                  onBlur={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.boxShadow = 'none'; }}
-                />
-              </div>
-            </form>
+            <div ref={searchRef} className="relative flex-1 max-w-sm mx-auto lg:mx-4">
+              <form onSubmit={handleSearch}>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Поиск по email, телефону, имени, ID..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    onFocus={e => {
+                      e.currentTarget.style.borderColor = '#1565d866';
+                      e.currentTarget.style.boxShadow = '0 0 0 3px #1565d815';
+                      if (searchResults) setSearchOpen(true);
+                    }}
+                    onBlur={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.boxShadow = 'none'; }}
+                    className="w-full pl-9 pr-4 py-2 text-sm text-gray-700 placeholder-gray-400 rounded-xl outline-none transition-all"
+                    style={{ background: '#f1f5f9', border: '1px solid #e2e8f0' }}
+                  />
+                </div>
+              </form>
+
+              <AnimatePresence>
+                {searchOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute left-0 top-full mt-2 w-full rounded-2xl shadow-lg overflow-hidden z-50"
+                    style={{ background: '#fff', border: '1px solid #e2e8f0' }}
+                  >
+                    <div className="max-h-80 overflow-y-auto">
+                      {searchHits.length === 0 ? (
+                        <p className="px-4 py-6 text-sm text-gray-400 text-center">Ничего не найдено</p>
+                      ) : (
+                        searchHits.map(hit => (
+                          <button
+                            key={hit.key}
+                            onClick={() => goToHit(hit)}
+                            className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+                            style={{ borderBottom: '1px solid #f8fafc' }}
+                          >
+                            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#eff6ff' }}>
+                              <hit.icon className="w-4 h-4" style={{ color: '#2563eb' }} />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm text-gray-700 font-medium truncate">{hit.label}</p>
+                              {hit.sublabel && <p className="text-xs text-gray-400 truncate">{hit.sublabel}</p>}
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
 
             {/* Right side */}
             <div className="flex items-center gap-2 ml-auto">
@@ -343,15 +608,60 @@ export function AdminLayout() {
               </div>
 
               {/* Notifications */}
-              <button className="relative p-2 rounded-xl text-gray-500 hover:bg-gray-100 transition-colors">
-                <Bell className="w-5 h-5" />
-                {stats?.offers > 0 && (
-                  <span
-                    className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"
-                    style={{ boxShadow: '0 0 6px #ef444480' }}
-                  />
-                )}
-              </button>
+              <div ref={notifRef} className="relative">
+                <button
+                  onClick={() => setNotifOpen(v => !v)}
+                  aria-label="Уведомления"
+                  aria-expanded={notifOpen}
+                  className="relative p-2 rounded-xl text-gray-500 hover:bg-gray-100 transition-colors"
+                >
+                  <Bell className="w-5 h-5" />
+                  {notifTotal > 0 && (
+                    <span
+                      className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold"
+                      style={{ boxShadow: '0 0 6px #ef444480' }}
+                    >
+                      {notifTotal > 9 ? '9+' : notifTotal}
+                    </span>
+                  )}
+                </button>
+
+                <AnimatePresence>
+                  {notifOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 top-full mt-2 w-72 rounded-2xl shadow-lg overflow-hidden z-50"
+                      style={{ background: '#fff', border: '1px solid #e2e8f0' }}
+                    >
+                      <div className="px-4 py-3" style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <p className="text-sm font-bold text-gray-700">Уведомления</p>
+                      </div>
+                      <div className="max-h-80 overflow-y-auto">
+                        {notifItems.length === 0 ? (
+                          <p className="px-4 py-6 text-sm text-gray-400 text-center">Нет новых уведомлений</p>
+                        ) : (
+                          notifItems.map(item => (
+                            <button
+                              key={item.href}
+                              onClick={() => { setNotifOpen(false); navigate(item.href); }}
+                              className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+                              style={{ borderBottom: '1px solid #f8fafc' }}
+                            >
+                              <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: item.bg }}>
+                                <item.icon className="w-4 h-4" style={{ color: item.color }} />
+                              </div>
+                              <span className="text-sm text-gray-600">{item.label}</span>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
 
               {/* Quick stats */}
               {stats && (

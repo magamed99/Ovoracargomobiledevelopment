@@ -8,6 +8,7 @@ import * as documentsApi from '../api/documentsApi';
 import { toast } from 'sonner';
 import { projectId, publicAnonKey } from '../../../utils/supabase/info';
 import { syncUserNameInChats, syncUserNameInTrips } from '../api/userApi';
+import { CSRF_HEADER, CSRF_TOKEN } from '../api/csrfToken';
 
 type DocumentStatus = 'verified' | 'rejected' | 'not_uploaded';
 type ScanIssue = 'expired' | 'expiring_soon' | 'poor_quality' | 'low_resolution' | null;
@@ -363,7 +364,7 @@ export function DocumentVerificationPage() {
         `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a/ocr/scan-document`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${publicAnonKey}` },
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${publicAnonKey}`, [CSRF_HEADER]: CSRF_TOKEN },
           body: JSON.stringify({ imageBase64: base64, documentType: docType }),
         }
       );

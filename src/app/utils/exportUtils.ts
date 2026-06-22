@@ -338,6 +338,97 @@ const generatePDFHTML = (trips: Trip[]): string => {
   `;
 };
 
+interface AviaDealRow {
+  id: string;
+  createdAt: string;
+  completedAt?: string | null;
+  adFrom: string;
+  adTo: string;
+  adDate?: string | null;
+  dealType?: string;
+  weightKg: number;
+  price?: number | null;
+  currency?: string;
+  status: string;
+  courierId: string;
+  senderId: string;
+  courierName?: string;
+  senderName?: string;
+}
+
+/**
+ * Экспорт истории AVIA-сделок в CSV (для налоговой/отчётности)
+ */
+export const exportAviaDealsToCSV = (deals: AviaDealRow[], myPhone: string, filename: string = 'ovora-avia-deals') => {
+  try {
+    const headers = [
+      'ID сделки',
+      'Дата создания',
+      'Дата завершения',
+      'Откуда',
+      'Куда',
+      'Дата рейса',
+      'Тип',
+      'Вес (кг)',
+      'Цена',
+      'Валюта',
+      'Статус',
+      'Моя роль',
+      'Партнёр',
+    ];
+
+    const rows = deals.map((d) => {
+      const iAmCourier = d.courierId === myPhone;
+      return [
+        d.id,
+        formatDateTime(d.createdAt),
+        d.completedAt ? formatDateTime(d.completedAt) : '-',
+        d.adFrom || '-',
+        d.adTo || '-',
+        d.adDate || '-',
+        d.dealType === 'docs' ? 'Документы' : 'Груз',
+        d.weightKg ?? '-',
+        d.price ?? '-',
+        d.currency || '-',
+        getDealStatusLabel(d.status),
+        iAmCourier ? 'Курьер' : 'Отправитель',
+        (iAmCourier ? d.senderName : d.courierName) || '-',
+      ];
+    });
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(',')),
+    ].join('\n');
+
+    const BOM = '﻿';
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+    downloadFile(blob, `${filename}_${getDateString()}.csv`);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const getDealStatusLabel = (status: string): string => {
+  const labels: Record<string, string> = {
+    pending: 'Ожидание',
+    accepted: 'Активна',
+    rejected: 'Отклонена',
+    cancelled: 'Отменена',
+    completed: 'Завершена',
+  };
+  return labels[status] || status;
+};
+
+const formatDateTime = (iso: string): string => {
+  try {
+    return new Date(iso).toLocaleString('ru-RU');
+  } catch {
+    return iso;
+  }
+};
+
 /**
  * Получить метку статуса на русском
  */

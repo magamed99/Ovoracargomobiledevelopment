@@ -147,6 +147,8 @@ export interface AviaDeal {
   cancelReason   ?: string;
   deletedAt      ?: string;
   podPhotos      ?: AviaPODPhoto[];
+  /** Напоминание о зависшей в pending сделке (>24ч) уже отправлено — чтобы не дублировать */
+  reminderSent   ?: boolean;
 }
 
 export interface AviaPODPhoto {
@@ -592,6 +594,13 @@ export const Reviews = {
     const result = { byInitiator: !!data.byInitiator, byRecipient: !!data.byRecipient };
     aviaCache.set(CK.reviewsDeal(dealId), result, TTL.DEAL);
     return result;
+  },
+
+  /** Статус по списку сделок за один проход (вместо N отдельных HTTP-запросов с фронта) */
+  async getDealStatusBatch(dealIds: string[]): Promise<Record<string, { byInitiator: boolean; byRecipient: boolean }>> {
+    const unique = [...new Set(dealIds)];
+    const entries = await Promise.all(unique.map(async (dealId) => [dealId, await this.getDealStatus(dealId)] as const));
+    return Object.fromEntries(entries);
   },
 
   /** MIGRATION → INSERT INTO avia_reviews ... */

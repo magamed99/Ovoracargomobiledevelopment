@@ -203,13 +203,24 @@ export function SearchPage() {
     }, 180);
   };
 
+  // addCustomCity разрешает добавление только водителям (см. cities.ts) — раньше
+  // здесь был зашит литерал 'sender', из-за чего вызов всегда проваливался
+  // (для любой роли), а toast.success показывался независимо от результата.
   const handleAddFrom = () => {
     const country = prompt(`Страна для «${fromCity}»:`, 'Таджикистан');
-    if (country) { addCustomCity({ name: fromCity, country: country.trim(), region: '' }, 'sender'); toast.success(`Город «${fromCity}» добавлен`); setShowAddFrom(false); }
+    if (!country) return;
+    const userRole = sessionStorage.getItem('userRole') || '';
+    const added = addCustomCity({ name: fromCity, country: country.trim(), region: '' }, userRole);
+    if (added) { toast.success(`Город «${fromCity}» добавлен`); setShowAddFrom(false); }
+    else { toast.error(userRole !== 'driver' ? 'Добавлять города может только водитель' : 'Такой город уже есть в списке'); }
   };
   const handleAddTo = () => {
     const country = prompt(`Страна для «${toCity}»:`, 'Россия');
-    if (country) { addCustomCity({ name: toCity, country: country.trim(), region: '' }, 'sender'); toast.success(`Город «${toCity}» добавлен`); setShowAddTo(false); }
+    if (!country) return;
+    const userRole = sessionStorage.getItem('userRole') || '';
+    const added = addCustomCity({ name: toCity, country: country.trim(), region: '' }, userRole);
+    if (added) { toast.success(`Город «${toCity}» добавлен`); setShowAddTo(false); }
+    else { toast.error(userRole !== 'driver' ? 'Добавлять города может только водитель' : 'Такой город уже есть в списке'); }
   };
 
   const doSearch = () => {
@@ -307,7 +318,7 @@ export function SearchPage() {
             <div className="flex-1 min-w-0">
               <p className="text-[9px] font-black uppercase tracking-widest mb-1" style={{ color: '#2e4a62' }}>Откуда</p>
               <input
-                type="text" placeholder="Город отправления" value={fromCity}
+                type="text" placeholder="Город отправления" aria-label="Откуда: город отправления" value={fromCity}
                 onChange={e => handleFromChange(e.target.value)}
                 onFocus={() => setFromFocused(true)} onBlur={() => setFromFocused(false)}
                 className="w-full text-[15px] font-bold bg-transparent outline-none text-white placeholder-[#2e4a62]"
@@ -363,7 +374,7 @@ export function SearchPage() {
             <div className="flex-1 min-w-0">
               <p className="text-[9px] font-black uppercase tracking-widest mb-1" style={{ color: '#2e4a62' }}>Куда</p>
               <input
-                type="text" placeholder="Город назначения" value={toCity}
+                type="text" placeholder="Город назначения" aria-label="Куда: город назначения" value={toCity}
                 onChange={e => handleToChange(e.target.value)}
                 onFocus={() => setToFocused(true)} onBlur={() => setToFocused(false)}
                 className="w-full text-[15px] font-bold bg-transparent outline-none text-white placeholder-[#2e4a62]"

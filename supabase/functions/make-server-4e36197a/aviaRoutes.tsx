@@ -25,6 +25,7 @@ import { sendEmail, throttleEmail } from "./email.tsx";
 import { AuditLog } from "./aviaAudit.tsx";
 import * as kv from "./kv_store.tsx";
 import { Blacklist } from "./blacklist.tsx";
+import { signAviaToken, verifyAviaActor } from "./aviaAuth.tsx";
 
 // ── Константы ────────────────────────────────────────────────────────────────
 const BCRYPT_ROUNDS          = 10;
@@ -129,7 +130,8 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       await AuditLog.record({ action: 'user.register', actorPhone: clean, targetId: clean, targetType: 'user', details: { role } });
 
       console.log(`[AVIA] Registered: ${clean}, role=${role}`);
-      return c.json({ success: true, user });
+      const token = await signAviaToken(clean);
+      return c.json({ success: true, user, token });
     } catch (err) {
       console.log('Error POST /avia/register:', err);
       return c.json({ error: `${err}` }, 500);
@@ -170,7 +172,8 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       await AuditLog.record({ action: 'user.login', actorPhone: clean, targetId: clean, targetType: 'user' });
 
       console.log(`[AVIA] Login success: ${clean}`);
-      return c.json({ success: true, user: user || { phone: clean } });
+      const token = await signAviaToken(clean);
+      return c.json({ success: true, user: user || { phone: clean }, token });
     } catch (err) {
       console.log('Error POST /avia/login:', err);
       return c.json({ error: `${err}` }, 500);
@@ -180,6 +183,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
   app.patch(`${P}/users/:phone/pin`, rlPhone(RL.PIN_CHANGE), async (c) => {
     try {
       const phone      = aviaClean(decodeURIComponent(c.req.param('phone')));
+      if (!(await verifyAviaActor(c, phone))) return c.json({ error: 'Unauthorized' }, 401);
       const { currentPin, newPin } = await c.req.json();
 
       if (!currentPin || !newPin) return c.json({ error: 'currentPin and newPin required' }, 400);
@@ -253,6 +257,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       if (!phone) return c.json({ error: 'phone required' }, 400);
 
       const clean = aviaClean(phone);
+      if (!(await verifyAviaActor(c, clean))) return c.json({ error: 'Unauthorized' }, 401);
 
       if (updates.role && !['courier', 'sender'].includes(updates.role)) return c.json({ error: 'role must be courier/sender' }, 400);
 
@@ -278,6 +283,34 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       if (!updated) return c.json({ error: 'User not found' }, 404);
       await AuditLog.record({ action: 'user.profile_update', actorPhone: clean, targetId: clean, targetType: 'user', details: { fields: Object.keys(updates) } });
 
+      // Каскадное обновление денормализованного имени (initiatorName/recipientName/
+      // courierName/senderName) в активных сделках и courierName в активных рейсах —
+      // иначе после переименования в профиле собеседники продолжат видеть старое имя
+      // в чате/манифесте/уведомлениях до завершения сделки.
+      if (updates.firstName !== undefined || updates.lastName !== undefined) {
+        const newName = `${updated.firstName || ''} ${updated.lastName || ''}`.trim() || clean;
+        const now = new Date().toISOString();
+
+        const deals = await Deals.listByUser(clean);
+        for (const d of deals) {
+          if (d.status !== 'pending' && d.status !== 'accepted') continue;
+          const patch: Partial<AviaDeal> = {};
+          if (d.initiatorPhone === clean) patch.initiatorName = newName;
+          if (d.recipientPhone === clean) patch.recipientName = newName;
+          if (d.courierId === clean) patch.courierName = newName;
+          if (d.senderId === clean) patch.senderName = newName;
+          if (Object.keys(patch).length > 0) {
+            await Deals.set(d.id, { ...d, ...patch, updatedAt: now });
+          }
+        }
+
+        const flights = await Flights.listByCourier(clean);
+        for (const f of flights) {
+          if (f.isDeleted || f.status === 'closed' || f.status === 'completed') continue;
+          await Flights.set(f.id, { ...f, courierName: newName, updatedAt: now });
+        }
+      }
+
       console.log(`[AVIA] Profile updated: ${clean}`);
       return c.json({ success: true, user: updated });
     } catch (err) {
@@ -294,6 +327,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
     try {
       const phone = aviaClean(decodeURIComponent(c.req.param('phone')));
       if (!phone) return c.json({ error: 'phone required' }, 400);
+      if (!(await verifyAviaActor(c, phone))) return c.json({ error: 'Unauthorized' }, 401);
 
       const form = await c.req.formData();
       const file = form.get('avatar') as File | null;
@@ -337,6 +371,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
 
       if (!phone || !file) return c.json({ error: 'phone and file required' }, 400);
       const clean    = aviaClean(phone);
+      if (!(await verifyAviaActor(c, clean))) return c.json({ error: 'Unauthorized' }, 401);
       const existing = await Users.get(clean);
       if (!existing) return c.json({ error: 'User not found' }, 404);
 
@@ -362,6 +397,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
 
       let ocrExpiryDate: string | null = null;
       let ocrFullName: string | null   = null;
+      let ocrFailed = false;
       const profileUpdates: Partial<AviaUser> = {};
 
       if (!skipOcr) {
@@ -393,7 +429,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
           if (ocrResult.documentNumber && !existing.passportNumber) {
             profileUpdates.passportNumber = ocrResult.documentNumber;
           }
-        } catch (ocrErr) { console.warn('[AVIA] OCR failed (non-critical):', ocrErr); }
+        } catch (ocrErr) { console.warn('[AVIA] OCR failed (non-critical):', ocrErr); ocrFailed = true; }
       }
 
       const finalExpiry = ocrExpiryDate || expiryDateManual || '';
@@ -412,7 +448,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
 
       await AuditLog.record({ action: 'user.passport_upload', actorPhone: clean, targetId: clean, targetType: 'user', details: { isExpired } });
       console.log(`[AVIA] Passport uploaded for ${clean}: expired=${isExpired}`);
-      return c.json({ success: true, user: updated, photoUrl, expiryDate: finalExpiry, isExpired, ocrFullName });
+      return c.json({ success: true, user: updated, photoUrl, expiryDate: finalExpiry, isExpired, ocrFullName, ocrFailed });
     } catch (err) {
       console.log('[AVIA] Upload passport error:', err);
       return c.json({ error: `${err}` }, 500);
@@ -421,7 +457,14 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
 
   app.get(`${P}/passport-photo/:phone`, async (c) => {
     try {
-      const phone = aviaClean(decodeURIComponent(c.req.param('phone')));
+      const phone       = aviaClean(decodeURIComponent(c.req.param('phone')));
+      const callerPhone = aviaClean(c.req.query('callerPhone') || '');
+      if (!callerPhone || callerPhone !== phone) {
+        console.warn(`[AVIA] IDOR attempt: ${callerPhone || '(none)'} tried to view passport photo of ${phone}`);
+        return c.json({ error: 'Forbidden' }, 403);
+      }
+      if (!(await verifyAviaActor(c, callerPhone))) return c.json({ error: 'Unauthorized' }, 401);
+
       const user  = await Users.get(phone);
       if (!user?.passportPhotoPath) return c.json({ found: false });
 
@@ -503,6 +546,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
           console.warn(`[AVIA Flights] IDOR attempt: ${callerPhone || '(none)'} tried to view non-active flight ${id} owned by ${flight.courierId}`);
           return c.json({ error: 'Forbidden' }, 403);
         }
+        if (!(await verifyAviaActor(c, callerPhone))) return c.json({ error: 'Unauthorized' }, 401);
       }
       return c.json({ flight });
     } catch (err) {
@@ -517,6 +561,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       const { courierId, from, to, date, flightNo, cargoEnabled, cargoKg, pricePerKg, docsEnabled, docsPrice, freeKg, currency } = body;
 
       if (!courierId || !from || !to || !date) return c.json({ error: 'Missing required fields: courierId, from, to, date' }, 400);
+      if (!(await verifyAviaActor(c, aviaClean(courierId)))) return c.json({ error: 'Unauthorized' }, 401);
 
       const isCargoEnabled = cargoEnabled ?? (freeKg != null && Number(freeKg) > 0);
       const isDocsEnabled  = docsEnabled  ?? false;
@@ -570,6 +615,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       const { callerPhone, pricePerKg, docsPrice, currency, flightNo, date } = body;
       const clean = aviaClean(callerPhone || '');
       if (!clean) return c.json({ error: 'callerPhone is required' }, 400);
+      if (!(await verifyAviaActor(c, clean))) return c.json({ error: 'Unauthorized' }, 401);
 
       const flight = await Flights.get(id);
       if (!flight || flight.isDeleted) return c.json({ error: 'Flight not found' }, 404);
@@ -604,6 +650,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       const id     = c.req.param('id');
       const callerPhone = aviaClean(c.req.query('callerPhone') || '');
       if (!callerPhone) return c.json({ error: 'callerPhone is required' }, 400);
+      if (!(await verifyAviaActor(c, callerPhone))) return c.json({ error: 'Unauthorized' }, 401);
       const flight = await Flights.get(id);
       if (!flight) return c.json({ error: 'Flight not found' }, 404);
       if (flight.courierId !== callerPhone) {
@@ -625,6 +672,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       const { callerPhone } = await c.req.json().catch(() => ({ callerPhone: '' }));
       const clean  = aviaClean(callerPhone || '');
       if (!clean) return c.json({ error: 'callerPhone is required' }, 400);
+      if (!(await verifyAviaActor(c, clean))) return c.json({ error: 'Unauthorized' }, 401);
       const flight = await Flights.get(id);
       if (!flight) return c.json({ error: 'Flight not found' }, 404);
       if (flight.courierId !== clean) {
@@ -677,6 +725,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       const { callerPhone } = await c.req.json().catch(() => ({ callerPhone: '' }));
       const clean  = aviaClean(callerPhone || '');
       if (!clean) return c.json({ error: 'callerPhone is required' }, 400);
+      if (!(await verifyAviaActor(c, clean))) return c.json({ error: 'Unauthorized' }, 401);
       const flight = await Flights.get(id);
       if (!flight) return c.json({ error: 'Flight not found' }, 404);
       if (flight.courierId !== clean) {
@@ -702,6 +751,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       const { callerPhone } = await c.req.json().catch(() => ({ callerPhone: '' }));
       const clean  = aviaClean(callerPhone || '');
       if (!clean) return c.json({ error: 'callerPhone is required' }, 400);
+      if (!(await verifyAviaActor(c, clean))) return c.json({ error: 'Unauthorized' }, 401);
       const flight = await Flights.get(id);
       if (!flight) return c.json({ error: 'Flight not found' }, 404);
       if (flight.courierId !== clean) {
@@ -741,6 +791,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
   app.get(`${P}/my/:phone`, async (c) => {
     try {
       const phone = aviaClean(c.req.param('phone'));
+      if (!(await verifyAviaActor(c, phone))) return c.json({ error: 'Unauthorized' }, 401);
       const flights = await Flights.listByCourier(phone);
       return c.json({ flights });
     } catch (err) {
@@ -757,6 +808,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
     try {
       const phone  = aviaClean(decodeURIComponent(c.req.param('phone')));
       if (!phone) return c.json({ unread: 0 });
+      if (!(await verifyAviaActor(c, phone))) return c.json({ unread: 0 });
       const unread = await Notifs.countUnread(phone);
       return c.json({ unread });
     } catch (err) {
@@ -769,6 +821,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
     try {
       const phone = aviaClean(decodeURIComponent(c.req.param('phone')));
       if (!phone) return c.json({ error: 'phone required' }, 400);
+      if (!(await verifyAviaActor(c, phone))) return c.json({ error: 'Unauthorized' }, 401);
       const notifications = await Notifs.list(phone);
       return c.json({ notifications });
     } catch (err) {
@@ -783,6 +836,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       if (!phone) return c.json({ error: 'phone required' }, 400);
       if (!id)    return c.json({ error: 'id required' }, 400);
       const clean = aviaClean(phone);
+      if (!(await verifyAviaActor(c, clean))) return c.json({ error: 'Unauthorized' }, 401);
       const count = await Notifs.markRead(clean, id);
       console.log(`[AVIA Notif] read ${id} for ${clean}: marked ${count}`);
       return c.json({ success: true });
@@ -820,6 +874,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
     try {
       const phone = aviaClean(decodeURIComponent(c.req.param('phone')));
       const id    = c.req.param('id');
+      if (!(await verifyAviaActor(c, phone))) return c.json({ error: 'Unauthorized' }, 401);
       await Notifs.del(phone, id);
       return c.json({ success: true });
     } catch (err) {
@@ -842,6 +897,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       if (!p1 || !p2) return c.json({ error: 'senderPhone and recipientPhone required' }, 400);
       if (p1 === p2)  return c.json({ error: 'Cannot chat with yourself' }, 400);
       if (p1.length < 9 || p2.length < 9) return c.json({ error: 'Invalid phone numbers' }, 400);
+      if (!(await verifyAviaActor(c, p1))) return c.json({ error: 'Unauthorized' }, 401);
 
       const chatId   = aviaChatId(p1, p2);
       const existing = await Chats.getMeta(chatId);
@@ -878,6 +934,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       const callerPhone = aviaClean(c.req.query('callerPhone') || '');
       if (!chatId) return c.json({ error: 'chatId required' }, 400);
       if (!callerPhone) return c.json({ error: 'callerPhone is required' }, 400);
+      if (!(await verifyAviaActor(c, callerPhone))) return c.json({ error: 'Unauthorized' }, 401);
 
       const meta = await Chats.getMeta(chatId);
       if (!meta) return c.json({ messages: [], meta: {} });
@@ -906,6 +963,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       if (!chatId || !clean || (!text && type === 'text')) {
         return c.json({ error: 'chatId, senderPhone and text required' }, 400);
       }
+      if (!(await verifyAviaActor(c, clean))) return c.json({ error: 'Unauthorized' }, 401);
 
       const existingMeta = await Chats.getMeta(chatId);
       if (!existingMeta) return c.json({ error: 'Chat not found' }, 404);
@@ -967,6 +1025,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       const { phone } = await c.req.json();
       if (!chatId || !phone) return c.json({ error: 'chatId and phone required' }, 400);
       const clean = aviaClean(phone);
+      if (!(await verifyAviaActor(c, clean))) return c.json({ error: 'Unauthorized' }, 401);
       const meta  = await Chats.getMeta(chatId);
       if (!meta) return c.json({ error: 'Chat not found' }, 404);
       await Chats.setMeta(chatId, {
@@ -991,6 +1050,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
         console.warn(`[AVIA Chat] IDOR attempt: ${callerPhone} tried to list chats of ${phone}`);
         return c.json({ error: 'Forbidden' }, 403);
       }
+      if (!(await verifyAviaActor(c, callerPhone))) return c.json({ error: 'Unauthorized' }, 401);
       const chats = await Chats.listByUser(phone);
       return c.json({ chats });
     } catch (err) {
@@ -1005,6 +1065,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       const { phone } = await c.req.json();
       if (!chatId || !phone) return c.json({ error: 'chatId and phone required' }, 400);
       const clean = aviaClean(phone);
+      if (!(await verifyAviaActor(c, clean))) return c.json({ error: 'Unauthorized' }, 401);
       const meta  = await Chats.getMeta(chatId);
       if (!meta) return c.json({ error: 'Chat not found' }, 404);
 
@@ -1087,6 +1148,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       const p2 = aviaClean(recipientPhone);
       if (!p1 || !p2) return c.json({ error: 'Invalid phone numbers' }, 400);
       if (p1 === p2)  return c.json({ error: 'Cannot make a deal with yourself' }, 400);
+      if (!(await verifyAviaActor(c, p1))) return c.json({ error: 'Unauthorized' }, 401);
 
       const resolvedDealType: 'cargo' | 'docs' = dealType === 'docs' ? 'docs' : 'cargo';
 
@@ -1171,6 +1233,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       const id   = c.req.param('id');
       const callerPhone = aviaClean(c.req.query('callerPhone') || '');
       if (!callerPhone) return c.json({ error: 'callerPhone is required' }, 400);
+      if (!(await verifyAviaActor(c, callerPhone))) return c.json({ error: 'Unauthorized' }, 401);
       const deal = await Deals.get(id);
       if (!deal) return c.json({ error: 'Deal not found' }, 404);
       if (deal.initiatorPhone !== callerPhone && deal.recipientPhone !== callerPhone) {
@@ -1194,6 +1257,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
         console.warn(`[AVIA Deals] IDOR attempt: ${callerPhone} tried to list deals of ${phone}`);
         return c.json({ error: 'Forbidden' }, 403);
       }
+      if (!(await verifyAviaActor(c, callerPhone))) return c.json({ error: 'Unauthorized' }, 401);
       const deals = await Deals.listByUser(phone);
 
       // Подмешиваем статус рейса в рейсовые сделки — нужно фронтенду, чтобы не
@@ -1222,6 +1286,25 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
         enriched.push(d.adType === 'flight' ? { ...d, flightStatus: flightStatusById[d.adId] } : d);
       }
 
+      // Напоминание о зависшей в pending сделке (>24ч без ответа получателя).
+      // Нет cron в Supabase Edge Functions — проверяем лениво на каждой загрузке
+      // списка сделок (любым из участников) и шлём один раз получателю,
+      // отмечая reminderSent, чтобы не дублировать при повторных загрузках.
+      const PENDING_REMINDER_MS = 24 * 60 * 60 * 1000;
+      for (const d of enriched) {
+        if (d.status !== 'pending' || d.reminderSent) continue;
+        if (Date.now() - new Date(d.createdAt).getTime() < PENDING_REMINDER_MS) continue;
+        await Deals.set(d.id, { ...d, reminderSent: true });
+        d.reminderSent = true;
+        await Notifs.push(d.recipientPhone, {
+          id: aviaId('deal_reminder'), phone: d.recipientPhone, type: 'reminder',
+          iconName: 'Clock', iconBg: 'bg-amber-500/10 text-amber-400',
+          title: 'Предложение ждёт ответа',
+          description: `${d.initiatorName || d.initiatorPhone} предложил сделку по маршруту ${d.adFrom} → ${d.adTo} больше суток назад`,
+          isUnread: true, createdAt: now, meta: { dealId: d.id },
+        });
+      }
+
       return c.json({ deals: enriched });
     } catch (err) {
       console.log('Error GET /avia/deals/user/:phone:', err);
@@ -1240,6 +1323,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       const { callerPhone, dealIds } = await c.req.json();
       const clean = aviaClean(callerPhone || '');
       if (!clean) return c.json({ error: 'callerPhone is required' }, 400);
+      if (!(await verifyAviaActor(c, clean))) return c.json({ error: 'Unauthorized' }, 401);
       if (!Array.isArray(dealIds) || dealIds.length === 0) return c.json({ error: 'dealIds required' }, 400);
 
       const now = new Date().toISOString();
@@ -1280,6 +1364,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       const { phone } = await c.req.json();
       if (!phone) return c.json({ error: 'phone required' }, 400);
       const clean = aviaClean(phone);
+      if (!(await verifyAviaActor(c, clean))) return c.json({ error: 'Unauthorized' }, 401);
       const deal  = await Deals.get(id);
       if (!deal) return c.json({ error: 'Deal not found' }, 404);
       if (deal.recipientPhone !== clean) return c.json({ error: 'Forbidden: not the recipient' }, 403);
@@ -1323,6 +1408,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       const { phone, reason } = await c.req.json();
       if (!phone) return c.json({ error: 'phone required' }, 400);
       const clean = aviaClean(phone);
+      if (!(await verifyAviaActor(c, clean))) return c.json({ error: 'Unauthorized' }, 401);
       const deal  = await Deals.get(id);
       if (!deal) return c.json({ error: 'Deal not found' }, 404);
       if (deal.recipientPhone !== clean) return c.json({ error: 'Forbidden: not the recipient' }, 403);
@@ -1356,12 +1442,60 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
     }
   });
 
+  // Окно отмены отклонения — получатель может «передумать» в течение 5 минут после reject
+  const UNDO_REJECT_WINDOW_MS = 5 * 60 * 1000;
+
+  app.patch(`${P}/deals/:id/undo-reject`, async (c) => {
+    try {
+      const id    = c.req.param('id');
+      const { phone } = await c.req.json();
+      if (!phone) return c.json({ error: 'phone required' }, 400);
+      const clean = aviaClean(phone);
+      if (!(await verifyAviaActor(c, clean))) return c.json({ error: 'Unauthorized' }, 401);
+      const deal  = await Deals.get(id);
+      if (!deal) return c.json({ error: 'Deal not found' }, 404);
+      if (deal.recipientPhone !== clean) return c.json({ error: 'Forbidden: not the recipient' }, 403);
+      if (deal.status !== 'rejected')    return c.json({ error: `Cannot undo: deal status is ${deal.status}` }, 400);
+      if (!deal.rejectedAt || Date.now() - new Date(deal.rejectedAt).getTime() > UNDO_REJECT_WINDOW_MS) {
+        return c.json({ error: 'Окно отмены истекло (5 минут)' }, 400);
+      }
+
+      const now = new Date().toISOString();
+      const { rejectedAt: _r, rejectReason: _rr, ...rest } = deal;
+      const updated = { ...rest, status: 'pending', updatedAt: now };
+      await Deals.set(id, updated);
+
+      // Возвращаем резервирование, которое reject снял
+      if ((deal.dealType === 'cargo' || !deal.dealType) && deal.adType === 'flight') {
+        const flight = await Flights.get(deal.adId);
+        if (flight) await Flights.set(deal.adId, { ...flight, reservedKg: (flight.reservedKg || 0) + (deal.weightKg || 0), updatedAt: now });
+      }
+
+      await AuditLog.record({ action: 'deal.undo-reject', actorPhone: clean, targetId: id, targetType: 'deal' });
+      await injectDealUpdateMessage(deal, 'Отклонение отменено — предложение снова активно', 'pending');
+      await Notifs.push(deal.initiatorPhone, {
+        id: aviaId('deal_undo_reject'), phone: deal.initiatorPhone, type: 'request',
+        iconName: 'RotateCcw', iconBg: 'bg-sky-500/10 text-sky-400',
+        title: 'Отклонение отменено',
+        description: `${deal.recipientName || deal.recipientPhone} отменил отклонение · предложение снова активно`,
+        isUnread: true, createdAt: now, meta: { dealId: id },
+      });
+
+      console.log(`[AVIA Deals] Undo-reject deal ${id} by ${clean}`);
+      return c.json({ success: true, deal: updated });
+    } catch (err) {
+      console.log('Error PATCH /avia/deals/:id/undo-reject:', err);
+      return c.json({ error: `${err}` }, 500);
+    }
+  });
+
   app.patch(`${P}/deals/:id/cancel`, async (c) => {
     try {
       const id     = c.req.param('id');
       const { phone } = await c.req.json();
       if (!phone) return c.json({ error: 'phone required' }, 400);
       const clean = aviaClean(phone);
+      if (!(await verifyAviaActor(c, clean))) return c.json({ error: 'Unauthorized' }, 401);
       const deal  = await Deals.get(id);
       if (!deal) return c.json({ error: 'Deal not found' }, 404);
       if (deal.initiatorPhone !== clean) return c.json({ error: 'Forbidden: not the initiator' }, 403);
@@ -1400,6 +1534,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       const { phone } = await c.req.json();
       if (!phone) return c.json({ error: 'phone required' }, 400);
       const clean = aviaClean(phone);
+      if (!(await verifyAviaActor(c, clean))) return c.json({ error: 'Unauthorized' }, 401);
       const deal  = await Deals.get(id);
       if (!deal) return c.json({ error: 'Deal not found' }, 404);
       const isParticipant = deal.courierId === clean || deal.senderId === clean;
@@ -1457,6 +1592,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       if (!['pickup', 'delivery'].includes(type)) return c.json({ error: 'type must be pickup or delivery' }, 400);
       const clean = aviaClean(callerPhone || '');
       if (!clean) return c.json({ error: 'callerPhone is required' }, 400);
+      if (!(await verifyAviaActor(c, clean))) return c.json({ error: 'Unauthorized' }, 401);
 
       const deal = await Deals.get(id);
       if (!deal) return c.json({ error: 'Deal not found' }, 404);
@@ -1517,6 +1653,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
     try {
       const phone  = aviaClean(decodeURIComponent(c.req.param('phone')));
       if (!phone) return c.json({ error: 'phone required' }, 400);
+      if (!(await verifyAviaActor(c, phone))) return c.json({ error: 'Unauthorized' }, 401);
 
       const cached = aviaCache.get(CK.stats(phone));
       if (cached) return c.json({ stats: cached });
@@ -1563,6 +1700,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       if (deal.status !== 'completed') return c.json({ error: 'Отзыв можно оставить только по завершённой сделке' }, 403);
 
       const cleanAuthor = aviaClean(authorPhone);
+      if (!(await verifyAviaActor(c, cleanAuthor))) return c.json({ error: 'Unauthorized' }, 401);
       const isInitiator = deal.initiatorPhone === cleanAuthor;
       const isRecipient = deal.recipientPhone === cleanAuthor;
       if (!isInitiator && !isRecipient) return c.json({ error: 'Вы не являетесь участником этой сделки' }, 403);
@@ -1628,6 +1766,19 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ reviewed });
     } catch (err) {
       console.log('Error GET /avia/reviews/deal/:dealId:', err);
+      return c.json({ error: `${err}` }, 500);
+    }
+  });
+
+  app.post(`${P}/reviews/deal-batch`, async (c) => {
+    try {
+      const { dealIds } = await c.req.json();
+      if (!Array.isArray(dealIds) || dealIds.length === 0) return c.json({ statuses: {} });
+      const cleanIds = dealIds.filter((id): id is string => typeof id === 'string').slice(0, 200);
+      const statuses = await Reviews.getDealStatusBatch(cleanIds);
+      return c.json({ statuses });
+    } catch (err) {
+      console.log('Error POST /avia/reviews/deal-batch:', err);
       return c.json({ error: `${err}` }, 500);
     }
   });

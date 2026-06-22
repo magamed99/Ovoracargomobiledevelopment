@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router';
 import { Star, MessageSquare, Search, RefreshCw, ChevronDown, ChevronUp, Layers, Trash2, Route } from 'lucide-react';
 import { toast } from 'sonner';
 import { getAdminReviews, deleteAdminReview } from '../../api/dataApi';
@@ -152,6 +153,15 @@ export function Reviews() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [groupByTrip, setGroupByTrip] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+
+  // Переход из глобального поиска в шапке админки (AdminLayout)
+  useEffect(() => {
+    const q = searchParams.get('q');
+    const expand = searchParams.get('expand');
+    if (q) setSearchQuery(q);
+    if (expand) setExpandedId(expand);
+  }, [searchParams]);
 
   const load = useCallback(async () => {
     setLoading(true);

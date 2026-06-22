@@ -193,9 +193,9 @@ function HeroCard({ user, likes, dislikes, completeness, onAvatarUpload, avatarU
 
         {/* Name & phone */}
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 18, fontWeight: 800, color: '#e2eeff', lineHeight: 1.2 }}>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#e2eeff', lineHeight: 1.2 }}>
             {fullName || <span style={{ color: '#3d5a78' }}>Имя не указано</span>}
-          </div>
+          </h2>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: 4 }}>
             <Phone style={{ width: 10, height: 10, color: '#3d5a78' }} />
             <span style={{ fontSize: 12, color: '#3d5a78', letterSpacing: '0.03em' }}>
@@ -669,9 +669,9 @@ function PassportCard({
 
           {/* Text */}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 800, color: '#ddeeff', letterSpacing: '-0.1px', marginBottom: 3 }}>
+            <h2 style={{ margin: 0, fontSize: 13, fontWeight: 800, color: '#ddeeff', letterSpacing: '-0.1px', marginBottom: 3 }}>
               {cfg.title}
-            </div>
+            </h2>
             <div style={{ fontSize: 11, color: cfg.color, fontWeight: 600, opacity: 0.85 }}>
               {cfg.sub}
             </div>
@@ -858,7 +858,7 @@ function PersonalDataForm({
           <User style={{ width: 14, height: 14, color: '#0ea5e9' }} />
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#ddeeff' }}>Личные данные</div>
+          <h2 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#ddeeff' }}>Личные данные</h2>
           <div style={{ fontSize: 10, color: '#3d5a78', marginTop: 1 }}>
             {filledCount > 0 ? `${filledCount} из 7 полей · Нажмите для редактирования` : 'Нажмите для заполнения'}
           </div>
@@ -1160,7 +1160,7 @@ function ReviewsCard({ reviews, likes, dislikes }: { reviews: AviaReview[]; like
           <Star style={{ width: 15, height: 15, color: '#34d399' }} />
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: '#ddeeff' }}>Отзывы обо мне</div>
+          <h2 style={{ margin: 0, fontSize: 13, fontWeight: 800, color: '#ddeeff' }}>Отзывы обо мне</h2>
           <div style={{ fontSize: 10, color: '#3d5a78', marginTop: 2 }}>
             {total === 0
               ? 'Отзывов пока нет'
@@ -1413,7 +1413,7 @@ function SecurityCard({ phone }: { phone: string }) {
           <Shield style={{ width: 14, height: 14, color: '#fbbf24' }} />
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#ddeeff' }}>Безопасность</div>
+          <h2 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#ddeeff' }}>Безопасность</h2>
           <div style={{ fontSize: 10, color: '#3d5a78', marginTop: 1 }}>Изменить PIN-код входа</div>
         </div>
         <motion.div animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2 }}>
@@ -1782,9 +1782,9 @@ export function AviaProfile() {
           ← Назад
         </button>
         <div className="hidden md:block" style={{ width: 70 }} />
-        <div style={{ fontSize: 15, fontWeight: 800, color: '#e2eeff', letterSpacing: '-0.3px' }}>
+        <h1 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#e2eeff', letterSpacing: '-0.3px' }}>
           Мой профиль
-        </div>
+        </h1>
         <div style={{ width: 70 }} />
       </div>
 

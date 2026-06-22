@@ -209,6 +209,7 @@ export function CreateAnnouncementPage() {
     if (!driverTime)       { toast.error('Укажите время');             return; }
     if (!pricePerSeat || parseFloat(pricePerSeat) <= 0) { toast.error('Укажите цену за место'); return; }
     if (!pricePerKg   || parseFloat(pricePerKg)   <= 0) { toast.error('Укажите цену за кг');    return; }
+    if (seats === 0 && cargo === 0) { toast.error('Укажите хотя бы одно место или вместимость для груза'); return; }
 
     setPublishing(true);
     try {

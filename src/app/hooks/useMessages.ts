@@ -7,6 +7,7 @@ import {
   getChats, markRead, fetchChats, deleteChat, Chat,
 } from '../api/chatStore';
 import { projectId, publicAnonKey } from '../../../utils/supabase/info';
+import { CSRF_HEADER, CSRF_TOKEN } from '../api/csrfToken';
 
 export function useMessages() {
   const userRole = sessionStorage.getItem('userRole') || 'sender';
@@ -47,7 +48,7 @@ export function useMessages() {
       localStorage.setItem('ovora_demo_wiped_v2', '1');
       fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a/chats/cleanup-demo`,
-        { method: 'DELETE', headers: { Authorization: `Bearer ${publicAnonKey}` } }
+        { method: 'DELETE', headers: { Authorization: `Bearer ${publicAnonKey}`, [CSRF_HEADER]: CSRF_TOKEN } }
       ).then(r => r.json()).catch(() => {});
     }
 

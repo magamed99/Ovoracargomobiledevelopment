@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { useNavigate } from 'react-router';
 import { Plane, User, Package, ShieldAlert, ShieldX, Calendar, Plus, RefreshCw, ArrowRight, AlertTriangle, Phone, Copy, Check, XCircle, SlidersHorizontal, X, Search, ArrowDown, Bell, MessageCircle, Handshake, FileText, ClipboardList, Zap } from 'lucide-react';
 import { NotificationCenter } from './NotificationCenter';
@@ -128,6 +128,7 @@ function ContactButton({ phone, accentColor }: { phone: string; accentColor: str
       </span>
       <button
         onClick={handleCopy}
+        aria-label="Скопировать номер телефона"
         style={{
           width: 28, height: 28, borderRadius: 8,
           border: `1px solid ${accentColor}20`,
@@ -148,7 +149,7 @@ function ContactButton({ phone, accentColor }: { phone: string; accentColor: str
 
 // ── Карточка рейса ────────────────────────────────────────────────────────────
 
-function FlightCard({
+const FlightCard = memo(function FlightCard({
   flight, isMine, onDetail, onChat, onOffer, chatUnread, hasMyDeal,
 }: {
   flight: AviaFlight;
@@ -233,10 +234,22 @@ function FlightCard({
           }}>
             <Plane style={{ width: 15, height: 15, color: isClosed ? '#2a3d50' : '#38bdf8' }} />
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 15, fontWeight: 800, color: isClosed ? '#3a5268' : '#e2eaf3', letterSpacing: '-0.2px', overflowWrap: 'anywhere' }}>{flight.from}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
+            <span
+              title={flight.from}
+              style={{
+                fontSize: 15, fontWeight: 800, color: isClosed ? '#3a5268' : '#e2eaf3', letterSpacing: '-0.2px',
+                maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}
+            >{flight.from}</span>
             <ArrowRight style={{ width: 12, height: 12, color: isClosed ? '#1a2d40' : '#1e4a6a', flexShrink: 0 }} />
-            <span style={{ fontSize: 15, fontWeight: 800, color: isClosed ? '#3a5268' : '#e2eaf3', letterSpacing: '-0.2px', overflowWrap: 'anywhere' }}>{flight.to}</span>
+            <span
+              title={flight.to}
+              style={{
+                fontSize: 15, fontWeight: 800, color: isClosed ? '#3a5268' : '#e2eaf3', letterSpacing: '-0.2px',
+                maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}
+            >{flight.to}</span>
           </div>
         </div>
         {isMine && !isClosed && (
@@ -307,7 +320,7 @@ function FlightCard({
 
       {/* Footer: author + action */}
       <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: '1 1 auto' }}>
           <div style={{
             width: 20, height: 20, borderRadius: 6, flexShrink: 0,
             background: isDone ? '#ffffff08' : '#0ea5e918',
@@ -315,7 +328,10 @@ function FlightCard({
           }}>
             <User style={{ width: 10, height: 10, color: isDone ? '#4a6080' : '#0ea5e9' }} />
           </div>
-          <span style={{ fontSize: 11, color: '#4a6080', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <span
+            title={flight.courierName || maskPhone(flight.courierId)}
+            style={{ fontSize: 11, color: '#8aa3ba', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}
+          >
             {flight.courierName || maskPhone(flight.courierId)}
           </span>
         </div>
@@ -409,11 +425,11 @@ function FlightCard({
     </motion.div>
     </>
   );
-}
+});
 
 // ── Пустой стейт ──────────────────────────────────────────────────────────────
 
-function EmptyState({ icon: Icon, title, subtitle, color }: { icon: typeof Plane; title: string; subtitle?: string; color: string }) {
+function EmptyState({ icon: Icon, title, subtitle, color, action }: { icon: typeof Plane; title: string; subtitle?: string; color: string; action?: { label: string; onClick: () => void } }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -438,6 +454,18 @@ function EmptyState({ icon: Icon, title, subtitle, color }: { icon: typeof Plane
         <p style={{ fontSize: 12, color: '#3d5268', margin: '4px 0 0', lineHeight: 1.6, fontWeight: 500 }}>
           {subtitle}
         </p>
+      )}
+      {action && (
+        <button
+          onClick={action.onClick}
+          style={{
+            marginTop: 16, padding: '8px 20px', borderRadius: 12,
+            background: `${color}14`, border: `1px solid ${color}30`,
+            color, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+          }}
+        >
+          {action.label}
+        </button>
       )}
     </motion.div>
   );
@@ -495,6 +523,7 @@ export function AviaDashboard() {
   const [flights, setFlights] = useState<AviaFlight[]>([]);
   const [myFlights, setMyFlights] = useState<AviaFlight[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [loadingMy, setLoadingMy] = useState(false);
   const [showFlightModal, setShowFlightModal] = useState(false);
   const [detailFlight, setDetailFlight] = useState<AviaFlight | null>(null);
@@ -547,7 +576,7 @@ export function AviaDashboard() {
   // ── Пакет H: Чат → навигация на /avia/messages ────────────────────────────
   const { chatUnreadCount } = useAvia();
 
-  const handleOpenChat = (otherPhone: string, adRef: AviaChatAdRef) => {
+  const handleOpenChat = useCallback((otherPhone: string, adRef: AviaChatAdRef) => {
     const chatId = makeAviaChatId(user!.phone, otherPhone);
     const params = new URLSearchParams({
       chatId, otherPhone,
@@ -556,7 +585,7 @@ export function AviaDashboard() {
       ...(adRef.date ? { adDate: adRef.date } : {}),
     });
     navigate(`/avia/messages?${params.toString()}`);
-  };
+  }, [user, navigate]);
 
   // ── Пакет E+F: Поиск + Сортировка ──
   const [searchQuery, setSearchQuery] = useState('');
@@ -580,12 +609,22 @@ export function AviaDashboard() {
       .finally(() => setLoadingMy(false));
   };
 
+  const loadMainData = useCallback(() => {
+    setLoadingData(true);
+    setLoadError(false);
+    fetchMainData()
+      .catch(() => {
+        setLoadError(true);
+        toast.error('Не удалось загрузить рейсы', {
+          action: { label: 'Повторить', onClick: () => loadMainData() },
+        });
+      })
+      .finally(() => setLoadingData(false));
+  }, []);
+
   useEffect(() => {
     if (!user) return;
-    setLoadingData(true);
-    fetchMainData()
-      .catch(() => {})
-      .finally(() => setLoadingData(false));
+    loadMainData();
     // Грузим «Активные» сразу, а не только при первом клике на вкладку —
     // нужны для отображения собственных рейсов/заявок на вкладках выше
     // независимо от их статуса (бэкенд публичных списков скрывает не-active).
@@ -670,6 +709,7 @@ export function AviaDashboard() {
   const [pullY, setPullY] = useState(0);
   const [isPulling, setIsPulling] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isDragging, setIsDragging] = useState(false); // true только во время активного касания — 1:1 движение без анимации
   const touchStartY = useRef(0);
   const touchActive = useRef(false);
   const PULL_THRESHOLD = 70;
@@ -679,6 +719,7 @@ export function AviaDashboard() {
     if (!el || el.scrollTop > 5) return;
     touchStartY.current = e.touches[0].clientY;
     touchActive.current = true;
+    setIsDragging(true);
   }, []);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
@@ -692,6 +733,7 @@ export function AviaDashboard() {
 
   const handleTouchEnd = useCallback(() => {
     touchActive.current = false;
+    setIsDragging(false); // дальше полоса возвращается плавной анимацией, а не скачком
     if (isPulling && !isRefreshing) {
       setIsRefreshing(true);
       setPullY(50);
@@ -712,6 +754,40 @@ export function AviaDashboard() {
     }
   }, [isPulling, isRefreshing, fetchMainData, fetchMyData]);
 
+  // ── Пакет M: фильтрация + поиск + сортировка рейсов (мемоизировано — иначе
+  // applyFlightFilters() пересчитывался бы на каждый ререндер дашборда,
+  // включая ререндеры от polling/pull-to-refresh, не связанные со списком). ──
+  const searchLower = searchQuery.toLowerCase().trim();
+  const displayFlights = useMemo(() => {
+    if (!user) return [];
+    // Для курьера вкладка «Мои рейсы» — это его собственные рейсы любого статуса
+    // (публичный список flights отдаёт только active, поэтому берём из myFlights,
+    // чтобы рейс не пропадал с главной после старта поездки). Завершённые рейсы
+    // на главной не нужны — управлять ими можно через «Сделки»/Манифест.
+    const preFilteredFlights = (user.role === 'courier' ? myFlights : flights)
+      .filter(fl => fl.status !== 'completed');
+
+    const matchesFlight = (f: AviaFlight) => {
+      if (!searchLower) return true;
+      return [f.from, f.to, f.flightNo, f.courierName, f.id]
+        .filter(Boolean)
+        .some(v => v!.toLowerCase().includes(searchLower));
+    };
+
+    const filtered = applyFlightFilters(preFilteredFlights, flightFS, user.phone).filter(matchesFlight);
+
+    const sorted = [...filtered];
+    switch (sortKey) {
+      case 'date-desc': sorted.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); break;
+      case 'date-asc':  sorted.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()); break;
+      case 'weight-desc': sorted.sort((a, b) => (b.freeKg || 0) - (a.freeKg || 0)); break;
+      case 'weight-asc':  sorted.sort((a, b) => (a.freeKg || 0) - (b.freeKg || 0)); break;
+      case 'price-asc':  sorted.sort((a, b) => (a.pricePerKg || 0) - (b.pricePerKg || 0)); break;
+      case 'price-desc': sorted.sort((a, b) => (b.pricePerKg || 0) - (a.pricePerKg || 0)); break;
+    }
+    return sorted;
+  }, [user, myFlights, flights, flightFS, searchLower, sortKey]);
+
   if (!isAuth || !user) return null;
 
   // ── Производные значения ──────────────────────────────────────────────────
@@ -723,42 +799,6 @@ export function AviaDashboard() {
     if (!user.passportExpiryDate) return false;
     return new Date(user.passportExpiryDate).getTime() < Date.now();
   })();
-
-  // ── Пакет E: Локальный текстовый поиск ─────────────────────────────────────
-  const searchLower = searchQuery.toLowerCase().trim();
-
-  const matchesFlight = (f: AviaFlight) => {
-    if (!searchLower) return true;
-    return [f.from, f.to, f.flightNo, f.courierName, f.id]
-      .filter(Boolean)
-      .some(v => v!.toLowerCase().includes(searchLower));
-  };
-
-  // ── Пакет F: Сортировка ──────────────────────────────────────────────────
-  const sortFlights = (arr: AviaFlight[]) => {
-    const sorted = [...arr];
-    switch (sortKey) {
-      case 'date-desc': sorted.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); break;
-      case 'date-asc':  sorted.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()); break;
-      case 'weight-desc': sorted.sort((a, b) => (b.freeKg || 0) - (a.freeKg || 0)); break;
-      case 'weight-asc':  sorted.sort((a, b) => (a.freeKg || 0) - (b.freeKg || 0)); break;
-      case 'price-asc':  sorted.sort((a, b) => (a.pricePerKg || 0) - (b.pricePerKg || 0)); break;
-      case 'price-desc': sorted.sort((a, b) => (b.pricePerKg || 0) - (a.pricePerKg || 0)); break;
-    }
-    return sorted;
-  };
-
-  // Для курьера вкладка «Мои рейсы» — это его собственные рейсы любого статуса
-  // (публичный список flights отдаёт только active, поэтому берём из myFlights,
-  // чтобы рейс не пропадал с главной после старта поездки). Завершённые рейсы
-  // на главной не нужны — управлять ими можно через «Сделки»/Манифест.
-  const preFilteredFlights = (user.role === 'courier' ? myFlights : flights)
-    .filter(fl => fl.status !== 'completed');
-
-  // Пакет M: клиентская фильтрация поверх role-prefilter
-  const displayFlights = sortFlights(
-    applyFlightFilters(preFilteredFlights, flightFS, myPhone).filter(matchesFlight)
-  );
 
   // Пакет M: производные для chips + filter badge
   const activeFilterCount = countActiveFilters(flightFS);
@@ -823,7 +863,7 @@ export function AviaDashboard() {
             <div className="hidden md:block" style={{ fontSize: 18, fontWeight: 800, color: '#e2eaf3', letterSpacing: '-0.3px', lineHeight: 1 }}>
               Главная
             </div>
-            <div style={{ fontSize: 10, color: '#1e3a55', fontWeight: 600, marginTop: 3 }}>
+            <div style={{ fontSize: 10, color: '#8aa3ba', fontWeight: 600, marginTop: 3 }}>
               {user.firstName
                 ? `${user.firstName} ${user.lastName || ''}`.trim()
                 : maskPhone(myPhone)}
@@ -909,7 +949,7 @@ export function AviaDashboard() {
               initial={{ opacity: 0 }}
               animate={{ opacity: Math.min(pullY / PULL_THRESHOLD, 1), y: pullY - 40 }}
               exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.15 }}
+              transition={isDragging ? { duration: 0 } : { duration: 0.28, ease: 'easeOut' }}
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                 padding: '8px 0', marginBottom: 4,
@@ -1271,6 +1311,14 @@ export function AviaDashboard() {
           >
               {loadingData ? (
                 <div className="avia-cards-grid">{[0, 1, 2, 3].map(i => <SkeletonCard key={i} />)}</div>
+              ) : loadError ? (
+                <EmptyState
+                  icon={AlertTriangle}
+                  color="#ef4444"
+                  title="Не удалось загрузить рейсы"
+                  subtitle="Проверьте соединение и попробуйте снова"
+                  action={{ label: 'Повторить', onClick: loadMainData }}
+                />
               ) : displayFlights.length === 0 ? (
                 <EmptyState
                   icon={searchQuery ? Search : Plane}
@@ -1302,7 +1350,7 @@ export function AviaDashboard() {
                           onDetail={setDetailFlight}
                           onChat={f.courierId !== myPhone ? handleOpenChat : undefined}
                           onOffer={f.courierId !== myPhone && user.role === 'sender'
-                            ? (fl) => setDealOfferFlight(fl) : undefined}
+                            ? setDealOfferFlight : undefined}
                           chatUnread={f.courierId !== myPhone ? (chatUnreadByPhone.current[f.courierId] || 0) : undefined}
                           hasMyDeal={f.courierId !== myPhone && myDealFlightIds.has(f.id)}
                         />
@@ -1372,6 +1420,10 @@ export function AviaDashboard() {
                 ...(adRef.date ? { adDate: adRef.date } : {}),
               });
               navigate(`/avia/messages?${params.toString()}`);
+            }}
+            onOpenExistingDeal={(dealId) => {
+              setDealOfferFlight(null);
+              navigate(`/avia/deals?dealId=${encodeURIComponent(dealId)}`);
             }}
           />
         )}

@@ -8,6 +8,13 @@
 
 import type { Context } from "npm:hono";
 import * as kv from "./kv_store.tsx";
+import { maskEmail, maskPhone } from "./piiMask.tsx";
+
+// Маскирует идентификатор только для логов (см. IMPROVEMENTS.md, пункт 0.5).
+// Не использовать для построения KV-ключей — маскирование лоссовое.
+function maskId(type: string, id: string): string {
+  return type === "phone" ? maskPhone(id) : maskEmail(id);
+}
 
 // Алфавит без двусмысленных символов (0/O, 1/I/L исключены)
 const ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
@@ -84,7 +91,7 @@ export async function handleSendOtp(c: Context) {
       const ageMs = Date.now() - new Date(lastSent.sentAt).getTime();
       if (ageMs < 60_000) {
         const remainingSec = Math.ceil((60_000 - ageMs) / 1000);
-        console.log(`[OTP] ⏳ Rate-limit: ${type}:${normalizedId} — ${remainingSec}s left`);
+        console.log(`[OTP] ⏳ Rate-limit: ${type}:${maskId(type, normalizedId)} — ${remainingSec}s left`);
         return c.json({
           success: true,
           rateLimited: true,
@@ -110,7 +117,7 @@ export async function handleSendOtp(c: Context) {
     });
     await kv.set(rlKey, { sentAt: now.toISOString() });
 
-    console.log(`[OTP] 🔐 Crypto code generated for ${type}:${normalizedId} | hash: ${codeHash.slice(0, 12)}... | expires: ${expiresAt}`);
+    console.log(`[OTP] 🔐 Crypto code generated for ${type}:${maskId(type, normalizedId)} | hash: ${codeHash.slice(0, 12)}... | expires: ${expiresAt}`);
 
     // Возвращаем сырой код фронтенду — он будет показан через уведомление на сайте
     return c.json({
@@ -150,7 +157,7 @@ export async function handleVerifyOtp(c: Context) {
     const otpData: any = await kv.get(kvKey);
 
     if (!otpData) {
-      console.log(`[OTP] ❌ No code found for ${type}:${normalizedId}`);
+      console.log(`[OTP] ❌ No code found for ${type}:${maskId(type, normalizedId)}`);
       return c.json({
         success: false,
         error: "Код не найден или истёк срок действия. Запросите новый.",
@@ -160,7 +167,7 @@ export async function handleVerifyOtp(c: Context) {
     // Проверка TTL
     if (new Date() > new Date(otpData.expiresAt)) {
       await kv.del(kvKey);
-      console.log(`[OTP] ❌ Code expired for ${type}:${normalizedId}`);
+      console.log(`[OTP] ❌ Code expired for ${type}:${maskId(type, normalizedId)}`);
       return c.json({
         success: false,
         error: "Срок действия кода истёк. Запросите новый.",
@@ -171,7 +178,7 @@ export async function handleVerifyOtp(c: Context) {
     const attempts = (otpData.attempts || 0) + 1;
     if (attempts > MAX_ATTEMPTS) {
       await kv.del(kvKey);
-      console.log(`[OTP] ❌ Max attempts (${MAX_ATTEMPTS}) exceeded for ${type}:${normalizedId}`);
+      console.log(`[OTP] ❌ Max attempts (${MAX_ATTEMPTS}) exceeded for ${type}:${maskId(type, normalizedId)}`);
       return c.json({
         success: false,
         error: "Превышено количество попыток. Запросите новый код.",
@@ -184,7 +191,7 @@ export async function handleVerifyOtp(c: Context) {
     if (enteredHash !== otpData.codeHash) {
       await kv.set(kvKey, { ...otpData, attempts });
       const remaining = MAX_ATTEMPTS - attempts;
-      console.log(`[OTP] ❌ Wrong code for ${type}:${normalizedId} (attempt ${attempts}/${MAX_ATTEMPTS})`);
+      console.log(`[OTP] ❌ Wrong code for ${type}:${maskId(type, normalizedId)} (attempt ${attempts}/${MAX_ATTEMPTS})`);
       return c.json({
         success: false,
         error: remaining > 0
@@ -196,7 +203,7 @@ export async function handleVerifyOtp(c: Context) {
 
     // ✅ Хеши совпали — удаляем (одноразовый)
     await kv.del(kvKey);
-    console.log(`[OTP] ✅ Code verified for ${type}:${normalizedId}`);
+    console.log(`[OTP] ✅ Code verified for ${type}:${maskId(type, normalizedId)}`);
     return c.json({ success: true, message: "Код подтверждён успешно" });
 
   } catch (err) {

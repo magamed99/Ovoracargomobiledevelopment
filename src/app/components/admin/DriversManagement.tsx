@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Search, MoreVertical, Car, CheckCircle, RefreshCw, Loader2, UserX, UserCheck, Trash2, ChevronDown, ChevronUp, TrendingUp, Award } from 'lucide-react';
+import { useSearchParams } from 'react-router';
+import { Search, MoreVertical, Car, CheckCircle, RefreshCw, Loader2, UserX, UserCheck, Trash2, ChevronDown, ChevronUp, TrendingUp, Award, Download } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import { toast } from 'sonner';
 import { getAdminUsers, getAdminTrips, getAdminOffers, adminHeaders } from '../../api/dataApi';
 import { projectId } from '../../../../utils/supabase/info';
 import { AdminPageHeader, HeaderBtn, FilterChips, SkeletonList } from './AdminPageHeader';
+import { exportCsv } from '../../utils/adminCsvExport';
 
 const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;
 
@@ -32,6 +34,15 @@ export function DriversManagement() {
   const [sortBy, setSortBy] = useState('trips');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+
+  // Переход из глобального поиска в шапке админки (AdminLayout)
+  useEffect(() => {
+    const q = searchParams.get('q');
+    const expand = searchParams.get('expand');
+    if (q) setSearchQuery(q);
+    if (expand) setExpandedId(expand);
+  }, [searchParams]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -120,7 +131,30 @@ export function DriversManagement() {
           { label: 'Верифицировано', value: verifiedCount },
           ...(blockedCount > 0 ? [{ label: 'Заблокировано', value: blockedCount }] : []),
         ]}
-        actions={<HeaderBtn icon={RefreshCw} onClick={load}>Обновить</HeaderBtn>}
+        actions={
+          <>
+            <HeaderBtn
+              icon={Download}
+              variant="ghost"
+              onClick={() => exportCsv(
+                filtered.map(d => ({
+                  email: d.email,
+                  name: `${d.firstName || ''} ${d.lastName || ''}`.trim(),
+                  phone: d.phone || '',
+                  city: d.city || '',
+                  status: d.status || 'active',
+                  verified: d.isVerified || d.documentsVerified ? 'да' : 'нет',
+                  trips: tripsByDriver[d.email] || 0,
+                  created: d.createdAt || '',
+                })),
+                `drivers_export_${new Date().toISOString().slice(0, 10)}.csv`
+              )}
+            >
+              CSV
+            </HeaderBtn>
+            <HeaderBtn icon={RefreshCw} onClick={load}>Обновить</HeaderBtn>
+          </>
+        }
       />
 
       {/* Filters */}

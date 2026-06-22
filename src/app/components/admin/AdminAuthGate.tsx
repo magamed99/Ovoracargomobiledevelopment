@@ -10,9 +10,10 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ShieldCheck, Eye, EyeOff, RefreshCw, ArrowLeft } from 'lucide-react';
 import { projectId, publicAnonKey } from '../../../../utils/supabase/info';
 import { useNavigate } from 'react-router';
+import { CSRF_HEADER, CSRF_TOKEN } from '../../api/csrfToken';
 
 const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;
-const HEADERS = { 'Content-Type': 'application/json', Authorization: `Bearer ${publicAnonKey}` };
+const HEADERS = { 'Content-Type': 'application/json', Authorization: `Bearer ${publicAnonKey}`, [CSRF_HEADER]: CSRF_TOKEN };
 const ADMIN_SESSION_KEY = 'ovora_admin_auth';
 
 interface Props {

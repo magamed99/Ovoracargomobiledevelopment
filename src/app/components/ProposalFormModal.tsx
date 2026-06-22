@@ -88,7 +88,7 @@ export function ProposalFormModal({
   const [offerDone, setOfferDone] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 
   // Auto-fill form with trip data
@@ -198,8 +198,10 @@ export function ProposalFormModal({
 
     try {
       await submitOffer(offerData);
-    } catch {
-      toast.error('Ошибка при отправке оферты');
+    } catch (err: any) {
+      toast.error(err?.status === 409
+        ? 'У вас уже есть активная оферта на этот рейс'
+        : 'Ошибка при отправке оферты');
       setIsSubmitting(false);
       return;
     }

@@ -144,6 +144,7 @@ export function AviaConfirmSheet({
             {/* Close button */}
             <button
               onClick={onClose}
+              aria-label="Закрыть"
               style={{
                 position: 'absolute', top: 16, right: 16,
                 width: 28, height: 28, borderRadius: 8,

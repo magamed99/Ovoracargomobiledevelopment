@@ -1,14 +1,15 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router';
+import { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ArrowLeft, Handshake, Plane, Package, ArrowRight,
   CheckCircle2, XCircle, Clock, ThumbsUp, RefreshCw,
-  Loader2, MessageCircle, Scale, DollarSign,
+  Loader2, MessageCircle, Scale, DollarSign, Download,
   ChevronRight, ChevronDown, Bell, Camera, Info, ClipboardList, Users, Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAvia } from './AviaContext';
+import { exportAviaDealsToCSV } from '../../utils/exportUtils';
 import {
   getAviaDeals,
   acceptAviaDeal,
@@ -21,7 +22,7 @@ import {
 import type { AviaDeal, AviaDealStatus, AviaPODPhoto, AviaPODPhotoType } from '../../api/aviaDealApi';
 import { makeAviaChatId } from '../../api/aviaChatApi';
 import { AviaReviewModal } from './AviaReviewModal';
-import { getAviaDealReviewStatus } from '../../api/aviaReviewApi';
+import { getAviaDealReviewStatusBatch } from '../../api/aviaReviewApi';
 
 // ── Статус ────────────────────────────────────────────────────────────────────
 
@@ -85,7 +86,7 @@ function maskPhone(phone: string) {
 
 // ── Карточка сделки ──────────────────────────────────────────────────────────
 
-function DealCard({
+const DealCard = memo(function DealCard({
   deal,
   myPhone,
   onAccept, onReject, onCancel, onComplete, onOpenChat, onReview, onPODUploaded, onDeleteStuck,
@@ -538,13 +539,13 @@ function DealCard({
       )}
     </motion.div>
   );
-}
+});
 
 // ── Карточка рейса с несколькими отправителями ────────────────────────────────
 // Когда у одного рейса несколько принятых/завершённых сделок (разные отправители),
 // показываем одну карточку рейса вместо дублей — детали каждого отправителя (фото
 // получения/передачи) находятся на странице манифеста.
-function FlightGroupCard({ deals }: { deals: AviaDeal[] }) {
+const FlightGroupCard = memo(function FlightGroupCard({ deals }: { deals: AviaDeal[] }) {
   const navigate = useNavigate();
   const first = deals[0];
   const allCompleted = deals.every(d => effectiveDealStatus(d) === 'completed');
@@ -631,18 +632,23 @@ function FlightGroupCard({ deals }: { deals: AviaDeal[] }) {
       </button>
     </motion.div>
   );
-}
+});
 
 // ── Главный компонент ─────────────────────────────────────────────────────────
 
 export function AviaDealsPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const dealIdParam = searchParams.get('dealId');
   const { user, isAuth, unreadCount } = useAvia();
 
   const [deals, setDeals] = useState<AviaDeal[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>('active');
+  const [highlightDealId, setHighlightDealId] = useState<string | null>(null);
+  const DEALS_PAGE_SIZE = 20;
+  const [visibleCount, setVisibleCount] = useState(DEALS_PAGE_SIZE);
 
   // Чат перенесён на /avia/messages
 
@@ -661,18 +667,15 @@ export function AviaDealsPage() {
       const data = await getAviaDeals(myPhone);
       setDeals(data);
 
-      // загружаем статусы отзывов только для завершённых сделок
+      // загружаем статусы отзывов только для завершённых сделок (1 batch-запрос вместо N)
       const completed = data.filter(d => d.status === 'completed');
+      const statusMap = await getAviaDealReviewStatusBatch(completed.map(d => d.id));
       const statuses: Record<string, boolean> = {};
-      await Promise.all(completed.map(async d => {
-        try {
-          const s = await getAviaDealReviewStatus(d.id);
-          const isInit = d.initiatorPhone === myPhone;
-          statuses[d.id] = isInit ? !!s.byInitiator : !!s.byRecipient;
-        } catch {
-          statuses[d.id] = false;
-        }
-      }));
+      for (const d of completed) {
+        const s = statusMap[d.id] || {};
+        const isInit = d.initiatorPhone === myPhone;
+        statuses[d.id] = isInit ? !!s.byInitiator : !!s.byRecipient;
+      }
       setReviewedDeals(statuses);
     } catch {
     } finally {
@@ -686,6 +689,23 @@ export function AviaDealsPage() {
   useEffect(() => {
     if (isAuth) fetchDeals();
   }, [isAuth, myPhone]);
+
+  // ── Открытие конкретной сделки по ?dealId= (например, после попытки создать
+  // дубль предложения — backend вернул 409 и id уже существующей сделки) ──────
+  useEffect(() => {
+    if (!dealIdParam || loading || deals.length === 0) return;
+    const target = deals.find(d => d.id === dealIdParam);
+    if (!target) return;
+    setActiveTab(dealBucket(target));
+    setHighlightDealId(dealIdParam);
+    // Сделка может быть за пределами текущей "страницы" — показываем весь список вкладки
+    setVisibleCount(Number.MAX_SAFE_INTEGER);
+    const scrollTimer = setTimeout(() => {
+      document.getElementById(`deal-${dealIdParam}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+    const clearTimer = setTimeout(() => setHighlightDealId(null), 2500);
+    return () => { clearTimeout(scrollTimer); clearTimeout(clearTimer); };
+  }, [dealIdParam, loading, deals]);
 
   // ── Фильтрация ────────────────────────────────────────────────────────────
   const filtered = deals.filter(d => dealBucket(d) === activeTab);
@@ -714,58 +734,70 @@ export function AviaDealsPage() {
     return items;
   }, [filtered]);
 
+  // ── Пагинация ("Показать ещё") — список может расти неограниченно ──────────
+  useEffect(() => { setVisibleCount(DEALS_PAGE_SIZE); }, [activeTab]);
+  const visibleItems = renderItems.slice(0, visibleCount);
+  const hasMore = renderItems.length > visibleItems.length;
+
   // ── Badges ────────────────────────────────────────────────────────────────
   const activeCount    = deals.filter(d => dealBucket(d) === 'active').length;
   const completedCount = deals.filter(d => dealBucket(d) === 'completed').length;
   const cancelledCount = deals.filter(d => dealBucket(d) === 'cancelled').length;
 
+  const handleExportCSV = useCallback(() => {
+    if (deals.length === 0) { toast.error('Нет сделок для экспорта'); return; }
+    const ok = exportAviaDealsToCSV(deals, myPhone);
+    if (ok) toast.success('Список сделок экспортирован в CSV');
+    else toast.error('Ошибка экспорта');
+  }, [deals, myPhone]);
+
   // ── Handlers ──────────────────────────────────────────────────────────────
-  const handleAccept = async (id: string) => {
+  const handleAccept = useCallback(async (id: string) => {
     const res = await acceptAviaDeal(id, myPhone);
     if (!res.success) { toast.error(res.error || 'Ошибка принятия'); return; }
     toast.success('Предложение принято! Свяжитесь через чат.');
     setDeals(prev => prev.map(d => d.id === id ? { ...d, status: 'accepted', acceptedAt: new Date().toISOString() } : d));
-  };
+  }, [myPhone]);
 
-  const handleReject = async (id: string) => {
+  const handleReject = useCallback(async (id: string) => {
     const res = await rejectAviaDeal(id, myPhone);
     if (!res.success) { toast.error(res.error || 'Ошибка отклонения'); return; }
     toast('Предложение отклонено');
     setDeals(prev => prev.map(d => d.id === id ? { ...d, status: 'rejected', rejectedAt: new Date().toISOString() } : d));
-  };
+  }, [myPhone]);
 
-  const handleCancel = async (id: string) => {
+  const handleCancel = useCallback(async (id: string) => {
     const res = await cancelAviaDeal(id, myPhone);
     if (!res.success) { toast.error(res.error || 'Ошибка отмены'); return; }
     toast('Предложение отменено');
     setDeals(prev => prev.map(d => d.id === id ? { ...d, status: 'cancelled', cancelledAt: new Date().toISOString() } : d));
-  };
+  }, [myPhone]);
 
-  const handleComplete = async (id: string) => {
+  const handleComplete = useCallback(async (id: string) => {
     const res = await completeAviaDeal(id, myPhone);
     if (!res.success) { toast.error(res.error || 'Ошибка завершения'); return; }
     toast.success('Сделка завершена!');
     setDeals(prev => prev.map(d => d.id === id ? { ...d, status: 'completed', completedAt: new Date().toISOString() } : d));
-  };
+  }, [myPhone]);
 
-  const handleDeleteStuck = async (id: string) => {
+  const handleDeleteStuck = useCallback(async (id: string) => {
     const res = await deleteAviaDealsByIds([id], myPhone);
     if (!res.success) { toast.error(res.error || 'Ошибка удаления'); return; }
     toast('Сделка удалена');
     setDeals(prev => prev.filter(d => d.id !== id));
-  };
+  }, [myPhone]);
 
-  const handleOpenChat = (otherPhone: string) => {
+  const handleOpenChat = useCallback((otherPhone: string) => {
     const chatId = makeAviaChatId(myPhone, otherPhone);
     const params = new URLSearchParams({ chatId, otherPhone });
     navigate(`/avia/messages?${params.toString()}`);
-  };
+  }, [myPhone, navigate]);
 
-  const handleReview = (deal: AviaDeal) => setReviewDeal(deal);
+  const handleReview = useCallback((deal: AviaDeal) => setReviewDeal(deal), []);
 
-  const handlePODUploaded = (dealId: string, photo: AviaPODPhoto) => {
+  const handlePODUploaded = useCallback((dealId: string, photo: AviaPODPhoto) => {
     setDeals(prev => prev.map(d => d.id === dealId ? { ...d, podPhotos: [...(d.podPhotos || []), photo] } : d));
-  };
+  }, []);
 
   const handleReviewed = (dealId: string) => {
     setReviewedDeals(prev => ({ ...prev, [dealId]: true }));
@@ -822,6 +854,19 @@ export function AviaDealsPage() {
         </div>
 
         <button
+          onClick={handleExportCSV}
+          style={{
+            width: 32, height: 32, borderRadius: 9,
+            border: '1px solid #ffffff12', background: '#ffffff08',
+            color: '#6b8299', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+          aria-label="Экспортировать сделки в CSV"
+        >
+          <Download style={{ width: 14, height: 14 }} />
+        </button>
+
+        <button
           onClick={() => fetchDeals(true)}
           disabled={refreshing}
           style={{
@@ -830,10 +875,9 @@ export function AviaDealsPage() {
             color: refreshing ? '#0ea5e9' : '#6b8299', cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
+          aria-label="Обновить"
         >
-          <motion.div animate={{ rotate: refreshing ? 360 : 0 }} transition={refreshing ? { repeat: Infinity, duration: 0.8, ease: 'linear' } : {}}>
-            <RefreshCw style={{ width: 14, height: 14 }} />
-          </motion.div>
+          <RefreshCw style={{ width: 14, height: 14 }} className={refreshing ? 'animate-spin' : ''} />
         </button>
 
         {/* Bell — возврат на dashboard с бейджем */}
@@ -929,26 +973,48 @@ export function AviaDealsPage() {
             </p>
           </motion.div>
         ) : (
-          <AnimatePresence>
-            {renderItems.map(item => item.kind === 'flightGroup' ? (
-              <FlightGroupCard key={`flight-${item.deals[0].adId}`} deals={item.deals} />
-            ) : (
-              <DealCard
-                key={item.deal.id}
-                deal={item.deal}
-                myPhone={myPhone}
-                onAccept={handleAccept}
-                onReject={handleReject}
-                onCancel={handleCancel}
-                onComplete={handleComplete}
-                onOpenChat={handleOpenChat}
-                onReview={handleReview}
-                onPODUploaded={handlePODUploaded}
-                onDeleteStuck={handleDeleteStuck}
-                alreadyReviewed={!!reviewedDeals[item.deal.id]}
-              />
-            ))}
-          </AnimatePresence>
+          <>
+            <AnimatePresence>
+              {visibleItems.map(item => item.kind === 'flightGroup' ? (
+                <FlightGroupCard key={`flight-${item.deals[0].adId}`} deals={item.deals} />
+              ) : (
+                <div
+                  key={item.deal.id}
+                  id={`deal-${item.deal.id}`}
+                  style={highlightDealId === item.deal.id ? {
+                    borderRadius: 20, outline: '2px solid #34d399', outlineOffset: 2,
+                    transition: 'outline-color 0.3s',
+                  } : undefined}
+                >
+                  <DealCard
+                    deal={item.deal}
+                    myPhone={myPhone}
+                    onAccept={handleAccept}
+                    onReject={handleReject}
+                    onCancel={handleCancel}
+                    onComplete={handleComplete}
+                    onOpenChat={handleOpenChat}
+                    onReview={handleReview}
+                    onPODUploaded={handlePODUploaded}
+                    onDeleteStuck={handleDeleteStuck}
+                    alreadyReviewed={!!reviewedDeals[item.deal.id]}
+                  />
+                </div>
+              ))}
+            </AnimatePresence>
+            {hasMore && (
+              <button
+                onClick={() => setVisibleCount(c => c + DEALS_PAGE_SIZE)}
+                style={{
+                  display: 'block', width: '100%', marginTop: 4, padding: '12px',
+                  borderRadius: 14, border: '1px solid #ffffff10', background: '#ffffff06',
+                  color: '#8aa3ba', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                }}
+              >
+                Показать ещё ({renderItems.length - visibleItems.length})
+              </button>
+            )}
+          </>
         )}
       </div>
 

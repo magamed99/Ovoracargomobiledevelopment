@@ -115,6 +115,7 @@ export function AviaReviewModal({ deal, myPhone, onClose, onReviewed }: AviaRevi
             </div>
             <button
               onClick={onClose}
+              aria-label="Закрыть"
               style={{
                 width: 32, height: 32, borderRadius: 9,
                 border: '1px solid #ffffff12', background: '#ffffff08',

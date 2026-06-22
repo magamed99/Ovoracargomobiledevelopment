@@ -5,8 +5,16 @@ import { cors } from "npm:hono/cors";
 import { logger } from "npm:hono/logger";
 import { createClient } from "npm:@supabase/supabase-js";
 import webpush from "npm:web-push";
-import { SignJWT, jwtVerify } from "npm:jose";
+import { SignJWT } from "npm:jose";
+import {
+  type AdminRole as AdminRoleType,
+  resolveAdminRole,
+  requireAdmin,
+  requireRole,
+  isAdminCaller,
+} from "./adminAuth.tsx";
 import { rateLimitMiddleware, RL } from "./rateLimit.tsx";
+import { calculateAverageRating } from "./rating.tsx";
 import * as kv from "./kv_store.tsx";
 import { Blacklist } from "./blacklist.tsx";
 import { AuditLog as CargoAuditLog } from "./cargoAudit.tsx";
@@ -69,83 +77,53 @@ app.use("/*", cors({
     if (/^https?:\/\/([a-z0-9-]+\.)?ovora-cargo\.ru$/.test(origin)) return origin;
     return null; // deny
   },
-  allowHeaders: ["Content-Type", "Authorization", "X-Admin-Code"],
+  allowHeaders: ["Content-Type", "Authorization", "X-Admin-Code", "X-Admin-Token", "X-Csrf-Token"],
   allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   exposeHeaders: ["Content-Length"],
   credentials: true,
   maxAge: 600,
 }));
 
-// ── Admin Middleware — защита всех /admin/* и /kv/* маршрутов ─────────────────
-// Authorization всегда содержит anon key (требование Supabase gateway), поэтому
-// его нельзя использовать для передачи admin JWT. Роль передаётся через
-// X-Admin-Code (legacy plaintext, всегда super-admin) или X-Admin-Token
-// (новый JWT с ролью внутри, см. POST /admin/auth) — выдаётся отдельным
-// заголовком, чтобы не конфликтовать с anon-key в Authorization.
-// 'super-admin' проходит любую requireRole-проверку; 'cargo-admin'/'avia-admin'
-// ограничены своей платформой.
-type AdminRole = 'super-admin' | 'cargo-admin' | 'avia-admin';
-
-async function resolveAdminRole(c: any): Promise<AdminRole | null> {
-  // ── Primary: X-Admin-Code plaintext — всегда super-admin (backward-compat) ──
-  const adminCode = (c.req.header('X-Admin-Code') || '').trim();
-  if (adminCode) {
-    const envCode = (Deno.env.get('ADMIN_ACCESS_CODE') || '').trim();
-    if (!envCode) {
-      console.error('[requireAdmin] ADMIN_ACCESS_CODE not configured in environment');
-      return null;
-    }
-    return adminCode === envCode ? 'super-admin' : null;
+// ── CSRF protection (0.6) ──────────────────────────────────────────────────────
+// Бэкенд не использует cookie-сессии (вся авторизация — в заголовках), поэтому
+// классический double-submit cookie неприменим. Вместо этого требуем кастомный
+// заголовок на всех мутирующих запросах: значение не секрет, его роль — форсировать
+// CORS preflight, который CORS allowlist уже отклоняет для чужих origin. Без
+// preflight браузер не отправит сам запрос, а без этой проверки сервер отклонит
+// его явно (защита от form-based / no-cors запросов, которые preflight не требуют).
+const CSRF_HEADER_NAME = "x-csrf-token";
+const CSRF_EXPECTED = "ovora-pwa-v1";
+const CSRF_PROTECTED_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+app.use("/*", async (c, next) => {
+  if (!CSRF_PROTECTED_METHODS.has(c.req.method)) return await next();
+  if (c.req.header(CSRF_HEADER_NAME) !== CSRF_EXPECTED) {
+    return c.json({ error: "Missing or invalid CSRF token" }, 403);
   }
-
-  // ── Role-scoped JWT (X-Admin-Token) — выдаётся /admin/auth ─────────────────
-  const adminToken = (c.req.header('X-Admin-Token') || '').trim();
-  if (adminToken) {
-    const jwtSecret = (Deno.env.get('ADMIN_JWT_SECRET') || '').trim();
-    if (jwtSecret) {
-      try {
-        const secret = new TextEncoder().encode(jwtSecret);
-        const { payload } = await jwtVerify(adminToken, secret);
-        return (payload.role as AdminRole) || 'super-admin';
-      } catch (err) {
-        console.warn('[requireAdmin] Invalid/expired admin JWT:', err);
-      }
-    }
-  }
-
-  return null;
-}
-
-async function requireAdmin(c: any, next: any) {
-  const role = await resolveAdminRole(c);
-  if (!role) {
-    console.warn('[requireAdmin] No valid admin credentials for:', c.req.path);
-    return c.json({ error: 'Unauthorized: Admin access required' }, 401);
-  }
-  console.log(`[requireAdmin] Access granted (role=${role}) for:`, c.req.path);
-  c.set('adminRole', role);
   return await next();
-}
+});
 
-// ── Role gate — применяется ПОСЛЕ requireAdmin. super-admin проходит всегда,
-// остальные роли — только если входят в allowed.
-function requireRole(allowed: AdminRole[]) {
-  return async (c: any, next: any) => {
-    const role = c.get('adminRole') as AdminRole | undefined;
-    if (role === 'super-admin' || (role && allowed.includes(role))) {
-      return await next();
-    }
-    console.warn(`[requireRole] Forbidden: role=${role} not in [${allowed.join(', ')}] for`, c.req.path);
-    return c.json({ error: 'Forbidden: insufficient admin role' }, 403);
-  };
-}
+// ── Admin Middleware — защита всех /admin/* и /kv/* маршрутов ─────────────────
+// Логика вынесена в adminAuth.tsx (юнит-тестируется отдельно от Hono/Deno-обвязки).
+type AdminRole = AdminRoleType;
 
-// ── Non-blocking admin check — для эндпоинтов с двойным режимом
-// (владелец ресурса ИЛИ админ-оверрайд), где requireAdmin как middleware
-// не подходит, потому что обычные пользователи тоже должны иметь доступ.
-// Проверяет и X-Admin-Code, и X-Admin-Token, как requireAdmin.
-async function isAdminCaller(c: any): Promise<boolean> {
-  return (await resolveAdminRole(c)) !== null;
+// ── JWT revocation (logout-all при компрометации) ───────────────────────────
+// KV: ovora:admin:jwt_revoked_at → number (Date.now() в момент revoke-all).
+// Любой admin-JWT с iat (сек) раньше этой метки считается отозванным независимо
+// от своего TTL (8ч) — даёт мгновенный «разлогинить всех админов» при утечке токена.
+// Fail-open при ошибке чтения KV: отзыв — defense-in-depth поверх подписи JWT,
+// а не единственная защита, поэтому сбой хранилища не должен блокировать всех админов.
+async function isAdminJwtRevoked(issuedAtSec: number): Promise<boolean> {
+  try {
+    const revokedAt = await kv.get('ovora:admin:jwt_revoked_at') as number | null;
+    if (!revokedAt) return false;
+    return issuedAtSec * 1000 < revokedAt;
+  } catch (err) {
+    console.warn('[AdminAuth] Не удалось проверить отзыв JWT (fail-open):', err);
+    return false;
+  }
+}
+async function requireAdminChecked(c: any, next: any) {
+  return await requireAdmin(c, next, isAdminJwtRevoked);
 }
 
 // Применяем middleware ко всем /admin/* и /kv/* маршрутам (КРОМЕ /admin/auth).
@@ -155,7 +133,7 @@ app.use('/make-server-4e36197a/admin/*', async (c, next) => {
   if (c.req.path === '/make-server-4e36197a/admin/auth') {
     return await next();
   }
-  return await requireAdmin(c, next);
+  return await requireAdminChecked(c, next);
 });
 app.use('/make-server-4e36197a/admin/*', async (c, next) => {
   if (c.req.path === '/make-server-4e36197a/admin/auth') {
@@ -165,11 +143,11 @@ app.use('/make-server-4e36197a/admin/*', async (c, next) => {
 });
 
 // Защищаем все /kv/* маршруты (они очень опасны — прямой доступ к БД)
-app.use('/make-server-4e36197a/kv/*', requireAdmin);
+app.use('/make-server-4e36197a/kv/*', requireAdminChecked);
 
 // Защищаем все /avia/admin/* маршруты (управление AVIA-пользователями/карточками/аудитом).
 // AVIA-эндпоинты доступны avia-admin и super-admin.
-app.use('/make-server-4e36197a/avia/admin/*', requireAdmin);
+app.use('/make-server-4e36197a/avia/admin/*', requireAdminChecked);
 app.use('/make-server-4e36197a/avia/admin/*', requireRole(['avia-admin']));
 
 // ── Supabase client (for storage) ─────────────────────────────────────────────
@@ -426,6 +404,20 @@ app.post("/make-server-4e36197a/admin/auth",
   }
 });
 
+// ── Admin: отозвать все выданные admin-JWT (logout-all при компрометации) ────
+// Под /admin/* — уже защищён глобальным requireAdminChecked; requireRole здесь
+// сужает доступ до super-admin (разлогинивает абсолютно всех, включая себя).
+app.post("/make-server-4e36197a/admin/auth/revoke-all", requireRole(['super-admin']), async (c) => {
+  try {
+    await kv.set('ovora:admin:jwt_revoked_at', Date.now());
+    console.warn('[AdminAuth] Все admin-JWT отозваны (logout-all) вызывающим super-admin');
+    return c.json({ success: true });
+  } catch (err) {
+    console.log('Error POST /admin/auth/revoke-all:', err);
+    return c.json({ success: false, error: `${err}` }, 500);
+  }
+});
+
 // ── Config: Yandex API Key ────────────────────────────────────────────────────
 app.get("/make-server-4e36197a/config/yandex-key", (c) => {
   try {
@@ -470,7 +462,7 @@ app.get("/make-server-4e36197a/config/ocr-status", (c) => {
 });
 
 // ── Direct OCR API Test (admin only) ─────────────────────────────────────────
-app.get("/make-server-4e36197a/config/test-ocr-direct", requireAdmin, async (c) => {
+app.get("/make-server-4e36197a/config/test-ocr-direct", requireAdminChecked, async (c) => {
   const apiKey = Deno.env.get('OCR_SPACE_API_KEY');
   
   console.log('[TEST] Starting direct OCR.space API test...');
@@ -895,6 +887,13 @@ app.post("/make-server-4e36197a/trips", async (c) => {
     const lenErr = assertMaxLen(body, { from: 200, to: 200, notes: 1000, vehicle: 100, email: 254 });
     if (lenErr) return c.json({ error: lenErr }, 400);
 
+    // ✅ Рейс без мест И без вместимости для груза одновременно — бессмысленный
+    // рейс, который никто не сможет забронировать (SearchResults и так
+    // отфильтровывает такие рейсы из выдачи).
+    if (!(Number(body.availableSeats) > 0) && !(Number(body.cargoCapacity) > 0)) {
+      return c.json({ error: "Trip must have either availableSeats or cargoCapacity greater than 0" }, 400);
+    }
+
     const id = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const now = new Date().toISOString();
 
@@ -1079,7 +1078,7 @@ app.put("/make-server-4e36197a/trips/:id", async (c) => {
     if (!existing) return c.json({ error: "Trip not found" }, 404);
 
     // ✅ FIX C-2: проверка владельца (пропускаем для admin-оверрайда — X-Admin-Code или JWT)
-    const isAdmin = await isAdminCaller(c);
+    const isAdmin = await isAdminCaller(c, isAdminJwtRevoked);
     if (!isAdmin) {
       const { callerEmail } = body;
       if (!callerEmail) {
@@ -1163,7 +1162,7 @@ app.delete("/make-server-4e36197a/trips/:id", async (c) => {
     if (!existing) return c.json({ error: "Trip not found" }, 404);
 
     // ✅ FIX C-2: проверка владельца (пропускаем для admin-оверрайда — X-Admin-Code или JWT)
-    const isAdmin = await isAdminCaller(c);
+    const isAdmin = await isAdminCaller(c, isAdminJwtRevoked);
     if (!isAdmin) {
       let callerEmail = '';
       try { callerEmail = (await c.req.json()).callerEmail || ''; } catch { /* тело может отсутствовать */ }
@@ -1361,6 +1360,15 @@ app.post("/make-server-4e36197a/offers", async (c) => {
     if (!tripId) return c.json({ error: "tripId required" }, 400);
     if (!senderEmail) return c.json({ error: "senderEmail required" }, 400);
     if (!senderName) return c.json({ error: "senderName required" }, 400);
+
+    // ✅ Запрет дублей: у одного отправителя не может быть двух pending-оферт
+    // на один и тот же рейс одновременно (иначе можно наспамить дублями с
+    // разными ценами) — список оферт рейса невелик, full-scan по tripId безопасен.
+    const tripOffers: any[] = await kv.getByPrefix(`ovora:offer:${tripId}:`);
+    const duplicate = tripOffers.find(o => o && o.senderEmail === senderEmail && o.status === 'pending');
+    if (duplicate) {
+      return c.json({ error: "DUPLICATE_OFFER: you already have a pending offer for this trip", offer: duplicate }, 409);
+    }
 
     const offerId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const now = new Date().toISOString();
@@ -1565,7 +1573,16 @@ app.post("/make-server-4e36197a/offers/cleanup", async (c) => {
       .filter((e: any) => e?.tripId && e?.offerId)
       .map((e: any) => `ovora:offer:${e.tripId}:${e.offerId}`);
     const offers: any[] = offerKeys.length > 0 ? await kv.mget(offerKeys) : [];
-    const pendingOffers = offers.filter(o => o && o.status === 'pending' && o.senderEmail);
+    // ✅ FIX: грейс-период — оферта, созданная меньше 2 минут назад, никогда
+    // не считается "осиротевшей". Без этого создание чата (initChatRoom —
+    // fire-and-forget на клиенте) могло не успеть записаться на сервере к
+    // моменту, когда сработает cleanup, и свежая оферта попадала под
+    // авто-отмену прямо в момент, когда пользователь её открывает/принимает.
+    const GRACE_MS = 2 * 60 * 1000;
+    const pendingOffers = offers.filter(o =>
+      o && o.status === 'pending' && o.senderEmail &&
+      (Date.now() - new Date(o.createdAt || 0).getTime()) > GRACE_MS
+    );
 
     if (pendingOffers.length === 0) return c.json({ cancelled: 0 });
 
@@ -1630,6 +1647,28 @@ app.put("/make-server-4e36197a/offers/:tripId/:offerId", async (c) => {
 
     const { callerEmail: _drop, ...safeBody } = body;
     const updated = { ...existing, ...safeBody, tripId, offerId, updatedAt: new Date().toISOString() };
+
+    // ── Защита от overbooking: при ACCEPT проверяем, что у рейса всё ещё
+    // хватает мест/груза, ДО того как пометить оферту принятой. Без этого два
+    // параллельных accept на разные оферты одного рейса могли оба пройти —
+    // вместимость просто клампилась к 0, а обе оферты считались принятыми.
+    if (updated.status === 'accepted' && existing.status !== 'accepted') {
+      const trip: any = await kv.get(`ovora:trip:${tripId}`);
+      if (trip) {
+        const needSeats = existing.requestedSeats || 0;
+        const needChildren = existing.requestedChildren || 0;
+        const needCargo = existing.requestedCargo || 0;
+        if (
+          needSeats > (trip.availableSeats || 0) ||
+          needChildren > (trip.childSeats || 0) ||
+          needCargo > (trip.cargoCapacity || 0)
+        ) {
+          console.warn(`[PUT /offers] Accept rejected: insufficient capacity on trip ${tripId} for offer ${offerId}`);
+          return c.json({ error: "INSUFFICIENT_CAPACITY: not enough seats/cargo capacity left on this trip" }, 409);
+        }
+      }
+    }
+
     await kv.set(key, updated);
 
     // ── Reduce trip capacity when this route is the one accepting the offer ──
@@ -1990,11 +2029,23 @@ app.post("/make-server-4e36197a/reviews", async (c) => {
       return c.json({ error: 'Можно оценивать только завершённые поездки' }, 400);
     }
     const tripDriver = String(trip.driverEmail || '').toLowerCase().trim();
+    const offers: any[] = await kv.getByPrefix(`ovora:offer:${tripId}:`);
     let validPair = false;
     if (tripDriver && (tripDriver === authorEmail || tripDriver === targetEmail)) {
       const otherEmail = tripDriver === authorEmail ? targetEmail : authorEmail;
-      const offers: any[] = await kv.getByPrefix(`ovora:offer:${tripId}:`);
       validPair = offers.some(o => o && o.status === 'accepted' && String(o.senderEmail || '').toLowerCase().trim() === otherEmail);
+    } else if (!tripDriver) {
+      // ✅ Явный guard для старых рейсов без driverEmail (поле появилось не
+      // сразу) — driverEmail у самой оферты мог сохраниться независимо от
+      // trip-записи (берётся из контакта чата на момент создания оферты),
+      // поэтому сверяем пару прямо по оферте, а не только по trip.driverEmail.
+      validPair = offers.some(o => {
+        if (!o || o.status !== 'accepted') return false;
+        const offerDriver = String(o.driverEmail || '').toLowerCase().trim();
+        const offerSender = String(o.senderEmail || '').toLowerCase().trim();
+        return (offerDriver === authorEmail && offerSender === targetEmail) ||
+               (offerDriver === targetEmail && offerSender === authorEmail);
+      });
     }
     if (!validPair) {
       console.warn(`[POST /reviews] Rejected: ${authorEmail} <-> ${targetEmail} have no completed trip ${tripId} together`);
@@ -2043,11 +2094,22 @@ app.post("/make-server-4e36197a/reviews", async (c) => {
           : [];
         const validReviews = targetReviews.filter(r => r != null);
         if (validReviews.length > 0) {
-          const avgRating = Math.round(
-            (validReviews.reduce((sum, r) => sum + (Number(r.rating) || 0), 0) / validReviews.length) * 10
-          ) / 10;
-          const allTrips: any[] = await kv.getByPrefix(`ovora:trip:`);
-          const driverTrips = allTrips.filter(t => t && !t.deletedAt && t.driverEmail === review.targetEmail);
+          const avgRating = calculateAverageRating(validReviews.map(r => r.rating));
+          // ✅ FIX: читаем индекс ovora:drivertrips:* вместо full-scan по ВСЕМ
+          // поездкам всех водителей (см. /trips/my чуть выше — тот же паттерн).
+          const driverTripsIndex: any[] = await kv.getByPrefix(`ovora:drivertrips:${review.targetEmail}:`);
+          let driverTrips: any[];
+          if (driverTripsIndex.length > 0) {
+            const tripIds = driverTripsIndex.map((e: any) => e.tripId).filter(Boolean);
+            const fetchedTrips: any[] = tripIds.length > 0
+              ? await kv.mget(tripIds.map((id: string) => `ovora:trip:${id}`))
+              : [];
+            driverTrips = fetchedTrips.filter(t => t && !t.deletedAt);
+          } else {
+            // Индекс ещё не построен (legacy) — fallback на full-scan
+            const allTrips: any[] = await kv.getByPrefix(`ovora:trip:`);
+            driverTrips = allTrips.filter(t => t && !t.deletedAt && t.driverEmail === review.targetEmail);
+          }
           for (const trip of driverTrips) {
             await kv.set(`ovora:trip:${trip.id}`, { ...trip, driverRating: avgRating });
           }
@@ -2114,10 +2176,17 @@ app.get("/make-server-4e36197a/reviews/user/:email", async (c) => {
 
 app.get("/make-server-4e36197a/reviews", async (c) => {
   try {
+    const minRating = Number(c.req.query("minRating") ?? "");
+    const limit = Math.min(Number(c.req.query("limit") ?? "") || Infinity, 200);
+
     const all: any[] = await kv.getByPrefix(`ovora:review:`);
-    const sorted = all
-      .filter(r => r)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    let filtered = all.filter(r => r);
+    if (Number.isFinite(minRating)) {
+      filtered = filtered.filter(r => (r.rating ?? 0) >= minRating);
+    }
+    const sorted = filtered
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, Number.isFinite(limit) ? limit : undefined);
     return c.json({ reviews: sorted });
   } catch (err) {
     console.log("Error GET /reviews:", err);
@@ -2163,10 +2232,41 @@ app.delete("/make-server-4e36197a/reviews/:reviewId", async (c) => {
 app.post("/make-server-4e36197a/chat/init", async (c) => {
   try {
     const body = await c.req.json();
-    const { chatId, participants, tripId, tripRoute, contactInfo, senderInfo, tripData } = body;
+    const { chatId, participants, tripId, tripRoute, contactInfo, senderInfo, tripData, callerEmail } = body;
     if (!chatId) return c.json({ error: "chatId required" }, 400);
+    if (!callerEmail) return c.json({ error: "callerEmail is required" }, 400);
     const metaKey = `ovora:chatmeta:${chatId}`;
     const existing: any = await kv.get(metaKey) || {};
+
+    const existingParticipants: string[] = Array.isArray(existing.participants) ? existing.participants : [];
+
+    let finalParticipants: string[];
+    if (existingParticipants.length > 0) {
+      // Чат уже существует — состав участников неизменен через этот эндпоинт,
+      // звонящий обязан уже быть участником (иначе можно подменить участников
+      // чужого чата и обойти IDOR-проверку на GET /chat/:chatId/messages).
+      if (!existingParticipants.includes(callerEmail)) {
+        console.warn(`[chat/init] Unauthorized: ${callerEmail} is not a participant of existing chat ${chatId}`);
+        return c.json({ error: "Forbidden: you are not a participant of this chat" }, 403);
+      }
+      finalParticipants = existingParticipants;
+    } else {
+      // Новый чат — звонящий обязан быть среди заявленных участников, и каждый
+      // участник обязан быть реальным зарегистрированным пользователем
+      // (иначе можно подсунуть произвольный email несуществующего человека).
+      const proposed: string[] = Array.isArray(participants) ? participants.filter(Boolean) : [];
+      if (!proposed.includes(callerEmail)) {
+        return c.json({ error: "callerEmail must be one of participants" }, 400);
+      }
+      for (const email of proposed) {
+        const user = await kv.get(`ovora:user:email:${String(email).toLowerCase().trim()}`).catch(() => null);
+        if (!user) {
+          console.warn(`[chat/init] Rejected: participant ${email} is not a registered user`);
+          return c.json({ error: `Participant ${email} is not a registered user` }, 400);
+        }
+      }
+      finalParticipants = proposed;
+    }
 
     // ✅ FIX: Keep ALL tripIds this pair has discussed (not just the latest one).
     // pair-based chat = one chat per driver↔sender pair, can discuss multiple trips.
@@ -2178,7 +2278,7 @@ app.post("/make-server-4e36197a/chat/init", async (c) => {
     await kv.set(metaKey, {
       ...existing,
       chatId,
-      participants: participants || existing.participants || [],
+      participants: finalParticipants,
       tripId: tripId || existing.tripId,      // keep for backward compat
       tripIds: newTripIds,                    // ✅ array of ALL tripIds discussed
       tripRoute: tripRoute || existing.tripRoute,
@@ -2490,6 +2590,27 @@ app.put("/make-server-4e36197a/chat/:chatId/proposal/:proposalId", async (c) => 
           }
 
           if (matchingOffer) {
+            // ── Защита от overbooking: проверяем вместимость рейса ДО того как
+            // помечать оферту принятой — иначе два параллельных accept на разные
+            // оферты одного рейса могли оба пройти (вместимость просто клампилась
+            // к 0). При недостатке возвращаем proposal-сообщение к 'pending'.
+            const tripForCheck: any = await kv.get(`ovora:trip:${tripId}`);
+            if (tripForCheck) {
+              const needSeats = matchingOffer.requestedSeats || 0;
+              const needChildren = matchingOffer.requestedChildren || 0;
+              const needCargo = matchingOffer.requestedCargo || 0;
+              if (
+                needSeats > (tripForCheck.availableSeats || 0) ||
+                needChildren > (tripForCheck.childSeats || 0) ||
+                needCargo > (tripForCheck.cargoCapacity || 0)
+              ) {
+                console.warn(`[accept] Insufficient capacity on trip ${tripId} — reverting proposal to pending`);
+                await kv.set(`ovora:chat:${chatId}:${msg.msgId}`, msg);
+                await kv.set(metaKey, meta);
+                return c.json({ error: "INSUFFICIENT_CAPACITY: not enough seats/cargo capacity left on this trip" }, 409);
+              }
+            }
+
             // 1. Mark offer as accepted
             const offerKey = `ovora:offer:${matchingOffer.tripId}:${matchingOffer.offerId}`;
             await kv.set(offerKey, { ...matchingOffer, status: 'accepted', acceptedAt: new Date().toISOString() });
@@ -2677,7 +2798,7 @@ app.get("/make-server-4e36197a/chats/user/:email", async (c) => {
 });
 
 // Одноразовая очистка демо-чатов из KV
-app.delete("/make-server-4e36197a/chats/cleanup-demo", requireAdmin, async (c) => {
+app.delete("/make-server-4e36197a/chats/cleanup-demo", requireAdminChecked, async (c) => {
   try {
     const allMeta: any[] = await kv.getByPrefix(`ovora:chatmeta:`);
     const demoMetas = allMeta.filter(m => m?.chatId?.startsWith('demo_'));
@@ -4391,7 +4512,7 @@ app.post("/make-server-4e36197a/documents/analyze/:documentId", async (c) => {
 /**
  * 🧪 Test OCR endpoint - для тестирования распозна��ания документов
  */
-app.post("/make-server-4e36197a/test-ocr", requireAdmin, async (c) => {
+app.post("/make-server-4e36197a/test-ocr", requireAdminChecked, async (c) => {
   try {
     const { imageBase64, documentType } = await c.req.json();
 
@@ -4480,11 +4601,18 @@ app.get("/make-server-4e36197a/admin/stats", async (c) => {
       kv.getByPrefix("ovora:user:email:"),
       kv.getByPrefix("ovora:review:"),
     ]);
+    // Для центра уведомлений в шапке админки: новые pending-заявки и отзывы за последние 24ч.
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const sinceTs = Date.now() - DAY_MS;
+    const validOffers = offers.filter((o: any) => o);
+    const validReviews = reviews.filter((r: any) => r);
     return c.json({
       trips: trips.filter((t: any) => t && !t.deletedAt).length,
-      offers: offers.filter((o: any) => o).length,
+      offers: validOffers.length,
       users: users.filter((u: any) => u).length,
-      reviews: reviews.filter((r: any) => r).length,
+      reviews: validReviews.length,
+      pendingOffers: validOffers.filter((o: any) => o.status === 'pending').length,
+      recentReviews: validReviews.filter((r: any) => new Date(r.createdAt).getTime() >= sinceTs).length,
     });
   } catch (err) {
     console.log("Error GET /admin/stats:", err);
@@ -4535,6 +4663,59 @@ app.get("/make-server-4e36197a/admin/cargos", async (c) => {
     return c.json({ cargos: cargos.filter(cg => cg && !cg.deletedAt) });
   } catch (err) {
     console.log("Error GET /admin/cargos:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ✅ Admin: глобальный поиск по сущностям для шапки админки — находит конкретного
+// пользователя/поездку/оферту/груз/отзыв по email/телефону/имени/ID, а не просто
+// маршрутизирует по ключевым словам раздела (см. AdminLayout.tsx).
+app.get("/make-server-4e36197a/admin/search", async (c) => {
+  try {
+    const q = (c.req.query("q") || "").trim().toLowerCase();
+    if (q.length < 2) {
+      return c.json({ users: [], trips: [], offers: [], cargos: [], reviews: [] });
+    }
+
+    const [users, trips, offers, cargos, reviews]: any[] = await Promise.all([
+      kv.getByPrefix("ovora:user:email:"),
+      kv.getByPrefix("ovora:trip:"),
+      kv.getByPrefix("ovora:offer:"),
+      kv.getByPrefix("ovora:cargo:"),
+      kv.getByPrefix("ovora:review:"),
+    ]);
+
+    const LIMIT = 5;
+    const has = (...vals: any[]) => vals.some(v => v != null && String(v).toLowerCase().includes(q));
+
+    const matchedUsers = users
+      .filter((u: any) => u && has(u.email, u.phone, u.firstName, u.lastName, `${u.firstName || ''} ${u.lastName || ''}`))
+      .slice(0, LIMIT)
+      .map((u: any) => ({ email: u.email, name: `${u.firstName || ''} ${u.lastName || ''}`.trim(), phone: u.phone || '', role: u.role || '' }));
+
+    const matchedTrips = trips
+      .filter((t: any) => t && !t.deletedAt && has(t.id, t.from, t.to, t.driverEmail, t.driverName))
+      .slice(0, LIMIT)
+      .map((t: any) => ({ id: t.id, from: t.from, to: t.to, driverName: t.driverName || t.driverEmail || '' }));
+
+    const matchedOffers = offers
+      .filter((o: any) => o && has(o.offerId, o.tripId, o.senderEmail, o.senderName, o.driverEmail, o.driverName))
+      .slice(0, LIMIT)
+      .map((o: any) => ({ offerId: o.offerId, tripId: o.tripId, senderName: o.senderName || o.senderEmail || '', driverName: o.driverName || o.driverEmail || '' }));
+
+    const matchedCargos = cargos
+      .filter((cg: any) => cg && !cg.deletedAt && has(cg.id, cg.from, cg.to, cg.senderEmail, cg.senderName, cg.senderPhone))
+      .slice(0, LIMIT)
+      .map((cg: any) => ({ id: cg.id, from: cg.from, to: cg.to, senderName: cg.senderName || cg.senderEmail || '' }));
+
+    const matchedReviews = reviews
+      .filter((r: any) => r && has(r.reviewId, r.authorEmail, r.authorName, r.targetEmail, r.targetName))
+      .slice(0, LIMIT)
+      .map((r: any) => ({ reviewId: r.reviewId, authorName: r.authorName || r.authorEmail || '', targetName: r.targetName || r.targetEmail || '' }));
+
+    return c.json({ users: matchedUsers, trips: matchedTrips, offers: matchedOffers, cargos: matchedCargos, reviews: matchedReviews });
+  } catch (err) {
+    console.log("Error GET /admin/search:", err);
     return c.json({ error: `${err}` }, 500);
   }
 });
@@ -4957,7 +5138,7 @@ app.put("/make-server-4e36197a/tracking/:tripId", async (c) => {
 });
 
 // DELETE shipment (hard delete from KV) — не используется клиентом, только админ
-app.delete("/make-server-4e36197a/tracking/:tripId", requireAdmin, async (c) => {
+app.delete("/make-server-4e36197a/tracking/:tripId", requireAdminChecked, async (c) => {
   try {
     const tripId = c.req.param("tripId");
     await kv.del(`ovora:shipment:${tripId}`);
@@ -5498,7 +5679,7 @@ app.get("/make-server-4e36197a/auth/backup/exists/:email", handleBackupExists);
 // ═══════════���══════════════════════════════════════════════════════════════════
 
 // Admin: upload ad media (image or video) to Supabase Storage
-app.post("/make-server-4e36197a/admin/ads/upload", requireAdmin, async (c) => {
+app.post("/make-server-4e36197a/admin/ads/upload", requireAdminChecked, async (c) => {
   try {
     const formData = await c.req.formData();
     const file = formData.get("file") as File | null;
@@ -5556,7 +5737,7 @@ app.get("/make-server-4e36197a/ads", async (c) => {
 });
 
 // Admin: get all ads (including inactive)
-app.get("/make-server-4e36197a/admin/ads", requireAdmin, async (c) => {
+app.get("/make-server-4e36197a/admin/ads", requireAdminChecked, async (c) => {
   try {
     const ads: any[] = await kv.getByPrefix("ovora:ad:");
     const sorted = ads.filter(a => a).sort((a: any, b: any) => (a.order ?? 999) - (b.order ?? 999));
@@ -5568,7 +5749,7 @@ app.get("/make-server-4e36197a/admin/ads", requireAdmin, async (c) => {
 });
 
 // Admin: create new ad
-app.post("/make-server-4e36197a/admin/ads", requireAdmin, async (c) => {
+app.post("/make-server-4e36197a/admin/ads", requireAdminChecked, async (c) => {
   try {
     const body = await c.req.json();
     const id = `ad_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -5598,7 +5779,7 @@ app.post("/make-server-4e36197a/admin/ads", requireAdmin, async (c) => {
 });
 
 // Admin: update ad
-app.put("/make-server-4e36197a/admin/ads/:id", requireAdmin, async (c) => {
+app.put("/make-server-4e36197a/admin/ads/:id", requireAdminChecked, async (c) => {
   try {
     const id = c.req.param("id");
     const body = await c.req.json();
@@ -5616,7 +5797,7 @@ app.put("/make-server-4e36197a/admin/ads/:id", requireAdmin, async (c) => {
 });
 
 // Admin: delete ad
-app.delete("/make-server-4e36197a/admin/ads/:id", requireAdmin, async (c) => {
+app.delete("/make-server-4e36197a/admin/ads/:id", requireAdminChecked, async (c) => {
   try {
     const id = c.req.param("id");
     await kv.del(`ovora:ad:${id}`);
@@ -5758,15 +5939,13 @@ app.get("/make-server-4e36197a/users/:email/stats", async (c) => {
 
     const receivedReviews = allReviews.filter(r => r && r.targetEmail === email);
     const reviewCount = receivedReviews.length;
-    const avgRating = reviewCount > 0
-      ? receivedReviews.reduce((sum, r) => sum + (Number(r.rating) || 0), 0) / reviewCount
-      : 0;
+    const avgRating = calculateAverageRating(receivedReviews.map(r => r.rating));
 
     console.log(`[user-stats] trips=${tripCount}, reviews=${reviewCount}, avg=${avgRating.toFixed(2)}`);
     return c.json({
       tripCount,
       reviewCount,
-      avgRating: Math.round(avgRating * 10) / 10,
+      avgRating,
       reviews: receivedReviews.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
     });
   } catch (err) {
@@ -5897,8 +6076,7 @@ app.post('/make-server-4e36197a/rest-stops/:id/review', async (c) => {
     const now = new Date().toISOString();
     await kv.set(`ovora:restplace-review:${id}:${reviewId}`, { id: reviewId, placeId: id, userEmail, userName: userName || 'Пользователь', rating, text, createdAt: now });
     const allReviews: any[] = await kv.getByPrefix(`ovora:restplace-review:${id}:`);
-    const totalRating = allReviews.reduce((sum, r) => sum + (Number(r.rating) || 0), 0);
-    const newAvg = allReviews.length > 0 ? Math.round((totalRating / allReviews.length) * 10) / 10 : rating;
+    const newAvg = calculateAverageRating(allReviews.map(r => r.rating));
     await kv.set(`ovora:restplace:${id}`, { ...place, rating: newAvg, reviewCount: allReviews.length, updatedAt: now });
     return c.json({ success: true });
   } catch (err) {
@@ -6519,7 +6697,7 @@ app.post("/make-server-4e36197a/avia/upload-passport", async (c) => {
     // 3. OCR — пытаемся извлечь expiryDate
     let ocrExpiryDate: string | null = null;
     let ocrFullName: string | null = null;
-    
+
     if (!skipOcr) {
       try {
         const uint8 = new Uint8Array(arrayBuffer);

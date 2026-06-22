@@ -21,9 +21,11 @@ interface AviaDealOfferModalProps {
   onSuccess?: (deal: AviaDeal) => void;
   /** Открыть чат после отправки предложения */
   onOpenChat?: (chatId: string, otherPhone: string, adRef: AviaChatAdRef) => void;
+  /** У отправителя уже есть сделка по этому объявлению (backend вернул 409 + dealId) */
+  onOpenExistingDeal?: (dealId: string) => void;
 }
 
-export function AviaDealOfferModal({ me, flight, onClose, onSuccess, onOpenChat }: AviaDealOfferModalProps) {
+export function AviaDealOfferModal({ me, flight, onClose, onSuccess, onOpenChat, onOpenExistingDeal }: AviaDealOfferModalProps) {
   // Определяем доступные типы на основе настроек рейса курьера
   const isCargoAvail = flight.cargoEnabled ?? true;
   const isDocsAvail  = flight.docsEnabled ?? false;
@@ -36,10 +38,22 @@ export function AviaDealOfferModal({ me, flight, onClose, onSuccess, onOpenChat 
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [existingDealId, setExistingDealId] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
+
+  // Фокус на первое поле формы при открытии модалки
+  const weightInputRef = useRef<HTMLInputElement>(null);
+  const messageRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    (weightInputRef.current || messageRef.current)?.focus();
+  }, []);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') onClose();
+  };
 
   // Определяем, кто получатель
   const recipientPhone = flight.courierId;
@@ -76,14 +90,22 @@ export function AviaDealOfferModal({ me, flight, onClose, onSuccess, onOpenChat 
     if (t === 'docs') setWeightKg('');
   };
 
+  // ref вместо стейта: при быстром даблклике второй вызов handleSubmit может
+  // выполниться до того, как React отрисует loading=true и задизейблит кнопку
+  // (стейт читается из стейл-замыкания) — ref мутируется синхронно и блокирует
+  // повторный сабмит независимо от рендера.
+  const submittingRef = useRef(false);
+
   const handleSubmit = async () => {
-    if (loading) return;
+    if (loading || submittingRef.current) return;
     if (dealType === 'cargo' && (!weightKg || Number(weightKg) <= 0)) {
       setError('Укажите вес в кг');
       return;
     }
+    submittingRef.current = true;
     setLoading(true);
     setError('');
+    setExistingDealId(null);
 
     const result = await createAviaDeal({
       initiatorPhone: me.phone,
@@ -108,7 +130,9 @@ export function AviaDealOfferModal({ me, flight, onClose, onSuccess, onOpenChat 
 
     setLoading(false);
     if (!result.success) {
-      setError(result.error || 'Ошибка отправки предложения');
+      submittingRef.current = false;
+      setError(result.dealId ? 'У вас уже есть предложение по этому рейсу' : (result.error || 'Ошибка отправки предложения'));
+      setExistingDealId(result.dealId || null);
       return;
     }
     setDone(true);
@@ -173,8 +197,12 @@ export function AviaDealOfferModal({ me, flight, onClose, onSuccess, onOpenChat 
           fontFamily: "'Sora', 'Inter', sans-serif",
         }}
         onClick={onClose}
+        onKeyDown={handleKeyDown}
       >
         <motion.div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Отправить предложение"
           initial={{ y: '100%', opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: '100%', opacity: 0 }}
@@ -212,6 +240,7 @@ export function AviaDealOfferModal({ me, flight, onClose, onSuccess, onOpenChat 
             </div>
             <button
               onClick={onClose}
+              aria-label="Закрыть"
               style={{
                 width: 32, height: 32, borderRadius: 9,
                 border: '1px solid #ffffff12', background: '#ffffff08',
@@ -355,6 +384,7 @@ export function AviaDealOfferModal({ me, flight, onClose, onSuccess, onOpenChat 
                     Вес груза (кг) *
                   </label>
                   <input
+                    ref={weightInputRef}
                     type="number"
                     min={0.1}
                     step={0.1}
@@ -423,6 +453,7 @@ export function AviaDealOfferModal({ me, flight, onClose, onSuccess, onOpenChat 
                   Сообщение
                 </label>
                 <textarea
+                  ref={messageRef}
                   value={message}
                   onChange={e => setMessage(e.target.value)}
                   placeholder="Дополнительные условия, вопросы..."
@@ -449,7 +480,19 @@ export function AviaDealOfferModal({ me, flight, onClose, onSuccess, onOpenChat 
                     }}
                   >
                     <AlertCircle style={{ width: 15, height: 15, color: '#f87171', flexShrink: 0 }} />
-                    <span style={{ fontSize: 12, color: '#f87171' }}>{error}</span>
+                    <span style={{ fontSize: 12, color: '#f87171', flex: 1 }}>{error}</span>
+                    {existingDealId && onOpenExistingDeal && (
+                      <button
+                        onClick={() => { onOpenExistingDeal(existingDealId); onClose(); }}
+                        style={{
+                          fontSize: 11, fontWeight: 700, color: '#f87171',
+                          background: '#ef444418', border: '1px solid #ef444440',
+                          borderRadius: 8, padding: '5px 10px', cursor: 'pointer', flexShrink: 0,
+                        }}
+                      >
+                        Открыть
+                      </button>
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>

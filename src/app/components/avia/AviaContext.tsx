@@ -166,12 +166,34 @@ export function AviaProvider({ children }: { children: ReactNode }) {
     saveAviaSession(userData.phone, userData);
   };
 
-  const logout = () => {
+  const logout = useCallback(() => {
     setUser(null);
     setNotifications([]);
     prevUnreadRef.current = -1;
     clearAviaSession();
-  };
+  }, []);
+
+  // ── Периодическая проверка TTL локальной сессии ─────────────────────────────
+  // getAviaSession() сам удаляет протухшую запись и возвращает null, но без
+  // активной проверки это никто не вызывает пока пользователь сидит на странице —
+  // isAuth остаётся true до следующего полного релоада. Проверяем раз в минуту
+  // и при возврате на вкладку; logout() переводит isAuth → false, и AviaLayout
+  // уже содержит редирект на /avia при этом переходе.
+  useEffect(() => {
+    if (!user?.phone) return;
+    const checkExpiry = () => {
+      if (!getAviaSession()) logout();
+    };
+    const timer = setInterval(checkExpiry, 60_000);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') checkExpiry();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [user?.phone, logout]);
 
   const refreshUser = async () => {
     const session = getAviaSession();

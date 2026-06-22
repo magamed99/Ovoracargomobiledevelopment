@@ -141,10 +141,13 @@ X-Admin-Token: <jwt>          // payload: { role: 'super-admin' | 'cargo-admin' 
 | `ADMIN_ACCESS_CODE_CARGO` | Пароль для роли `cargo-admin` (опционально, RBAC) |
 | `ADMIN_ACCESS_CODE_AVIA` | Пароль для роли `avia-admin` (опционально, RBAC) |
 | `ADMIN_JWT_SECRET` | Секрет для подписи JWT токенов (минимум 32 символа) |
+| `AVIA_JWT_SECRET` | Секрет для подписи AVIA session-токенов (`X-Avia-Token`, минимум 32 символа) |
 | `YANDEX_GEOCODER_API_KEY` | Yandex Geocoder API |
 | `OCR_SPACE_API_KEY` | OCR.space для распознавания документов |
 
-**Критично:** `ADMIN_JWT_SECRET` ещё не добавлен в Supabase Secrets — без него JWT не выдаётся, работает только legacy `X-Admin-Code` (роль `super-admin`). Роли `cargo-admin`/`avia-admin` недоступны, пока не настроены `ADMIN_JWT_SECRET` + соответствующий `ADMIN_ACCESS_CODE_*`.
+**Критично:**
+- `ADMIN_JWT_SECRET` ещё не добавлен в Supabase Secrets — без него JWT не выдаётся, работает только legacy `X-Admin-Code` (роль `super-admin`). Роли `cargo-admin`/`avia-admin` недоступны, пока не настроены `ADMIN_JWT_SECRET` + соответствующий `ADMIN_ACCESS_CODE_*`.
+- `AVIA_JWT_SECRET` ещё не добавлен в Supabase Secrets — без него `verifyAviaActor()` в `aviaAuth.tsx` работает в legacy-режиме (пропускает все проверки без подтверждения личности), т.е. защита от подмены `callerPhone` в AVIA-эндпоинтах **не действует**, пока секрет не настроен.
 
 ---
 
@@ -173,7 +176,7 @@ print('Missing EN:', sorted(ru-en))
 ## TypeScript
 
 ```bash
-npm run typecheck   # tsc --noEmit — 70 ошибок (аннотационные, не критичные)
+npm run typecheck   # tsc --noEmit — 0 ошибок
 npm run build       # сборка через Vite/esbuild — не делает type-check
 ```
 

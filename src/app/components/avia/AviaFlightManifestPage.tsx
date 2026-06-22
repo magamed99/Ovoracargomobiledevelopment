@@ -9,12 +9,13 @@ import {
   PlayCircle, Flag, Loader2,
 } from 'lucide-react';
 import { useAvia } from './AviaContext';
+import { usePolling } from '../../hooks/usePolling';
 import { getAviaFlight, startAviaFlight, completeAviaFlight } from '../../api/aviaApi';
 import type { AviaFlight } from '../../api/aviaApi';
 import { getAviaDeals, uploadAviaDealPOD, completeAviaDeal } from '../../api/aviaDealApi';
 import type { AviaDeal, AviaDealStatus, AviaPODPhoto, AviaPODPhotoType } from '../../api/aviaDealApi';
 import { makeAviaChatId } from '../../api/aviaChatApi';
-import { getAviaDealReviewStatus } from '../../api/aviaReviewApi';
+import { getAviaDealReviewStatusBatch } from '../../api/aviaReviewApi';
 import { AviaReviewModal } from './AviaReviewModal';
 import { AviaConfirmSheet } from './AviaConfirmSheet';
 
@@ -130,7 +131,7 @@ function ManifestRow({
               ? (deal.senderName || 'Отправитель')
               : (deal.courierName || 'Курьер')}
           </div>
-          <div style={{ fontSize: 10, color: '#3d5268', fontWeight: 600 }}>
+          <div style={{ fontSize: 10, color: '#8aa3ba', fontWeight: 600 }}>
             {maskPhone(chatPhone)}
           </div>
         </div>
@@ -303,43 +304,52 @@ export function AviaFlightManifestPage() {
 
   const isCourierView = !!(flight && user && flight.courierId === user.phone);
 
-  const load = useCallback(() => {
+  const load = useCallback((opts?: { silent?: boolean }) => {
     if (!id || !user?.phone) return;
-    setLoading(true);
-    setError('');
+    const silent = !!opts?.silent;
+    if (!silent) {
+      setLoading(true);
+      setError('');
+      // Сбрасываем данные предыдущего рейса — иначе при смене :id на рейс без
+      // доступа в шапке/манифесте мелькают данные ПРЕЖНЕГО успешно загруженного рейса.
+      setFlight(null);
+      setDeals([]);
+    }
     Promise.all([
       getAviaFlight(id, user.phone),
       getAviaDeals(user.phone),
     ])
       .then(async ([f, allDeals]) => {
-        if (!f) { setError('Рейс не найден'); return; }
+        if (!f) { if (!silent) setError('Рейс не найден'); return; }
         const flightDeals = allDeals.filter(d => d.adType === 'flight' && d.adId === id);
         // Доступ: владелец рейса (курьер) или отправитель, у которого есть сделка на этот рейс
         if (f.courierId !== user.phone && flightDeals.length === 0) {
-          setError('Доступ запрещён: у вас нет сделки на этот рейс');
+          if (!silent) setError('Доступ запрещён: у вас нет сделки на этот рейс');
           return;
         }
         setFlight(f);
         setDeals(flightDeals);
 
         const completed = flightDeals.filter(d => d.status === 'completed');
+        const statusMap = await getAviaDealReviewStatusBatch(completed.map(d => d.id));
         const statuses: Record<string, boolean> = {};
-        await Promise.all(completed.map(async d => {
-          try {
-            const s = await getAviaDealReviewStatus(d.id);
-            const isInit = d.initiatorPhone === user.phone;
-            statuses[d.id] = isInit ? !!s.byInitiator : !!s.byRecipient;
-          } catch {
-            statuses[d.id] = false;
-          }
-        }));
+        for (const d of completed) {
+          const s = statusMap[d.id] || {};
+          const isInit = d.initiatorPhone === user.phone;
+          statuses[d.id] = isInit ? !!s.byInitiator : !!s.byRecipient;
+        }
         setReviewedDeals(statuses);
       })
-      .catch(() => setError('Ошибка загрузки'))
-      .finally(() => setLoading(false));
+      .catch(() => { if (!silent) setError('Ошибка загрузки'); })
+      .finally(() => { if (!silent) setLoading(false); });
   }, [id, user?.phone]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Статусы сделок (accept/reject/cancel/undo) меняются в чате на другом экране —
+  // тихий polling без спиннера, чтобы манифест не "застывал" со старыми данными,
+  // плюс мгновенный рефреш при возврате на вкладку (см. usePolling).
+  usePolling(async () => { load({ silent: true }); }, 20_000);
 
   const handlePODUploaded = (dealId: string, photo: AviaPODPhoto) => {
     setDeals(prev => prev.map(d => d.id === dealId ? { ...d, podPhotos: [...(d.podPhotos || []), photo] } : d));
@@ -421,6 +431,7 @@ export function AviaFlightManifestPage() {
       >
         <button
           onClick={() => navigate(-1)}
+          aria-label="Назад"
           style={{
             width: 36, height: 36, borderRadius: 11,
             border: '1px solid #ffffff12', background: '#ffffff08',
@@ -438,7 +449,7 @@ export function AviaFlightManifestPage() {
             </div>
           )}
         </div>
-        <button onClick={load} style={{
+        <button onClick={() => load()} aria-label="Обновить" style={{
           width: 34, height: 34, borderRadius: 10,
           border: '1px solid #ffffff10', background: '#ffffff06',
           color: '#4a6080', cursor: 'pointer',

@@ -163,6 +163,7 @@ export function AirportAutocomplete({
       {inputVal && (
         <button
           onMouseDown={(e) => { e.preventDefault(); handleClear(); }}
+          aria-label="Очистить"
           style={{
             position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
             width: 18, height: 18, borderRadius: 5, zIndex: 2,
