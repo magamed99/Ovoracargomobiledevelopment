@@ -307,6 +307,10 @@ export function AviaFlightManifestPage() {
     if (!id || !user?.phone) return;
     setLoading(true);
     setError('');
+    // Сбрасываем данные предыдущего рейса — иначе при смене :id на рейс без
+    // доступа в шапке/манифесте мелькают данные ПРЕЖНЕГО успешно загруженного рейса.
+    setFlight(null);
+    setDeals([]);
     Promise.all([
       getAviaFlight(id, user.phone),
       getAviaDeals(user.phone),
