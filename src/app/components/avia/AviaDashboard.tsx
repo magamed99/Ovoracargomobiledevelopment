@@ -128,6 +128,7 @@ function ContactButton({ phone, accentColor }: { phone: string; accentColor: str
       </span>
       <button
         onClick={handleCopy}
+        aria-label="Скопировать номер телефона"
         style={{
           width: 28, height: 28, borderRadius: 8,
           border: `1px solid ${accentColor}20`,

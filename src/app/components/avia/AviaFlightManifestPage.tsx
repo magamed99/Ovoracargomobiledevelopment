@@ -431,6 +431,7 @@ export function AviaFlightManifestPage() {
       >
         <button
           onClick={() => navigate(-1)}
+          aria-label="Назад"
           style={{
             width: 36, height: 36, borderRadius: 11,
             border: '1px solid #ffffff12', background: '#ffffff08',
@@ -448,7 +449,7 @@ export function AviaFlightManifestPage() {
             </div>
           )}
         </div>
-        <button onClick={() => load()} style={{
+        <button onClick={() => load()} aria-label="Обновить" style={{
           width: 34, height: 34, borderRadius: 10,
           border: '1px solid #ffffff10', background: '#ffffff06',
           color: '#4a6080', cursor: 'pointer',

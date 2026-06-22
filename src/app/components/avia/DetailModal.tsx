@@ -79,6 +79,7 @@ function ContactInline({ phone, accentColor }: { phone: string; accentColor: str
             </span>
             <button
               onClick={handleCopy}
+              aria-label="Скопировать номер телефона"
               style={{
                 width: 26, height: 26, borderRadius: 7,
                 border: `1px solid ${accentColor}20`,
@@ -228,6 +229,7 @@ export function FlightDetailModal({
             )}
             <button
               onClick={onClose}
+              aria-label="Закрыть"
               style={{
                 width: 32, height: 32, borderRadius: 10,
                 border: '1px solid #ffffff10', background: '#ffffff08',

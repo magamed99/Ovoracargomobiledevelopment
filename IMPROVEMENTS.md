@@ -120,8 +120,8 @@
 ### A11y
 | # | Приоритет | Предложение |
 |---|---|---|
-| 2.22 | ⚪ | `aria-label` на icon-only кнопках (например, refresh в `AviaFlightManifestPage`) |
-| 2.23 | ⚪ | Семантические `<h2>` вместо стилизованных `div` в заголовках `AviaProfile` |
+| 2.22 | ✅ | `aria-label` на icon-only кнопках (например, refresh в `AviaFlightManifestPage`) | Пройдены все компоненты `src/app/components/avia/*.tsx` на icon-only кнопки (иконка без видимого текста) без `aria-label`. Добавлены метки: «Назад»/«Обновить» в `AviaFlightManifestPage.tsx`; «Скопировать номер телефона» в `AviaDashboard.tsx` и `DetailModal.tsx`; «Закрыть» во всех модалках/шторках без подписи (`NotificationCenter.tsx`, `AviaDealOfferModal.tsx`, `AviaReviewModal.tsx`, `AviaConfirmSheet.tsx`, `AviaVerificationSheet.tsx`, `AviaFilterSheet.tsx`, `CreateFlightModal.tsx`, `EditFlightModal.tsx`, `DetailModal.tsx`); «Очистить» на кнопке сброса в `AirportAutocomplete.tsx`. Кнопки с видимым текстом рядом с иконкой (например «Принять», «Написать») не трогались — у них уже есть доступное имя через текстовый узел. |
+| 2.23 | ✅ | Семантические `<h2>` вместо стилизованных `div` в заголовках `AviaProfile` | В `AviaProfile.tsx` не было ни одного заголовка `<h1>`-`<h6>` — все заголовки были обычными `div` со стилями. Топбар «Мой профиль» переведён в `<h1>` (главный заголовок страницы), имя пользователя в hero-карточке и заголовок карточки паспорта («Верификация паспорта» / др. в зависимости от статуса) — в `<h2>`, а также заголовки трёх аккордеонов («Личные данные», «Отзывы обо мне», «Безопасность») — в `<h2>`. Везде добавлен `margin: 0`, чтобы дефолтные отступы браузера у `h1`/`h2` не сдвигали существующую flex-вёрстку. |
 | 2.24 | ⚪ | Focus management в модалках (`AviaDealOfferModal`) — фокус не переходит на первое поле при открытии |
 
 ### Граничные случаи

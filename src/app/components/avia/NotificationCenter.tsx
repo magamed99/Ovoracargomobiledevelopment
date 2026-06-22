@@ -326,6 +326,7 @@ export function NotificationCenter({
             )}
             <button
               onClick={onClose}
+              aria-label="Закрыть"
               style={{
                 width: 34, height: 34, borderRadius: 10, flexShrink: 0,
                 border: '1px solid rgba(255,255,255,0.09)',

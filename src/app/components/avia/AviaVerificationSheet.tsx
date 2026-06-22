@@ -300,6 +300,7 @@ export function AviaVerificationSheet({
               {/* Close */}
               <button
                 onClick={onClose}
+                aria-label="Закрыть"
                 style={{
                   width: 32, height: 32, borderRadius: 10, flexShrink: 0,
                   background: '#ffffff08', border: '1px solid #ffffff10',
