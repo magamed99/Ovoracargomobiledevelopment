@@ -44,6 +44,17 @@ export function AviaDealOfferModal({ me, flight, onClose, onSuccess, onOpenChat,
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 
+  // Фокус на первое поле формы при открытии модалки
+  const weightInputRef = useRef<HTMLInputElement>(null);
+  const messageRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    (weightInputRef.current || messageRef.current)?.focus();
+  }, []);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') onClose();
+  };
+
   // Определяем, кто получатель
   const recipientPhone = flight.courierId;
   const recipientName  = flight.courierName || flight.courierId;
@@ -178,8 +189,12 @@ export function AviaDealOfferModal({ me, flight, onClose, onSuccess, onOpenChat,
           fontFamily: "'Sora', 'Inter', sans-serif",
         }}
         onClick={onClose}
+        onKeyDown={handleKeyDown}
       >
         <motion.div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Отправить предложение"
           initial={{ y: '100%', opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: '100%', opacity: 0 }}
@@ -361,6 +376,7 @@ export function AviaDealOfferModal({ me, flight, onClose, onSuccess, onOpenChat,
                     Вес груза (кг) *
                   </label>
                   <input
+                    ref={weightInputRef}
                     type="number"
                     min={0.1}
                     step={0.1}
@@ -429,6 +445,7 @@ export function AviaDealOfferModal({ me, flight, onClose, onSuccess, onOpenChat,
                   Сообщение
                 </label>
                 <textarea
+                  ref={messageRef}
                   value={message}
                   onChange={e => setMessage(e.target.value)}
                   placeholder="Дополнительные условия, вопросы..."
