@@ -413,7 +413,7 @@ function FlightCard({
 
 // ── Пустой стейт ──────────────────────────────────────────────────────────────
 
-function EmptyState({ icon: Icon, title, subtitle, color }: { icon: typeof Plane; title: string; subtitle?: string; color: string }) {
+function EmptyState({ icon: Icon, title, subtitle, color, action }: { icon: typeof Plane; title: string; subtitle?: string; color: string; action?: { label: string; onClick: () => void } }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -438,6 +438,18 @@ function EmptyState({ icon: Icon, title, subtitle, color }: { icon: typeof Plane
         <p style={{ fontSize: 12, color: '#3d5268', margin: '4px 0 0', lineHeight: 1.6, fontWeight: 500 }}>
           {subtitle}
         </p>
+      )}
+      {action && (
+        <button
+          onClick={action.onClick}
+          style={{
+            marginTop: 16, padding: '8px 20px', borderRadius: 12,
+            background: `${color}14`, border: `1px solid ${color}30`,
+            color, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+          }}
+        >
+          {action.label}
+        </button>
       )}
     </motion.div>
   );
@@ -495,6 +507,7 @@ export function AviaDashboard() {
   const [flights, setFlights] = useState<AviaFlight[]>([]);
   const [myFlights, setMyFlights] = useState<AviaFlight[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [loadingMy, setLoadingMy] = useState(false);
   const [showFlightModal, setShowFlightModal] = useState(false);
   const [detailFlight, setDetailFlight] = useState<AviaFlight | null>(null);
@@ -580,12 +593,22 @@ export function AviaDashboard() {
       .finally(() => setLoadingMy(false));
   };
 
+  const loadMainData = useCallback(() => {
+    setLoadingData(true);
+    setLoadError(false);
+    fetchMainData()
+      .catch(() => {
+        setLoadError(true);
+        toast.error('Не удалось загрузить рейсы', {
+          action: { label: 'Повторить', onClick: () => loadMainData() },
+        });
+      })
+      .finally(() => setLoadingData(false));
+  }, []);
+
   useEffect(() => {
     if (!user) return;
-    setLoadingData(true);
-    fetchMainData()
-      .catch(() => {})
-      .finally(() => setLoadingData(false));
+    loadMainData();
     // Грузим «Активные» сразу, а не только при первом клике на вкладку —
     // нужны для отображения собственных рейсов/заявок на вкладках выше
     // независимо от их статуса (бэкенд публичных списков скрывает не-active).
@@ -1271,6 +1294,14 @@ export function AviaDashboard() {
           >
               {loadingData ? (
                 <div className="avia-cards-grid">{[0, 1, 2, 3].map(i => <SkeletonCard key={i} />)}</div>
+              ) : loadError ? (
+                <EmptyState
+                  icon={AlertTriangle}
+                  color="#ef4444"
+                  title="Не удалось загрузить рейсы"
+                  subtitle="Проверьте соединение и попробуйте снова"
+                  action={{ label: 'Повторить', onClick: loadMainData }}
+                />
               ) : displayFlights.length === 0 ? (
                 <EmptyState
                   icon={searchQuery ? Search : Plane}
