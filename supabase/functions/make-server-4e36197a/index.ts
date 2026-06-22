@@ -1320,6 +1320,15 @@ app.post("/make-server-4e36197a/offers", async (c) => {
     if (!senderEmail) return c.json({ error: "senderEmail required" }, 400);
     if (!senderName) return c.json({ error: "senderName required" }, 400);
 
+    // ✅ Запрет дублей: у одного отправителя не может быть двух pending-оферт
+    // на один и тот же рейс одновременно (иначе можно наспамить дублями с
+    // разными ценами) — список оферт рейса невелик, full-scan по tripId безопасен.
+    const tripOffers: any[] = await kv.getByPrefix(`ovora:offer:${tripId}:`);
+    const duplicate = tripOffers.find(o => o && o.senderEmail === senderEmail && o.status === 'pending');
+    if (duplicate) {
+      return c.json({ error: "DUPLICATE_OFFER: you already have a pending offer for this trip", offer: duplicate }, 409);
+    }
+
     const offerId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const now = new Date().toISOString();
     const offer = { ...body, offerId, createdAt: now, updatedAt: now, status: 'pending' };
