@@ -493,6 +493,11 @@ export async function getAdminReviews() {
   return data.reviews;
 }
 
+export async function getAdminShipments() {
+  const data = await req('GET', '/admin/shipments');
+  return data.shipments;
+}
+
 export async function deleteAdminReview(reviewId: string) {
   return req('DELETE', `/admin/reviews/${encodeURIComponent(reviewId)}`);
 }

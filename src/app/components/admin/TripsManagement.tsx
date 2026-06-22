@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router';
-import { Search, Clock, Package, Car, Calendar, XCircle, RefreshCw, Loader2, ChevronDown, ChevronUp, Share2, Download, Route } from 'lucide-react';
+import { Search, Clock, Package, Car, Calendar, XCircle, RefreshCw, Loader2, ChevronDown, ChevronUp, Share2, Download, Route, Truck, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
-import { getAdminTrips, getAdminOffers, adminHeaders } from '../../api/dataApi';
+import { getAdminTrips, getAdminOffers, getAdminShipments, adminHeaders } from '../../api/dataApi';
+import { SHIPMENT_STATUS_LABELS, SHIPMENT_STATUS_ICONS } from '../../api/trackingApi';
 import { projectId } from '../../../../utils/supabase/info';
 import { AdminPageHeader, HeaderBtn, FilterChips, SkeletonList } from './AdminPageHeader';
 import { exportCsv } from '../../utils/adminCsvExport';
@@ -30,6 +31,7 @@ function RelTime({ iso }: { iso?: string }) {
 export function TripsManagement() {
   const [trips, setTrips] = useState<any[]>([]);
   const [offersByTrip, setOffersByTrip] = useState<Record<string, any[]>>({});
+  const [shipmentsByTrip, setShipmentsByTrip] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -49,7 +51,7 @@ export function TripsManagement() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [tripsData, offersData] = await Promise.all([getAdminTrips(), getAdminOffers()]);
+      const [tripsData, offersData, shipmentsData] = await Promise.all([getAdminTrips(), getAdminOffers(), getAdminShipments()]);
       setTrips(tripsData || []);
       const obt: Record<string, any[]> = {};
       (offersData || []).forEach((o: any) => {
@@ -58,6 +60,9 @@ export function TripsManagement() {
         obt[o.tripId].push(o);
       });
       setOffersByTrip(obt);
+      const sbt: Record<string, any> = {};
+      (shipmentsData || []).forEach((s: any) => { if (s?.tripId) sbt[s.tripId] = s; });
+      setShipmentsByTrip(sbt);
     } catch {
       toast.error('Ошибка загрузки поездок');
     } finally {
@@ -222,6 +227,7 @@ export function TripsManagement() {
             const tripOffers = offersByTrip[trip.id] || [];
             const acceptedOffers = tripOffers.filter(o => o.status === 'accepted');
             const pendingOffers = tripOffers.filter(o => o.status === 'pending');
+            const shipment = shipmentsByTrip[trip.id];
 
             return (
               <div
@@ -370,6 +376,53 @@ export function TripsManagement() {
                               <p className="text-xs text-gray-400 pl-2">+ ещё {tripOffers.length - 5}</p>
                             )}
                           </div>
+                        </div>
+                      )}
+
+                      {shipment && (
+                        <div className="col-span-2 md:col-span-4 pt-2" style={{ borderTop: '1px solid #f0f4f8' }}>
+                          <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-2 flex items-center gap-1.5">
+                            <Truck className="w-3.5 h-3.5" /> Отслеживание перевозки
+                          </p>
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="px-2.5 py-1 rounded-xl text-xs font-bold" style={{ background: '#eff6ff', color: '#1d4ed8' }}>
+                              {SHIPMENT_STATUS_ICONS[shipment.status as keyof typeof SHIPMENT_STATUS_ICONS] || '•'}{' '}
+                              {SHIPMENT_STATUS_LABELS[shipment.status as keyof typeof SHIPMENT_STATUS_LABELS] || shipment.status || '—'}
+                            </span>
+                            {shipment.updatedAt && (
+                              <span className="text-xs text-gray-400">обновлено {new Date(shipment.updatedAt).toLocaleString('ru-RU')}</span>
+                            )}
+                          </div>
+
+                          {Array.isArray(shipment.statusHistory) && shipment.statusHistory.length > 0 && (
+                            <div className="space-y-1 mb-2">
+                              {shipment.statusHistory.map((h: any, i: number) => (
+                                <div key={i} className="flex items-center gap-2 text-xs text-gray-500">
+                                  <span>{SHIPMENT_STATUS_ICONS[h.status as keyof typeof SHIPMENT_STATUS_ICONS] || '•'}</span>
+                                  <span className="text-gray-700">{SHIPMENT_STATUS_LABELS[h.status as keyof typeof SHIPMENT_STATUS_LABELS] || h.status}</span>
+                                  <span className="text-gray-400">{h.timestamp ? new Date(h.timestamp).toLocaleString('ru-RU') : ''}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {Array.isArray(shipment.podPhotos) && shipment.podPhotos.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {shipment.podPhotos.map((p: any, i: number) => (
+                                <a
+                                  key={i}
+                                  href={p.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium hover:bg-gray-100 transition-colors"
+                                  style={{ background: '#f8fafc', color: '#475569' }}
+                                >
+                                  <ImageIcon className="w-3.5 h-3.5" />
+                                  {p.type === 'loading' ? 'Фото погрузки' : 'Фото выгрузки'}
+                                </a>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

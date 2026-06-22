@@ -4662,6 +4662,16 @@ app.get("/make-server-4e36197a/admin/reviews", async (c) => {
   }
 });
 
+// ✅ Admin: все поставки (shipment-tracking) — статус, история, POD-фото
+app.get("/make-server-4e36197a/admin/shipments", async (c) => {
+  try {
+    const shipments: any[] = await kv.getByPrefix("ovora:shipment:");
+    return c.json({ shipments: shipments.filter(s => s) });
+  } catch (err) {
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
 // ✅ Admin: список грузов отправителей (для управления/модерации)
 app.get("/make-server-4e36197a/admin/cargos", async (c) => {
   try {
