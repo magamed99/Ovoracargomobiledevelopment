@@ -318,7 +318,7 @@ export function SearchPage() {
             <div className="flex-1 min-w-0">
               <p className="text-[9px] font-black uppercase tracking-widest mb-1" style={{ color: '#2e4a62' }}>Откуда</p>
               <input
-                type="text" placeholder="Город отправления" value={fromCity}
+                type="text" placeholder="Город отправления" aria-label="Откуда: город отправления" value={fromCity}
                 onChange={e => handleFromChange(e.target.value)}
                 onFocus={() => setFromFocused(true)} onBlur={() => setFromFocused(false)}
                 className="w-full text-[15px] font-bold bg-transparent outline-none text-white placeholder-[#2e4a62]"
@@ -374,7 +374,7 @@ export function SearchPage() {
             <div className="flex-1 min-w-0">
               <p className="text-[9px] font-black uppercase tracking-widest mb-1" style={{ color: '#2e4a62' }}>Куда</p>
               <input
-                type="text" placeholder="Город назначения" value={toCity}
+                type="text" placeholder="Город назначения" aria-label="Куда: город назначения" value={toCity}
                 onChange={e => handleToChange(e.target.value)}
                 onFocus={() => setToFocused(true)} onBlur={() => setToFocused(false)}
                 className="w-full text-[15px] font-bold bg-transparent outline-none text-white placeholder-[#2e4a62]"
