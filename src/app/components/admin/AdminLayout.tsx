@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router';
 import {
   LayoutDashboard, Users, Car, Package, FileCheck, BarChart3,
-  MessageSquare, Bell, Search,
+  MessageSquare, Bell, Search, ClipboardList as RequestIcon, Star,
   Menu, X, ChevronRight, Truck, ClipboardList, Megaphone,
   LogOut, Clock, TrendingUp, Database, Crown, Globe, Boxes, Plane, History, ShieldOff,
   KeyRound, SlidersHorizontal,
@@ -10,6 +10,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { YandexMetrikaTracker } from '../YandexMetrika';
 import { getAdminStats } from '../../api/dataApi';
+import { usePolling } from '../../hooks/usePolling';
 import { AdminAuthGate } from './AdminAuthGate';
 import { PLATFORM_THEME, GROUP_PLATFORM } from './platformTheme';
 
@@ -78,6 +79,8 @@ export function AdminLayout() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [stats, setStats] = useState<any>(null);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [authed, setAuthed] = useState(() =>
     sessionStorage.getItem(PIN_SESSION_KEY) === 'true' &&
@@ -91,11 +94,20 @@ export function AdminLayout() {
     return true;
   });
 
+  usePolling(async () => {
+    const s = await getAdminStats();
+    setStats(s);
+  }, 30_000, authed);
+
+  // Закрытие панели уведомлений по клику снаружи
   useEffect(() => {
-    if (authed) {
-      getAdminStats().then(s => setStats(s)).catch(() => {});
-    }
-  }, [authed]);
+    if (!notifOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [notifOpen]);
 
   if (!authed) {
     return <AdminAuthGate onSuccess={() => setAuthed(true)} />;
@@ -122,6 +134,24 @@ export function AdminLayout() {
   const currentGroup = navGroups.find(g => g.items.some(n => isActive(n)));
   const currentPlatform = currentGroup ? GROUP_PLATFORM[currentGroup.label] : undefined;
   const today = new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
+
+  const notifItems = [
+    ...(stats?.pendingOffers > 0 ? [{
+      href: '/admin/cargo/offers',
+      label: `${stats.pendingOffers} новых заявок`,
+      icon: RequestIcon,
+      bg: '#eff6ff',
+      color: '#2563eb',
+    }] : []),
+    ...(stats?.recentReviews > 0 ? [{
+      href: '/admin/cargo/reviews',
+      label: `${stats.recentReviews} новых отзывов`,
+      icon: Star,
+      bg: '#fffbeb',
+      color: '#d97706',
+    }] : []),
+  ];
+  const notifTotal = (stats?.pendingOffers || 0) + (stats?.recentReviews || 0);
 
   return (
     <div className="min-h-screen bg-[#f1f5f9]">
@@ -343,15 +373,60 @@ export function AdminLayout() {
               </div>
 
               {/* Notifications */}
-              <button className="relative p-2 rounded-xl text-gray-500 hover:bg-gray-100 transition-colors">
-                <Bell className="w-5 h-5" />
-                {stats?.offers > 0 && (
-                  <span
-                    className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"
-                    style={{ boxShadow: '0 0 6px #ef444480' }}
-                  />
-                )}
-              </button>
+              <div ref={notifRef} className="relative">
+                <button
+                  onClick={() => setNotifOpen(v => !v)}
+                  aria-label="Уведомления"
+                  aria-expanded={notifOpen}
+                  className="relative p-2 rounded-xl text-gray-500 hover:bg-gray-100 transition-colors"
+                >
+                  <Bell className="w-5 h-5" />
+                  {notifTotal > 0 && (
+                    <span
+                      className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold"
+                      style={{ boxShadow: '0 0 6px #ef444480' }}
+                    >
+                      {notifTotal > 9 ? '9+' : notifTotal}
+                    </span>
+                  )}
+                </button>
+
+                <AnimatePresence>
+                  {notifOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 top-full mt-2 w-72 rounded-2xl shadow-lg overflow-hidden z-50"
+                      style={{ background: '#fff', border: '1px solid #e2e8f0' }}
+                    >
+                      <div className="px-4 py-3" style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <p className="text-sm font-bold text-gray-700">Уведомления</p>
+                      </div>
+                      <div className="max-h-80 overflow-y-auto">
+                        {notifItems.length === 0 ? (
+                          <p className="px-4 py-6 text-sm text-gray-400 text-center">Нет новых уведомлений</p>
+                        ) : (
+                          notifItems.map(item => (
+                            <button
+                              key={item.href}
+                              onClick={() => { setNotifOpen(false); navigate(item.href); }}
+                              className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+                              style={{ borderBottom: '1px solid #f8fafc' }}
+                            >
+                              <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: item.bg }}>
+                                <item.icon className="w-4 h-4" style={{ color: item.color }} />
+                              </div>
+                              <span className="text-sm text-gray-600">{item.label}</span>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
 
               {/* Quick stats */}
               {stats && (

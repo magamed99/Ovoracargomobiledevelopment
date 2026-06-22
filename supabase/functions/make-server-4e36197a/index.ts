@@ -4567,11 +4567,18 @@ app.get("/make-server-4e36197a/admin/stats", async (c) => {
       kv.getByPrefix("ovora:user:email:"),
       kv.getByPrefix("ovora:review:"),
     ]);
+    // Для центра уведомлений в шапке админки: новые pending-заявки и отзывы за последние 24ч.
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const sinceTs = Date.now() - DAY_MS;
+    const validOffers = offers.filter((o: any) => o);
+    const validReviews = reviews.filter((r: any) => r);
     return c.json({
       trips: trips.filter((t: any) => t && !t.deletedAt).length,
-      offers: offers.filter((o: any) => o).length,
+      offers: validOffers.length,
       users: users.filter((u: any) => u).length,
-      reviews: reviews.filter((r: any) => r).length,
+      reviews: validReviews.length,
+      pendingOffers: validOffers.filter((o: any) => o.status === 'pending').length,
+      recentReviews: validReviews.filter((r: any) => new Date(r.createdAt).getTime() >= sinceTs).length,
     });
   } catch (err) {
     console.log("Error GET /admin/stats:", err);
