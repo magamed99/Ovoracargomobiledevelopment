@@ -60,6 +60,7 @@ const navGroups = [
       { name: 'AVIA Пользователи', href: '/admin/avia/users', icon: Plane },
       { name: 'AVIA Карточки', href: '/admin/avia/cards', icon: Boxes },
       { name: 'AVIA Аналитика', href: '/admin/avia/analytics', icon: BarChart3 },
+      { name: 'AVIA Настройки', href: '/admin/avia/settings', icon: SlidersHorizontal },
       { name: 'AVIA Чёрный список', href: '/admin/avia/blacklist', icon: ShieldOff },
       { name: 'AVIA Аудит', href: '/admin/avia/audit', icon: History },
     ],

@@ -72,6 +72,15 @@ export async function removeFromAviaBlacklist(phone: string) {
   return req('DELETE', `/blacklist/${encodeURIComponent(phone)}`);
 }
 
+export async function getAviaAdminSettings(): Promise<Record<string, any>> {
+  const data = await req('GET', '/settings');
+  return data.settings || {};
+}
+
+export async function updateAviaAdminSettings(settings: Record<string, any>) {
+  return req('PUT', '/settings', settings);
+}
+
 export async function getAviaAdminAudit(filter?: {
   actorPhone?: string; targetId?: string; action?: string; limit?: number; offset?: number;
 }) {

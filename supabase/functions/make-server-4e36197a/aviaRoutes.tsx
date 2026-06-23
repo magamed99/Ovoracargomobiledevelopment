@@ -2102,5 +2102,33 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
     }
   });
 
+  // ══════════════════════════════════════════════════════════════════════════
+  //  ADMIN — НАСТРОЙКИ ПЛАТФОРМЫ AVIA
+  //  Отдельный KV-ключ от CARGO (ovora:admin:settings защищён requireRole(
+  //  ['cargo-admin']), куда avia-admin не входит) — нужен собственный эндпоинт.
+  // ══════════════════════════════════════════════════════════════════════════
+
+  app.get(`${P}/admin/settings`, async (c) => {
+    try {
+      const settings = await kv.get('ovora:avia-admin:settings');
+      return c.json({ settings: settings || {} });
+    } catch (err) {
+      console.log('Error GET /avia/admin/settings:', err);
+      return c.json({ error: `${err}` }, 500);
+    }
+  });
+
+  app.put(`${P}/admin/settings`, async (c) => {
+    try {
+      const body = await c.req.json();
+      await kv.set('ovora:avia-admin:settings', { ...body, updatedAt: new Date().toISOString() });
+      await AuditLog.record({ action: 'settings.admin_update', actorPhone: 'admin', targetType: 'settings', details: { fields: Object.keys(body) } });
+      return c.json({ success: true });
+    } catch (err) {
+      console.log('Error PUT /avia/admin/settings:', err);
+      return c.json({ error: `${err}` }, 500);
+    }
+  });
+
   console.log('[AVIA] Routes registered. Architecture: Repository + Cache + RateLimit');
 }
