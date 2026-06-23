@@ -58,8 +58,8 @@ export async function deleteAviaAdminDeal(id: string) {
   return req('DELETE', `/deals/${encodeURIComponent(id)}`);
 }
 
-export async function updateAviaAdminFlightStatus(id: string, status: 'active' | 'closed' | 'cancelled') {
-  const data = await req('PUT', `/flights/${encodeURIComponent(id)}/status`, { status });
+export async function updateAviaAdminFlightStatus(id: string, status: 'active' | 'closed' | 'cancelled', moderationReason?: string) {
+  const data = await req('PUT', `/flights/${encodeURIComponent(id)}/status`, { status, moderationReason });
   return data.flight;
 }
 

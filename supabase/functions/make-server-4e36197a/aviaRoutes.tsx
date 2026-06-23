@@ -2020,7 +2020,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
   app.put(`${P}/admin/flights/:id/status`, async (c) => {
     try {
       const id = c.req.param('id');
-      const { status } = await c.req.json();
+      const { status, moderationReason } = await c.req.json();
       const allowed = ['active', 'closed', 'cancelled'];
       if (!allowed.includes(status)) return c.json({ error: `status must be one of: ${allowed.join(', ')}` }, 400);
 
@@ -2028,9 +2028,15 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       if (!flight) return c.json({ error: 'Flight not found' }, 404);
 
       const previousStatus = flight.status;
-      const updated = { ...flight, status, updatedAt: new Date().toISOString() };
+      const now = new Date().toISOString();
+      const updated = {
+        ...flight,
+        status,
+        updatedAt: now,
+        ...(moderationReason ? { moderationReason, moderationBy: 'admin', moderationAt: now } : {}),
+      };
       await Flights.set(id, updated);
-      await AuditLog.record({ action: 'flight.admin_status_change', actorPhone: 'admin', targetId: id, targetType: 'flight', details: { status, previousStatus } });
+      await AuditLog.record({ action: 'flight.admin_status_change', actorPhone: 'admin', targetId: id, targetType: 'flight', details: { status, previousStatus, moderationReason } });
       return c.json({ success: true, flight: updated });
     } catch (err) {
       console.log('Error PUT /avia/admin/flights/:id/status:', err);

@@ -51,9 +51,14 @@ export function AviaCardsManagement() {
 
   const handleFlightStatusChange = async (flight: any, status: 'active' | 'closed' | 'cancelled') => {
     if (status === flight.status) return;
+    let moderationReason: string | undefined;
+    if (status === 'closed' || status === 'cancelled') {
+      const input = prompt('Причина модерации (необязательно):') || '';
+      moderationReason = input.trim() || undefined;
+    }
     setActionLoading(flight.id);
     try {
-      const updated = await updateAviaAdminFlightStatus(flight.id, status);
+      const updated = await updateAviaAdminFlightStatus(flight.id, status, moderationReason);
       setFlights(prev => prev.map(f => f.id === flight.id ? { ...f, ...updated } : f));
       toast.success('Статус рейса изменён');
     } catch {
@@ -230,6 +235,11 @@ export function AviaCardsManagement() {
                     <p className="text-xs text-gray-400 mt-0.5 break-words">
                       {flight.courierId} · {flight.date} · свободно {flight.freeKg} кг
                     </p>
+                    {flight.moderationReason && (
+                      <p className="text-xs text-red-500 mt-1 break-words">
+                        Причина модерации: {flight.moderationReason}
+                      </p>
+                    )}
                     <div className="text-xs text-gray-400 mt-0.5 md:hidden">
                       {flight.createdAt ? new Date(flight.createdAt).toLocaleDateString('ru-RU') : '—'}
                     </div>
