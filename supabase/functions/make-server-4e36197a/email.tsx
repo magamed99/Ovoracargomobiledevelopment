@@ -46,6 +46,11 @@ export async function sendEmail(params: {
     return { success: false, error: "Invalid recipient email" };
   }
 
+  if (await isUnsubscribed(params.to)) {
+    console.log(`[Email] Skipped (unsubscribed): ${params.to}`);
+    return { success: false, skipped: true, error: "Recipient unsubscribed" };
+  }
+
   try {
     const body: Record<string, unknown> = {
       from: getFromEmail(),
@@ -82,6 +87,27 @@ export async function sendEmail(params: {
   }
 }
 
+// ── Отписка от email-уведомлений ───────────────────────────────────────────────
+function unsubKey(email: string): string {
+  return `ovora:email:unsubscribed:${email.toLowerCase().trim()}`;
+}
+
+export async function isUnsubscribed(email: string): Promise<boolean> {
+  try {
+    return !!(await kv.get(unsubKey(email)));
+  } catch {
+    return false;
+  }
+}
+
+export async function setUnsubscribed(email: string, value: boolean): Promise<void> {
+  if (value) {
+    await kv.set(unsubKey(email), { ts: Date.now() });
+  } else {
+    await kv.del(unsubKey(email));
+  }
+}
+
 // ── Rate limiter — max 1 email per (userEmail + event) per ttlMs ──────────────
 /**
  * Возвращает true, если письмо нужно пропустить (throttled).
@@ -111,7 +137,10 @@ export async function throttleEmail(
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ── Общая обёртка ─────────────────────────────────────────────────────────────
-function layout(content: string, preheader = ""): string {
+function layout(content: string, preheader = "", recipientEmail?: string): string {
+  const unsubLink = recipientEmail
+    ? `${Deno.env.get("SUPABASE_URL") || ""}/functions/v1/make-server-4e36197a/email/unsubscribe?email=${encodeURIComponent(recipientEmail)}`
+    : "";
   return `<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -176,8 +205,7 @@ ${preheader ? `<div style="display:none;max-height:0;overflow:hidden;mso-hide:al
         © ${new Date().getFullYear()} Ovora Cargo. Все права защищены.<br/>
         Россия · Таджикистан · СНГ<br/>
         <a href="https://t.me/ovora_support">Поддержка в Telegram</a>
-        &nbsp;•&nbsp;
-        <a href="#">Отписаться от уведомлений</a>
+        ${unsubLink ? `&nbsp;•&nbsp;<a href="${unsubLink}">Отписаться от уведомлений</a>` : ""}
       </p>
     </div>
   </div>
@@ -190,6 +218,7 @@ ${preheader ? `<div style="display:none;max-height:0;overflow:hidden;mso-hide:al
 export function welcomeTemplate(params: {
   firstName: string;
   role: "driver" | "sender";
+  email?: string;
   appUrl?: string;
 }): { subject: string; html: string } {
   const isDriver = params.role === "driver";
@@ -263,7 +292,7 @@ export function welcomeTemplate(params: {
 
   return {
     subject: `Добро пожаловать в Ovora Cargo, ${params.firstName}! 🎉`,
-    html: layout(content, `Рады приветствовать вас, ${params.firstName}! Вы зарегистрированы как ${role}.`),
+    html: layout(content, `Рады приветствовать вас, ${params.firstName}! Вы зарегистрированы как ${role}.`, params.email),
   };
 }
 
@@ -277,6 +306,7 @@ export function newOfferTemplate(params: {
   price?: number;
   currency?: string;
   notes?: string;
+  email?: string;
   appUrl?: string;
 }): { subject: string; html: string } {
   const appUrl = params.appUrl || "https://ovora.app";
@@ -327,7 +357,7 @@ export function newOfferTemplate(params: {
 
   return {
     subject: `📬 Новая оферта на маршрут ${params.tripRoute}`,
-    html: layout(content, `${params.senderName} отправил оферту на маршрут ${params.tripRoute}`),
+    html: layout(content, `${params.senderName} отправил оферту на маршрут ${params.tripRoute}`, params.email),
   };
 }
 
@@ -340,6 +370,7 @@ export function offerAcceptedTemplate(params: {
   tripDate?: string;
   price?: number;
   currency?: string;
+  email?: string;
   appUrl?: string;
 }): { subject: string; html: string } {
   const appUrl = params.appUrl || "https://ovora.app";
@@ -402,6 +433,7 @@ export function offerAcceptedTemplate(params: {
     html: layout(
       content,
       `${params.driverName} принял вашу заявку на маршрут ${params.tripRoute}. Свяжитесь с водителем!`,
+      params.email,
     ),
   };
 }
@@ -412,6 +444,7 @@ export function offerRejectedTemplate(params: {
   driverName: string;
   tripRoute: string;
   reason?: string;
+  email?: string;
   appUrl?: string;
 }): { subject: string; html: string } {
   const appUrl = params.appUrl || "https://ovora.app";
@@ -458,7 +491,7 @@ export function offerRejectedTemplate(params: {
 
   return {
     subject: `❌ Водитель ${params.driverName} отклонил вашу заявку`,
-    html: layout(content, `Заявка на ${params.tripRoute} отклонена. Найдите другого водителя!`),
+    html: layout(content, `Заявка на ${params.tripRoute} отклонена. Найдите другого водителя!`, params.email),
   };
 }
 
@@ -469,6 +502,7 @@ export function tripCompletedTemplate(params: {
   partnerName: string;
   tripRoute: string;
   tripDate?: string;
+  email?: string;
   appUrl?: string;
 }): { subject: string; html: string } {
   const appUrl = params.appUrl || "https://ovora.app";
@@ -513,7 +547,7 @@ export function tripCompletedTemplate(params: {
 
   return {
     subject: `🏁 Поездка ${params.tripRoute} завершена`,
-    html: layout(content, `Поездка ${params.tripRoute} успешно завершена. Оставьте отзыв!`),
+    html: layout(content, `Поездка ${params.tripRoute} успешно завершена. Оставьте отзыв!`, params.email),
   };
 }
 
@@ -523,6 +557,7 @@ export function newMessageTemplate(params: {
   senderName: string;
   messagePreview: string;
   tripRoute?: string;
+  email?: string;
   appUrl?: string;
 }): { subject: string; html: string } {
   const appUrl = params.appUrl || "https://ovora.app";
@@ -565,6 +600,7 @@ export function newMessageTemplate(params: {
     html: layout(
       content,
       `${params.senderName}: ${params.messagePreview.substring(0, 80)}`,
+      params.email,
     ),
   };
 }
@@ -574,6 +610,7 @@ export function userStatusTemplate(params: {
   firstName: string;
   blocked: boolean;
   reason?: string;
+  email?: string;
   appUrl?: string;
 }): { subject: string; html: string } {
   const appUrl = params.appUrl || "https://ovora.app";
@@ -605,7 +642,7 @@ export function userStatusTemplate(params: {
 
   return {
     subject: params.blocked ? "🚫 Ваш аккаунт Ovora Cargo заблокирован" : "✅ Ваш аккаунт Ovora Cargo разблокирован",
-    html: layout(content, params.blocked ? "Ваш аккаунт заблокирован администратором." : "Доступ к аккаунту восстановлен."),
+    html: layout(content, params.blocked ? "Ваш аккаунт заблокирован администратором." : "Доступ к аккаунту восстановлен.", params.email),
   };
 }
 
@@ -615,6 +652,7 @@ export function documentStatusTemplate(params: {
   documentType: string;
   approved: boolean;
   reason?: string;
+  email?: string;
   appUrl?: string;
 }): { subject: string; html: string } {
   const appUrl = params.appUrl || "https://ovora.app";
@@ -647,7 +685,7 @@ export function documentStatusTemplate(params: {
 
   return {
     subject: params.approved ? `✅ Документ «${params.documentType}» одобрен` : `❌ Документ «${params.documentType}» отклонён`,
-    html: layout(content, params.approved ? "Ваш документ прошёл проверку." : "Документ не прошёл проверку — загрузите его повторно."),
+    html: layout(content, params.approved ? "Ваш документ прошёл проверку." : "Документ не прошёл проверку — загрузите его повторно.", params.email),
   };
 }
 
@@ -657,6 +695,7 @@ export function adminActionTemplate(params: {
   title: string;
   message: string;
   reason?: string;
+  email?: string;
   appUrl?: string;
 }): { subject: string; html: string } {
   const appUrl = params.appUrl || "https://ovora.app";
@@ -683,6 +722,6 @@ export function adminActionTemplate(params: {
 
   return {
     subject: `⚠️ ${params.title}`,
-    html: layout(content, params.message),
+    html: layout(content, params.message, params.email),
   };
 }

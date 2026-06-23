@@ -22,7 +22,7 @@ import { handleSendOtp, handleVerifyOtp } from "./otp.tsx";
 import { handleGenerateBackup, handleVerifyBackup, handleBackupExists } from "./backup.tsx";
 import { handleEmailCheck, handleSetCode, handleVerifyPermCode, handleResetCode, handleAdminListCodes } from "./permCode.tsx";
 import {
-  sendEmail, throttleEmail,
+  sendEmail, throttleEmail, setUnsubscribed,
   welcomeTemplate, newOfferTemplate,
   offerAcceptedTemplate, offerRejectedTemplate,
   tripCompletedTemplate, newMessageTemplate,
@@ -341,6 +341,22 @@ app.post("/make-server-4e36197a/push/unsubscribe", async (c) => {
   }
 });
 
+// ── Отписка от email-уведомлений (ссылка из футера писем) ─────────────────────
+app.get("/make-server-4e36197a/email/unsubscribe", async (c) => {
+  const email = (c.req.query("email") || "").toLowerCase().trim();
+  const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]!));
+  if (!email || !email.includes("@")) {
+    return c.html(`<!DOCTYPE html><html lang="ru"><body style="font-family:sans-serif;text-align:center;padding:48px;">Некорректный email-адрес.</body></html>`, 400);
+  }
+  await setUnsubscribed(email, true);
+  console.log(`[Email] Unsubscribed via link: ${email}`);
+  return c.html(`<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"/><title>Ovora Cargo</title></head>
+<body style="font-family:'Segoe UI',Arial,sans-serif;background:#0a1220;color:#e2e8f0;text-align:center;padding:64px 24px;">
+  <h1 style="font-size:22px;margin-bottom:12px;">Вы отписаны от email-уведомлений</h1>
+  <p style="color:#7a9ab8;font-size:14px;">Адрес <strong>${escapeHtml(email)}</strong> больше не будет получать письма от Ovora Cargo.</p>
+</body></html>`);
+});
+
 // ── Health ────────────────────────────────────────────────────────────────────
 app.get("/make-server-4e36197a/health", (c) => c.json({ status: "ok" }));
 
@@ -647,7 +663,7 @@ app.post("/make-server-4e36197a/auth/register",
       (async () => {
         const throttled = await throttleEmail(user.email, 'welcome', 86_400_000); // 1 раз в сутки
         if (!throttled) {
-          const tpl = welcomeTemplate({ firstName: user.firstName, role: user.role });
+          const tpl = welcomeTemplate({ firstName: user.firstName, role: user.role, email: user.email });
           await sendEmail({ to: user.email, subject: tpl.subject, html: tpl.html });
         }
       })().catch(e => console.warn('[Email] welcome failed:', e));
@@ -1135,7 +1151,7 @@ app.put("/make-server-4e36197a/trips/:id", async (c) => {
             if (offer.senderEmail) {
               const throttled = await throttleEmail(offer.senderEmail, `trip-completed-${id}`, 3_600_000);
               if (!throttled) {
-                const tpl = tripCompletedTemplate({ recipientName: senderFirstName, recipientRole: 'sender', partnerName: driverFullName, tripRoute, tripDate });
+                const tpl = tripCompletedTemplate({ recipientName: senderFirstName, recipientRole: 'sender', partnerName: driverFullName, tripRoute, tripDate, email: offer.senderEmail });
                 sendEmail({ to: offer.senderEmail, subject: tpl.subject, html: tpl.html }).catch(() => {});
               }
             }
@@ -1143,7 +1159,7 @@ app.put("/make-server-4e36197a/trips/:id", async (c) => {
             if (updated.driverEmail) {
               const throttled = await throttleEmail(updated.driverEmail, `trip-completed-${id}`, 3_600_000);
               if (!throttled) {
-                const tpl = tripCompletedTemplate({ recipientName: driverFirstName, recipientRole: 'driver', partnerName: senderFullName, tripRoute, tripDate });
+                const tpl = tripCompletedTemplate({ recipientName: driverFirstName, recipientRole: 'driver', partnerName: senderFullName, tripRoute, tripDate, email: updated.driverEmail });
                 sendEmail({ to: updated.driverEmail, subject: tpl.subject, html: tpl.html }).catch(() => {});
               }
             }
@@ -1446,6 +1462,7 @@ app.post("/make-server-4e36197a/offers",
               price: offer.price || offer.totalPrice,
               currency: offer.currency || 'TJS',
               notes: offer.notes,
+              email: offer.driverEmail,
             });
             await sendEmail({ to: offer.driverEmail, subject: tpl.subject, html: tpl.html });
           }
@@ -1825,11 +1842,13 @@ app.put("/make-server-4e36197a/offers/:tripId/:offerId", async (c) => {
                   tripDate: trip?.date,
                   price: existing.price || existing.totalPrice,
                   currency: existing.currency || 'TJS',
+                  email: existing.senderEmail,
                 })
               : offerRejectedTemplate({
                   senderName: senderFirstName,
                   driverName,
                   tripRoute,
+                  email: existing.senderEmail,
                 });
             await sendEmail({ to: existing.senderEmail, subject: tpl.subject, html: tpl.html });
           }
@@ -2416,6 +2435,7 @@ app.post("/make-server-4e36197a/chat/message", async (c) => {
                   senderName: senderName || 'Пользователь',
                   messagePreview: text.substring(0, 120),
                   tripRoute,
+                  email: recipientEmail,
                 });
                 await sendEmail({ to: recipientEmail, subject: tpl.subject, html: tpl.html });
               }
@@ -4796,6 +4816,7 @@ app.delete("/make-server-4e36197a/admin/cargos/:id", async (c) => {
           firstName: sender.firstName || 'Пользователь',
           title: 'ваш груз снят с публикации',
           message: `Объявление о грузе «${existing.from || ''} → ${existing.to || ''}» снято с публикации администратором.`,
+          email: existing.senderEmail,
         });
         sendEmail({ to: existing.senderEmail, subject: tpl.subject, html: tpl.html }).catch(() => {});
       }
@@ -4881,6 +4902,7 @@ app.put("/make-server-4e36197a/admin/offers/:tripId/:offerId/status", async (c) 
             firstName: user.firstName || 'Пользователь',
             title: 'оферта изменена администратором',
             message: `Статус оферты по поездке изменён администратором на «${status}» в рамках разрешения спора.`,
+            email,
           });
           sendEmail({ to: email, subject: tpl.subject, html: tpl.html }).catch(() => {});
         }
@@ -4915,6 +4937,7 @@ app.delete("/make-server-4e36197a/admin/reviews/:reviewId", async (c) => {
           firstName: author.firstName || 'Пользователь',
           title: 'ваш отзыв удалён',
           message: 'Ваш отзыв удалён администратором платформы в рамках модерации.',
+          email: existing.authorEmail,
         });
         sendEmail({ to: existing.authorEmail, subject: tpl.subject, html: tpl.html }).catch(() => {});
       }
@@ -4986,6 +5009,7 @@ app.put("/make-server-4e36197a/admin/documents/:documentId/status", async (c) =>
           documentType: existing.type || 'Документ',
           approved: status === "verified" || status === "approved",
           reason: notes,
+          email: userEmail,
         });
         sendEmail({ to: userEmail, subject: tpl.subject, html: tpl.html }).catch(() => {});
       }
@@ -5038,6 +5062,7 @@ app.put("/make-server-4e36197a/admin/users/:email/status", async (c) => {
         const tpl = userStatusTemplate({
           firstName: existing.firstName || 'Пользователь',
           blocked: status === "blocked",
+          email,
         });
         sendEmail({ to: email, subject: tpl.subject, html: tpl.html }).catch(() => {});
       }
