@@ -434,6 +434,11 @@ export const router = createBrowserRouter([
               .then(m => ({ Component: m.AviaCardsManagement })),
           },
           {
+            path: "avia/analytics",
+            lazy: () => import("./components/admin/AviaAnalytics")
+              .then(m => ({ Component: m.AviaAnalytics })),
+          },
+          {
             path: "avia/audit",
             lazy: () => import("./components/admin/AviaAuditLog")
               .then(m => ({ Component: m.AviaAuditLog })),
