@@ -26,6 +26,7 @@ import {
   welcomeTemplate, newOfferTemplate,
   offerAcceptedTemplate, offerRejectedTemplate,
   tripCompletedTemplate, newMessageTemplate,
+  userStatusTemplate, documentStatusTemplate, adminActionTemplate,
 } from "./email.tsx";
 
 const app = new Hono();
@@ -4789,6 +4790,15 @@ app.delete("/make-server-4e36197a/admin/cargos/:id", async (c) => {
     await kv.set(`ovora:cargo:${id}`, { ...existing, deletedAt: new Date().toISOString(), status: 'cancelled' });
     if (existing.senderEmail) {
       await kv.del(`ovora:sendercargos:${existing.senderEmail}:${id}`).catch(() => {});
+      const sender: any = await kv.get(`ovora:user:email:${existing.senderEmail.toLowerCase().trim()}`);
+      if (sender && !(await throttleEmail(existing.senderEmail, `cargo-removed-${id}`, 3_600_000))) {
+        const tpl = adminActionTemplate({
+          firstName: sender.firstName || 'Пользователь',
+          title: 'ваш груз снят с публикации',
+          message: `Объявление о грузе «${existing.from || ''} → ${existing.to || ''}» снято с публикации администратором.`,
+        });
+        sendEmail({ to: existing.senderEmail, subject: tpl.subject, html: tpl.html }).catch(() => {});
+      }
     }
     await CargoAuditLog.record({ action: 'cargo.admin_delete', actorEmail: 'admin', targetId: id, targetType: 'cargo', details: { senderEmail: existing.senderEmail } });
     console.log(`[DELETE /admin/cargos] Admin removed cargo ${id}`);
@@ -4863,6 +4873,20 @@ app.put("/make-server-4e36197a/admin/offers/:tripId/:offerId/status", async (c) 
       }
     }
 
+    if (isFinalStatus) {
+      for (const email of [existing.senderEmail, existing.driverEmail].filter(Boolean)) {
+        const user: any = await kv.get(`ovora:user:email:${email.toLowerCase().trim()}`);
+        if (user && !(await throttleEmail(email, `offer-admin-${status}-${tripId}-${offerId}`, 3_600_000))) {
+          const tpl = adminActionTemplate({
+            firstName: user.firstName || 'Пользователь',
+            title: 'оферта изменена администратором',
+            message: `Статус оферты по поездке изменён администратором на «${status}» в рамках разрешения спора.`,
+          });
+          sendEmail({ to: email, subject: tpl.subject, html: tpl.html }).catch(() => {});
+        }
+      }
+    }
+
     await CargoAuditLog.record({ action: 'offer.admin_status_change', actorEmail: 'admin', targetId: `${tripId}:${offerId}`, targetType: 'offer', details: { status, previousStatus: existing.status } });
     console.log(`[PUT /admin/offers] Admin set offer ${tripId}:${offerId} status to ${status}`);
     return c.json({ success: true, offer: updated });
@@ -4883,6 +4907,18 @@ app.delete("/make-server-4e36197a/admin/reviews/:reviewId", async (c) => {
     await kv.del(key);
     if (existing.targetEmail) await kv.del(`ovora:userreviews:target:${existing.targetEmail}:${reviewId}`).catch(() => {});
     if (existing.authorEmail) await kv.del(`ovora:userreviews:author:${existing.authorEmail}:${reviewId}`).catch(() => {});
+
+    if (existing.authorEmail) {
+      const author: any = await kv.get(`ovora:user:email:${existing.authorEmail.toLowerCase().trim()}`);
+      if (author && !(await throttleEmail(existing.authorEmail, `review-removed-${reviewId}`, 3_600_000))) {
+        const tpl = adminActionTemplate({
+          firstName: author.firstName || 'Пользователь',
+          title: 'ваш отзыв удалён',
+          message: 'Ваш отзыв удалён администратором платформы в рамках модерации.',
+        });
+        sendEmail({ to: existing.authorEmail, subject: tpl.subject, html: tpl.html }).catch(() => {});
+      }
+    }
 
     await CargoAuditLog.record({ action: 'review.admin_delete', actorEmail: 'admin', targetId: reviewId, targetType: 'review', details: { targetEmail: existing.targetEmail, authorEmail: existing.authorEmail } });
     console.log(`[DELETE /admin/reviews] Admin removed review ${reviewId}`);
@@ -4938,10 +4974,21 @@ app.put("/make-server-4e36197a/admin/documents/:documentId/status", async (c) =>
     if (!existing) return c.json({ error: "Document not found" }, 404);
     const updated = { ...existing, status, ...(notes ? { adminNotes: notes } : {}), reviewedAt: new Date().toISOString() };
     await kv.set(docKey, updated);
+    const userKey = `ovora:user:email:${userEmail.toLowerCase().trim()}`;
+    const user: any = await kv.get(userKey);
     if (status === "verified" || status === "approved") {
-      const userKey = `ovora:user:email:${userEmail.toLowerCase().trim()}`;
-      const user: any = await kv.get(userKey);
       if (user) await kv.set(userKey, { ...user, isVerified: true, documentsVerified: true, updatedAt: new Date().toISOString() });
+    }
+    if ((status === "verified" || status === "approved" || status === "rejected") && user) {
+      if (!(await throttleEmail(userEmail, `document-${status}-${documentId}`, 3_600_000))) {
+        const tpl = documentStatusTemplate({
+          firstName: user.firstName || 'Пользователь',
+          documentType: existing.type || 'Документ',
+          approved: status === "verified" || status === "approved",
+          reason: notes,
+        });
+        sendEmail({ to: userEmail, subject: tpl.subject, html: tpl.html }).catch(() => {});
+      }
     }
     const adminRole = c.get('adminRole') || 'admin';
     await CargoAuditLog.record({ action: 'document.admin_status_change', actorEmail: `admin:${adminRole}`, targetId: documentId, targetType: 'document', details: { userEmail, status, notes } });
@@ -4986,6 +5033,15 @@ app.put("/make-server-4e36197a/admin/users/:email/status", async (c) => {
     if (!existing) return c.json({ error: "User not found" }, 404);
     const updated = { ...existing, status, updatedAt: new Date().toISOString() };
     await kv.set(key, updated);
+    if ((status === "blocked" || status === "active") && status !== existing.status) {
+      if (!(await throttleEmail(email, `user-status-${status}`, 3_600_000))) {
+        const tpl = userStatusTemplate({
+          firstName: existing.firstName || 'Пользователь',
+          blocked: status === "blocked",
+        });
+        sendEmail({ to: email, subject: tpl.subject, html: tpl.html }).catch(() => {});
+      }
+    }
     await CargoAuditLog.record({ action: 'user.admin_status_change', actorEmail: 'admin', targetId: email, targetType: 'user', details: { status, previousStatus: existing.status } });
     return c.json({ success: true, user: updated });
   } catch (err) {
