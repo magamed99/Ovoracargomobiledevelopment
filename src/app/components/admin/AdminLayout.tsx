@@ -1,18 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Outlet, Link, useLocation, useNavigate } from 'react-router';
+import { Outlet, useLocation, useNavigate } from 'react-router';
 import {
   LayoutDashboard, Users, Car, Package, FileCheck, BarChart3,
-  MessageSquare, Bell, Search, ClipboardList as RequestIcon, Star,
-  Menu, X, ChevronRight, Truck, ClipboardList, Megaphone,
-  LogOut, Clock, TrendingUp, Database, Crown, Globe, Boxes, Plane, History, ShieldOff,
+  MessageSquare, Bell, ClipboardList as RequestIcon, Star,
+  Truck, ClipboardList, Megaphone,
+  Crown, Globe, Boxes, Plane, History, ShieldOff,
   KeyRound, SlidersHorizontal, MessageCircle,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
 import { YandexMetrikaTracker } from '../YandexMetrika';
 import { getAdminStats, searchAdmin, revokeAllAdminSessions } from '../../api/dataApi';
 import { usePolling } from '../../hooks/usePolling';
 import { AdminAuthGate } from './AdminAuthGate';
-import { PLATFORM_THEME, GROUP_PLATFORM } from './platformTheme';
+import { GROUP_PLATFORM } from './platformTheme';
+import { AdminSidebar } from './AdminSidebar';
+import { AdminHeader } from './AdminHeader';
+import { AdminIdleWarning } from './AdminIdleWarning';
 
 const PIN_SESSION_KEY = 'ovora_admin_auth';
 
@@ -79,19 +81,6 @@ const navGroups = [
 
 // Flatten for breadcrumb lookups
 const allNavItems = navGroups.flatMap(g => g.items);
-
-function LiveClock() {
-  const [time, setTime] = useState(new Date());
-  useEffect(() => {
-    const id = setInterval(() => setTime(new Date()), 1000);
-    return () => clearInterval(id);
-  }, []);
-  return (
-    <span className="font-mono text-xs tabular-nums" style={{ color: '#64748b' }}>
-      {time.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-    </span>
-  );
-}
 
 export function AdminLayout() {
   const location = useLocation();
@@ -308,387 +297,54 @@ export function AdminLayout() {
     <div className="min-h-screen bg-[#f1f5f9]">
       <YandexMetrikaTracker />
 
-      {/* Предупреждение об авто-выходе по неактивности */}
-      <AnimatePresence>
-        {idleWarningSecs !== null && (
-          <motion.div
-            initial={{ opacity: 0, y: 16, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 16, scale: 0.96 }}
-            className="fixed bottom-5 right-5 z-[100] w-[300px] rounded-2xl p-4"
-            style={{ background: '#1e1b2e', border: '1px solid #3a3550', boxShadow: '0 16px 40px #00000050' }}
-          >
-            <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#f59e0b22' }}>
-                <Clock className="w-4.5 h-4.5" style={{ color: '#f59e0b' }} />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-bold text-white">Сессия скоро завершится</p>
-                <p className="text-xs mt-1" style={{ color: '#a3a0b8' }}>
-                  Из-за неактивности выход произойдёт через {Math.max(0, idleWarningSecs)} сек.
-                </p>
-                <button
-                  onClick={() => resetIdleRef.current()}
-                  className="mt-3 w-full py-2 rounded-xl text-xs font-bold text-white transition-colors"
-                  style={{ background: 'linear-gradient(135deg,#1565d8,#2385f4)' }}
-                >
-                  Остаться в системе
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <AdminIdleWarning secs={idleWarningSecs} onStay={() => resetIdleRef.current()} />
 
-      {/* Mobile backdrop */}
-      <AnimatePresence>
-        {sidebarOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 z-40 lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* ── Sidebar ── */}
-      <aside
-        className={`
-          fixed top-0 left-0 h-full w-64 z-50
-          flex flex-col transform transition-transform duration-300 ease-in-out
-          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-          lg:translate-x-0
-        `}
-        style={{
-          background: '#ffffff',
-          borderRight: '1px solid #e2e8f0',
-          boxShadow: '4px 0 24px #00000010',
+      <AdminSidebar
+        navGroups={visibleNavGroups}
+        isActive={isActive}
+        sidebarOpen={sidebarOpen}
+        setSidebarOpen={setSidebarOpen}
+        adminRole={adminRole}
+        onRevokeAll={async () => {
+          if (!window.confirm('Отозвать все выданные admin-токены? Все админы (включая вас) будут разлогинены немедленно.')) return;
+          try {
+            await revokeAllAdminSessions();
+          } catch (err) {
+            console.error('[AdminLayout] revoke-all failed:', err);
+          }
+          clearAdminSession();
+          window.location.reload();
         }}
-      >
-        {/* Logo */}
-        <div
-          className="flex items-center justify-between px-5 py-4 flex-shrink-0"
-          style={{ borderBottom: '1px solid #f0f4f8' }}
-        >
-          <div className="flex items-center gap-3">
-            <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{
-                background: 'linear-gradient(135deg,#1565d8,#2385f4)',
-                boxShadow: '0 4px 14px #1565d840',
-              }}
-            >
-              <Truck className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <p className="font-bold text-gray-900 text-sm leading-tight">Ovora Cargo</p>
-              <p className="text-[11px] font-semibold" style={{ color: '#2385f4' }}>Админ-панель</p>
-            </div>
-          </div>
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="lg:hidden p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-4">
-          {visibleNavGroups.map(group => {
-            const groupAccent = PLATFORM_THEME[GROUP_PLATFORM[group.label]]?.accent || '#1565d8';
-            return (
-              <div key={group.label}>
-                <p className="text-[10px] font-bold uppercase tracking-widest px-3 mb-1.5" style={{ color: '#94a3b8' }}>
-                  {group.label}
-                </p>
-                <ul className="space-y-0.5">
-                  {group.items.map(item => {
-                    const active = isActive(item);
-                    return (
-                      <li key={item.href}>
-                        <Link
-                          to={item.href}
-                          onClick={() => setSidebarOpen(false)}
-                          className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all group relative outline-none"
-                        >
-                          <div
-                            className="relative z-10 w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-all"
-                            style={{
-                              background: active ? groupAccent : '#f1f5f9',
-                            }}
-                          >
-                            <item.icon
-                              style={{
-                                width: 15,
-                                height: 15,
-                                color: active ? '#ffffff' : '#64748b',
-                                strokeWidth: 2,
-                              }}
-                            />
-                          </div>
-
-                          <span
-                            className="font-medium text-sm flex-1 relative z-10 transition-colors duration-150"
-                            style={{ color: active ? groupAccent : '#475569' }}
-                          >
-                            {item.name}
-                          </span>
-
-                          {active && (
-                            <ChevronRight className="w-3.5 h-3.5 relative z-10 flex-shrink-0" style={{ color: groupAccent }} />
-                          )}
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            );
-          })}
-        </nav>
-
-        {/* User & logout */}
-        <div className="flex-shrink-0 p-3" style={{ borderTop: '1px solid #f0f4f8' }}>
-          <div className="flex items-center gap-3 px-2 py-2 rounded-xl mb-1">
-            <div
-              className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0"
-              style={{ background: 'linear-gradient(135deg,#1565d8,#7c3aed)' }}
-            >
-              АД
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-gray-900 truncate leading-tight">Администратор</p>
-              <p className="text-xs text-gray-400 truncate">
-                {adminRole === 'super-admin' ? 'Полный доступ' : adminRole === 'cargo-admin' ? 'CARGO' : 'AVIA'}
-              </p>
-            </div>
-          </div>
-          {adminRole === 'super-admin' && (
-            <button
-              onClick={async () => {
-                if (!window.confirm('Отозвать все выданные admin-токены? Все админы (включая вас) будут разлогинены немедленно.')) return;
-                try {
-                  await revokeAllAdminSessions();
-                } catch (err) {
-                  console.error('[AdminLayout] revoke-all failed:', err);
-                }
-                clearAdminSession();
-                window.location.reload();
-              }}
-              className="flex items-center gap-2 w-full px-3 py-2 text-xs font-medium rounded-xl transition-colors text-gray-400 hover:text-orange-500 hover:bg-orange-50"
-            >
-              <ShieldOff className="w-3.5 h-3.5" />
-              Завершить все сессии
-            </button>
-          )}
-          <button
-            onClick={() => {
-              clearAdminSession();
-              window.location.reload();
-            }}
-            className="flex items-center gap-2 w-full px-3 py-2 text-xs font-medium rounded-xl transition-colors text-gray-400 hover:text-red-500 hover:bg-red-50"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            Выйти из панели
-          </button>
-        </div>
-      </aside>
+        onLogout={() => {
+          clearAdminSession();
+          window.location.reload();
+        }}
+      />
 
       {/* ── Main content ── */}
       <div className="lg:pl-64 flex flex-col min-h-screen">
-
-        {/* Header */}
-        <header
-          className="sticky top-0 z-30 flex-shrink-0"
-          style={{
-            background: '#ffffffee',
-            backdropFilter: 'blur(12px)',
-            borderBottom: '1px solid #e2e8f0',
-            boxShadow: '0 1px 8px #00000008',
-          }}
-        >
-          <div className="flex items-center gap-3 px-4 py-3">
-            {/* Mobile hamburger */}
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-2 rounded-xl text-gray-500 hover:bg-gray-100 transition-colors"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-
-            {/* Breadcrumb */}
-            <div className="hidden lg:flex items-center gap-2 text-sm">
-              <span className="text-gray-400 font-medium">Ovora Admin</span>
-              <ChevronRight className="w-3.5 h-3.5 text-gray-300" />
-              <span className="font-semibold" style={{ color: currentPlatform ? PLATFORM_THEME[currentPlatform].accent : '#1565d8' }}>
-                {currentPage?.name || 'Обзор'}
-              </span>
-              {currentPlatform && (
-                <span
-                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold"
-                  style={{ background: PLATFORM_THEME[currentPlatform].bg, color: PLATFORM_THEME[currentPlatform].accent }}
-                >
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: PLATFORM_THEME[currentPlatform].accent }} />
-                  {PLATFORM_THEME[currentPlatform].label}
-                </span>
-              )}
-            </div>
-
-            {/* Search */}
-            <div ref={searchRef} className="relative flex-1 max-w-sm mx-auto lg:mx-4">
-              <form onSubmit={handleSearch}>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Поиск по email, телефону, имени, ID..."
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    onFocus={e => {
-                      e.currentTarget.style.borderColor = '#1565d866';
-                      e.currentTarget.style.boxShadow = '0 0 0 3px #1565d815';
-                      if (searchResults) setSearchOpen(true);
-                    }}
-                    onBlur={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.boxShadow = 'none'; }}
-                    className="w-full pl-9 pr-4 py-2 text-sm text-gray-700 placeholder-gray-400 rounded-xl outline-none transition-all"
-                    style={{ background: '#f1f5f9', border: '1px solid #e2e8f0' }}
-                  />
-                </div>
-              </form>
-
-              <AnimatePresence>
-                {searchOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -6, scale: 0.97 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -6, scale: 0.97 }}
-                    transition={{ duration: 0.15 }}
-                    className="absolute left-0 top-full mt-2 w-full rounded-2xl shadow-lg overflow-hidden z-50"
-                    style={{ background: '#fff', border: '1px solid #e2e8f0' }}
-                  >
-                    <div className="max-h-80 overflow-y-auto">
-                      {searchHits.length === 0 ? (
-                        <p className="px-4 py-6 text-sm text-gray-400 text-center">Ничего не найдено</p>
-                      ) : (
-                        searchHits.map(hit => (
-                          <button
-                            key={hit.key}
-                            onClick={() => goToHit(hit)}
-                            className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors"
-                            style={{ borderBottom: '1px solid #f8fafc' }}
-                          >
-                            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#eff6ff' }}>
-                              <hit.icon className="w-4 h-4" style={{ color: '#2563eb' }} />
-                            </div>
-                            <div className="min-w-0">
-                              <p className="text-sm text-gray-700 font-medium truncate">{hit.label}</p>
-                              {hit.sublabel && <p className="text-xs text-gray-400 truncate">{hit.sublabel}</p>}
-                            </div>
-                          </button>
-                        ))
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* Right side */}
-            <div className="flex items-center gap-2 ml-auto">
-              {/* Date + Clock */}
-              <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                <Clock className="w-3.5 h-3.5 text-gray-400" />
-                <span className="text-xs text-gray-500 capitalize hidden lg:inline">{today}</span>
-                <span className="text-gray-300 hidden lg:inline">•</span>
-                <LiveClock />
-              </div>
-
-              {/* DB indicator */}
-              <div className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-xl" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
-                <Database className="w-3.5 h-3.5 text-emerald-500" />
-                <span className="text-xs font-medium text-emerald-700">Supabase KV</span>
-              </div>
-
-              {/* Notifications */}
-              <div ref={notifRef} className="relative">
-                <button
-                  onClick={() => setNotifOpen(v => !v)}
-                  aria-label="Уведомления"
-                  aria-expanded={notifOpen}
-                  className="relative p-2 rounded-xl text-gray-500 hover:bg-gray-100 transition-colors"
-                >
-                  <Bell className="w-5 h-5" />
-                  {notifTotal > 0 && (
-                    <span
-                      className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold"
-                      style={{ boxShadow: '0 0 6px #ef444480' }}
-                    >
-                      {notifTotal > 9 ? '9+' : notifTotal}
-                    </span>
-                  )}
-                </button>
-
-                <AnimatePresence>
-                  {notifOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -6, scale: 0.97 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -6, scale: 0.97 }}
-                      transition={{ duration: 0.15 }}
-                      className="absolute right-0 top-full mt-2 w-72 rounded-2xl shadow-lg overflow-hidden z-50"
-                      style={{ background: '#fff', border: '1px solid #e2e8f0' }}
-                    >
-                      <div className="px-4 py-3" style={{ borderBottom: '1px solid #f1f5f9' }}>
-                        <p className="text-sm font-bold text-gray-700">Уведомления</p>
-                      </div>
-                      <div className="max-h-80 overflow-y-auto">
-                        {notifItems.length === 0 ? (
-                          <p className="px-4 py-6 text-sm text-gray-400 text-center">Нет новых уведомлений</p>
-                        ) : (
-                          notifItems.map(item => (
-                            <button
-                              key={item.href}
-                              onClick={() => { setNotifOpen(false); navigate(item.href); }}
-                              className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors"
-                              style={{ borderBottom: '1px solid #f8fafc' }}
-                            >
-                              <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: item.bg }}>
-                                <item.icon className="w-4 h-4" style={{ color: item.color }} />
-                              </div>
-                              <span className="text-sm text-gray-600">{item.label}</span>
-                            </button>
-                          ))
-                        )}
-                      </div>
-                      <button
-                        onClick={() => { setNotifOpen(false); navigate('/admin/notifications'); }}
-                        className="w-full px-4 py-2.5 text-xs font-semibold text-blue-600 hover:bg-blue-50 transition-colors text-center"
-                        style={{ borderTop: '1px solid #f1f5f9' }}
-                      >
-                        Все уведомления →
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-
-              {/* Quick stats */}
-              {stats && (
-                <div className="hidden xl:flex items-center gap-1 px-3 py-1.5 rounded-xl" style={{ background: '#f1f5f9', border: '1px solid #e2e8f0' }}>
-                  <TrendingUp className="w-3.5 h-3.5 text-blue-500" />
-                  <span className="text-xs text-gray-500">Польз.:</span>
-                  <span className="text-xs font-bold text-blue-600">{stats.users}</span>
-                  <span className="mx-1 text-gray-300">•</span>
-                  <span className="text-xs text-gray-500">Поездок:</span>
-                  <span className="text-xs font-bold text-blue-600">{stats.trips}</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </header>
+        <AdminHeader
+          onMenuClick={() => setSidebarOpen(true)}
+          currentPageName={currentPage?.name || 'Обзор'}
+          currentPlatform={currentPlatform}
+          searchRef={searchRef}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          searchOpen={searchOpen}
+          setSearchOpen={setSearchOpen}
+          searchResults={searchResults}
+          searchHits={searchHits}
+          onSearchSubmit={handleSearch}
+          onGoToHit={goToHit}
+          today={today}
+          stats={stats}
+          notifRef={notifRef}
+          notifOpen={notifOpen}
+          setNotifOpen={setNotifOpen}
+          notifItems={notifItems}
+          notifTotal={notifTotal}
+          onNotifNavigate={navigate}
+        />
 
         {/* Page content */}
         <main className="flex-1 p-4 lg:p-6" style={{ background: '#f1f5f9' }}>
