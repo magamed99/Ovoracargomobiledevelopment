@@ -35,6 +35,7 @@ const navGroups = [
     label: 'Главная',
     items: [
       { name: 'Обзор', href: '/admin', icon: LayoutDashboard, exact: true },
+      { name: 'Уведомления', href: '/admin/notifications', icon: Bell },
     ],
   },
   {
@@ -662,6 +663,13 @@ export function AdminLayout() {
                           ))
                         )}
                       </div>
+                      <button
+                        onClick={() => { setNotifOpen(false); navigate('/admin/notifications'); }}
+                        className="w-full px-4 py-2.5 text-xs font-semibold text-blue-600 hover:bg-blue-50 transition-colors text-center"
+                        style={{ borderTop: '1px solid #f1f5f9' }}
+                      >
+                        Все уведомления →
+                      </button>
                     </motion.div>
                   )}
                 </AnimatePresence>

@@ -344,6 +344,11 @@ export const router = createBrowserRouter([
               .then(m => ({ Component: m.AdminDashboard })),
           },
           {
+            path: "notifications",
+            lazy: () => import("./components/admin/NotificationCenter")
+              .then(m => ({ Component: m.NotificationCenter })),
+          },
+          {
             path: "cargo/drivers",
             lazy: () => import("./components/admin/DriversManagement")
               .then(m => ({ Component: m.DriversManagement })),
