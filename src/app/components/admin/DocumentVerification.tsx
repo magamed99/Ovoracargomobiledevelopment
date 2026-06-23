@@ -4,8 +4,10 @@ import { Card, CardContent } from '../ui/card';
 import { toast } from 'sonner';
 import { adminHeaders } from '../../api/dataApi';
 import { projectId } from '../../../../utils/supabase/info';
+import { Pagination } from './AdminPageHeader';
 
 const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;
+const PAGE_SIZE = 12;
 
 async function fetchAllDocuments() {
   const res = await fetch(`${BASE}/admin/documents`, { headers: adminHeaders() });
@@ -59,6 +61,9 @@ export function DocumentVerification() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [rejectNotes, setRejectNotes] = useState<Record<string, string>>({});
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [page, setPage] = useState(1);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -91,6 +96,35 @@ export function DocumentVerification() {
     }
   };
 
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, searchQuery]);
+
+  const toggleSelect = (id: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkAction = async (status: 'verified' | 'rejected') => {
+    if (selected.size === 0) return;
+    setBulkLoading(true);
+    const ids = Array.from(selected);
+    const targets = docs.filter(d => ids.includes(d.id));
+    const results = await Promise.allSettled(
+      targets.map(d => updateDocStatus(d.id, d.driverEmail || d.userEmail, status))
+    );
+    const okIds = targets.filter((_, i) => results[i].status === 'fulfilled').map(d => d.id);
+    setDocs(prev => prev.map(d => okIds.includes(d.id) ? { ...d, status } : d));
+    const failed = results.length - okIds.length;
+    if (okIds.length) toast.success(`${status === 'verified' ? 'Одобрено' : 'Отклонено'}: ${okIds.length}`);
+    if (failed) toast.error(`Не удалось обновить: ${failed}`);
+    setSelected(new Set());
+    setBulkLoading(false);
+  };
+
   const counts = {
     all: docs.length,
     pending: docs.filter(d => d.status === 'pending').length,
@@ -110,6 +144,15 @@ export function DocumentVerification() {
         (d.documentNumber || '').toLowerCase().includes(q);
       return matchStatus && matchSearch;
     });
+
+  const pendingFiltered = filtered.filter(d => d.status === 'pending');
+  const allVisibleSelected = pendingFiltered.length > 0 && pendingFiltered.every(d => selected.has(d.id));
+  const toggleSelectAll = () => {
+    setSelected(allVisibleSelected ? new Set() : new Set(pendingFiltered.map(d => d.id)));
+  };
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
@@ -165,6 +208,40 @@ export function DocumentVerification() {
         </CardContent>
       </Card>
 
+      {/* Bulk actions */}
+      {selected.size > 0 && (
+        <div className="flex items-center justify-between gap-3 p-3 rounded-xl flex-wrap" style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}>
+          <span className="text-sm font-medium text-blue-800">Выбрано: {selected.size}</span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button onClick={() => handleBulkAction('verified')} disabled={bulkLoading}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors disabled:opacity-50">
+              Одобрить выбранные
+            </button>
+            <button onClick={() => handleBulkAction('rejected')} disabled={bulkLoading}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50">
+              Отклонить выбранные
+            </button>
+            <button onClick={() => setSelected(new Set())} disabled={bulkLoading}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
+              Снять выделение
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Select all */}
+      {pendingFiltered.length > 0 && (
+        <label className="flex items-center gap-2 px-1 cursor-pointer text-sm text-gray-500">
+          <input
+            type="checkbox"
+            checked={allVisibleSelected}
+            onChange={toggleSelectAll}
+            className="w-4 h-4 rounded cursor-pointer accent-blue-600"
+          />
+          Выбрать все ожидающие ({pendingFiltered.length})
+        </label>
+      )}
+
       {/* Empty state */}
       {filtered.length === 0 && (
         <div className="py-20 text-center">
@@ -180,7 +257,7 @@ export function DocumentVerification() {
 
       {/* Documents list */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {filtered.map(doc => {
+        {paged.map(doc => {
           const isExpanded = expandedId === doc.id;
           const isLoading = actionLoading === doc.id;
           const statusCfg = STATUS_CFG[doc.status] || STATUS_CFG.pending;
@@ -193,6 +270,15 @@ export function DocumentVerification() {
               <CardContent className="p-5">
                 {/* Header row */}
                 <div className="flex items-start gap-3">
+                  {isPending && (
+                    <input
+                      type="checkbox"
+                      checked={selected.has(doc.id)}
+                      onChange={() => toggleSelect(doc.id)}
+                      onClick={e => e.stopPropagation()}
+                      className="w-4 h-4 mt-1 rounded cursor-pointer accent-blue-600 flex-shrink-0"
+                    />
+                  )}
                   <div className="w-11 h-11 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold flex-shrink-0">
                     {initials}
                   </div>
@@ -317,7 +403,9 @@ export function DocumentVerification() {
         })}
       </div>
 
-      <p className="text-xs text-gray-400 text-center">Показано {filtered.length} из {docs.length} документов</p>
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} />
+
+      <p className="text-xs text-gray-400 text-center">Показано {paged.length} из {filtered.length} документов (всего {docs.length})</p>
 
       {/* Image preview modal */}
       {previewUrl && (

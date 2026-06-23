@@ -3,8 +3,10 @@ import { useSearchParams } from 'react-router';
 import { Star, MessageSquare, Search, RefreshCw, ChevronDown, ChevronUp, Layers, Trash2, Route } from 'lucide-react';
 import { toast } from 'sonner';
 import { getAdminReviews, deleteAdminReview } from '../../api/dataApi';
-import { AdminPageHeader, HeaderBtn, FilterChips, SkeletonList } from './AdminPageHeader';
+import { AdminPageHeader, HeaderBtn, FilterChips, SkeletonList, Pagination } from './AdminPageHeader';
 import { StarRow } from '../ui/StarRow';
+
+const PAGE_SIZE = 20;
 
 function RelTime({ iso }: { iso?: string }) {
   if (!iso) return <span>—</span>;
@@ -30,12 +32,16 @@ function ReviewCard({
   onToggleExpand,
   onDelete,
   deleting,
+  selected,
+  onToggleSelect,
 }: {
   review: any;
   isExpanded: boolean;
   onToggleExpand: () => void;
   onDelete: () => void;
   deleting: boolean;
+  selected?: boolean;
+  onToggleSelect?: () => void;
 }) {
   const rating = review.rating || 0;
   const authorName = review.authorName || review.authorEmail || '—';
@@ -51,6 +57,14 @@ function ReviewCard({
     >
       <div className="p-3 sm:p-4">
         <div className="flex items-start gap-2 sm:gap-3">
+          {onToggleSelect && (
+            <input
+              type="checkbox"
+              checked={!!selected}
+              onChange={onToggleSelect}
+              className="w-4 h-4 mt-1 rounded cursor-pointer accent-amber-600 flex-shrink-0"
+            />
+          )}
           {/* Rating circle */}
           <div
             className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex flex-col items-center justify-center flex-shrink-0"
@@ -154,6 +168,9 @@ export function Reviews() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [groupBy, setGroupBy] = useState<'none' | 'trip' | 'recipient'>('none');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [page, setPage] = useState(1);
   const [searchParams] = useSearchParams();
 
   // Переход из глобального поиска в шапке админки (AdminLayout)
@@ -177,6 +194,33 @@ export function Reviews() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, ratingFilter, roleFilter]);
+
+  const toggleSelect = (id: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    if (selected.size === 0) return;
+    if (!confirm(`Удалить ${selected.size} отзывов? Это действие для модерации/разрешения спора.`)) return;
+    setBulkLoading(true);
+    const ids = Array.from(selected);
+    const results = await Promise.allSettled(ids.map(id => deleteAdminReview(id)));
+    const okIds = ids.filter((_, i) => results[i].status === 'fulfilled');
+    setReviews(prev => prev.filter(r => !okIds.includes(r.reviewId)));
+    const failed = results.length - okIds.length;
+    if (okIds.length) toast.success(`Удалено: ${okIds.length}`);
+    if (failed) toast.error(`Не удалось удалить: ${failed}`);
+    setSelected(new Set());
+    setBulkLoading(false);
+  };
 
   const handleDelete = async (review: any) => {
     if (!review.reviewId) return;
@@ -245,6 +289,14 @@ export function Reviews() {
         }, {})
       ).sort((a, b) => b[1].length - a[1].length)
     : [];
+
+  const allVisibleSelected = filtered.length > 0 && filtered.every(r => selected.has(r.reviewId));
+  const toggleSelectAll = () => {
+    setSelected(allVisibleSelected ? new Set() : new Set(filtered.map(r => r.reviewId)));
+  };
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <div className="space-y-5">
@@ -366,6 +418,41 @@ export function Reviews() {
         />
       </div>
 
+      {/* ── Bulk actions (только в обычном списке) ── */}
+      {groupBy === 'none' && selected.size > 0 && (
+        <div className="flex flex-wrap items-center gap-3 px-4 py-3 rounded-2xl" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
+          <span className="text-sm font-semibold text-amber-700">Выбрано: {selected.size}</span>
+          <div className="flex items-center gap-2 ml-auto">
+            <button
+              disabled={bulkLoading}
+              onClick={handleBulkDelete}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl transition-colors disabled:opacity-50"
+              style={{ background: '#fef2f2', color: '#dc2626' }}
+            >
+              <Trash2 className="w-3.5 h-3.5" /> Удалить отзывы
+            </button>
+            <button
+              disabled={bulkLoading}
+              onClick={() => setSelected(new Set())}
+              className="px-3 py-1.5 text-xs font-semibold rounded-xl text-gray-500 hover:bg-gray-100 transition-colors disabled:opacity-50"
+            >
+              Снять выделение
+            </button>
+          </div>
+        </div>
+      )}
+      {groupBy === 'none' && filtered.length > 0 && (
+        <div className="flex items-center gap-3 px-4 py-2 rounded-2xl" style={{ background: '#f8fafc', border: '1px solid #f0f4f8' }}>
+          <input
+            type="checkbox"
+            checked={allVisibleSelected}
+            onChange={toggleSelectAll}
+            className="w-4 h-4 rounded cursor-pointer accent-amber-600"
+          />
+          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Выбрать все</span>
+        </div>
+      )}
+
       {/* ── Reviews list ── */}
       {loading ? (
         <div className="bg-white rounded-2xl overflow-hidden" style={{ border: '1px solid #f0f4f8' }}>
@@ -438,22 +525,27 @@ export function Reviews() {
           ))}
         </div>
       ) : (
-        <div className="space-y-3">
-          {filtered.map(review => (
-            <ReviewCard
-              key={review.reviewId}
-              review={review}
-              isExpanded={expandedId === review.reviewId}
-              onToggleExpand={() => setExpandedId(expandedId === review.reviewId ? null : review.reviewId)}
-              onDelete={() => handleDelete(review)}
-              deleting={deletingId === review.reviewId}
-            />
-          ))}
-        </div>
+        <>
+          <div className="space-y-3">
+            {paged.map(review => (
+              <ReviewCard
+                key={review.reviewId}
+                review={review}
+                isExpanded={expandedId === review.reviewId}
+                onToggleExpand={() => setExpandedId(expandedId === review.reviewId ? null : review.reviewId)}
+                onDelete={() => handleDelete(review)}
+                deleting={deletingId === review.reviewId}
+                selected={selected.has(review.reviewId)}
+                onToggleSelect={() => toggleSelect(review.reviewId)}
+              />
+            ))}
+          </div>
+          <Pagination page={page} totalPages={totalPages} onChange={setPage} />
+        </>
       )}
 
       <p className="text-xs text-gray-400 text-center">
-        Показано {filtered.length} из {reviews.length} отзывов
+        Показано {groupBy === 'none' ? paged.length : filtered.length} из {reviews.length} отзывов
       </p>
     </div>
   );

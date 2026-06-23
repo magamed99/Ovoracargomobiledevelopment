@@ -7,10 +7,11 @@ import {
 import { toast } from 'sonner';
 import { getAdminUsers, adminHeaders } from '../../api/dataApi';
 import { projectId } from '../../../../utils/supabase/info';
-import { AdminPageHeader, HeaderBtn, FilterChips, SkeletonList } from './AdminPageHeader';
+import { AdminPageHeader, HeaderBtn, FilterChips, SkeletonList, Pagination } from './AdminPageHeader';
 import { exportCsv } from '../../utils/adminCsvExport';
 
 const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;
+const PAGE_SIZE = 20;
 
 async function setUserStatus(email: string, status: string) {
   const res = await fetch(`${BASE}/admin/users/${encodeURIComponent(email)}/status`, {
@@ -53,6 +54,7 @@ export function UsersManagement() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [page, setPage] = useState(1);
   const [searchParams] = useSearchParams();
 
   // Переход из глобального поиска в шапке админки (AdminLayout) — подставляем
@@ -77,6 +79,10 @@ export function UsersManagement() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, roleFilter, statusFilter, sortBy, sortDir]);
 
   const handleStatus = async (user: any, status: string) => {
     setActionLoading(user.email);
@@ -173,6 +179,9 @@ export function UsersManagement() {
   const toggleSelectAll = () => {
     setSelected(allVisibleSelected ? new Set() : new Set(filtered.map(u => u.email)));
   };
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <div className="space-y-5">
@@ -334,7 +343,7 @@ export function UsersManagement() {
               />
               <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Выбрать все</span>
             </div>
-            {filtered.map(user => {
+            {paged.map(user => {
               const isBlocked = user.status === 'blocked';
               const isExpanded = expandedId === user.email;
               const isLoading = actionLoading === user.email;
@@ -481,8 +490,10 @@ export function UsersManagement() {
         )}
       </div>
 
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} />
+
       <p className="text-xs text-gray-400 text-center">
-        Показано {filtered.length} из {users.length} пользователей
+        Показано {paged.length} из {filtered.length} пользователей (всего {users.length})
       </p>
     </div>
   );

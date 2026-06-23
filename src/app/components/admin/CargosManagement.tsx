@@ -3,8 +3,10 @@ import { useSearchParams } from 'react-router';
 import { Search, RefreshCw, Boxes, Clock, CheckCircle, XCircle, ChevronDown, Weight, Download, MapPin, Ban, Pencil, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getAdminCargos, deleteAdminCargo, updateAdminCargo } from '../../api/dataApi';
-import { AdminPageHeader, HeaderBtn, FilterChips, SkeletonList } from './AdminPageHeader';
+import { AdminPageHeader, HeaderBtn, FilterChips, SkeletonList, Pagination } from './AdminPageHeader';
 import { exportCsv } from '../../utils/adminCsvExport';
+
+const PAGE_SIZE = 20;
 
 type StatusFilter = 'all' | 'active' | 'matched' | 'cancelled';
 
@@ -50,6 +52,9 @@ export function CargosManagement() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [editingCargo, setEditingCargo] = useState<any | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [page, setPage] = useState(1);
   const [searchParams] = useSearchParams();
 
   // Переход из глобального поиска в шапке админки (AdminLayout)
@@ -91,6 +96,33 @@ export function CargosManagement() {
 
   useEffect(() => { load(); }, [load]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter, currencyFilter, weightMin, weightMax, dateFrom, dateTo]);
+
+  const toggleSelect = (id: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkRemove = async () => {
+    if (selected.size === 0) return;
+    if (!confirm(`Снять с публикации ${selected.size} грузов?`)) return;
+    setBulkLoading(true);
+    const ids = Array.from(selected);
+    const results = await Promise.allSettled(ids.map(id => deleteAdminCargo(id)));
+    const okIds = ids.filter((_, i) => results[i].status === 'fulfilled');
+    setCargos(prev => prev.map(cg => okIds.includes(cg.id) ? { ...cg, status: 'cancelled' } : cg));
+    const failed = results.length - okIds.length;
+    if (okIds.length) toast.success(`Снято: ${okIds.length}`);
+    if (failed) toast.error(`Не удалось снять: ${failed}`);
+    setSelected(new Set());
+    setBulkLoading(false);
+  };
+
   const handleSaveEdit = async (updates: Record<string, unknown>) => {
     if (!editingCargo) return;
     try {
@@ -130,6 +162,15 @@ export function CargosManagement() {
     const matchDateTo = !dateTo || createdTime <= new Date(dateTo).getTime() + 86400000;
     return matchSearch && matchStatus && matchCurrency && matchWeightMin && matchWeightMax && matchDateFrom && matchDateTo;
   });
+
+  const removableFiltered = filtered.filter(cg => (cg.status || 'active') !== 'cancelled');
+  const allVisibleSelected = removableFiltered.length > 0 && removableFiltered.every(cg => selected.has(cg.id));
+  const toggleSelectAll = () => {
+    setSelected(allVisibleSelected ? new Set() : new Set(removableFiltered.map(cg => cg.id)));
+  };
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <div className="space-y-5">
@@ -244,6 +285,30 @@ export function CargosManagement() {
         </div>
       </div>
 
+      {/* Bulk actions */}
+      {selected.size > 0 && (
+        <div className="flex flex-wrap items-center gap-3 px-4 py-3 rounded-2xl" style={{ background: '#ecfeff', border: '1px solid #a5f3fc' }}>
+          <span className="text-sm font-semibold text-cyan-700">Выбрано: {selected.size}</span>
+          <div className="flex items-center gap-2 ml-auto">
+            <button
+              disabled={bulkLoading}
+              onClick={handleBulkRemove}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl transition-colors disabled:opacity-50"
+              style={{ background: '#fef2f2', color: '#dc2626' }}
+            >
+              <Ban className="w-3.5 h-3.5" /> Снять с публикации
+            </button>
+            <button
+              disabled={bulkLoading}
+              onClick={() => setSelected(new Set())}
+              className="px-3 py-1.5 text-xs font-semibold rounded-xl text-gray-500 hover:bg-gray-100 transition-colors disabled:opacity-50"
+            >
+              Снять выделение
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* List */}
       <div className="bg-white rounded-2xl overflow-hidden" style={{ border: '1px solid #f0f4f8' }}>
         {loading ? (
@@ -256,7 +321,16 @@ export function CargosManagement() {
           </div>
         ) : (
           <div className="divide-y divide-gray-50">
-            {filtered.map(cargo => {
+            <div className="flex items-center gap-3 px-4 sm:px-5 py-2" style={{ background: '#f8fafc' }}>
+              <input
+                type="checkbox"
+                checked={allVisibleSelected}
+                onChange={toggleSelectAll}
+                className="w-4 h-4 rounded cursor-pointer accent-cyan-600"
+              />
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Выбрать все</span>
+            </div>
+            {paged.map(cargo => {
               const id = cargo.id;
               const isExpanded = expandedId === id;
               const status = cargo.status || 'active';
@@ -268,6 +342,14 @@ export function CargosManagement() {
                     className="flex items-start sm:items-center gap-3 sm:gap-4 px-3 sm:px-5 py-3 sm:py-4 cursor-pointer hover:bg-gray-50 transition-colors"
                     onClick={() => setExpandedId(isExpanded ? null : id)}
                   >
+                    <input
+                      type="checkbox"
+                      checked={selected.has(id)}
+                      onChange={e => { e.stopPropagation(); toggleSelect(id); }}
+                      onClick={e => e.stopPropagation()}
+                      disabled={status === 'cancelled'}
+                      className="w-4 h-4 rounded cursor-pointer accent-cyan-600 flex-shrink-0 disabled:opacity-30"
+                    />
                     <div className="flex-shrink-0">
                       <div
                         className="w-9 h-9 rounded-xl flex items-center justify-center"
@@ -362,8 +444,10 @@ export function CargosManagement() {
         )}
       </div>
 
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} />
+
       <p className="text-xs text-gray-400 text-center">
-        Показано {filtered.length} из {cargos.length} грузов
+        Показано {paged.length} из {filtered.length} грузов (всего {cargos.length})
       </p>
 
       {editingCargo && (
