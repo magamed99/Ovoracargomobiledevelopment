@@ -101,6 +101,10 @@ export interface AviaFlight {
   completedAt   ?: string;
   createdAt     : string;
   updatedAt     ?: string;
+  /** Причина принудительной смены статуса админом (модерация) */
+  moderationReason?: string;
+  moderationBy     ?: string;
+  moderationAt     ?: string;
 }
 
 export interface AviaNotif {

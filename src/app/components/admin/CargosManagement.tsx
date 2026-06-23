@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router';
-import { Search, RefreshCw, Boxes, Clock, CheckCircle, XCircle, ChevronDown, Weight, Download, MapPin, Ban } from 'lucide-react';
+import { Search, RefreshCw, Boxes, Clock, CheckCircle, XCircle, ChevronDown, Weight, Download, MapPin, Ban, Pencil, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { getAdminCargos, deleteAdminCargo } from '../../api/dataApi';
-import { AdminPageHeader, HeaderBtn, FilterChips, SkeletonList } from './AdminPageHeader';
+import { getAdminCargos, deleteAdminCargo, updateAdminCargo } from '../../api/dataApi';
+import { AdminPageHeader, HeaderBtn, FilterChips, SkeletonList, Pagination } from './AdminPageHeader';
 import { exportCsv } from '../../utils/adminCsvExport';
+
+const PAGE_SIZE = 20;
 
 type StatusFilter = 'all' | 'active' | 'matched' | 'cancelled';
 
@@ -42,8 +44,17 @@ export function CargosManagement() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [currencyFilter, setCurrencyFilter] = useState('all');
+  const [weightMin, setWeightMin] = useState('');
+  const [weightMax, setWeightMax] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [editingCargo, setEditingCargo] = useState<any | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [page, setPage] = useState(1);
   const [searchParams] = useSearchParams();
 
   // Переход из глобального поиска в шапке админки (AdminLayout)
@@ -85,9 +96,50 @@ export function CargosManagement() {
 
   useEffect(() => { load(); }, [load]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter, currencyFilter, weightMin, weightMax, dateFrom, dateTo]);
+
+  const toggleSelect = (id: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkRemove = async () => {
+    if (selected.size === 0) return;
+    if (!confirm(`Снять с публикации ${selected.size} грузов?`)) return;
+    setBulkLoading(true);
+    const ids = Array.from(selected);
+    const results = await Promise.allSettled(ids.map(id => deleteAdminCargo(id)));
+    const okIds = ids.filter((_, i) => results[i].status === 'fulfilled');
+    setCargos(prev => prev.map(cg => okIds.includes(cg.id) ? { ...cg, status: 'cancelled' } : cg));
+    const failed = results.length - okIds.length;
+    if (okIds.length) toast.success(`Снято: ${okIds.length}`);
+    if (failed) toast.error(`Не удалось снять: ${failed}`);
+    setSelected(new Set());
+    setBulkLoading(false);
+  };
+
+  const handleSaveEdit = async (updates: Record<string, unknown>) => {
+    if (!editingCargo) return;
+    try {
+      const updated = await updateAdminCargo(editingCargo.id, updates);
+      setCargos(prev => prev.map(cg => cg.id === editingCargo.id ? { ...cg, ...updated } : cg));
+      toast.success('Груз обновлён');
+      setEditingCargo(null);
+    } catch {
+      toast.error('Ошибка при сохранении');
+    }
+  };
+
   const active    = cargos.filter(cg => (cg?.status || 'active') === 'active').length;
   const matched   = cargos.filter(cg => cg?.status === 'matched').length;
   const cancelled = cargos.filter(cg => cg?.status === 'cancelled').length;
+
+  const currencies = Array.from(new Set(cargos.map(cg => cg?.currency).filter(Boolean)));
 
   const filtered = cargos.filter(cg => {
     if (!cg) return false;
@@ -95,13 +147,30 @@ export function CargosManagement() {
     const matchSearch = !q
       || (cg.senderEmail || '').toLowerCase().includes(q)
       || (cg.senderName || '').toLowerCase().includes(q)
+      || (cg.senderPhone || '').includes(q)
       || (cg.from || '').toLowerCase().includes(q)
       || (cg.to || '').toLowerCase().includes(q)
       || (cg.notes || '').toLowerCase().includes(q);
     const st = cg.status || 'active';
     const matchStatus = statusFilter === 'all' || st === statusFilter;
-    return matchSearch && matchStatus;
+    const matchCurrency = currencyFilter === 'all' || cg.currency === currencyFilter;
+    const weight = parseFloat(cg.cargoWeight);
+    const matchWeightMin = !weightMin || (!isNaN(weight) && weight >= parseFloat(weightMin));
+    const matchWeightMax = !weightMax || (!isNaN(weight) && weight <= parseFloat(weightMax));
+    const createdTime = cg.createdAt ? new Date(cg.createdAt).getTime() : 0;
+    const matchDateFrom = !dateFrom || createdTime >= new Date(dateFrom).getTime();
+    const matchDateTo = !dateTo || createdTime <= new Date(dateTo).getTime() + 86400000;
+    return matchSearch && matchStatus && matchCurrency && matchWeightMin && matchWeightMax && matchDateFrom && matchDateTo;
   });
+
+  const removableFiltered = filtered.filter(cg => (cg.status || 'active') !== 'cancelled');
+  const allVisibleSelected = removableFiltered.length > 0 && removableFiltered.every(cg => selected.has(cg.id));
+  const toggleSelectAll = () => {
+    setSelected(allVisibleSelected ? new Set() : new Set(removableFiltered.map(cg => cg.id)));
+  };
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <div className="space-y-5">
@@ -123,10 +192,10 @@ export function CargosManagement() {
               icon={Download}
               variant="ghost"
               onClick={() => exportCsv(
-                cargos.map(cg => ({
+                filtered.map(cg => ({
                   id: cg.id, from: cg.from, to: cg.to,
-                  sender: cg.senderEmail, status: cg.status,
-                  weight: cg.cargoWeight, budget: cg.budget,
+                  sender: cg.senderEmail, senderPhone: cg.senderPhone || '', status: cg.status,
+                  weight: cg.cargoWeight, budget: cg.budget, currency: cg.currency || '',
                   created: cg.createdAt,
                 })),
                 `cargos_export_${new Date().toISOString().slice(0, 10)}.csv`
@@ -155,7 +224,7 @@ export function CargosManagement() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Поиск по email, маршруту..."
+            placeholder="Поиск по email, телефону, маршруту..."
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm text-gray-700 outline-none transition-all"
@@ -164,7 +233,81 @@ export function CargosManagement() {
             onBlur={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.boxShadow = 'none'; }}
           />
         </div>
+
+        {currencies.length > 0 && (
+          <FilterChips
+            value={currencyFilter}
+            onChange={setCurrencyFilter}
+            options={[{ value: 'all', label: 'Все валюты' }, ...currencies.map(c => ({ value: c, label: c }))]}
+          />
+        )}
+
+        <div className="flex flex-wrap gap-3">
+          <div className="flex items-center gap-2">
+            <Weight className="w-3.5 h-3.5 text-gray-400" />
+            <input
+              type="number"
+              placeholder="Вес от"
+              value={weightMin}
+              onChange={e => setWeightMin(e.target.value)}
+              className="w-24 px-3 py-1.5 rounded-xl text-sm text-gray-700 outline-none"
+              style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
+            />
+            <span className="text-gray-400">—</span>
+            <input
+              type="number"
+              placeholder="до"
+              value={weightMax}
+              onChange={e => setWeightMax(e.target.value)}
+              className="w-24 px-3 py-1.5 rounded-xl text-sm text-gray-700 outline-none"
+              style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
+            />
+            <span className="text-xs text-gray-400">кг</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Clock className="w-3.5 h-3.5 text-gray-400" />
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={e => setDateFrom(e.target.value)}
+              className="px-3 py-1.5 rounded-xl text-sm text-gray-700 outline-none"
+              style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
+            />
+            <span className="text-gray-400">—</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={e => setDateTo(e.target.value)}
+              className="px-3 py-1.5 rounded-xl text-sm text-gray-700 outline-none"
+              style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
+            />
+          </div>
+        </div>
       </div>
+
+      {/* Bulk actions */}
+      {selected.size > 0 && (
+        <div className="flex flex-wrap items-center gap-3 px-4 py-3 rounded-2xl" style={{ background: '#ecfeff', border: '1px solid #a5f3fc' }}>
+          <span className="text-sm font-semibold text-cyan-700">Выбрано: {selected.size}</span>
+          <div className="flex items-center gap-2 ml-auto">
+            <button
+              disabled={bulkLoading}
+              onClick={handleBulkRemove}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl transition-colors disabled:opacity-50"
+              style={{ background: '#fef2f2', color: '#dc2626' }}
+            >
+              <Ban className="w-3.5 h-3.5" /> Снять с публикации
+            </button>
+            <button
+              disabled={bulkLoading}
+              onClick={() => setSelected(new Set())}
+              className="px-3 py-1.5 text-xs font-semibold rounded-xl text-gray-500 hover:bg-gray-100 transition-colors disabled:opacity-50"
+            >
+              Снять выделение
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* List */}
       <div className="bg-white rounded-2xl overflow-hidden" style={{ border: '1px solid #f0f4f8' }}>
@@ -178,7 +321,16 @@ export function CargosManagement() {
           </div>
         ) : (
           <div className="divide-y divide-gray-50">
-            {filtered.map(cargo => {
+            <div className="flex items-center gap-3 px-4 sm:px-5 py-2" style={{ background: '#f8fafc' }}>
+              <input
+                type="checkbox"
+                checked={allVisibleSelected}
+                onChange={toggleSelectAll}
+                className="w-4 h-4 rounded cursor-pointer accent-cyan-600"
+              />
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Выбрать все</span>
+            </div>
+            {paged.map(cargo => {
               const id = cargo.id;
               const isExpanded = expandedId === id;
               const status = cargo.status || 'active';
@@ -190,6 +342,14 @@ export function CargosManagement() {
                     className="flex items-start sm:items-center gap-3 sm:gap-4 px-3 sm:px-5 py-3 sm:py-4 cursor-pointer hover:bg-gray-50 transition-colors"
                     onClick={() => setExpandedId(isExpanded ? null : id)}
                   >
+                    <input
+                      type="checkbox"
+                      checked={selected.has(id)}
+                      onChange={e => { e.stopPropagation(); toggleSelect(id); }}
+                      onClick={e => e.stopPropagation()}
+                      disabled={status === 'cancelled'}
+                      className="w-4 h-4 rounded cursor-pointer accent-cyan-600 flex-shrink-0 disabled:opacity-30"
+                    />
                     <div className="flex-shrink-0">
                       <div
                         className="w-9 h-9 rounded-xl flex items-center justify-center"
@@ -256,8 +416,15 @@ export function CargosManagement() {
                           <p className="text-sm text-gray-900">{cargo.notes}</p>
                         </div>
                       )}
-                      {status !== 'cancelled' && (
-                        <div className="col-span-2 md:col-span-3 pt-1">
+                      <div className="col-span-2 md:col-span-3 pt-1 flex gap-2">
+                        <button
+                          onClick={e => { e.stopPropagation(); setEditingCargo(cargo); }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100 transition-colors"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                          Редактировать
+                        </button>
+                        {status !== 'cancelled' && (
                           <button
                             onClick={e => { e.stopPropagation(); handleRemove(cargo); }}
                             disabled={removingId === id}
@@ -266,8 +433,8 @@ export function CargosManagement() {
                             <Ban className="w-3.5 h-3.5" />
                             {removingId === id ? 'Снятие...' : 'Снять груз (модерация)'}
                           </button>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -277,9 +444,79 @@ export function CargosManagement() {
         )}
       </div>
 
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} />
+
       <p className="text-xs text-gray-400 text-center">
-        Показано {filtered.length} из {cargos.length} грузов
+        Показано {paged.length} из {filtered.length} грузов (всего {cargos.length})
       </p>
+
+      {editingCargo && (
+        <EditCargoModal
+          cargo={editingCargo}
+          onClose={() => setEditingCargo(null)}
+          onSave={handleSaveEdit}
+        />
+      )}
+    </div>
+  );
+}
+
+function EditCargoModal({ cargo, onClose, onSave }: { cargo: any; onClose: () => void; onSave: (u: Record<string, unknown>) => Promise<void> }) {
+  const [from, setFrom] = useState(cargo.from || '');
+  const [to, setTo] = useState(cargo.to || '');
+  const [cargoWeight, setCargoWeight] = useState(cargo.cargoWeight || '');
+  const [budget, setBudget] = useState(cargo.budget || '');
+  const [currency, setCurrency] = useState(cargo.currency || '');
+  const [notes, setNotes] = useState(cargo.notes || '');
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async () => {
+    setSaving(true);
+    try {
+      await onSave({ from, to, cargoWeight, budget, currency, notes });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(15,23,42,0.5)' }} onClick={onClose}>
+      <div className="bg-white rounded-2xl p-5 w-full max-w-md space-y-3" onClick={e => e.stopPropagation()}>
+        <h3 className="font-bold text-gray-900">Редактировать груз</h3>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-[11px] font-semibold text-gray-400 uppercase">Откуда</label>
+            <input value={from} onChange={e => setFrom(e.target.value)} className="w-full mt-1 px-3 py-2 rounded-xl text-sm" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }} />
+          </div>
+          <div>
+            <label className="text-[11px] font-semibold text-gray-400 uppercase">Куда</label>
+            <input value={to} onChange={e => setTo(e.target.value)} className="w-full mt-1 px-3 py-2 rounded-xl text-sm" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }} />
+          </div>
+          <div>
+            <label className="text-[11px] font-semibold text-gray-400 uppercase">Вес (кг)</label>
+            <input value={cargoWeight} onChange={e => setCargoWeight(e.target.value)} className="w-full mt-1 px-3 py-2 rounded-xl text-sm" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }} />
+          </div>
+          <div>
+            <label className="text-[11px] font-semibold text-gray-400 uppercase">Бюджет</label>
+            <input value={budget} onChange={e => setBudget(e.target.value)} className="w-full mt-1 px-3 py-2 rounded-xl text-sm" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }} />
+          </div>
+          <div>
+            <label className="text-[11px] font-semibold text-gray-400 uppercase">Валюта</label>
+            <input value={currency} onChange={e => setCurrency(e.target.value)} className="w-full mt-1 px-3 py-2 rounded-xl text-sm" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }} />
+          </div>
+        </div>
+        <div>
+          <label className="text-[11px] font-semibold text-gray-400 uppercase">Заметки</label>
+          <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} className="w-full mt-1 px-3 py-2 rounded-xl text-sm resize-none" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }} />
+        </div>
+        <div className="flex gap-2 pt-2">
+          <button onClick={onClose} className="flex-1 py-2 rounded-xl text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors">Отмена</button>
+          <button onClick={handleSubmit} disabled={saving} className="flex-1 py-2 rounded-xl text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
+            {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            Сохранить
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

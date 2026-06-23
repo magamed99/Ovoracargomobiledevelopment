@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Boxes, RefreshCw, Loader2, Download, Trash2, Plane, Package } from 'lucide-react';
+import { Boxes, RefreshCw, Loader2, Download, Trash2, Plane, Package, Search } from 'lucide-react';
 import { toast } from 'sonner';
-import { getAviaAdminDeals, getAviaAdminFlights, deleteAviaAdminDeal } from '../../api/aviaAdminApi';
+import { getAviaAdminDeals, getAviaAdminFlights, deleteAviaAdminDeal, updateAviaAdminFlightStatus } from '../../api/aviaAdminApi';
 import { AdminPageHeader, HeaderBtn, FilterChips, SkeletonList } from './AdminPageHeader';
 import { exportCsv } from '../../utils/adminCsvExport';
 
@@ -17,6 +17,7 @@ export function AviaCardsManagement() {
   const [flights, setFlights] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -48,11 +49,42 @@ export function AviaCardsManagement() {
     }
   };
 
+  const handleFlightStatusChange = async (flight: any, status: 'active' | 'closed' | 'cancelled') => {
+    if (status === flight.status) return;
+    let moderationReason: string | undefined;
+    if (status === 'closed' || status === 'cancelled') {
+      const input = prompt('Причина модерации (необязательно):') || '';
+      moderationReason = input.trim() || undefined;
+    }
+    setActionLoading(flight.id);
+    try {
+      const updated = await updateAviaAdminFlightStatus(flight.id, status, moderationReason);
+      setFlights(prev => prev.map(f => f.id === flight.id ? { ...f, ...updated } : f));
+      toast.success('Статус рейса изменён');
+    } catch {
+      toast.error('Ошибка изменения статуса');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const activeDeals = deals.filter(d => !d.deletedAt);
   const deletedDeals = deals.filter(d => d.deletedAt);
 
-  const filteredDeals = (statusFilter === 'all' ? deals : deals.filter(d => d.status === statusFilter));
-  const filteredFlights = (statusFilter === 'all' ? flights : flights.filter(f => f.status === statusFilter));
+  const filteredDeals = deals
+    .filter(d => statusFilter === 'all' || d.status === statusFilter)
+    .filter(d => {
+      const q = searchQuery.toLowerCase().trim();
+      if (!q) return true;
+      return [d.adFrom, d.adTo, d.initiatorPhone, d.recipientPhone].some(v => (v || '').toLowerCase().includes(q));
+    });
+  const filteredFlights = flights
+    .filter(f => statusFilter === 'all' || f.status === statusFilter)
+    .filter(f => {
+      const q = searchQuery.toLowerCase().trim();
+      if (!q) return true;
+      return [f.from, f.to, f.courierId].some(v => (v || '').toLowerCase().includes(q));
+    });
 
   const dealStatuses = Array.from(new Set(deals.map(d => d.status))).filter(Boolean);
   const flightStatuses = Array.from(new Set(flights.map(f => f.status))).filter(Boolean);
@@ -79,7 +111,7 @@ export function AviaCardsManagement() {
               onClick={() => exportCsv(
                 tab === 'deals'
                   ? filteredDeals.map(d => ({ id: d.id, status: d.status, initiator: d.initiatorPhone, recipient: d.recipientPhone, dealType: d.dealType, weightKg: d.weightKg, price: d.price, created: d.createdAt, deleted: d.deletedAt || '' }))
-                  : filteredFlights.map(f => ({ id: f.id, status: f.status, courier: f.courierId, from: f.from, to: f.to, date: f.date, freeKg: f.freeKg, created: f.createdAt })),
+                  : filteredFlights.map(f => ({ id: f.id, status: f.status, courier: f.courierId, courierName: f.courierName, from: f.from, to: f.to, date: f.date, freeKg: f.freeKg, pricePerKg: f.pricePerKg, currency: f.currency, created: f.createdAt })),
                 `avia_${tab}_export_${new Date().toISOString().slice(0, 10)}.csv`
               )}
             >
@@ -115,6 +147,17 @@ export function AviaCardsManagement() {
             />
           </div>
         </div>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder={tab === 'deals' ? 'Поиск по маршруту, телефону...' : 'Поиск по маршруту, курьеру...'}
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm text-gray-700 outline-none transition-all"
+            style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
+          />
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl overflow-hidden" style={{ border: '1px solid #f0f4f8' }}>
@@ -143,6 +186,12 @@ export function AviaCardsManagement() {
                     <p className="text-xs text-gray-400 mt-0.5 break-words">
                       {deal.initiatorPhone} → {deal.recipientPhone} · {deal.dealType === 'docs' ? 'документы' : `${deal.weightKg} кг`}{deal.price ? ` · $${deal.price}` : ''}
                     </p>
+                    {(deal.rejectReason || deal.cancelReason) && (
+                      <p className="text-xs text-red-500 mt-1 break-words">
+                        {deal.status === 'rejected' ? 'Причина отказа: ' : 'Причина отмены: '}
+                        {deal.rejectReason || deal.cancelReason}
+                      </p>
+                    )}
                     <div className="text-xs text-gray-400 mt-0.5 md:hidden">
                       {deal.createdAt ? new Date(deal.createdAt).toLocaleDateString('ru-RU') : '—'}
                     </div>
@@ -186,6 +235,11 @@ export function AviaCardsManagement() {
                     <p className="text-xs text-gray-400 mt-0.5 break-words">
                       {flight.courierId} · {flight.date} · свободно {flight.freeKg} кг
                     </p>
+                    {flight.moderationReason && (
+                      <p className="text-xs text-red-500 mt-1 break-words">
+                        Причина модерации: {flight.moderationReason}
+                      </p>
+                    )}
                     <div className="text-xs text-gray-400 mt-0.5 md:hidden">
                       {flight.createdAt ? new Date(flight.createdAt).toLocaleDateString('ru-RU') : '—'}
                     </div>
@@ -193,6 +247,17 @@ export function AviaCardsManagement() {
                   <div className="text-xs text-gray-400 flex-shrink-0 hidden md:block">
                     {flight.createdAt ? new Date(flight.createdAt).toLocaleDateString('ru-RU') : '—'}
                   </div>
+                  <select
+                    value={flight.status}
+                    disabled={actionLoading === flight.id}
+                    onChange={e => handleFlightStatusChange(flight, e.target.value as 'active' | 'closed' | 'cancelled')}
+                    className="text-xs rounded-lg px-2 py-1.5 outline-none flex-shrink-0"
+                    style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
+                  >
+                    <option value="active">✅ Активен</option>
+                    <option value="closed">🔒 Закрыт</option>
+                    <option value="cancelled">🚫 Отменён</option>
+                  </select>
                 </div>
               ))}
             </div>

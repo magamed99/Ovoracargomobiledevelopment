@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Search, Plane, RefreshCw, Loader2, Download, Trash2, UserCheck, UserX,
-  ChevronDown, ChevronUp, MoreVertical, KeyRound, Pencil,
+  ChevronDown, ChevronUp, MoreVertical, KeyRound, Pencil, ZoomIn, X,
 } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -9,8 +9,9 @@ import {
 import { toast } from 'sonner';
 import {
   getAviaAdminUsers, setAviaUserBlocked, deleteAviaAdminUser,
-  resetAviaUserCode, updateAviaAdminUser,
+  resetAviaUserCode, updateAviaAdminUser, getAviaAdminPassportPhoto,
 } from '../../api/aviaAdminApi';
+import { getAviaPublicProfile, type AviaPublicProfile } from '../../api/aviaReviewApi';
 import { AdminPageHeader, HeaderBtn, FilterChips, SkeletonList } from './AdminPageHeader';
 import { exportCsv } from '../../utils/adminCsvExport';
 
@@ -36,6 +37,7 @@ export function AviaUsersManagement() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<any | null>(null);
+  const [ratings, setRatings] = useState<Record<string, AviaPublicProfile | null>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -143,7 +145,13 @@ export function AviaUsersManagement() {
               icon={Download}
               variant="ghost"
               onClick={() => exportCsv(
-                filtered.map(u => ({ phone: u.phone, name: `${u.firstName || ''} ${u.lastName || ''}`.trim(), role: u.role, city: u.city || '', blocked: !!u.blocked, created: u.createdAt || '' })),
+                filtered.map(u => ({
+                  phone: u.phone, name: `${u.firstName || ''} ${u.lastName || ''}`.trim(), role: u.role, city: u.city || '',
+                  blocked: !!u.blocked,
+                  passportVerified: !!u.passportVerified, passportExpired: !!u.passportExpired,
+                  likes: ratings[u.phone]?.likes ?? '', dislikes: ratings[u.phone]?.dislikes ?? '',
+                  lastLoginAt: u.lastLoginAt || '', created: u.createdAt || '',
+                })),
                 `avia_users_export_${new Date().toISOString().slice(0, 10)}.csv`
               )}
             >
@@ -241,7 +249,15 @@ export function AviaUsersManagement() {
 
                     <div className="flex items-center gap-1 flex-shrink-0 order-2 sm:order-none ml-auto sm:ml-0">
                       <button
-                        onClick={() => setExpandedId(isExpanded ? null : user.phone)}
+                        onClick={() => {
+                          const next = isExpanded ? null : user.phone;
+                          setExpandedId(next);
+                          if (next && !(next in ratings)) {
+                            getAviaPublicProfile(next).then(data => {
+                              setRatings(prev => ({ ...prev, [next]: data?.profile || null }));
+                            });
+                          }
+                        }}
                         className="p-1.5 hover:bg-gray-100 rounded-xl text-gray-400 transition-colors"
                       >
                         {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -309,12 +325,37 @@ export function AviaUsersManagement() {
                         { label: 'Город', value: user.city || '—' },
                         { label: 'Telegram', value: user.telegram || '—' },
                         { label: 'Регистрация', value: user.createdAt ? new Date(user.createdAt).toLocaleDateString('ru-RU') : '—' },
+                        {
+                          label: 'Паспорт',
+                          value: !user.passportPhoto && !user.passportPhotoPath
+                            ? '— не загружен'
+                            : user.passportExpired
+                            ? '⏳ просрочен'
+                            : user.passportVerified
+                            ? '✅ подтверждён'
+                            : '🕒 на проверке',
+                        },
                       ].map(f => (
                         <div key={f.label}>
                           <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">{f.label}</p>
                           <p className="text-sm text-gray-900 break-all">{f.value}</p>
                         </div>
                       ))}
+                      <div className="col-span-2 md:col-span-4 pt-2" style={{ borderTop: '1px solid #e2e8f0' }}>
+                        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Рейтинг и сделки</p>
+                        {!(user.phone in ratings) ? (
+                          <Loader2 className="w-4 h-4 animate-spin text-gray-300" />
+                        ) : ratings[user.phone] ? (
+                          <div className="flex gap-4 flex-wrap">
+                            <span className="text-sm text-emerald-600 font-semibold">👍 {ratings[user.phone]!.likes}</span>
+                            <span className="text-sm text-red-500 font-semibold">👎 {ratings[user.phone]!.dislikes}</span>
+                            <span className="text-sm text-gray-600 font-semibold">🤝 {ratings[user.phone]!.dealsCompleted} сделок завершено</span>
+                            <span className="text-sm text-gray-400">{ratings[user.phone]!.reviewsCount} отзывов</span>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-gray-400">Нет данных</p>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -344,6 +385,27 @@ function EditUserModal({ user, onClose, onSave }: { user: any; onClose: () => vo
   const [lastName, setLastName] = useState(user.lastName || '');
   const [city, setCity] = useState(user.city || '');
   const [telegram, setTelegram] = useState(user.telegram || '');
+  const [passportVerified, setPassportVerified] = useState(!!user.passportVerified);
+  const [passportExpired, setPassportExpired] = useState(!!user.passportExpired);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [photoLoading, setPhotoLoading] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const hasPassport = !!user.passportUploadedAt;
+
+  const handleViewPhoto = async () => {
+    if (photoUrl) { setPreviewOpen(true); return; }
+    setPhotoLoading(true);
+    try {
+      const url = await getAviaAdminPassportPhoto(user.phone);
+      if (!url) { toast.error('Фото паспорта не найдено'); return; }
+      setPhotoUrl(url);
+      setPreviewOpen(true);
+    } catch {
+      toast.error('Ошибка загрузки фото');
+    } finally {
+      setPhotoLoading(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: '#00000060' }} onClick={onClose}>
@@ -367,13 +429,37 @@ function EditUserModal({ user, onClose, onSave }: { user: any; onClose: () => vo
             <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Telegram</label>
             <input value={telegram} onChange={e => setTelegram(e.target.value)} className="w-full mt-1 px-3 py-2 rounded-xl text-sm outline-none" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }} />
           </div>
+          <div className="pt-2 space-y-2" style={{ borderTop: '1px solid #f1f5f9' }}>
+            <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide pt-2">Паспорт</p>
+            {!hasPassport ? (
+              <p className="text-xs text-gray-400">Паспорт не загружен</p>
+            ) : (
+              <button
+                onClick={handleViewPhoto}
+                disabled={photoLoading}
+                className="flex items-center gap-2 text-sm font-medium px-3 py-2 rounded-xl"
+                style={{ background: '#eff6ff', color: '#1d4ed8' }}
+              >
+                {photoLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ZoomIn className="w-4 h-4" />}
+                Посмотреть фото паспорта
+              </button>
+            )}
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input type="checkbox" checked={passportVerified} onChange={e => setPassportVerified(e.target.checked)} />
+              Паспорт подтверждён
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input type="checkbox" checked={passportExpired} onChange={e => setPassportExpired(e.target.checked)} />
+              Паспорт просрочен
+            </label>
+          </div>
         </div>
         <div className="flex gap-2 pt-2">
           <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-600" style={{ background: '#f1f5f9' }}>
             Отмена
           </button>
           <button
-            onClick={() => onSave({ firstName, lastName, city, telegram })}
+            onClick={() => onSave({ firstName, lastName, city, telegram, passportVerified, passportExpired })}
             className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-white"
             style={{ background: '#0ea5e9' }}
           >
@@ -381,6 +467,17 @@ function EditUserModal({ user, onClose, onSave }: { user: any; onClose: () => vo
           </button>
         </div>
       </div>
+
+      {previewOpen && photoUrl && (
+        <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4" onClick={() => setPreviewOpen(false)}>
+          <div className="relative max-w-2xl w-full" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setPreviewOpen(false)} className="absolute -top-10 right-0 text-white/80 hover:text-white p-2">
+              <X className="w-6 h-6" />
+            </button>
+            <img src={photoUrl} alt="Паспорт" className="w-full rounded-2xl shadow-2xl" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

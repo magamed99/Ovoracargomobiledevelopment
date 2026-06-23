@@ -5,7 +5,7 @@ import {
   MessageSquare, Bell, Search, ClipboardList as RequestIcon, Star,
   Menu, X, ChevronRight, Truck, ClipboardList, Megaphone,
   LogOut, Clock, TrendingUp, Database, Crown, Globe, Boxes, Plane, History, ShieldOff,
-  KeyRound, SlidersHorizontal,
+  KeyRound, SlidersHorizontal, MessageCircle,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { YandexMetrikaTracker } from '../YandexMetrika';
@@ -35,6 +35,7 @@ const navGroups = [
     label: 'Главная',
     items: [
       { name: 'Обзор', href: '/admin', icon: LayoutDashboard, exact: true },
+      { name: 'Уведомления', href: '/admin/notifications', icon: Bell },
     ],
   },
   {
@@ -47,6 +48,7 @@ const navGroups = [
       { name: 'Оферты', href: '/admin/cargo/offers', icon: ClipboardList },
       { name: 'Верификация', href: '/admin/cargo/verification', icon: FileCheck },
       { name: 'Отзывы', href: '/admin/cargo/reviews', icon: MessageSquare },
+      { name: 'Чаты', href: '/admin/cargo/chats', icon: MessageCircle },
       { name: 'Аналитика', href: '/admin/cargo/analytics', icon: BarChart3 },
       { name: 'Подписки', href: '/admin/cargo/subscriptions', icon: Crown },
       { name: 'Настройки CARGO', href: '/admin/cargo/settings', icon: SlidersHorizontal },
@@ -58,6 +60,9 @@ const navGroups = [
     items: [
       { name: 'AVIA Пользователи', href: '/admin/avia/users', icon: Plane },
       { name: 'AVIA Карточки', href: '/admin/avia/cards', icon: Boxes },
+      { name: 'AVIA Аналитика', href: '/admin/avia/analytics', icon: BarChart3 },
+      { name: 'AVIA Настройки', href: '/admin/avia/settings', icon: SlidersHorizontal },
+      { name: 'AVIA Чёрный список', href: '/admin/avia/blacklist', icon: ShieldOff },
       { name: 'AVIA Аудит', href: '/admin/avia/audit', icon: History },
     ],
   },
@@ -658,6 +663,13 @@ export function AdminLayout() {
                           ))
                         )}
                       </div>
+                      <button
+                        onClick={() => { setNotifOpen(false); navigate('/admin/notifications'); }}
+                        className="w-full px-4 py-2.5 text-xs font-semibold text-blue-600 hover:bg-blue-50 transition-colors text-center"
+                        style={{ borderTop: '1px solid #f1f5f9' }}
+                      >
+                        Все уведомления →
+                      </button>
                     </motion.div>
                   )}
                 </AnimatePresence>

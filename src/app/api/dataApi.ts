@@ -493,6 +493,21 @@ export async function getAdminReviews() {
   return data.reviews;
 }
 
+export async function getAdminShipments() {
+  const data = await req('GET', '/admin/shipments');
+  return data.shipments;
+}
+
+export async function getAdminChats() {
+  const data = await req('GET', '/admin/chats');
+  return data.chats;
+}
+
+export async function getAdminChatMessages(chatId: string) {
+  const data = await req('GET', `/admin/chat/${encodeURIComponent(chatId)}/messages`);
+  return data.messages;
+}
+
 export async function deleteAdminReview(reviewId: string) {
   return req('DELETE', `/admin/reviews/${encodeURIComponent(reviewId)}`);
 }
@@ -509,6 +524,11 @@ export async function getAdminCargos() {
 
 export async function deleteAdminCargo(cargoId: string) {
   return req('DELETE', `/admin/cargos/${encodeURIComponent(cargoId)}`);
+}
+
+export async function updateAdminCargo(cargoId: string, updates: Record<string, unknown>) {
+  const data = await req('PUT', `/admin/cargos/${encodeURIComponent(cargoId)}`, updates);
+  return data.cargo;
 }
 
 export async function searchAdmin(q: string) {

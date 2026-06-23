@@ -568,3 +568,121 @@ export function newMessageTemplate(params: {
     ),
   };
 }
+
+// ── 7. Пользователю: блокировка/разблокировка аккаунта админом ───────────────
+export function userStatusTemplate(params: {
+  firstName: string;
+  blocked: boolean;
+  reason?: string;
+  appUrl?: string;
+}): { subject: string; html: string } {
+  const appUrl = params.appUrl || "https://ovora.app";
+  const badgeColor = params.blocked ? "#dc2626" : "#059669";
+
+  const content = `
+<div class="body">
+  <span class="badge" style="background:${badgeColor}22;color:${badgeColor}cc;border:1px solid ${badgeColor}44;">
+    ${params.blocked ? "🚫 Аккаунт заблокирован" : "✅ Аккаунт разблокирован"}
+  </span>
+  <h1>${params.firstName}, ваш аккаунт ${params.blocked ? "заблокирован" : "разблокирован"}</h1>
+  <p class="subtitle">
+    ${params.blocked
+      ? "Администратор платформы заблокировал ваш аккаунт. Доступ к размещению грузов, рейсов и чатам временно ограничен."
+      : "Доступ к вашему аккаунту восстановлен. Вы можете продолжить пользоваться платформой."}
+  </p>
+  ${params.reason ? `
+  <div class="info-card">
+    <div style="font-size:12px;color:#5a8ab0;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Причина:</div>
+    <p style="font-size:14px;color:#a0b8cc;line-height:1.6;font-style:italic;">"${params.reason}"</p>
+  </div>
+  ` : ""}
+  <div class="divider"></div>
+  <p style="font-size:13px;color:#4a6a82;text-align:center;line-height:1.7;">
+    Если вы считаете это ошибкой, напишите нам в
+    <a href="https://t.me/ovora_support" style="color:#5ba3f5;">Telegram-поддержку</a>.
+  </p>
+</div>`;
+
+  return {
+    subject: params.blocked ? "🚫 Ваш аккаунт Ovora Cargo заблокирован" : "✅ Ваш аккаунт Ovora Cargo разблокирован",
+    html: layout(content, params.blocked ? "Ваш аккаунт заблокирован администратором." : "Доступ к аккаунту восстановлен."),
+  };
+}
+
+// ── 8. Пользователю: документ проверен админом ────────────────────────────────
+export function documentStatusTemplate(params: {
+  firstName: string;
+  documentType: string;
+  approved: boolean;
+  reason?: string;
+  appUrl?: string;
+}): { subject: string; html: string } {
+  const appUrl = params.appUrl || "https://ovora.app";
+  const badgeColor = params.approved ? "#059669" : "#dc2626";
+
+  const content = `
+<div class="body">
+  <span class="badge" style="background:${badgeColor}22;color:${badgeColor}cc;border:1px solid ${badgeColor}44;">
+    ${params.approved ? "✅ Документ одобрен" : "❌ Документ отклонён"}
+  </span>
+  <h1>${params.firstName}, ваш документ ${params.approved ? "одобрен" : "отклонён"}</h1>
+  <p class="subtitle">
+    Документ «<strong style="color:#c0d4e8;">${params.documentType}</strong>» прошёл проверку модератором.
+    ${params.approved
+      ? "Верификация пройдена — теперь у вас полный доступ к функциям платформы."
+      : "К сожалению, документ не прошёл проверку. Загрузите его повторно с учётом замечаний."}
+  </p>
+  ${params.reason ? `
+  <div class="info-card">
+    <div style="font-size:12px;color:#5a8ab0;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Комментарий модератора:</div>
+    <p style="font-size:14px;color:#a0b8cc;line-height:1.6;font-style:italic;">"${params.reason}"</p>
+  </div>
+  ` : ""}
+  <div style="text-align:center;margin-top:24px;">
+    <a href="${appUrl}/profile" class="btn ${params.approved ? "btn-success" : "btn-primary"}">
+      ${params.approved ? "Перейти в профиль →" : "Загрузить документ повторно →"}
+    </a>
+  </div>
+</div>`;
+
+  return {
+    subject: params.approved ? `✅ Документ «${params.documentType}» одобрен` : `❌ Документ «${params.documentType}» отклонён`,
+    html: layout(content, params.approved ? "Ваш документ прошёл проверку." : "Документ не прошёл проверку — загрузите его повторно."),
+  };
+}
+
+// ── 9. Уведомление о действии админа (груз/оферта/отзыв) ──────────────────────
+export function adminActionTemplate(params: {
+  firstName: string;
+  title: string;
+  message: string;
+  reason?: string;
+  appUrl?: string;
+}): { subject: string; html: string } {
+  const appUrl = params.appUrl || "https://ovora.app";
+
+  const content = `
+<div class="body">
+  <span class="badge" style="background:#f59e0b22;color:#fbbf24cc;border:1px solid #f59e0b44;">
+    ⚠️ Действие администратора
+  </span>
+  <h1>${params.firstName}, ${params.title}</h1>
+  <p class="subtitle">${params.message}</p>
+  ${params.reason ? `
+  <div class="info-card">
+    <div style="font-size:12px;color:#5a8ab0;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Причина:</div>
+    <p style="font-size:14px;color:#a0b8cc;line-height:1.6;font-style:italic;">"${params.reason}"</p>
+  </div>
+  ` : ""}
+  <div class="divider"></div>
+  <p style="font-size:13px;color:#4a6a82;text-align:center;line-height:1.7;">
+    Вопросы? Напишите нам в
+    <a href="https://t.me/ovora_support" style="color:#5ba3f5;">Telegram-поддержку</a>.
+  </p>
+</div>`;
+
+  return {
+    subject: `⚠️ ${params.title}`,
+    html: layout(content, params.message),
+  };
+}

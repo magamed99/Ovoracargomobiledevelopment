@@ -12,7 +12,7 @@
 import * as kv from "./kv_store.tsx";
 
 export type CargoAuditAction =
-  | 'cargo.admin_delete'
+  | 'cargo.admin_delete' | 'cargo.admin_edit'
   | 'offer.admin_status_change'
   | 'review.admin_delete'
   | 'document.admin_status_change'
@@ -20,16 +20,23 @@ export type CargoAuditAction =
   | 'user.admin_status_change' | 'user.admin_delete'
   | 'blacklist.admin_remove'
   | 'trip.admin_delete_all'
-  | 'ad.admin_create' | 'ad.admin_update' | 'ad.admin_delete';
+  | 'ad.admin_create' | 'ad.admin_update' | 'ad.admin_delete'
+  // Действия обычных пользователей (не админов) — зеркалирует aviaAudit.tsx,
+  // где user- и admin-действия живут в одном журнале.
+  | 'trip.create' | 'trip.edit' | 'trip.delete'
+  | 'cargo.create' | 'cargo.edit' | 'cargo.delete'
+  | 'offer.create'
+  | 'review.create'
+  | 'tracking.status_change' | 'tracking.pod_upload';
 
 export interface CargoAuditEntry {
   id        : string;
   timestamp : string;
   action    : CargoAuditAction;
-  /** Email админа-актора (пока неизвестен на уровне requireAdmin — см. CLAUDE.md) */
+  /** Email актора — реальный email пользователя для user-действий, либо `admin:<role>` для admin-действий */
   actorEmail: string;
   targetId  ?: string;
-  targetType?: 'cargo' | 'offer' | 'review' | 'document' | 'settings' | 'user' | 'blacklist' | 'trip' | 'ad';
+  targetType?: 'cargo' | 'offer' | 'review' | 'document' | 'settings' | 'user' | 'blacklist' | 'trip' | 'ad' | 'tracking';
   details   ?: Record<string, unknown>;
 }
 

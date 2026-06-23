@@ -14,12 +14,16 @@ export type AviaAuditAction =
   | 'user.register' | 'user.login' | 'user.profile_update' | 'user.passport_upload'
   | 'user.pin_change'
   | 'user.admin_edit' | 'user.admin_block' | 'user.admin_unblock'
+  | 'user.passport_verification_status_changed'
   | 'user.admin_delete' | 'user.admin_reset_code'
   | 'flight.create' | 'flight.edit' | 'flight.delete'
   | 'flight.start' | 'flight.close' | 'flight.complete'
+  | 'flight.admin_status_change'
   | 'deal.create' | 'deal.accept' | 'deal.reject' | 'deal.cancel' | 'deal.complete'
   | 'deal.pod_upload' | 'deal.delete' | 'deal.admin_delete'
-  | 'chat.delete';
+  | 'chat.delete'
+  | 'blacklist.admin_remove'
+  | 'settings.admin_update';
 
 export interface AviaAuditEntry {
   id        : string;
@@ -28,7 +32,7 @@ export interface AviaAuditEntry {
   actorPhone: string;
   /** Затронутый объект (dealId / flightId / phone пользователя) */
   targetId  ?: string;
-  targetType?: 'deal' | 'flight' | 'user' | 'chat';
+  targetType?: 'deal' | 'flight' | 'user' | 'chat' | 'blacklist' | 'settings';
   details   ?: Record<string, unknown>;
 }
 

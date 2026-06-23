@@ -250,7 +250,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
     }
   });
 
-  app.put(`${P}/profile`, async (c) => {
+  app.put(`${P}/profile`, rlIp(RL.GENERAL_WRITE), async (c) => {
     try {
       const body  = await c.req.json();
       const { phone, ...updates } = body;
@@ -361,7 +361,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
   //  PASSPORT
   // ══════════════════════════════════════════════════════════════════════════
 
-  app.post(`${P}/upload-passport`, rlPhone(RL.UPLOAD), async (c) => {
+  app.post(`${P}/upload-passport`, async (c) => {
     try {
       const formData        = await c.req.formData();
       const phone           = formData.get('phone') as string;
@@ -375,10 +375,19 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       const existing = await Users.get(clean);
       if (!existing) return c.json({ error: 'User not found' }, 404);
 
-      // 🔒 Уже загружен
+      // 🔒 Уже загружен — отдаём 409 без расхода лимита (повторный клик/рефреш
+      // не должен жечь попытки реальной загрузки)
       if (existing.passportPhoto || existing.passportPhotoPath) {
         return c.json({ error: 'Паспорт уже загружен. Изменить фото нельзя.' }, 409);
       }
+
+      const rl = aviaRL.check(`avia-passport-upload:${clean}`, RL.UPLOAD.max, RL.UPLOAD.windowMs);
+      c.header('X-RateLimit-Limit', String(RL.UPLOAD.max));
+      c.header('X-RateLimit-Remaining', String(rl.remaining));
+      if (!rl.allowed) {
+        return c.json({ error: 'Слишком много попыток загрузки. Подождите и попробуйте снова.', retryAfterMs: rl.retryAfterMs }, 429);
+      }
+
       if (file.size > 10 * 1024 * 1024) return c.json({ error: 'Файл слишком большой (макс 10 МБ)' }, 413);
 
       const ext         = file.name?.split('.').pop() || 'jpg';
@@ -1859,6 +1868,24 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
     }
   });
 
+  // ✅ Admin: фото паспорта пользователя для ручной верификации (PII — отдаём
+  // только по запросу одного пользователя, не в списке /admin/users)
+  app.get(`${P}/admin/users/:phone/passport-photo`, async (c) => {
+    try {
+      const phone = aviaClean(decodeURIComponent(c.req.param('phone')));
+      const user  = await Users.get(phone);
+      if (!user?.passportPhotoPath) return c.json({ found: false });
+
+      const { data } = await supabase.storage
+        .from(AVIA_PASSPORT_BUCKET)
+        .createSignedUrl(user.passportPhotoPath, 3600);
+      return c.json({ found: true, photoUrl: data?.signedUrl || '' });
+    } catch (err) {
+      console.log('Error GET /avia/admin/users/:phone/passport-photo:', err);
+      return c.json({ error: `${err}` }, 500);
+    }
+  });
+
   app.put(`${P}/admin/users/:phone`, async (c) => {
     try {
       const phone = aviaClean(decodeURIComponent(c.req.param('phone')));
@@ -1866,7 +1893,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       const existing = await Users.get(phone);
       if (!existing) return c.json({ error: 'AVIA user not found' }, 404);
 
-      const ALLOWED = ['firstName', 'lastName', 'middleName', 'birthDate', 'city', 'telegram', 'role'] as const;
+      const ALLOWED = ['firstName', 'lastName', 'middleName', 'birthDate', 'city', 'telegram', 'role', 'passportVerified', 'passportExpired'] as const;
       const updates: Partial<AviaUser> = {};
       for (const field of ALLOWED) {
         if (body[field] !== undefined) (updates as any)[field] = body[field];
@@ -1874,7 +1901,23 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       if (Object.keys(updates).length === 0) return c.json({ error: 'No allowed fields provided' }, 400);
 
       const updated = await Users.update(phone, updates);
-      await AuditLog.record({ action: 'user.admin_edit', actorPhone: 'admin', targetId: phone, targetType: 'user', details: { fields: Object.keys(updates) } });
+
+      if ('passportVerified' in updates || 'passportExpired' in updates) {
+        await AuditLog.record({
+          action: 'user.passport_verification_status_changed',
+          actorPhone: 'admin', targetId: phone, targetType: 'user',
+          details: {
+            passportVerified: updates.passportVerified,
+            passportExpired : updates.passportExpired,
+            previousPassportVerified: existing.passportVerified,
+            previousPassportExpired : existing.passportExpired,
+          },
+        });
+      }
+      const otherFields = Object.keys(updates).filter(f => f !== 'passportVerified' && f !== 'passportExpired');
+      if (otherFields.length > 0) {
+        await AuditLog.record({ action: 'user.admin_edit', actorPhone: 'admin', targetId: phone, targetType: 'user', details: { fields: otherFields } });
+      }
       return c.json({ success: true, user: updated });
     } catch (err) {
       console.log('Error PUT /avia/admin/users/:phone:', err);
@@ -1973,6 +2016,34 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
     }
   });
 
+  // ✅ Admin: модерация рейса — форс-смена статуса (закрыть/отменить/вернуть в активные)
+  app.put(`${P}/admin/flights/:id/status`, async (c) => {
+    try {
+      const id = c.req.param('id');
+      const { status, moderationReason } = await c.req.json();
+      const allowed = ['active', 'closed', 'cancelled'];
+      if (!allowed.includes(status)) return c.json({ error: `status must be one of: ${allowed.join(', ')}` }, 400);
+
+      const flight = await Flights.get(id);
+      if (!flight) return c.json({ error: 'Flight not found' }, 404);
+
+      const previousStatus = flight.status;
+      const now = new Date().toISOString();
+      const updated = {
+        ...flight,
+        status,
+        updatedAt: now,
+        ...(moderationReason ? { moderationReason, moderationBy: 'admin', moderationAt: now } : {}),
+      };
+      await Flights.set(id, updated);
+      await AuditLog.record({ action: 'flight.admin_status_change', actorPhone: 'admin', targetId: id, targetType: 'flight', details: { status, previousStatus, moderationReason } });
+      return c.json({ success: true, flight: updated });
+    } catch (err) {
+      console.log('Error PUT /avia/admin/flights/:id/status:', err);
+      return c.json({ error: `${err}` }, 500);
+    }
+  });
+
   app.delete(`${P}/admin/deals/:id`, async (c) => {
     try {
       const id   = c.req.param('id');
@@ -1998,6 +2069,69 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json(result);
     } catch (err) {
       console.log('Error GET /avia/admin/audit:', err);
+      return c.json({ error: `${err}` }, 500);
+    }
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  ADMIN — BLACKLIST (AVIA-срез общего чёрного списка)
+  //  Без этих эндпоинтов avia-admin не имел доступа к чёрному списку вообще:
+  //  /admin/blacklist в index.ts защищён requireRole(['cargo-admin']), куда
+  //  avia-admin не входит.
+  // ══════════════════════════════════════════════════════════════════════════
+
+  app.get(`${P}/admin/blacklist`, async (c) => {
+    try {
+      const all = await Blacklist.listAll();
+      const entries = all.filter(e => e.source === 'avia');
+      return c.json({ entries });
+    } catch (err) {
+      console.log('Error GET /avia/admin/blacklist:', err);
+      return c.json({ error: `${err}` }, 500);
+    }
+  });
+
+  app.delete(`${P}/admin/blacklist/:phone`, async (c) => {
+    try {
+      const phone = aviaClean(decodeURIComponent(c.req.param('phone')));
+      const existing = await Blacklist.check(phone);
+      if (!existing) return c.json({ error: 'Запись не найдена' }, 404);
+      if (existing.source !== 'avia') {
+        return c.json({ error: 'Эта запись относится к CARGO — снять блокировку может только cargo-admin' }, 403);
+      }
+      await Blacklist.remove(phone);
+      await AuditLog.record({ action: 'blacklist.admin_remove', actorPhone: 'admin', targetId: phone, targetType: 'blacklist' });
+      return c.json({ success: true });
+    } catch (err) {
+      console.log('Error DELETE /avia/admin/blacklist/:phone:', err);
+      return c.json({ error: `${err}` }, 500);
+    }
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  ADMIN — НАСТРОЙКИ ПЛАТФОРМЫ AVIA
+  //  Отдельный KV-ключ от CARGO (ovora:admin:settings защищён requireRole(
+  //  ['cargo-admin']), куда avia-admin не входит) — нужен собственный эндпоинт.
+  // ══════════════════════════════════════════════════════════════════════════
+
+  app.get(`${P}/admin/settings`, async (c) => {
+    try {
+      const settings = await kv.get('ovora:avia-admin:settings');
+      return c.json({ settings: settings || {} });
+    } catch (err) {
+      console.log('Error GET /avia/admin/settings:', err);
+      return c.json({ error: `${err}` }, 500);
+    }
+  });
+
+  app.put(`${P}/admin/settings`, async (c) => {
+    try {
+      const body = await c.req.json();
+      await kv.set('ovora:avia-admin:settings', { ...body, updatedAt: new Date().toISOString() });
+      await AuditLog.record({ action: 'settings.admin_update', actorPhone: 'admin', targetType: 'settings', details: { fields: Object.keys(body) } });
+      return c.json({ success: true });
+    } catch (err) {
+      console.log('Error PUT /avia/admin/settings:', err);
       return c.json({ error: `${err}` }, 500);
     }
   });

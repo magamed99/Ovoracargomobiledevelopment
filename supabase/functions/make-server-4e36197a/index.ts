@@ -26,6 +26,7 @@ import {
   welcomeTemplate, newOfferTemplate,
   offerAcceptedTemplate, offerRejectedTemplate,
   tripCompletedTemplate, newMessageTemplate,
+  userStatusTemplate, documentStatusTemplate, adminActionTemplate,
 } from "./email.tsx";
 
 const app = new Hono();
@@ -934,6 +935,10 @@ app.post("/make-server-4e36197a/trips", async (c) => {
       await kv.set(`ovora:drivertrips:${trip.driverEmail}:${id}`, { tripId: id, driverEmail: trip.driverEmail }).catch(() => {});
     }
 
+    if (trip.driverEmail) {
+      await CargoAuditLog.record({ action: 'trip.create', actorEmail: trip.driverEmail, targetId: id, targetType: 'trip', details: { from: trip.from, to: trip.to } });
+    }
+
     return c.json({ success: true, trip });
   } catch (err) {
     console.log("Error POST /trips:", err);
@@ -1148,6 +1153,11 @@ app.put("/make-server-4e36197a/trips/:id", async (c) => {
       })();
     }
 
+    const editorEmail = (body as any).callerEmail || existing.driverEmail;
+    if (editorEmail) {
+      await CargoAuditLog.record({ action: 'trip.edit', actorEmail: editorEmail, targetId: id, targetType: 'trip', details: { fields: Object.keys(cleanedBody) } });
+    }
+
     return c.json({ success: true, trip: updated });
   } catch (err) {
     console.log("Error PUT /trips/:id:", err);
@@ -1163,8 +1173,8 @@ app.delete("/make-server-4e36197a/trips/:id", async (c) => {
 
     // ✅ FIX C-2: проверка владельца (пропускаем для admin-оверрайда — X-Admin-Code или JWT)
     const isAdmin = await isAdminCaller(c, isAdminJwtRevoked);
+    let callerEmail = '';
     if (!isAdmin) {
-      let callerEmail = '';
       try { callerEmail = (await c.req.json()).callerEmail || ''; } catch { /* тело может отсутствовать */ }
       if (!callerEmail) {
         return c.json({ error: 'callerEmail required' }, 400);
@@ -1183,6 +1193,11 @@ app.delete("/make-server-4e36197a/trips/:id", async (c) => {
       console.log(`[DELETE /trips] Removed driver index for ${existing.driverEmail}:${id}`);
     }
 
+    const deleterEmail = callerEmail || existing.driverEmail;
+    if (deleterEmail) {
+      await CargoAuditLog.record({ action: 'trip.delete', actorEmail: deleterEmail, targetId: id, targetType: 'trip' });
+    }
+
     return c.json({ success: true });
   } catch (err) {
     console.log("Error DELETE /trips/:id:", err);
@@ -1195,7 +1210,9 @@ app.delete("/make-server-4e36197a/trips/:id", async (c) => {
 //  KV: ovora:cargo:{id} → cargo object
 // ══════════════════════════════════════════════════════════════════════════════
 
-app.post("/make-server-4e36197a/cargos", async (c) => {
+app.post("/make-server-4e36197a/cargos",
+  rateLimitMiddleware(RL.GENERAL_WRITE, (c) => `cargo-create:${c.req.header('x-forwarded-for') || 'unknown'}`),
+  async (c) => {
   try {
     const body = await c.req.json();
 
@@ -1224,6 +1241,7 @@ app.post("/make-server-4e36197a/cargos", async (c) => {
 
     if (cargo.senderEmail) {
       await kv.set(`ovora:sendercargos:${cargo.senderEmail}:${id}`, { cargoId: id, senderEmail: cargo.senderEmail }).catch(() => {});
+      await CargoAuditLog.record({ action: 'cargo.create', actorEmail: cargo.senderEmail, targetId: id, targetType: 'cargo', details: { from: cargo.from, to: cargo.to } });
     }
 
     return c.json({ success: true, cargo });
@@ -1311,6 +1329,7 @@ app.put("/make-server-4e36197a/cargos/:id", async (c) => {
 
     const updated = { ...existing, ...cleanedBody, id, updatedAt: new Date().toISOString() };
     await kv.set(`ovora:cargo:${id}`, updated);
+    await CargoAuditLog.record({ action: 'cargo.edit', actorEmail: callerEmail, targetId: id, targetType: 'cargo', details: { fields: Object.keys(cleanedBody) } });
     return c.json({ success: true, cargo: updated });
   } catch (err) {
     console.log("Error PUT /cargos/:id:", err);
@@ -1336,6 +1355,7 @@ app.delete("/make-server-4e36197a/cargos/:id", async (c) => {
     if (existing.senderEmail) {
       await kv.del(`ovora:sendercargos:${existing.senderEmail}:${id}`).catch(() => {});
     }
+    await CargoAuditLog.record({ action: 'cargo.delete', actorEmail: callerEmail, targetId: id, targetType: 'cargo' });
     return c.json({ success: true });
   } catch (err) {
     console.log("Error DELETE /cargos/:id:", err);
@@ -1348,7 +1368,9 @@ app.delete("/make-server-4e36197a/cargos/:id", async (c) => {
 //  KV: ovora:offer:{tripId}:{offerId} → offer object
 // ══════════════════════════════════════════════════════════════════════════════
 
-app.post("/make-server-4e36197a/offers", async (c) => {
+app.post("/make-server-4e36197a/offers",
+  rateLimitMiddleware(RL.GENERAL_WRITE, (c) => `offer-create:${c.req.header('x-forwarded-for') || 'unknown'}`),
+  async (c) => {
   try {
     const body = await c.req.json();
     const { tripId, senderEmail, senderName } = body;
@@ -1432,6 +1454,8 @@ app.post("/make-server-4e36197a/offers", async (c) => {
     } catch (notifErr) {
       console.log('[offers] Error creating notification:', notifErr);
     }
+
+    await CargoAuditLog.record({ action: 'offer.create', actorEmail: senderEmail, targetId: `${tripId}:${offerId}`, targetType: 'offer', details: { driverEmail: offer.driverEmail } });
 
     return c.json({ success: true, offer });
   } catch (err) {
@@ -1997,7 +2021,9 @@ app.put("/make-server-4e36197a/cargo-offers/:cargoId/:offerId", async (c) => {
   }
 });
 
-app.post("/make-server-4e36197a/reviews", async (c) => {
+app.post("/make-server-4e36197a/reviews",
+  rateLimitMiddleware(RL.GENERAL_WRITE, (c) => `review-create:${c.req.header('x-forwarded-for') || 'unknown'}`),
+  async (c) => {
   try {
     const body = await c.req.json();
 
@@ -2123,6 +2149,8 @@ app.post("/make-server-4e36197a/reviews", async (c) => {
         console.log("[POST /reviews] Failed to refresh driverRating snapshot:", e);
       }
     }
+
+    await CargoAuditLog.record({ action: 'review.create', actorEmail: authorEmail, targetId: reviewId, targetType: 'review', details: { targetEmail, tripId } });
 
     return c.json({ success: true, review });
   } catch (err) {
@@ -4656,6 +4684,39 @@ app.get("/make-server-4e36197a/admin/reviews", async (c) => {
   }
 });
 
+// ✅ Admin: все поставки (shipment-tracking) — статус, история, POD-фото
+app.get("/make-server-4e36197a/admin/shipments", async (c) => {
+  try {
+    const shipments: any[] = await kv.getByPrefix("ovora:shipment:");
+    return c.json({ shipments: shipments.filter(s => s) });
+  } catch (err) {
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ✅ Admin: список чатов (модерация, read-only) — без проверки participants,
+// т.к. эндпоинт уже защищён глобальным requireAdminChecked + requireRole(['cargo-admin'])
+app.get("/make-server-4e36197a/admin/chats", async (c) => {
+  try {
+    const chats: any[] = await kv.getByPrefix("ovora:chatmeta:");
+    return c.json({ chats: chats.filter(ch => ch && ch.chatId) });
+  } catch (err) {
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ✅ Admin: сообщения конкретного чата (модерация, read-only)
+app.get("/make-server-4e36197a/admin/chat/:chatId/messages", async (c) => {
+  try {
+    const chatId = c.req.param("chatId");
+    const messages: any[] = await kv.getByPrefix(`ovora:chat:${chatId}:`);
+    const sorted = messages.filter(m => m && m.msgId).sort((a, b) => (a.ts || 0) - (b.ts || 0));
+    return c.json({ messages: sorted });
+  } catch (err) {
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
 // ✅ Admin: список грузов отправителей (для управления/модерации)
 app.get("/make-server-4e36197a/admin/cargos", async (c) => {
   try {
@@ -4729,12 +4790,49 @@ app.delete("/make-server-4e36197a/admin/cargos/:id", async (c) => {
     await kv.set(`ovora:cargo:${id}`, { ...existing, deletedAt: new Date().toISOString(), status: 'cancelled' });
     if (existing.senderEmail) {
       await kv.del(`ovora:sendercargos:${existing.senderEmail}:${id}`).catch(() => {});
+      const sender: any = await kv.get(`ovora:user:email:${existing.senderEmail.toLowerCase().trim()}`);
+      if (sender && !(await throttleEmail(existing.senderEmail, `cargo-removed-${id}`, 3_600_000))) {
+        const tpl = adminActionTemplate({
+          firstName: sender.firstName || 'Пользователь',
+          title: 'ваш груз снят с публикации',
+          message: `Объявление о грузе «${existing.from || ''} → ${existing.to || ''}» снято с публикации администратором.`,
+        });
+        sendEmail({ to: existing.senderEmail, subject: tpl.subject, html: tpl.html }).catch(() => {});
+      }
     }
     await CargoAuditLog.record({ action: 'cargo.admin_delete', actorEmail: 'admin', targetId: id, targetType: 'cargo', details: { senderEmail: existing.senderEmail } });
     console.log(`[DELETE /admin/cargos] Admin removed cargo ${id}`);
     return c.json({ success: true });
   } catch (err) {
     console.log("Error DELETE /admin/cargos/:id:", err);
+    return c.json({ error: `${err}` }, 500);
+  }
+});
+
+// ✅ Admin: редактирование груза (модерация/разрешение спора, без проверки владельца)
+const CARGO_ADMIN_EDITABLE = ['from', 'to', 'cargoWeight', 'budget', 'currency', 'notes', 'status'] as const;
+app.put("/make-server-4e36197a/admin/cargos/:id", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const existing: any = await kv.get(`ovora:cargo:${id}`);
+    if (!existing) return c.json({ error: "Cargo not found" }, 404);
+
+    const body = await c.req.json();
+    const updates: Record<string, unknown> = {};
+    for (const field of CARGO_ADMIN_EDITABLE) {
+      if (field in body) updates[field] = body[field];
+    }
+    if (updates.from) updates.from = cleanAddress(String(updates.from));
+    if (updates.to) updates.to = cleanAddress(String(updates.to));
+
+    const updated = { ...existing, ...updates, id, updatedAt: new Date().toISOString() };
+    await kv.set(`ovora:cargo:${id}`, updated);
+
+    const adminRole = c.get('adminRole') || 'admin';
+    await CargoAuditLog.record({ action: 'cargo.admin_edit', actorEmail: `admin:${adminRole}`, targetId: id, targetType: 'cargo', details: { fields: Object.keys(updates) } });
+    return c.json({ success: true, cargo: updated });
+  } catch (err) {
+    console.log("Error PUT /admin/cargos/:id:", err);
     return c.json({ error: `${err}` }, 500);
   }
 });
@@ -4775,6 +4873,20 @@ app.put("/make-server-4e36197a/admin/offers/:tripId/:offerId/status", async (c) 
       }
     }
 
+    if (isFinalStatus) {
+      for (const email of [existing.senderEmail, existing.driverEmail].filter(Boolean)) {
+        const user: any = await kv.get(`ovora:user:email:${email.toLowerCase().trim()}`);
+        if (user && !(await throttleEmail(email, `offer-admin-${status}-${tripId}-${offerId}`, 3_600_000))) {
+          const tpl = adminActionTemplate({
+            firstName: user.firstName || 'Пользователь',
+            title: 'оферта изменена администратором',
+            message: `Статус оферты по поездке изменён администратором на «${status}» в рамках разрешения спора.`,
+          });
+          sendEmail({ to: email, subject: tpl.subject, html: tpl.html }).catch(() => {});
+        }
+      }
+    }
+
     await CargoAuditLog.record({ action: 'offer.admin_status_change', actorEmail: 'admin', targetId: `${tripId}:${offerId}`, targetType: 'offer', details: { status, previousStatus: existing.status } });
     console.log(`[PUT /admin/offers] Admin set offer ${tripId}:${offerId} status to ${status}`);
     return c.json({ success: true, offer: updated });
@@ -4795,6 +4907,18 @@ app.delete("/make-server-4e36197a/admin/reviews/:reviewId", async (c) => {
     await kv.del(key);
     if (existing.targetEmail) await kv.del(`ovora:userreviews:target:${existing.targetEmail}:${reviewId}`).catch(() => {});
     if (existing.authorEmail) await kv.del(`ovora:userreviews:author:${existing.authorEmail}:${reviewId}`).catch(() => {});
+
+    if (existing.authorEmail) {
+      const author: any = await kv.get(`ovora:user:email:${existing.authorEmail.toLowerCase().trim()}`);
+      if (author && !(await throttleEmail(existing.authorEmail, `review-removed-${reviewId}`, 3_600_000))) {
+        const tpl = adminActionTemplate({
+          firstName: author.firstName || 'Пользователь',
+          title: 'ваш отзыв удалён',
+          message: 'Ваш отзыв удалён администратором платформы в рамках модерации.',
+        });
+        sendEmail({ to: existing.authorEmail, subject: tpl.subject, html: tpl.html }).catch(() => {});
+      }
+    }
 
     await CargoAuditLog.record({ action: 'review.admin_delete', actorEmail: 'admin', targetId: reviewId, targetType: 'review', details: { targetEmail: existing.targetEmail, authorEmail: existing.authorEmail } });
     console.log(`[DELETE /admin/reviews] Admin removed review ${reviewId}`);
@@ -4850,12 +4974,24 @@ app.put("/make-server-4e36197a/admin/documents/:documentId/status", async (c) =>
     if (!existing) return c.json({ error: "Document not found" }, 404);
     const updated = { ...existing, status, ...(notes ? { adminNotes: notes } : {}), reviewedAt: new Date().toISOString() };
     await kv.set(docKey, updated);
+    const userKey = `ovora:user:email:${userEmail.toLowerCase().trim()}`;
+    const user: any = await kv.get(userKey);
     if (status === "verified" || status === "approved") {
-      const userKey = `ovora:user:email:${userEmail.toLowerCase().trim()}`;
-      const user: any = await kv.get(userKey);
       if (user) await kv.set(userKey, { ...user, isVerified: true, documentsVerified: true, updatedAt: new Date().toISOString() });
     }
-    await CargoAuditLog.record({ action: 'document.admin_status_change', actorEmail: 'admin', targetId: documentId, targetType: 'document', details: { userEmail, status, notes } });
+    if ((status === "verified" || status === "approved" || status === "rejected") && user) {
+      if (!(await throttleEmail(userEmail, `document-${status}-${documentId}`, 3_600_000))) {
+        const tpl = documentStatusTemplate({
+          firstName: user.firstName || 'Пользователь',
+          documentType: existing.type || 'Документ',
+          approved: status === "verified" || status === "approved",
+          reason: notes,
+        });
+        sendEmail({ to: userEmail, subject: tpl.subject, html: tpl.html }).catch(() => {});
+      }
+    }
+    const adminRole = c.get('adminRole') || 'admin';
+    await CargoAuditLog.record({ action: 'document.admin_status_change', actorEmail: `admin:${adminRole}`, targetId: documentId, targetType: 'document', details: { userEmail, status, notes } });
     console.log(`[admin/documents] ${documentId} for ${userEmail} → ${status}`);
     return c.json({ success: true, document: updated });
   } catch (err) {
@@ -4897,6 +5033,15 @@ app.put("/make-server-4e36197a/admin/users/:email/status", async (c) => {
     if (!existing) return c.json({ error: "User not found" }, 404);
     const updated = { ...existing, status, updatedAt: new Date().toISOString() };
     await kv.set(key, updated);
+    if ((status === "blocked" || status === "active") && status !== existing.status) {
+      if (!(await throttleEmail(email, `user-status-${status}`, 3_600_000))) {
+        const tpl = userStatusTemplate({
+          firstName: existing.firstName || 'Пользователь',
+          blocked: status === "blocked",
+        });
+        sendEmail({ to: email, subject: tpl.subject, html: tpl.html }).catch(() => {});
+      }
+    }
     await CargoAuditLog.record({ action: 'user.admin_status_change', actorEmail: 'admin', targetId: email, targetType: 'user', details: { status, previousStatus: existing.status } });
     return c.json({ success: true, user: updated });
   } catch (err) {
@@ -5216,6 +5361,9 @@ app.post("/make-server-4e36197a/tracking/:tripId/status", async (c) => {
     }
 
     console.log(`[tracking/status] Trip ${tripId}: ${existing.status} → ${status}`);
+
+    await CargoAuditLog.record({ action: 'tracking.status_change', actorEmail: driverEmail, targetId: tripId, targetType: 'tracking', details: { status, previousStatus: existing.status } });
+
     return c.json({ success: true, value: updated });
   } catch (err) {
     console.log("Error POST /tracking/:tripId/status:", err);
@@ -5228,7 +5376,9 @@ app.post("/make-server-4e36197a/tracking/:tripId/status", async (c) => {
 //  Storage: make-4e36197a-pod/{tripId}/{type}-{ts}.jpg
 // ══════════════════════════════════════════════════════════════════════════════
 
-app.post("/make-server-4e36197a/tracking/:tripId/pod", async (c) => {
+app.post("/make-server-4e36197a/tracking/:tripId/pod",
+  rateLimitMiddleware(RL.GENERAL_WRITE, (c) => `pod-upload:${c.req.header('x-forwarded-for') || 'unknown'}`),
+  async (c) => {
   try {
     const tripId = c.req.param("tripId");
     const { base64, type, driverEmail } = await c.req.json();
@@ -5292,6 +5442,9 @@ app.post("/make-server-4e36197a/tracking/:tripId/pod", async (c) => {
     }
 
     console.log(`[tracking/pod] ${type} photo uploaded for trip ${tripId}`);
+
+    await CargoAuditLog.record({ action: 'tracking.pod_upload', actorEmail: driverEmail, targetId: tripId, targetType: 'tracking', details: { type } });
+
     return c.json({ success: true, photo: podEntry });
   } catch (err) {
     console.log("Error POST /tracking/:tripId/pod:", err);

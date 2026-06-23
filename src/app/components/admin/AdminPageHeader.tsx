@@ -152,6 +152,34 @@ export function FilterChips<T extends string>({
   );
 }
 
+/** Постраничная навигация для списков админки (Назад/Вперёд + номер страницы) */
+export function Pagination({
+  page, totalPages, onChange,
+}: { page: number; totalPages: number; onChange: (page: number) => void }) {
+  if (totalPages <= 1) return null;
+  return (
+    <div className="flex items-center justify-center gap-1.5 py-2">
+      <button
+        onClick={() => onChange(Math.max(1, page - 1))}
+        disabled={page <= 1}
+        className="px-3 py-1.5 rounded-xl text-xs font-semibold disabled:opacity-40 transition-colors"
+        style={{ background: '#f1f5f9', color: '#475569' }}
+      >
+        ← Назад
+      </button>
+      <span className="text-xs text-gray-500 px-2">Стр. {page} из {totalPages}</span>
+      <button
+        onClick={() => onChange(Math.min(totalPages, page + 1))}
+        disabled={page >= totalPages}
+        className="px-3 py-1.5 rounded-xl text-xs font-semibold disabled:opacity-40 transition-colors"
+        style={{ background: '#f1f5f9', color: '#475569' }}
+      >
+        Вперёд →
+      </button>
+    </div>
+  );
+}
+
 /** Skeleton loader для списков */
 export function SkeletonList({ rows = 5 }: { rows?: number }) {
   return (

@@ -344,6 +344,11 @@ export const router = createBrowserRouter([
               .then(m => ({ Component: m.AdminDashboard })),
           },
           {
+            path: "notifications",
+            lazy: () => import("./components/admin/NotificationCenter")
+              .then(m => ({ Component: m.NotificationCenter })),
+          },
+          {
             path: "cargo/drivers",
             lazy: () => import("./components/admin/DriversManagement")
               .then(m => ({ Component: m.DriversManagement })),
@@ -414,6 +419,11 @@ export const router = createBrowserRouter([
               .then(m => ({ Component: m.CargoAuditLog })),
           },
           {
+            path: "cargo/chats",
+            lazy: () => import("./components/admin/ChatsManagement")
+              .then(m => ({ Component: m.ChatsManagement })),
+          },
+          {
             path: "site",
             lazy: () => import("./components/admin/SiteSettingsPage")
               .then(m => ({ Component: m.SiteSettingsPage })),
@@ -429,9 +439,24 @@ export const router = createBrowserRouter([
               .then(m => ({ Component: m.AviaCardsManagement })),
           },
           {
+            path: "avia/analytics",
+            lazy: () => import("./components/admin/AviaAnalytics")
+              .then(m => ({ Component: m.AviaAnalytics })),
+          },
+          {
+            path: "avia/settings",
+            lazy: () => import("./components/admin/AviaSettings")
+              .then(m => ({ Component: m.AviaSettings })),
+          },
+          {
             path: "avia/audit",
             lazy: () => import("./components/admin/AviaAuditLog")
               .then(m => ({ Component: m.AviaAuditLog })),
+          },
+          {
+            path: "avia/blacklist",
+            lazy: () => import("./components/admin/AviaBlacklistManagement")
+              .then(m => ({ Component: m.AviaBlacklistManagement })),
           },
         ],
       },

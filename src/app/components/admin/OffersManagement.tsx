@@ -3,8 +3,10 @@ import { useSearchParams } from 'react-router';
 import { Search, RefreshCw, Package, Clock, CheckCircle, XCircle, ChevronDown, User, Truck, Weight, Download, ClipboardList, Ban } from 'lucide-react';
 import { toast } from 'sonner';
 import { getAdminOffers, updateAdminOfferStatus } from '../../api/dataApi';
-import { AdminPageHeader, HeaderBtn, FilterChips, SkeletonList } from './AdminPageHeader';
+import { AdminPageHeader, HeaderBtn, FilterChips, SkeletonList, Pagination } from './AdminPageHeader';
 import { exportCsv } from '../../utils/adminCsvExport';
+
+const PAGE_SIZE = 20;
 
 type StatusFilter = 'all' | 'pending' | 'accepted' | 'rejected';
 
@@ -45,6 +47,9 @@ export function OffersManagement() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [page, setPage] = useState(1);
   const [searchParams] = useSearchParams();
 
   // Переход из глобального поиска в шапке админки (AdminLayout)
@@ -87,6 +92,38 @@ export function OffersManagement() {
 
   useEffect(() => { load(); }, [load]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter]);
+
+  const getId = (offer: any) => offer.offerId || offer.id || `${offer.tripId}_${offer.senderEmail}`;
+
+  const toggleSelect = (id: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkCancel = async () => {
+    if (selected.size === 0) return;
+    if (!confirm(`Отменить ${selected.size} оферт? Это действие для разрешения спора.`)) return;
+    setBulkLoading(true);
+    const ids = Array.from(selected);
+    const targets = offers.filter(o => ids.includes(getId(o)));
+    const results = await Promise.allSettled(
+      targets.map(o => updateAdminOfferStatus(o.tripId, o.offerId || o.id, 'cancelled'))
+    );
+    const okIds = targets.filter((_, i) => results[i].status === 'fulfilled').map(getId);
+    setOffers(prev => prev.map(o => okIds.includes(getId(o)) ? { ...o, status: 'cancelled' } : o));
+    const failed = results.length - okIds.length;
+    if (okIds.length) toast.success(`Отменено: ${okIds.length}`);
+    if (failed) toast.error(`Не удалось отменить: ${failed}`);
+    setSelected(new Set());
+    setBulkLoading(false);
+  };
+
   const pending   = offers.filter(o => o?.status === 'pending').length;
   const accepted  = offers.filter(o => o?.status === 'accepted').length;
   const cancelled = offers.filter(o => ['rejected','cancelled','declined'].includes(o?.status)).length;
@@ -105,6 +142,15 @@ export function OffersManagement() {
       || (statusFilter === 'rejected' ? (st === 'rejected' || st === 'cancelled' || st === 'declined') : st === statusFilter);
     return matchSearch && matchStatus;
   });
+
+  const cancellableFiltered = filtered.filter(o => ['pending', 'accepted'].includes(o.status || 'pending'));
+  const allVisibleSelected = cancellableFiltered.length > 0 && cancellableFiltered.every(o => selected.has(getId(o)));
+  const toggleSelectAll = () => {
+    setSelected(allVisibleSelected ? new Set() : new Set(cancellableFiltered.map(getId)));
+  };
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <div className="space-y-5">
@@ -169,6 +215,30 @@ export function OffersManagement() {
         </div>
       </div>
 
+      {/* Bulk actions */}
+      {selected.size > 0 && (
+        <div className="flex flex-wrap items-center gap-3 px-4 py-3 rounded-2xl" style={{ background: '#fff7ed', border: '1px solid #fed7aa' }}>
+          <span className="text-sm font-semibold text-orange-700">Выбрано: {selected.size}</span>
+          <div className="flex items-center gap-2 ml-auto">
+            <button
+              disabled={bulkLoading}
+              onClick={handleBulkCancel}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl transition-colors disabled:opacity-50"
+              style={{ background: '#fef2f2', color: '#dc2626' }}
+            >
+              <Ban className="w-3.5 h-3.5" /> Отменить оферты
+            </button>
+            <button
+              disabled={bulkLoading}
+              onClick={() => setSelected(new Set())}
+              className="px-3 py-1.5 text-xs font-semibold rounded-xl text-gray-500 hover:bg-gray-100 transition-colors disabled:opacity-50"
+            >
+              Снять выделение
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* List */}
       <div className="bg-white rounded-2xl overflow-hidden" style={{ border: '1px solid #f0f4f8' }}>
         {loading ? (
@@ -181,8 +251,17 @@ export function OffersManagement() {
           </div>
         ) : (
           <div className="divide-y divide-gray-50">
-            {filtered.map(offer => {
-              const id = offer.offerId || offer.id || `${offer.tripId}_${offer.senderEmail}`;
+            <div className="flex items-center gap-3 px-4 sm:px-5 py-2" style={{ background: '#f8fafc' }}>
+              <input
+                type="checkbox"
+                checked={allVisibleSelected}
+                onChange={toggleSelectAll}
+                className="w-4 h-4 rounded cursor-pointer accent-orange-600"
+              />
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Выбрать все</span>
+            </div>
+            {paged.map(offer => {
+              const id = getId(offer);
               const isExpanded = expandedId === id;
               const status = offer.status || 'pending';
               const meta = STATUS_META[status] || STATUS_META.pending;
@@ -193,6 +272,14 @@ export function OffersManagement() {
                     className="flex items-start sm:items-center gap-3 sm:gap-4 px-3 sm:px-5 py-4 cursor-pointer hover:bg-gray-50 transition-colors"
                     onClick={() => setExpandedId(isExpanded ? null : id)}
                   >
+                    <input
+                      type="checkbox"
+                      checked={selected.has(id)}
+                      onChange={e => { e.stopPropagation(); toggleSelect(id); }}
+                      onClick={e => e.stopPropagation()}
+                      disabled={!['pending', 'accepted'].includes(status)}
+                      className="w-4 h-4 rounded cursor-pointer accent-orange-600 flex-shrink-0 disabled:opacity-30"
+                    />
                     {/* Status dot */}
                     <div className="flex-shrink-0">
                       <div
@@ -290,8 +377,10 @@ export function OffersManagement() {
         )}
       </div>
 
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} />
+
       <p className="text-xs text-gray-400 text-center">
-        Показано {filtered.length} из {offers.length} оферт
+        Показано {paged.length} из {filtered.length} оферт (всего {offers.length})
       </p>
     </div>
   );

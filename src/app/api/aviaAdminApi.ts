@@ -30,6 +30,11 @@ export async function deleteAviaAdminUser(phone: string) {
   return req('DELETE', `/users/${encodeURIComponent(phone)}`);
 }
 
+export async function getAviaAdminPassportPhoto(phone: string): Promise<string | null> {
+  const data = await req('GET', `/users/${encodeURIComponent(phone)}/passport-photo`);
+  return data.found ? data.photoUrl : null;
+}
+
 export async function resetAviaUserCode(phone: string): Promise<{ success: boolean; newPin: string }> {
   return req('POST', `/users/${encodeURIComponent(phone)}/reset-code`);
 }
@@ -51,6 +56,29 @@ export async function getAviaAdminFlights() {
 
 export async function deleteAviaAdminDeal(id: string) {
   return req('DELETE', `/deals/${encodeURIComponent(id)}`);
+}
+
+export async function updateAviaAdminFlightStatus(id: string, status: 'active' | 'closed' | 'cancelled', moderationReason?: string) {
+  const data = await req('PUT', `/flights/${encodeURIComponent(id)}/status`, { status, moderationReason });
+  return data.flight;
+}
+
+export async function getAviaAdminBlacklist() {
+  const data = await req('GET', '/blacklist');
+  return data.entries || [];
+}
+
+export async function removeFromAviaBlacklist(phone: string) {
+  return req('DELETE', `/blacklist/${encodeURIComponent(phone)}`);
+}
+
+export async function getAviaAdminSettings(): Promise<Record<string, any>> {
+  const data = await req('GET', '/settings');
+  return data.settings || {};
+}
+
+export async function updateAviaAdminSettings(settings: Record<string, any>) {
+  return req('PUT', '/settings', settings);
 }
 
 export async function getAviaAdminAudit(filter?: {
