@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Search, Plane, RefreshCw, Loader2, Download, Trash2, UserCheck, UserX,
-  ChevronDown, ChevronUp, MoreVertical, KeyRound, Pencil,
+  ChevronDown, ChevronUp, MoreVertical, KeyRound, Pencil, ZoomIn, X,
 } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -9,7 +9,7 @@ import {
 import { toast } from 'sonner';
 import {
   getAviaAdminUsers, setAviaUserBlocked, deleteAviaAdminUser,
-  resetAviaUserCode, updateAviaAdminUser,
+  resetAviaUserCode, updateAviaAdminUser, getAviaAdminPassportPhoto,
 } from '../../api/aviaAdminApi';
 import { getAviaPublicProfile, type AviaPublicProfile } from '../../api/aviaReviewApi';
 import { AdminPageHeader, HeaderBtn, FilterChips, SkeletonList } from './AdminPageHeader';
@@ -387,6 +387,25 @@ function EditUserModal({ user, onClose, onSave }: { user: any; onClose: () => vo
   const [telegram, setTelegram] = useState(user.telegram || '');
   const [passportVerified, setPassportVerified] = useState(!!user.passportVerified);
   const [passportExpired, setPassportExpired] = useState(!!user.passportExpired);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [photoLoading, setPhotoLoading] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const hasPassport = !!user.passportUploadedAt;
+
+  const handleViewPhoto = async () => {
+    if (photoUrl) { setPreviewOpen(true); return; }
+    setPhotoLoading(true);
+    try {
+      const url = await getAviaAdminPassportPhoto(user.phone);
+      if (!url) { toast.error('Фото паспорта не найдено'); return; }
+      setPhotoUrl(url);
+      setPreviewOpen(true);
+    } catch {
+      toast.error('Ошибка загрузки фото');
+    } finally {
+      setPhotoLoading(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: '#00000060' }} onClick={onClose}>
@@ -412,8 +431,18 @@ function EditUserModal({ user, onClose, onSave }: { user: any; onClose: () => vo
           </div>
           <div className="pt-2 space-y-2" style={{ borderTop: '1px solid #f1f5f9' }}>
             <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide pt-2">Паспорт</p>
-            {!user.passportPhoto && !user.passportPhotoPath && (
+            {!hasPassport ? (
               <p className="text-xs text-gray-400">Паспорт не загружен</p>
+            ) : (
+              <button
+                onClick={handleViewPhoto}
+                disabled={photoLoading}
+                className="flex items-center gap-2 text-sm font-medium px-3 py-2 rounded-xl"
+                style={{ background: '#eff6ff', color: '#1d4ed8' }}
+              >
+                {photoLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ZoomIn className="w-4 h-4" />}
+                Посмотреть фото паспорта
+              </button>
             )}
             <label className="flex items-center gap-2 text-sm text-gray-700">
               <input type="checkbox" checked={passportVerified} onChange={e => setPassportVerified(e.target.checked)} />
@@ -438,6 +467,17 @@ function EditUserModal({ user, onClose, onSave }: { user: any; onClose: () => vo
           </button>
         </div>
       </div>
+
+      {previewOpen && photoUrl && (
+        <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4" onClick={() => setPreviewOpen(false)}>
+          <div className="relative max-w-2xl w-full" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setPreviewOpen(false)} className="absolute -top-10 right-0 text-white/80 hover:text-white p-2">
+              <X className="w-6 h-6" />
+            </button>
+            <img src={photoUrl} alt="Паспорт" className="w-full rounded-2xl shadow-2xl" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

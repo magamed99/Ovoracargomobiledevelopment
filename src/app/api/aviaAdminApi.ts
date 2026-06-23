@@ -30,6 +30,11 @@ export async function deleteAviaAdminUser(phone: string) {
   return req('DELETE', `/users/${encodeURIComponent(phone)}`);
 }
 
+export async function getAviaAdminPassportPhoto(phone: string): Promise<string | null> {
+  const data = await req('GET', `/users/${encodeURIComponent(phone)}/passport-photo`);
+  return data.found ? data.photoUrl : null;
+}
+
 export async function resetAviaUserCode(phone: string): Promise<{ success: boolean; newPin: string }> {
   return req('POST', `/users/${encodeURIComponent(phone)}/reset-code`);
 }

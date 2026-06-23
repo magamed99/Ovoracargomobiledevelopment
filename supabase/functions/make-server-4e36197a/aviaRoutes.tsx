@@ -1868,6 +1868,24 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
     }
   });
 
+  // ✅ Admin: фото паспорта пользователя для ручной верификации (PII — отдаём
+  // только по запросу одного пользователя, не в списке /admin/users)
+  app.get(`${P}/admin/users/:phone/passport-photo`, async (c) => {
+    try {
+      const phone = aviaClean(decodeURIComponent(c.req.param('phone')));
+      const user  = await Users.get(phone);
+      if (!user?.passportPhotoPath) return c.json({ found: false });
+
+      const { data } = await supabase.storage
+        .from(AVIA_PASSPORT_BUCKET)
+        .createSignedUrl(user.passportPhotoPath, 3600);
+      return c.json({ found: true, photoUrl: data?.signedUrl || '' });
+    } catch (err) {
+      console.log('Error GET /avia/admin/users/:phone/passport-photo:', err);
+      return c.json({ error: `${err}` }, 500);
+    }
+  });
+
   app.put(`${P}/admin/users/:phone`, async (c) => {
     try {
       const phone = aviaClean(decodeURIComponent(c.req.param('phone')));
