@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { getAdminOffers, updateAdminOfferStatus } from '../../api/dataApi';
 import { AdminPageHeader, HeaderBtn, FilterChips, SkeletonList, Pagination } from './AdminPageHeader';
 import { exportCsv } from '../../utils/adminCsvExport';
+import { useBulkSelect } from '../../hooks/useBulkSelect';
 
 const PAGE_SIZE = 20;
 
@@ -47,7 +48,6 @@ export function OffersManagement() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [searchParams] = useSearchParams();
@@ -98,14 +98,6 @@ export function OffersManagement() {
 
   const getId = (offer: any) => offer.offerId || offer.id || `${offer.tripId}_${offer.senderEmail}`;
 
-  const toggleSelect = (id: string) => {
-    setSelected(prev => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  };
-
   const handleBulkCancel = async () => {
     if (selected.size === 0) return;
     if (!confirm(`Отменить ${selected.size} оферт? Это действие для разрешения спора.`)) return;
@@ -144,10 +136,7 @@ export function OffersManagement() {
   });
 
   const cancellableFiltered = filtered.filter(o => ['pending', 'accepted'].includes(o.status || 'pending'));
-  const allVisibleSelected = cancellableFiltered.length > 0 && cancellableFiltered.every(o => selected.has(getId(o)));
-  const toggleSelectAll = () => {
-    setSelected(allVisibleSelected ? new Set() : new Set(cancellableFiltered.map(getId)));
-  };
+  const { selected, setSelected, toggleSelect, toggleSelectAll, allVisibleSelected } = useBulkSelect(cancellableFiltered, getId);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);

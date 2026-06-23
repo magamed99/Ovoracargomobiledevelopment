@@ -7,6 +7,7 @@ import { searchCities, City, addCustomCity } from '../data/cities';
 import { getTrips } from '../api/dataApi';
 import { toast } from 'sonner';
 import { countryFlag, getCityCountry } from '../utils/addressUtils';
+import { useLanguage } from '../context/LanguageContext';
 
 const HISTORY_KEY = 'ovora_search_history';
 
@@ -61,6 +62,7 @@ function CityDropdown({ suggestions, onSelect, addLabel, onAdd }: {
 
 // ── Trip Card (right panel) ───────────────────────────────────────────────────
 function PopularTripCard({ trip, onClick, index }: { trip: any; onClick: () => void; index: number }) {
+  const { t } = useLanguage();
   return (
     <motion.button
       onClick={onClick}
@@ -82,7 +84,7 @@ function PopularTripCard({ trip, onClick, index }: { trip: any; onClick: () => v
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[13px] font-bold text-white truncate">{trip.driverName || 'Водитель'}</p>
-            <p className="text-[10px] text-[#3d5a72]">Водитель</p>
+            <p className="text-[10px] text-[#3d5a72]">{t('profile_driver')}</p>
           </div>
           {trip.pricePerSeat > 0 && (
             <span style={{ fontSize: 13, fontWeight: 800, color: '#5ba3f5' }}>{trip.pricePerSeat} TJS</span>
@@ -112,7 +114,7 @@ function PopularTripCard({ trip, onClick, index }: { trip: any; onClick: () => v
 
         <div className="flex items-center gap-2 mt-3 pt-3" style={{ borderTop: '1px solid #0f2035' }}>
           <span style={{ fontSize: 10, fontWeight: 700, color: '#5ba3f5', background: '#1d4ed815', border: '1px solid #1d4ed830', padding: '3px 8px', borderRadius: 8 }}>
-            {trip.availableSeats || 3} мест
+            {trip.availableSeats || 3} {t('trips_seats')}
           </span>
           {trip.date && (
             <span style={{ fontSize: 10, fontWeight: 600, color: '#3d5a72' }}>
@@ -331,6 +333,7 @@ export function SearchPage() {
             </div>
             {fromCity && (
               <button onClick={() => { setFromCity(''); setFromCityData(null); }}
+                aria-label="Очистить город отправления"
                 className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0"
                 style={{ background: '#ffffff09', color: '#2e4a62', transition: 'color .12s' }}
                 onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
@@ -353,6 +356,7 @@ export function SearchPage() {
           <div className="flex-1 h-px" style={{ background: '#0f2035' }} />
           <motion.button
             onClick={swapCities}
+            aria-label="Поменять города местами"
             className="w-8 h-8 rounded-xl flex items-center justify-center z-10 -my-4"
             style={{ background: '#060d18', border: '1px solid #0f2035', boxShadow: '0 2px 12px #00000060' }}
             animate={{ rotate: swapping ? 180 : 0 }}
@@ -387,6 +391,7 @@ export function SearchPage() {
             </div>
             {toCity && (
               <button onClick={() => { setToCity(''); setToCityData(null); }}
+                aria-label="Очистить город назначения"
                 className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0"
                 style={{ background: '#ffffff09', color: '#2e4a62', transition: 'color .12s' }}
                 onMouseEnter={e => (e.currentTarget.style.color = '#fff')}

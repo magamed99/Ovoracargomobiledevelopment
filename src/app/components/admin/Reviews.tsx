@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { getAdminReviews, deleteAdminReview } from '../../api/dataApi';
 import { AdminPageHeader, HeaderBtn, FilterChips, SkeletonList, Pagination } from './AdminPageHeader';
 import { StarRow } from '../ui/StarRow';
+import { useBulkSelect } from '../../hooks/useBulkSelect';
 
 const PAGE_SIZE = 20;
 
@@ -168,7 +169,6 @@ export function Reviews() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [groupBy, setGroupBy] = useState<'none' | 'trip' | 'recipient'>('none');
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [searchParams] = useSearchParams();
@@ -198,14 +198,6 @@ export function Reviews() {
   useEffect(() => {
     setPage(1);
   }, [searchQuery, ratingFilter, roleFilter]);
-
-  const toggleSelect = (id: string) => {
-    setSelected(prev => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  };
 
   const handleBulkDelete = async () => {
     if (selected.size === 0) return;
@@ -290,10 +282,7 @@ export function Reviews() {
       ).sort((a, b) => b[1].length - a[1].length)
     : [];
 
-  const allVisibleSelected = filtered.length > 0 && filtered.every(r => selected.has(r.reviewId));
-  const toggleSelectAll = () => {
-    setSelected(allVisibleSelected ? new Set() : new Set(filtered.map(r => r.reviewId)));
-  };
+  const { selected, setSelected, toggleSelect, toggleSelectAll, allVisibleSelected } = useBulkSelect(filtered, (r: any) => r.reviewId);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);

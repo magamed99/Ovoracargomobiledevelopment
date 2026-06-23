@@ -69,6 +69,7 @@ export async function updateUser(email: string, updates: Partial<User>): Promise
 export async function uploadAvatar(email: string, file: File): Promise<string> {
   const formData = new FormData();
   formData.append('avatar', file);
+  formData.append('callerEmail', email);
 
   const res = await fetch(`${BASE}/users/${encodeURIComponent(email)}/avatar`, {
     method: 'POST',

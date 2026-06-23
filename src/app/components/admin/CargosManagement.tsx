@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { getAdminCargos, deleteAdminCargo, updateAdminCargo } from '../../api/dataApi';
 import { AdminPageHeader, HeaderBtn, FilterChips, SkeletonList, Pagination } from './AdminPageHeader';
 import { exportCsv } from '../../utils/adminCsvExport';
+import { useBulkSelect } from '../../hooks/useBulkSelect';
 
 const PAGE_SIZE = 20;
 
@@ -52,7 +53,6 @@ export function CargosManagement() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [editingCargo, setEditingCargo] = useState<any | null>(null);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [searchParams] = useSearchParams();
@@ -99,14 +99,6 @@ export function CargosManagement() {
   useEffect(() => {
     setPage(1);
   }, [search, statusFilter, currencyFilter, weightMin, weightMax, dateFrom, dateTo]);
-
-  const toggleSelect = (id: string) => {
-    setSelected(prev => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  };
 
   const handleBulkRemove = async () => {
     if (selected.size === 0) return;
@@ -164,10 +156,7 @@ export function CargosManagement() {
   });
 
   const removableFiltered = filtered.filter(cg => (cg.status || 'active') !== 'cancelled');
-  const allVisibleSelected = removableFiltered.length > 0 && removableFiltered.every(cg => selected.has(cg.id));
-  const toggleSelectAll = () => {
-    setSelected(allVisibleSelected ? new Set() : new Set(removableFiltered.map(cg => cg.id)));
-  };
+  const { selected, setSelected, toggleSelect, toggleSelectAll, allVisibleSelected } = useBulkSelect(removableFiltered, (cg: any) => cg.id);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);

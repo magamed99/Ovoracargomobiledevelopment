@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Settings, Star, Shield, Bell, HelpCircle, LogOut, ChevronRight, Phone, Mail, MapPin, Heart, Calendar, Info, Edit2, Truck, Package, Award, Copy, Check, User, Calculator, FileText, Scale, UserCheck, Share2, BarChart2 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { useUser } from '../contexts/UserContext';
+import { useLanguage } from '../context/LanguageContext';
 import * as notificationsApi from '../api/notificationsApi';
 import { getUserStats } from '../api/dataApi';
 
@@ -23,6 +24,7 @@ function calcCompleteness(user: any, isDriver: boolean): { pct: number; missing:
 export function ProfilePage() {
   const navigate = useNavigate();
   const { user: currentUser, loading } = useUser();
+  const { t } = useLanguage();
   const userRole = sessionStorage.getItem('userRole') || 'sender';
   const isDriver = userRole === 'driver';
 
@@ -182,7 +184,7 @@ export function ProfilePage() {
                   </div>
                   <div className="flex items-center gap-2 sm:gap-2.5 mt-0.5 sm:mt-1 flex-wrap">
                     <span className={`text-[11px] sm:text-[12px] font-bold ${isDriver ? 'text-emerald-400' : 'text-[#5ba3f5]'}`}>
-                      {isDriver ? 'Водитель' : 'Отправитель'}
+                      {isDriver ? t('profile_driver') : t('profile_sender')}
                     </span>
                     {displayRating && (
                       <span className="flex items-center gap-1">
@@ -406,7 +408,7 @@ export function ProfilePage() {
                         <h2 className="text-[20px] font-black text-white leading-tight mb-1">{displayName}</h2>
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-[12px] font-bold" style={{ color: accent }}>
-                            {isDriver ? 'Водитель' : 'Отправитель'}
+                            {isDriver ? t('profile_driver') : t('profile_sender')}
                           </span>
                           {isDriver && (
                             <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 border border-emerald-500/25 text-emerald-400">

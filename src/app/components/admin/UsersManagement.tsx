@@ -9,6 +9,8 @@ import { getAdminUsers, adminHeaders } from '../../api/dataApi';
 import { projectId } from '../../../../utils/supabase/info';
 import { AdminPageHeader, HeaderBtn, FilterChips, SkeletonList, Pagination } from './AdminPageHeader';
 import { exportCsv } from '../../utils/adminCsvExport';
+import { useBulkSelect } from '../../hooks/useBulkSelect';
+import { RelTime } from './RelTime';
 
 const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;
 const PAGE_SIZE = 20;
@@ -29,19 +31,6 @@ async function deleteUser(email: string) {
   return res.json();
 }
 
-function RelTime({ iso }: { iso?: string }) {
-  if (!iso) return <span className="text-gray-400">—</span>;
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return <span>только что</span>;
-  if (mins < 60) return <span>{mins} мин. назад</span>;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return <span>{hrs} ч. назад</span>;
-  const days = Math.floor(hrs / 24);
-  if (days < 30) return <span>{days} дн. назад</span>;
-  return <span>{new Date(iso).toLocaleDateString('ru-RU')}</span>;
-}
-
 export function UsersManagement() {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,7 +41,6 @@ export function UsersManagement() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [searchParams] = useSearchParams();
@@ -111,14 +99,6 @@ export function UsersManagement() {
     }
   };
 
-  const toggleSelect = (email: string) => {
-    setSelected(prev => {
-      const next = new Set(prev);
-      next.has(email) ? next.delete(email) : next.add(email);
-      return next;
-    });
-  };
-
   const handleBulkStatus = async (status: 'blocked' | 'active') => {
     if (selected.size === 0) return;
     if (!confirm(`${status === 'blocked' ? 'Заблокировать' : 'Разблокировать'} ${selected.size} пользователей?`)) return;
@@ -175,10 +155,7 @@ export function UsersManagement() {
       return sortDir === 'asc' ? ta - tb : tb - ta;
     });
 
-  const allVisibleSelected = filtered.length > 0 && filtered.every(u => selected.has(u.email));
-  const toggleSelectAll = () => {
-    setSelected(allVisibleSelected ? new Set() : new Set(filtered.map(u => u.email)));
-  };
+  const { selected, setSelected, toggleSelect, toggleSelectAll, allVisibleSelected } = useBulkSelect(filtered, (u: any) => u.email);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
