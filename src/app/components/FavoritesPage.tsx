@@ -382,7 +382,13 @@ export function FavoritesPage() {
                         <div style={{ height:3, background:`linear-gradient(90deg,${accent.from},${accent.to},transparent)` }} />
 
                         {/* Card body */}
-                        <div style={{ padding:'20px 22px' }} onClick={() => navigate(`/trip/${trip.id}`)}>
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          style={{ padding:'20px 22px' }}
+                          onClick={() => navigate(`/trip/${trip.id}`)}
+                          onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && navigate(`/trip/${trip.id}`)}
+                        >
 
                           {/* Route */}
                           <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>

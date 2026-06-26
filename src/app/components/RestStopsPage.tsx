@@ -106,7 +106,7 @@ function ReviewModal({ stop, onClose, onSuccess }: { stop: RestStop; onClose: ()
               <p style={{ fontSize: 16, fontWeight: 800, color: '#e2e8f0' }}>{stop.name}</p>
               <p style={{ fontSize: 12, color: '#4a6880' }}>{stop.city} · {stop.route}</p>
             </div>
-            <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 9, background: '#0a1828', border: '1px solid #1a2d45', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+            <button onClick={onClose} aria-label="Закрыть" style={{ width: 32, height: 32, borderRadius: 9, background: '#0a1828', border: '1px solid #1a2d45', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
               <X style={{ width: 14, height: 14, color: '#3a6090' }} />
             </button>
           </div>
@@ -115,6 +115,8 @@ function ReviewModal({ stop, onClose, onSuccess }: { stop: RestStop; onClose: ()
           <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
             {[1,2,3,4,5].map(i => (
               <button key={i} onClick={() => setRating(i)} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(0)}
+                aria-label={`Оценить на ${i} из 5`}
+                aria-pressed={rating === i}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, transition: 'transform .1s' }}>
                 <Star style={{ width: 32, height: 32, color: i <= (hover || rating) ? '#f59e0b' : '#1a2d45', fill: i <= (hover || rating) ? '#f59e0b' : 'none', transition: 'all .15s' }} />
               </button>

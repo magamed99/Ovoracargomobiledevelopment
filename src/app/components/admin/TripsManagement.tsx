@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { getAdminTrips, getAdminOffers, getAdminShipments, adminHeaders } from '../../api/dataApi';
 import { SHIPMENT_STATUS_LABELS, SHIPMENT_STATUS_ICONS } from '../../api/trackingApi';
 import { projectId } from '../../../../utils/supabase/info';
-import { AdminPageHeader, HeaderBtn, FilterChips, SkeletonList } from './AdminPageHeader';
+import { AdminPageHeader, HeaderBtn, FilterChips, SkeletonList, Pagination } from './AdminPageHeader';
 import { exportCsv } from '../../utils/adminCsvExport';
 
 const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;
@@ -28,6 +28,8 @@ function RelTime({ iso }: { iso?: string }) {
   return <span>{Math.floor(hrs / 24)} дн.</span>;
 }
 
+const PAGE_SIZE = 20;
+
 export function TripsManagement() {
   const [trips, setTrips] = useState<any[]>([]);
   const [offersByTrip, setOffersByTrip] = useState<Record<string, any[]>>({});
@@ -36,6 +38,7 @@ export function TripsManagement() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date_desc');
+  const [page, setPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [searchParams] = useSearchParams();
@@ -44,7 +47,7 @@ export function TripsManagement() {
   useEffect(() => {
     const q = searchParams.get('q');
     const expand = searchParams.get('expand');
-    if (q) setSearchQuery(q);
+    if (q) { setSearchQuery(q); setPage(1); }
     if (expand) setExpandedId(expand);
   }, [searchParams]);
 
@@ -120,6 +123,9 @@ export function TripsManagement() {
       }
       return 0;
     });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const STATUS_META: Record<string, { label: string; dot: string; bg: string; text: string }> = {
     active:    { label: 'Активная',      dot: '#3b82f6', bg: '#eff6ff', text: '#1d4ed8' },
@@ -218,7 +224,7 @@ export function TripsManagement() {
         </div>
       ) : (
         <div className="space-y-3">
-          {filtered.map(trip => {
+          {paged.map(trip => {
             const isExpanded = expandedId === trip.id;
             const isActLoading = actionLoading === trip.id;
             const isCancelled = trip.status === 'cancelled' || trip.deletedAt;
@@ -434,6 +440,7 @@ export function TripsManagement() {
         </div>
       )}
 
+      <Pagination page={page} totalPages={totalPages} onChange={p => { setPage(p); }} />
       <p className="text-xs text-gray-400 text-center">
         Показано {filtered.length} из {trips.length} поездок
       </p>

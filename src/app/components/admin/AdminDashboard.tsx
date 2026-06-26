@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router';
 import {
   Users, Car, Package, CheckCircle, RefreshCw, Loader2, Route,
@@ -122,83 +122,74 @@ export function AdminDashboard() {
     if (platform === 'avia' && !aviaLoaded) loadAvia();
   }, [platform, aviaLoaded]);
 
-  // ── Chart data ────────────────────────────────────────────────────────────
-  const tripStatusData = [
-    { name: 'Активные',      value: trips.filter(t => t?.status === 'active').length,                    color: '#3b82f6' },
-    { name: 'Завершены',     value: trips.filter(t => t?.status === 'completed').length,                 color: '#10b981' },
-    { name: 'Отменены',      value: trips.filter(t => t?.status === 'cancelled' || t?.deletedAt).length, color: '#ef4444' },
-    { name: 'Запланированы', value: trips.filter(t => t?.status === 'scheduled').length,                 color: '#f59e0b' },
-  ].filter(d => d.value > 0);
-
-  const offerStatusData = [
-    { name: 'Ожидают',   value: offers.filter(o => o?.status === 'pending').length,                              color: '#f59e0b' },
-    { name: 'Приняты',   value: offers.filter(o => o?.status === 'accepted').length,                             color: '#10b981' },
-    { name: 'Отклонены', value: offers.filter(o => o?.status === 'rejected' || o?.status === 'declined').length, color: '#ef4444' },
-  ].filter(d => d.value > 0);
-
-  const userRoleData = [
-    { name: 'Водители',    value: users.filter(u => u?.role === 'driver').length, color: '#3b82f6' },
-    { name: 'Отправители', value: users.filter(u => u?.role === 'sender').length, color: '#8b5cf6' },
-  ].filter(d => d.value > 0);
-
-  // Activity (last 7 days)
-  const dayLabels = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
-  const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
-  const dayActivity: Record<string, number> = {};
-  trips.filter(t => t?.createdAt && new Date(t.createdAt).getTime() > weekAgo).forEach(t => {
-    const d = dayLabels[new Date(t.createdAt).getDay()];
-    dayActivity[d] = (dayActivity[d] || 0) + 1;
-  });
-  const activityBarData = dayLabels.map(d => ({ label: d, value: dayActivity[d] || 0 }));
-
-  const recentTrips = [...trips]
-    .filter(t => t && !t.deletedAt)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 8);
-
-  const driverMap: Record<string, { name: string; trips: number; email: string }> = {};
-  trips.forEach(t => {
-    if (!t?.driverEmail) return;
-    if (!driverMap[t.driverEmail]) driverMap[t.driverEmail] = { name: t.driverName || t.driverEmail, trips: 0, email: t.driverEmail };
-    driverMap[t.driverEmail].trips++;
-  });
-  const topDrivers = Object.values(driverMap).sort((a, b) => b.trips - a.trips).slice(0, 5);
+  // ── Chart data (memoized — пересчёт только при изменении исходных данных) ──
+  const { tripStatusData, offerStatusData, userRoleData, activityBarData, recentTrips, topDrivers } = useMemo(() => {
+    const dayLabels = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+    const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
+    const dayActivity: Record<string, number> = {};
+    trips.filter(t => t?.createdAt && new Date(t.createdAt).getTime() > weekAgo).forEach(t => {
+      const d = dayLabels[new Date(t.createdAt).getDay()];
+      dayActivity[d] = (dayActivity[d] || 0) + 1;
+    });
+    const driverMap: Record<string, { name: string; trips: number; email: string }> = {};
+    trips.forEach(t => {
+      if (!t?.driverEmail) return;
+      if (!driverMap[t.driverEmail]) driverMap[t.driverEmail] = { name: t.driverName || t.driverEmail, trips: 0, email: t.driverEmail };
+      driverMap[t.driverEmail].trips++;
+    });
+    return {
+      tripStatusData: [
+        { name: 'Активные',      value: trips.filter(t => t?.status === 'active').length,                    color: '#3b82f6' },
+        { name: 'Завершены',     value: trips.filter(t => t?.status === 'completed').length,                 color: '#10b981' },
+        { name: 'Отменены',      value: trips.filter(t => t?.status === 'cancelled' || t?.deletedAt).length, color: '#ef4444' },
+        { name: 'Запланированы', value: trips.filter(t => t?.status === 'scheduled').length,                 color: '#f59e0b' },
+      ].filter(d => d.value > 0),
+      offerStatusData: [
+        { name: 'Ожидают',   value: offers.filter(o => o?.status === 'pending').length,                              color: '#f59e0b' },
+        { name: 'Приняты',   value: offers.filter(o => o?.status === 'accepted').length,                             color: '#10b981' },
+        { name: 'Отклонены', value: offers.filter(o => o?.status === 'rejected' || o?.status === 'declined').length, color: '#ef4444' },
+      ].filter(d => d.value > 0),
+      userRoleData: [
+        { name: 'Водители',    value: users.filter(u => u?.role === 'driver').length, color: '#3b82f6' },
+        { name: 'Отправители', value: users.filter(u => u?.role === 'sender').length, color: '#8b5cf6' },
+      ].filter(d => d.value > 0),
+      activityBarData: dayLabels.map(d => ({ label: d, value: dayActivity[d] || 0 })),
+      recentTrips: [...trips].filter(t => t && !t.deletedAt).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 8),
+      topDrivers: Object.values(driverMap).sort((a, b) => b.trips - a.trips).slice(0, 5),
+    };
+  }, [trips, offers, users]);
 
   // ── AVIA chart data ──────────────────────────────────────────────────────
-  const aviaCouriers = aviaUsers.filter(u => u?.role === 'courier').length;
-  const aviaSenders = aviaUsers.filter(u => u?.role === 'sender').length;
-  const aviaBlocked = aviaUsers.filter(u => u?.blocked).length;
-  const aviaActiveDeals = aviaDeals.filter(d => d?.status === 'pending' || d?.status === 'active').length;
-  const aviaCompletedDeals = aviaDeals.filter(d => d?.status === 'completed').length;
-
-  const aviaDealStatusData = Object.entries(
-    aviaDeals.reduce((acc: Record<string, number>, d) => {
-      const key = d?.status || 'unknown';
-      acc[key] = (acc[key] || 0) + 1;
-      return acc;
-    }, {})
-  ).map(([name, value], i) => ({
-    name,
-    value,
-    color: ['#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#94a3b8'][i % 5],
-  })).filter(d => d.value > 0);
-
-  const aviaRoleData = [
-    { name: 'Курьеры', value: aviaCouriers, color: '#0ea5e9' },
-    { name: 'Отправители', value: aviaSenders, color: '#38bdf8' },
-  ].filter(d => d.value > 0);
-
-  const recentDeals = [...aviaDeals]
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 8);
-
-  const courierMap: Record<string, { name: string; flights: number }> = {};
-  aviaFlights.forEach(f => {
-    if (!f?.courierId) return;
-    if (!courierMap[f.courierId]) courierMap[f.courierId] = { name: f.courierId, flights: 0 };
-    courierMap[f.courierId].flights++;
-  });
-  const topCouriers = Object.values(courierMap).sort((a, b) => b.flights - a.flights).slice(0, 5);
+  const { aviaCouriers, aviaSenders, aviaBlocked, aviaActiveDeals, aviaCompletedDeals, aviaDealStatusData, aviaRoleData, recentDeals, topCouriers } = useMemo(() => {
+    const courierMap: Record<string, { name: string; flights: number }> = {};
+    aviaFlights.forEach(f => {
+      if (!f?.courierId) return;
+      if (!courierMap[f.courierId]) courierMap[f.courierId] = { name: f.courierId, flights: 0 };
+      courierMap[f.courierId].flights++;
+    });
+    const aviaCouriers = aviaUsers.filter(u => u?.role === 'courier').length;
+    const aviaSenders = aviaUsers.filter(u => u?.role === 'sender').length;
+    return {
+      aviaCouriers,
+      aviaSenders,
+      aviaBlocked: aviaUsers.filter(u => u?.blocked).length,
+      aviaActiveDeals: aviaDeals.filter(d => d?.status === 'pending' || d?.status === 'active').length,
+      aviaCompletedDeals: aviaDeals.filter(d => d?.status === 'completed').length,
+      aviaDealStatusData: Object.entries(
+        aviaDeals.reduce((acc: Record<string, number>, d) => {
+          const key = d?.status || 'unknown';
+          acc[key] = (acc[key] || 0) + 1;
+          return acc;
+        }, {})
+      ).map(([name, value], i) => ({ name, value, color: ['#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#94a3b8'][i % 5] })).filter(d => d.value > 0),
+      aviaRoleData: [
+        { name: 'Курьеры',      value: aviaCouriers, color: '#0ea5e9' },
+        { name: 'Отправители',  value: aviaSenders,  color: '#38bdf8' },
+      ].filter(d => d.value > 0),
+      recentDeals: [...aviaDeals].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 8),
+      topCouriers: Object.values(courierMap).sort((a, b) => b.flights - a.flights).slice(0, 5),
+    };
+  }, [aviaDeals, aviaUsers, aviaFlights]);
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center h-72 gap-3">

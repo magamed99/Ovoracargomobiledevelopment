@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { adminHeaders } from '../../api/dataApi';
 import { projectId } from '../../../../utils/supabase/info';
 import { Pagination } from './AdminPageHeader';
+import { useBulkSelect } from '../../hooks/useBulkSelect';
 
 const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;
 const PAGE_SIZE = 12;
@@ -61,7 +62,6 @@ export function DocumentVerification() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [rejectNotes, setRejectNotes] = useState<Record<string, string>>({});
-  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
   const [page, setPage] = useState(1);
 
@@ -99,14 +99,6 @@ export function DocumentVerification() {
   useEffect(() => {
     setPage(1);
   }, [statusFilter, searchQuery]);
-
-  const toggleSelect = (id: string) => {
-    setSelected(prev => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  };
 
   const handleBulkAction = async (status: 'verified' | 'rejected') => {
     if (selected.size === 0) return;
@@ -146,10 +138,7 @@ export function DocumentVerification() {
     });
 
   const pendingFiltered = filtered.filter(d => d.status === 'pending');
-  const allVisibleSelected = pendingFiltered.length > 0 && pendingFiltered.every(d => selected.has(d.id));
-  const toggleSelectAll = () => {
-    setSelected(allVisibleSelected ? new Set() : new Set(pendingFiltered.map(d => d.id)));
-  };
+  const { selected, setSelected, toggleSelect, toggleSelectAll, allVisibleSelected } = useBulkSelect(pendingFiltered, (d: any) => d.id);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -312,7 +301,7 @@ export function DocumentVerification() {
                       <div>
                         <p className="text-xs text-gray-500 font-medium mb-2">Скан документа</p>
                         <div className="relative group cursor-pointer" onClick={() => setPreviewUrl(doc.photoUrl)}>
-                          <img src={doc.photoUrl} alt="Документ"
+                          <img src={doc.photoUrl} alt="Документ" loading="lazy" decoding="async"
                             className="w-full rounded-xl border border-gray-200 max-h-52 object-cover hover:opacity-90 transition-opacity" />
                           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                             <div className="bg-black/50 rounded-full p-2">

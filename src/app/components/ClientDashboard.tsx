@@ -409,7 +409,7 @@ export function Home() {
                     <div className="flex items-center gap-3">
                       <div className="relative shrink-0">
                         {trip.driver.avatar
-                          ? <img src={trip.driver.avatar} alt={trip.driver.name} className="w-10 h-10 rounded-2xl object-cover" />
+                          ? <img src={trip.driver.avatar} alt={trip.driver.name} loading="lazy" decoding="async" className="w-10 h-10 rounded-2xl object-cover" />
                           : <div className="w-10 h-10 rounded-2xl flex items-center justify-center font-black text-[13px] text-white"
                               style={{ background: 'linear-gradient(135deg, #1d4ed8, #7c3aed)' }}>{trip.driver.initials}</div>
                         }

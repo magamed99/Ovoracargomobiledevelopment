@@ -243,7 +243,9 @@ export function SenderTripsPage() {
         setSenderTrips([]);
       }
       await loadCargos(version);
-    } catch {}
+    } catch {
+      if (!silent) toast.error('Не удалось загрузить данные поездок');
+    }
     finally {
       if (isMountedRef.current && version === loadVersionRef.current) { setLoading(false); setIsRefreshing(false); }
     }

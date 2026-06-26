@@ -62,7 +62,9 @@ export function ProposalFormModal({
         if (serverTrip) {
           setTrip(serverTrip);
         }
-      } catch {}
+      } catch {
+        toast.error('Не удалось загрузить данные рейса');
+      }
       setLoading(false);
     }
 

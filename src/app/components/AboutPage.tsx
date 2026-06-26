@@ -562,9 +562,9 @@ export function AboutPage() {
                 <p style={{ fontSize:12, color:'#2a4060', fontWeight:600 }}>Ovora Cargo · v1.0.0 · Душанбе, Таджикистан</p>
               </div>
               <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-                <button onClick={() => navigate('/privacy-policy')} style={{ fontSize:11, color:'#3a5570', fontWeight:500, background:'none', border:'none', cursor:'pointer', textDecoration:'underline', textUnderlineOffset:2, transition:'color .15s' }}>Конфиденциальность</button>
-                <span style={{ fontSize:11, color:'#1e2d3d' }}>·</span>
-                <button onClick={() => navigate('/terms-of-service')} style={{ fontSize:11, color:'#3a5570', fontWeight:500, background:'none', border:'none', cursor:'pointer', textDecoration:'underline', textUnderlineOffset:2, transition:'color .15s' }}>Условия</button>
+                <button onClick={() => navigate('/privacy-policy')} style={{ fontSize:11, color:'#8aa9cc', fontWeight:500, background:'none', border:'none', cursor:'pointer', textDecoration:'underline', textUnderlineOffset:2, transition:'color .15s' }}>Конфиденциальность</button>
+                <span style={{ fontSize:11, color:'#4a6280' }}>·</span>
+                <button onClick={() => navigate('/terms-of-service')} style={{ fontSize:11, color:'#8aa9cc', fontWeight:500, background:'none', border:'none', cursor:'pointer', textDecoration:'underline', textUnderlineOffset:2, transition:'color .15s' }}>Условия</button>
               </div>
             </div>
           </div>

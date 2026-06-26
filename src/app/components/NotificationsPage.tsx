@@ -175,6 +175,7 @@ export function NotificationsPage() {
                 <span className="text-[9px] font-bold px-2 py-0.5 rounded-full" style={{ background: '#06b6d420', color: '#06b6d4', border: '1px solid #06b6d430' }}>НОВОЕ</span>
               )}
               <button onClick={e => { e.stopPropagation(); handleDelete(n.id); }}
+                aria-label="Удалить уведомление"
                 className="w-7 h-7 rounded-lg flex items-center justify-center text-[#2a4060] hover:text-rose-400 transition-colors shrink-0">
                 <Trash2 className="w-3.5 h-3.5" />
               </button>

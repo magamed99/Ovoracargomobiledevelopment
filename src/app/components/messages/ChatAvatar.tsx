@@ -17,6 +17,8 @@ export function ChatAvatar({ contact, hasUnread, size = 52 }: ChatAvatarProps) {
         <img
           src={contact.avatar}
           alt={contact.name}
+          loading="lazy"
+          decoding="async"
           className="object-cover rounded-2xl"
           style={{ width: size, height: size }}
         />

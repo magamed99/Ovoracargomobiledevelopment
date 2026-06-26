@@ -4405,6 +4405,10 @@ app.post("/make-server-4e36197a/documents/upload", async (c) => {
 app.get("/make-server-4e36197a/documents/user/:email", async (c) => {
   try {
     const email = decodeURIComponent(c.req.param("email"));
+    const callerEmail = (c.req.query("callerEmail") || "").toLowerCase().trim();
+    if (!callerEmail || callerEmail !== email.toLowerCase().trim()) {
+      return c.json({ error: 'Forbidden' }, 403);
+    }
     console.log(`[documents/user] Fetching documents for: ${email}`);
     
     const docs: any[] = await kv.getByPrefix(`ovora:document:${email}:`);
@@ -4439,10 +4443,13 @@ app.put("/make-server-4e36197a/documents/:documentId", async (c) => {
   try {
     const documentId = c.req.param("documentId");
     const body = await c.req.json();
-    const { userEmail, ...updates } = body;
+    const { userEmail, callerEmail, ...updates } = body;
 
     if (!userEmail) {
       return c.json({ error: "userEmail required" }, 400);
+    }
+    if (!callerEmail || callerEmail.toLowerCase().trim() !== userEmail.toLowerCase().trim()) {
+      return c.json({ error: 'Forbidden' }, 403);
     }
 
     const docKey = `ovora:document:${userEmail}:${documentId}`;
@@ -4489,10 +4496,13 @@ app.put("/make-server-4e36197a/documents/:documentId", async (c) => {
 app.delete("/make-server-4e36197a/documents/:documentId", async (c) => {
   try {
     const documentId = c.req.param("documentId");
-    const { userEmail } = await c.req.json();
+    const { userEmail, callerEmail } = await c.req.json();
 
     if (!userEmail) {
       return c.json({ error: "userEmail required" }, 400);
+    }
+    if (!callerEmail || callerEmail.toLowerCase().trim() !== userEmail.toLowerCase().trim()) {
+      return c.json({ error: 'Forbidden' }, 403);
     }
 
     const docKey = `ovora:document:${userEmail}:${documentId}`;
@@ -4525,10 +4535,13 @@ app.delete("/make-server-4e36197a/documents/:documentId", async (c) => {
 app.post("/make-server-4e36197a/documents/analyze/:documentId", async (c) => {
   try {
     const documentId = c.req.param("documentId");
-    const { userEmail } = await c.req.json();
+    const { userEmail, callerEmail } = await c.req.json();
 
     if (!userEmail) {
       return c.json({ error: "userEmail required" }, 400);
+    }
+    if (!callerEmail || callerEmail.toLowerCase().trim() !== userEmail.toLowerCase().trim()) {
+      return c.json({ error: 'Forbidden' }, 403);
     }
 
     const docKey = `ovora:document:${userEmail}:${documentId}`;
@@ -4668,10 +4681,22 @@ app.get("/make-server-4e36197a/admin/stats", async (c) => {
   }
 });
 
+// Постраничная выдача для admin-списков — getByPrefix всегда тянет весь префикс
+// из БД (автогенерированный kv_store.tsx не поддерживает LIMIT/OFFSET на уровне
+// запроса), поэтому пагинация применяется к уже загруженному массиву — это не
+// снижает нагрузку на БД, но устраняет передачу/рендер тысяч записей за раз.
+function paginate<T>(c: any, items: T[]): { items: T[]; total: number; limit: number; offset: number } {
+  const rawLimit = c.req.query("limit");
+  const limit = rawLimit ? Math.min(Number(rawLimit) || items.length, 500) : items.length;
+  const offset = Math.max(Number(c.req.query("offset")) || 0, 0);
+  return { items: items.slice(offset, offset + limit), total: items.length, limit, offset };
+}
+
 app.get("/make-server-4e36197a/admin/users", async (c) => {
   try {
     const users: any[] = await kv.getByPrefix("ovora:user:email:");
-    return c.json({ users: users.filter(u => u) });
+    const { items, total, limit, offset } = paginate(c, users.filter(u => u));
+    return c.json({ users: items, total, limit, offset });
   } catch (err) {
     return c.json({ error: `${err}` }, 500);
   }
@@ -4680,7 +4705,8 @@ app.get("/make-server-4e36197a/admin/users", async (c) => {
 app.get("/make-server-4e36197a/admin/trips", async (c) => {
   try {
     const trips: any[] = await kv.getByPrefix("ovora:trip:");
-    return c.json({ trips: trips.filter(t => t && !t.deletedAt) });
+    const { items, total, limit, offset } = paginate(c, trips.filter(t => t && !t.deletedAt));
+    return c.json({ trips: items, total, limit, offset });
   } catch (err) {
     return c.json({ error: `${err}` }, 500);
   }
@@ -4689,7 +4715,8 @@ app.get("/make-server-4e36197a/admin/trips", async (c) => {
 app.get("/make-server-4e36197a/admin/offers", async (c) => {
   try {
     const offers: any[] = await kv.getByPrefix("ovora:offer:");
-    return c.json({ offers: offers.filter(o => o) });
+    const { items, total, limit, offset } = paginate(c, offers.filter(o => o));
+    return c.json({ offers: items, total, limit, offset });
   } catch (err) {
     return c.json({ error: `${err}` }, 500);
   }
@@ -4698,7 +4725,8 @@ app.get("/make-server-4e36197a/admin/offers", async (c) => {
 app.get("/make-server-4e36197a/admin/reviews", async (c) => {
   try {
     const reviews: any[] = await kv.getByPrefix("ovora:review:");
-    return c.json({ reviews: reviews.filter(r => r) });
+    const { items, total, limit, offset } = paginate(c, reviews.filter(r => r));
+    return c.json({ reviews: items, total, limit, offset });
   } catch (err) {
     return c.json({ error: `${err}` }, 500);
   }
@@ -4708,7 +4736,8 @@ app.get("/make-server-4e36197a/admin/reviews", async (c) => {
 app.get("/make-server-4e36197a/admin/shipments", async (c) => {
   try {
     const shipments: any[] = await kv.getByPrefix("ovora:shipment:");
-    return c.json({ shipments: shipments.filter(s => s) });
+    const { items, total, limit, offset } = paginate(c, shipments.filter(s => s));
+    return c.json({ shipments: items, total, limit, offset });
   } catch (err) {
     return c.json({ error: `${err}` }, 500);
   }
@@ -4719,7 +4748,8 @@ app.get("/make-server-4e36197a/admin/shipments", async (c) => {
 app.get("/make-server-4e36197a/admin/chats", async (c) => {
   try {
     const chats: any[] = await kv.getByPrefix("ovora:chatmeta:");
-    return c.json({ chats: chats.filter(ch => ch && ch.chatId) });
+    const { items, total, limit, offset } = paginate(c, chats.filter(ch => ch && ch.chatId));
+    return c.json({ chats: items, total, limit, offset });
   } catch (err) {
     return c.json({ error: `${err}` }, 500);
   }
@@ -4741,7 +4771,8 @@ app.get("/make-server-4e36197a/admin/chat/:chatId/messages", async (c) => {
 app.get("/make-server-4e36197a/admin/cargos", async (c) => {
   try {
     const cargos: any[] = await kv.getByPrefix("ovora:cargo:");
-    return c.json({ cargos: cargos.filter(cg => cg && !cg.deletedAt) });
+    const { items, total, limit, offset } = paginate(c, cargos.filter(cg => cg && !cg.deletedAt));
+    return c.json({ cargos: items, total, limit, offset });
   } catch (err) {
     console.log("Error GET /admin/cargos:", err);
     return c.json({ error: `${err}` }, 500);
@@ -4955,12 +4986,24 @@ app.delete("/make-server-4e36197a/admin/reviews/:reviewId", async (c) => {
 // ✅ Admin: get ALL documents across all users with signed URLs
 app.get("/make-server-4e36197a/admin/documents", async (c) => {
   try {
-    const users: any[] = await kv.getByPrefix("ovora:user:email:");
-    const validUsers = users.filter(u => u?.email);
-    const allDocs: any[] = [];
-    for (const user of validUsers) {
-      const docs: any[] = await kv.getByPrefix(`ovora:document:${user.email}:`);
-      for (const doc of docs.filter(d => d)) {
+    const usersByEmail = new Map<string, any>();
+    for (const u of (await kv.getByPrefix("ovora:user:email:") as any[])) {
+      if (u?.email) usersByEmail.set(u.email, u);
+    }
+
+    // ✅ Один запрос вместо N+1 по пользователям — kv.getByPrefix() отдаёт только
+    // value (без key), поэтому email владельца достаём из ключа напрямую через raw select.
+    const { data: rows, error } = await supabase
+      .from("kv_store_4e36197a")
+      .select("key, value")
+      .like("key", "ovora:document:%");
+    if (error) throw new Error(error.message);
+
+    const allDocs = await Promise.all(
+      (rows || []).filter(r => r.value).map(async (r) => {
+        const email = r.key.split(":")[2] || "";
+        const doc = r.value;
+        const user = usersByEmail.get(email);
         let photoUrl = null;
         if (doc.photoPath) {
           try {
@@ -4968,15 +5011,15 @@ app.get("/make-server-4e36197a/admin/documents", async (c) => {
             photoUrl = data?.signedUrl || null;
           } catch {}
         }
-        allDocs.push({
+        return {
           ...doc,
           photoUrl,
-          driverName: `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email,
-          driverPhone: user.phone || "",
-          driverEmail: user.email,
-        });
-      }
-    }
+          driverName: `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || email,
+          driverPhone: user?.phone || "",
+          driverEmail: email,
+        };
+      })
+    );
     const sorted = allDocs.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
     console.log(`[admin/documents] Returning ${sorted.length} documents`);
     return c.json({ documents: sorted });
@@ -5600,12 +5643,24 @@ app.post("/make-server-4e36197a/kv/del", async (c) => {
 //  KV: ovora:notification:{userEmail}:{id} → notification object
 // ══════════════════════════════════════════════════════════════════════════════
 
-app.post("/make-server-4e36197a/notifications", async (c) => {
+const NOTIFICATION_TYPES = new Set(['trip', 'system', 'payment', 'info', 'auth', 'offer', 'message', 'document']);
+
+app.post(
+  "/make-server-4e36197a/notifications",
+  rateLimitMiddleware(RL.GENERAL_WRITE, (c) => `notif-create:${c.req.header('x-forwarded-for') || 'unknown'}`),
+  async (c) => {
   try {
     const body = await c.req.json();
     const { userEmail, type, iconName, iconBg, title, description } = body;
     if (!userEmail || !type || !title) {
       return c.json({ error: "userEmail, type, and title are required" }, 400);
+    }
+    if (!NOTIFICATION_TYPES.has(type)) {
+      return c.json({ error: "Invalid notification type" }, 400);
+    }
+    const recipient = await kv.get(`ovora:user:email:${String(userEmail).toLowerCase().trim()}`);
+    if (!recipient) {
+      return c.json({ error: "User not found" }, 404);
     }
 
     const id = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -5630,6 +5685,7 @@ app.post("/make-server-4e36197a/notifications", async (c) => {
     return c.json({ error: `${err}` }, 500);
   }
 });
+
 
 app.get("/make-server-4e36197a/notifications/:email", async (c) => {
   try {
@@ -5790,6 +5846,13 @@ app.post("/make-server-4e36197a/users/:email/avatar", async (c) => {
 
     const form = await c.req.formData();
     const file = form.get("avatar") as File | null;
+    const callerEmail = String(form.get("callerEmail") || "").toLowerCase().trim();
+
+    if (!callerEmail) return c.json({ error: "callerEmail is required" }, 400);
+    if (callerEmail !== email) {
+      console.warn(`[avatar/upload] IDOR attempt: ${callerEmail} tried to upload avatar for ${email}`);
+      return c.json({ error: "Forbidden: you can only update your own avatar" }, 403);
+    }
 
     if (!file || !file.size) {
       return c.json({ error: "No avatar file provided" }, 400);
@@ -5996,6 +6059,10 @@ app.delete("/make-server-4e36197a/admin/ads/:id", requireAdminChecked, async (c)
 app.get("/make-server-4e36197a/payments/:email", async (c) => {
   try {
     const email = decodeURIComponent(c.req.param("email")).toLowerCase().trim();
+    const callerEmail = (c.req.query("callerEmail") || "").toLowerCase().trim();
+    if (!callerEmail || callerEmail !== email) {
+      return c.json({ error: 'Forbidden' }, 403);
+    }
     const role = c.req.query("role") || "sender";
     console.log(`[payments] Computing payments for ${email}, role=${role}`);
 
@@ -6389,7 +6456,7 @@ app.post('/make-server-4e36197a/radio/channels/:channelId/messages', async (c) =
     const allMsgs: any[] = await kv.getByPrefix(`ovora:radio:msg:${channelId}:`);
     if (allMsgs.length > 200) {
       const toDelete = allMsgs.filter(m => m).sort((a, b) => (a.ts || 0) - (b.ts || 0)).slice(0, allMsgs.length - 200);
-      for (const m of toDelete) await kv.del(`ovora:radio:msg:${channelId}:${m.id}`).catch(() => {});
+      await Promise.all(toDelete.map(m => kv.del(`ovora:radio:msg:${channelId}:${m.id}`).catch(() => {})));
     }
     return c.json({ success: true, message });
   } catch (err) {
@@ -7135,10 +7202,16 @@ app.post("/make-server-4e36197a/avia/flights", async (c) => {
 app.delete("/make-server-4e36197a/avia/flights/:id", async (c) => {
   try {
     const id = c.req.param("id");
+    const callerPhone = aviaCleanPhone(c.req.query("callerPhone") || "");
+    if (!callerPhone) return c.json({ error: 'callerPhone required' }, 400);
+
     const flight: any = await kv.get(`ovora:air-flight:${id}`);
-    
+
     if (!flight) return c.json({ error: 'Flight not found' }, 404);
-    
+    if (callerPhone !== aviaCleanPhone(flight.courierId || '')) {
+      return c.json({ error: 'Forbidden' }, 403);
+    }
+
     flight.isDeleted = true;
     flight.updatedAt = new Date().toISOString();
     
@@ -7237,10 +7310,16 @@ app.post("/make-server-4e36197a/avia/requests", async (c) => {
 app.delete("/make-server-4e36197a/avia/requests/:id", async (c) => {
   try {
     const id = c.req.param("id");
+    const callerPhone = aviaCleanPhone(c.req.query("callerPhone") || "");
+    if (!callerPhone) return c.json({ error: 'callerPhone required' }, 400);
+
     const req: any = await kv.get(`ovora:air-request:${id}`);
-    
+
     if (!req) return c.json({ error: 'Request not found' }, 404);
-    
+    if (callerPhone !== aviaCleanPhone(req.senderId || '')) {
+      return c.json({ error: 'Forbidden' }, 403);
+    }
+
     req.isDeleted = true;
     req.updatedAt = new Date().toISOString();
     
@@ -7356,6 +7435,10 @@ app.patch("/make-server-4e36197a/avia/requests/:id/close", async (c) => {
 app.get("/make-server-4e36197a/avia/my/:phone", async (c) => {
   try {
     const phone = c.req.param("phone").replace(/\D/g, '');
+    const callerPhone = aviaCleanPhone(c.req.query("callerPhone") || "");
+    if (!callerPhone || callerPhone !== phone) {
+      return c.json({ error: 'callerPhone required' }, 400);
+    }
     
     const [allFlights, allRequests] = await Promise.all([
       kv.getByPrefix("ovora:air-flight:"),

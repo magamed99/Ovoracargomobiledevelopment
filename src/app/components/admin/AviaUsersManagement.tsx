@@ -14,19 +14,7 @@ import {
 import { getAviaPublicProfile, type AviaPublicProfile } from '../../api/aviaReviewApi';
 import { AdminPageHeader, HeaderBtn, FilterChips, SkeletonList } from './AdminPageHeader';
 import { exportCsv } from '../../utils/adminCsvExport';
-
-function RelTime({ iso }: { iso?: string }) {
-  if (!iso) return <span className="text-gray-400">—</span>;
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return <span>только что</span>;
-  if (mins < 60) return <span>{mins} мин. назад</span>;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return <span>{hrs} ч. назад</span>;
-  const days = Math.floor(hrs / 24);
-  if (days < 30) return <span>{days} дн. назад</span>;
-  return <span>{new Date(iso).toLocaleDateString('ru-RU')}</span>;
-}
+import { RelTime } from './RelTime';
 
 export function AviaUsersManagement() {
   const [users, setUsers] = useState<any[]>([]);
@@ -234,7 +222,7 @@ export function AviaUsersManagement() {
                       }}
                     >
                       {user.avatarUrl
-                        ? <img src={user.avatarUrl} alt={fullName} className="w-full h-full object-cover" />
+                        ? <img src={user.avatarUrl} alt={fullName} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                         : initials}
                     </div>
 
@@ -474,7 +462,7 @@ function EditUserModal({ user, onClose, onSave }: { user: any; onClose: () => vo
             <button onClick={() => setPreviewOpen(false)} className="absolute -top-10 right-0 text-white/80 hover:text-white p-2">
               <X className="w-6 h-6" />
             </button>
-            <img src={photoUrl} alt="Паспорт" className="w-full rounded-2xl shadow-2xl" />
+            <img src={photoUrl} alt="Паспорт" loading="lazy" decoding="async" className="w-full rounded-2xl shadow-2xl" />
           </div>
         </div>
       )}

@@ -613,7 +613,7 @@ export async function uploadAdMedia(file: File, type: 'image' | 'video'): Promis
 // ══════════════════════════════════════════════════════════════════
 
 export async function getUserPayments(email: string, role: 'driver' | 'sender'): Promise<any[]> {
-  const data = await req('GET', `/payments/${encodeURIComponent(email)}?role=${role}`);
+  const data = await req('GET', `/payments/${encodeURIComponent(email)}?role=${role}&callerEmail=${encodeURIComponent(email)}`);
   return data.payments || [];
 }
 
