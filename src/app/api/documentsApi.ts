@@ -93,7 +93,7 @@ export async function getUserDocuments(userEmail: string): Promise<Document[]> {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
 
-      const res = await fetch(`${BASE}/documents/user/${encodeURIComponent(userEmail)}`, {
+      const res = await fetch(`${BASE}/documents/user/${encodeURIComponent(userEmail)}?callerEmail=${encodeURIComponent(userEmail)}`, {
         headers: HEADERS,
         signal: controller.signal,
       });
@@ -134,7 +134,7 @@ export async function updateDocument(
   const res = await fetch(`${BASE}/documents/${documentId}`, {
     method: 'PUT',
     headers: HEADERS,
-    body: JSON.stringify({ userEmail, ...updates }),
+    body: JSON.stringify({ userEmail, callerEmail: userEmail, ...updates }),
   });
 
   if (!res.ok) {
@@ -155,7 +155,7 @@ export async function deleteDocument(documentId: string, userEmail: string): Pro
   const res = await fetch(`${BASE}/documents/${documentId}`, {
     method: 'DELETE',
     headers: HEADERS,
-    body: JSON.stringify({ userEmail }),
+    body: JSON.stringify({ userEmail, callerEmail: userEmail }),
   });
 
   if (!res.ok) {
@@ -174,7 +174,7 @@ export async function analyzeDocument(documentId: string, userEmail: string): Pr
   const res = await fetch(`${BASE}/documents/analyze/${documentId}`, {
     method: 'POST',
     headers: HEADERS,
-    body: JSON.stringify({ userEmail }),
+    body: JSON.stringify({ userEmail, callerEmail: userEmail }),
   });
 
   if (!res.ok) {

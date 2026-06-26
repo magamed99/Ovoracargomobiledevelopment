@@ -665,12 +665,8 @@ export function AviaDashboard() {
     }).catch(() => {});
   }, [user]);
 
-  // Авто-polling по интервалу
-  useEffect(() => {
-    if (!user) return;
-    const timer = setInterval(silentPoll, POLL_INTERVAL);
-    return () => clearInterval(timer);
-  }, [silentPoll, user]);
+  // Авто-polling по интервалу (usePolling приостанавливается на скрытой вкладке)
+  usePolling(async () => silentPoll(), POLL_INTERVAL, !!user);
 
   // ── Рекламный баннер ────────────────────────────────────────────────────
   const [aviaAdIndex, setAviaAdIndex] = useState(0);

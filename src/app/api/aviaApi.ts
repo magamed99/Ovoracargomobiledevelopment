@@ -441,7 +441,7 @@ export async function completeAviaFlight(id: string, callerPhone: string): Promi
 /** Получить мои объявления (рейсы, включая закрытые) */
 export async function getMyAviaAds(phone: string): Promise<{ flights: AviaFlight[] }> {
   const clean = phone.replace(/\D/g, '');
-  const res = await fetchWithRetry(`${BASE}/avia/my/${encodeURIComponent(clean)}`, { headers: getHeaders() });
+  const res = await fetchWithRetry(`${BASE}/avia/my/${encodeURIComponent(clean)}?callerPhone=${encodeURIComponent(clean)}`, { headers: getHeaders() });
   if (!res.ok) return { flights: [] };
   return res.json();
 }

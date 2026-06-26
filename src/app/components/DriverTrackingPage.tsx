@@ -363,11 +363,15 @@ export function DriverTrackingPage() {
       try {
         await completeShipment(effectiveTrip.id, driverEmail);
       } catch {
+        toast.error('Не удалось закрыть отправление на сервере');
+        return;
       }
       try {
         await updateTrip(effectiveTrip.id, { status: 'completed' });
         window.dispatchEvent(new Event('ovora_trip_update'));
       } catch {
+        toast.error('Не удалось обновить статус поездки');
+        return;
       }
     }
     navigate('/trips');

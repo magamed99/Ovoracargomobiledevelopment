@@ -4405,6 +4405,10 @@ app.post("/make-server-4e36197a/documents/upload", async (c) => {
 app.get("/make-server-4e36197a/documents/user/:email", async (c) => {
   try {
     const email = decodeURIComponent(c.req.param("email"));
+    const callerEmail = (c.req.query("callerEmail") || "").toLowerCase().trim();
+    if (!callerEmail || callerEmail !== email.toLowerCase().trim()) {
+      return c.json({ error: 'Forbidden' }, 403);
+    }
     console.log(`[documents/user] Fetching documents for: ${email}`);
     
     const docs: any[] = await kv.getByPrefix(`ovora:document:${email}:`);
@@ -4439,10 +4443,13 @@ app.put("/make-server-4e36197a/documents/:documentId", async (c) => {
   try {
     const documentId = c.req.param("documentId");
     const body = await c.req.json();
-    const { userEmail, ...updates } = body;
+    const { userEmail, callerEmail, ...updates } = body;
 
     if (!userEmail) {
       return c.json({ error: "userEmail required" }, 400);
+    }
+    if (!callerEmail || callerEmail.toLowerCase().trim() !== userEmail.toLowerCase().trim()) {
+      return c.json({ error: 'Forbidden' }, 403);
     }
 
     const docKey = `ovora:document:${userEmail}:${documentId}`;
@@ -4489,10 +4496,13 @@ app.put("/make-server-4e36197a/documents/:documentId", async (c) => {
 app.delete("/make-server-4e36197a/documents/:documentId", async (c) => {
   try {
     const documentId = c.req.param("documentId");
-    const { userEmail } = await c.req.json();
+    const { userEmail, callerEmail } = await c.req.json();
 
     if (!userEmail) {
       return c.json({ error: "userEmail required" }, 400);
+    }
+    if (!callerEmail || callerEmail.toLowerCase().trim() !== userEmail.toLowerCase().trim()) {
+      return c.json({ error: 'Forbidden' }, 403);
     }
 
     const docKey = `ovora:document:${userEmail}:${documentId}`;
@@ -4525,10 +4535,13 @@ app.delete("/make-server-4e36197a/documents/:documentId", async (c) => {
 app.post("/make-server-4e36197a/documents/analyze/:documentId", async (c) => {
   try {
     const documentId = c.req.param("documentId");
-    const { userEmail } = await c.req.json();
+    const { userEmail, callerEmail } = await c.req.json();
 
     if (!userEmail) {
       return c.json({ error: "userEmail required" }, 400);
+    }
+    if (!callerEmail || callerEmail.toLowerCase().trim() !== userEmail.toLowerCase().trim()) {
+      return c.json({ error: 'Forbidden' }, 403);
     }
 
     const docKey = `ovora:document:${userEmail}:${documentId}`;
@@ -6046,6 +6059,10 @@ app.delete("/make-server-4e36197a/admin/ads/:id", requireAdminChecked, async (c)
 app.get("/make-server-4e36197a/payments/:email", async (c) => {
   try {
     const email = decodeURIComponent(c.req.param("email")).toLowerCase().trim();
+    const callerEmail = (c.req.query("callerEmail") || "").toLowerCase().trim();
+    if (!callerEmail || callerEmail !== email) {
+      return c.json({ error: 'Forbidden' }, 403);
+    }
     const role = c.req.query("role") || "sender";
     console.log(`[payments] Computing payments for ${email}, role=${role}`);
 
@@ -7185,10 +7202,16 @@ app.post("/make-server-4e36197a/avia/flights", async (c) => {
 app.delete("/make-server-4e36197a/avia/flights/:id", async (c) => {
   try {
     const id = c.req.param("id");
+    const callerPhone = aviaCleanPhone(c.req.query("callerPhone") || "");
+    if (!callerPhone) return c.json({ error: 'callerPhone required' }, 400);
+
     const flight: any = await kv.get(`ovora:air-flight:${id}`);
-    
+
     if (!flight) return c.json({ error: 'Flight not found' }, 404);
-    
+    if (callerPhone !== aviaCleanPhone(flight.courierId || '')) {
+      return c.json({ error: 'Forbidden' }, 403);
+    }
+
     flight.isDeleted = true;
     flight.updatedAt = new Date().toISOString();
     
@@ -7287,10 +7310,16 @@ app.post("/make-server-4e36197a/avia/requests", async (c) => {
 app.delete("/make-server-4e36197a/avia/requests/:id", async (c) => {
   try {
     const id = c.req.param("id");
+    const callerPhone = aviaCleanPhone(c.req.query("callerPhone") || "");
+    if (!callerPhone) return c.json({ error: 'callerPhone required' }, 400);
+
     const req: any = await kv.get(`ovora:air-request:${id}`);
-    
+
     if (!req) return c.json({ error: 'Request not found' }, 404);
-    
+    if (callerPhone !== aviaCleanPhone(req.senderId || '')) {
+      return c.json({ error: 'Forbidden' }, 403);
+    }
+
     req.isDeleted = true;
     req.updatedAt = new Date().toISOString();
     
@@ -7406,6 +7435,10 @@ app.patch("/make-server-4e36197a/avia/requests/:id/close", async (c) => {
 app.get("/make-server-4e36197a/avia/my/:phone", async (c) => {
   try {
     const phone = c.req.param("phone").replace(/\D/g, '');
+    const callerPhone = aviaCleanPhone(c.req.query("callerPhone") || "");
+    if (!callerPhone || callerPhone !== phone) {
+      return c.json({ error: 'callerPhone required' }, 400);
+    }
     
     const [allFlights, allRequests] = await Promise.all([
       kv.getByPrefix("ovora:air-flight:"),

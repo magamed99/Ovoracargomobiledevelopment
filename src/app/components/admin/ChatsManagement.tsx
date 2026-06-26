@@ -2,13 +2,16 @@ import { useState, useEffect, useCallback } from 'react';
 import { MessageSquare, RefreshCw, Loader2, Search, ChevronDown, ChevronUp, Plane, FileImage } from 'lucide-react';
 import { toast } from 'sonner';
 import { getAdminChats, getAdminChatMessages } from '../../api/dataApi';
-import { AdminPageHeader, HeaderBtn, SkeletonList } from './AdminPageHeader';
+import { AdminPageHeader, HeaderBtn, SkeletonList, Pagination } from './AdminPageHeader';
 import { RelTime } from './RelTime';
+
+const PAGE_SIZE = 20;
 
 export function ChatsManagement() {
   const [chats, setChats] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [page, setPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [messagesByChat, setMessagesByChat] = useState<Record<string, any[]>>({});
   const [messagesLoading, setMessagesLoading] = useState<string | null>(null);
@@ -52,6 +55,9 @@ export function ChatsManagement() {
       || (ch.lastMessage || '').toLowerCase().includes(q);
   });
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   return (
     <div className="space-y-5">
       <AdminPageHeader
@@ -88,7 +94,7 @@ export function ChatsManagement() {
           </div>
         ) : (
           <div className="divide-y divide-gray-50">
-            {filtered.map(chat => {
+            {paged.map(chat => {
               const isExpanded = expandedId === chat.chatId;
               const isMsgLoading = messagesLoading === chat.chatId;
               const messages = messagesByChat[chat.chatId] || [];
@@ -152,6 +158,7 @@ export function ChatsManagement() {
         )}
       </div>
 
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} />
       <p className="text-xs text-gray-400 text-center">
         Показано {filtered.length} из {chats.length} чатов
       </p>
