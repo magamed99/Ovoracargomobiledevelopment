@@ -301,7 +301,7 @@ export function DocumentVerification() {
                       <div>
                         <p className="text-xs text-gray-500 font-medium mb-2">Скан документа</p>
                         <div className="relative group cursor-pointer" onClick={() => setPreviewUrl(doc.photoUrl)}>
-                          <img src={doc.photoUrl} alt="Документ"
+                          <img src={doc.photoUrl} alt="Документ" loading="lazy" decoding="async"
                             className="w-full rounded-xl border border-gray-200 max-h-52 object-cover hover:opacity-90 transition-opacity" />
                           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                             <div className="bg-black/50 rounded-full p-2">

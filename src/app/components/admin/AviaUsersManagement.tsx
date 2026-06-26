@@ -222,7 +222,7 @@ export function AviaUsersManagement() {
                       }}
                     >
                       {user.avatarUrl
-                        ? <img src={user.avatarUrl} alt={fullName} className="w-full h-full object-cover" />
+                        ? <img src={user.avatarUrl} alt={fullName} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                         : initials}
                     </div>
 
@@ -462,7 +462,7 @@ function EditUserModal({ user, onClose, onSave }: { user: any; onClose: () => vo
             <button onClick={() => setPreviewOpen(false)} className="absolute -top-10 right-0 text-white/80 hover:text-white p-2">
               <X className="w-6 h-6" />
             </button>
-            <img src={photoUrl} alt="Паспорт" className="w-full rounded-2xl shadow-2xl" />
+            <img src={photoUrl} alt="Паспорт" loading="lazy" decoding="async" className="w-full rounded-2xl shadow-2xl" />
           </div>
         </div>
       )}

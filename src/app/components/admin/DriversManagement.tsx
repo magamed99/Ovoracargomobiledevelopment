@@ -5,7 +5,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { toast } from 'sonner';
 import { getAdminUsers, getAdminTrips, getAdminOffers, adminHeaders } from '../../api/dataApi';
 import { projectId } from '../../../../utils/supabase/info';
-import { AdminPageHeader, HeaderBtn, FilterChips, SkeletonList } from './AdminPageHeader';
+import { AdminPageHeader, HeaderBtn, FilterChips, SkeletonList, Pagination } from './AdminPageHeader';
 import { exportCsv } from '../../utils/adminCsvExport';
 
 const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;
@@ -24,6 +24,8 @@ async function deleteUser(email: string) {
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
+const PAGE_SIZE = 20;
+
 export function DriversManagement() {
   const [drivers, setDrivers] = useState<any[]>([]);
   const [tripsByDriver, setTripsByDriver] = useState<Record<string, number>>({});
@@ -32,6 +34,7 @@ export function DriversManagement() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortBy, setSortBy] = useState('trips');
+  const [page, setPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [searchParams] = useSearchParams();
@@ -40,7 +43,7 @@ export function DriversManagement() {
   useEffect(() => {
     const q = searchParams.get('q');
     const expand = searchParams.get('expand');
-    if (q) setSearchQuery(q);
+    if (q) { setSearchQuery(q); setPage(1); }
     if (expand) setExpandedId(expand);
   }, [searchParams]);
 
@@ -116,6 +119,9 @@ export function DriversManagement() {
       if (sortBy === 'name') return `${a.firstName}${a.lastName}`.localeCompare(`${b.firstName}${b.lastName}`);
       return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
     });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <div className="space-y-5">
@@ -214,7 +220,8 @@ export function DriversManagement() {
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {filtered.map((driver, rank) => {
+          {paged.map((driver, idx) => {
+            const rank = (page - 1) * PAGE_SIZE + idx;
             const isBlocked = driver.status === 'blocked';
             const isExpanded = expandedId === driver.email;
             const isLoading = actionLoading === driver.email;
@@ -259,7 +266,7 @@ export function DriversManagement() {
                         }}
                       >
                         {driver.avatarUrl
-                          ? <img src={driver.avatarUrl} alt={fullName} className="w-full h-full object-cover" />
+                          ? <img src={driver.avatarUrl} alt={fullName} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                           : initials}
                       </div>
                       {rank === 0 && tripsCount > 0 && !isBlocked && (
@@ -394,6 +401,7 @@ export function DriversManagement() {
         </div>
       )}
 
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} />
       <p className="text-xs text-gray-400 text-center">
         Показано {filtered.length} из {drivers.length} водителей
       </p>

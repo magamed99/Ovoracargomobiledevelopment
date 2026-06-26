@@ -79,7 +79,7 @@ function PopularTripCard({ trip, onClick, index }: { trip: any; onClick: () => v
           <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-[12px] font-black shrink-0 uppercase"
             style={{ background: 'linear-gradient(135deg, #5b21b6, #1d4ed8)' }}>
             {trip.driverAvatar
-              ? <img src={trip.driverAvatar} alt="" className="w-full h-full rounded-full object-cover" />
+              ? <img src={trip.driverAvatar} alt="" loading="lazy" decoding="async" className="w-full h-full rounded-full object-cover" />
               : (trip.driverName ?? 'ВД').split(' ').filter(Boolean).map((w: string) => w[0]).join('').slice(0, 2)}
           </div>
           <div className="flex-1 min-w-0">

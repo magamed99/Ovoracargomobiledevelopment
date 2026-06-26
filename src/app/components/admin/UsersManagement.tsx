@@ -350,7 +350,7 @@ export function UsersManagement() {
                       }}
                     >
                       {user.avatarUrl
-                        ? <img src={user.avatarUrl} alt={fullName} className="w-full h-full object-cover" />
+                        ? <img src={user.avatarUrl} alt={fullName} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                         : initials}
                     </div>
 

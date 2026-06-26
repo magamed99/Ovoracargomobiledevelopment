@@ -899,7 +899,7 @@ export function ChatPage() {
                 {!isMine && (
                   <div className="w-7 h-7 rounded-full shrink-0 overflow-hidden">
                     {contact.avatar
-                      ? <img src={contact.avatar} alt="" className="w-full h-full object-cover" />
+                      ? <img src={contact.avatar} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                       : <div className={`w-full h-full flex items-center justify-center text-[10px] font-bold ${isDark ? 'bg-[#1978e5]/20 text-[#1978e5]' : 'bg-[#e6f2f6] text-[#1978e5]'}`}>{(contact.name || '??').slice(0,2).toUpperCase()}</div>
                     }
                   </div>
@@ -936,7 +936,7 @@ export function ChatPage() {
                       const name = msg.text.replace(/^__IMG__.*__NAME__/, '');
                       return (
                         <div className="flex flex-col gap-1.5 -mx-1">
-                          <img src={dataUrl} alt={name} className="max-w-[220px] rounded-xl object-cover" style={{ maxHeight: 180 }} />
+                          <img src={dataUrl} alt={name} loading="lazy" decoding="async" className="max-w-[220px] rounded-xl object-cover" style={{ maxHeight: 180 }} />
                           <span className={`text-[11px] px-1 opacity-70`}>{name}</span>
                         </div>
                       );

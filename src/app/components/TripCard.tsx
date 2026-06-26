@@ -425,7 +425,7 @@ export function TripCard({
               {(mode === 'search' || mode === 'sender') && creatorName && (
                 <div className="flex items-center gap-1.5">
                   {creatorAvatar
-                    ? <img src={creatorAvatar} alt="" className="w-6 h-6 rounded-full object-cover" />
+                    ? <img src={creatorAvatar} alt="" loading="lazy" decoding="async" className="w-6 h-6 rounded-full object-cover" />
                     : <div className="w-6 h-6 rounded-full bg-[#1978e5]/30 flex items-center justify-center">
                         <span className="text-[9px] font-black text-[#5ba3f5]">{initials(creatorName)}</span>
                       </div>
