@@ -204,7 +204,7 @@ function DealOfferBubble({ msg, myPhone, refreshTick }: { msg: AviaChatMessage; 
       >
         <div style={{ maxWidth: '88%', borderRadius: 16, background: isMine ? 'rgba(3,105,161,0.15)' : 'rgba(255,255,255,0.05)', border: `1px solid ${isMine ? 'rgba(14,165,233,0.25)' : 'rgba(255,255,255,0.09)'}`, overflow: 'hidden' }}>
           {/* Header */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 13px 8px', borderBottom: '1px solid rgba(255,255,255,0.06)', background: `${accentColor}08` }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 13px 8px', borderBottom: '1px solid rgba(255,255,255,0.08)', background: `${accentColor}08` }}>
             <div style={{ width: 26, height: 26, borderRadius: 8, flexShrink: 0, background: `${accentColor}18`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <AdIcon style={{ width: 12, height: 12, color: accentColor }} />
             </div>
@@ -333,9 +333,9 @@ function MessageBubble({ msg, isMine }: { msg: AviaChatMessage; isMine: boolean 
 function DateDivider({ date }: { date: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '14px 0 10px' }}>
-      <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
+      <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.08)' }} />
       <span style={{ fontSize: 10, color: '#3a5268', fontWeight: 600 }}>{date}</span>
-      <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
+      <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.08)' }} />
     </div>
   );
 }
@@ -364,7 +364,7 @@ function ChatListItem({
           : hasUnread
             ? 'rgba(14,165,233,0.05)'
             : 'rgba(255,255,255,0.02)',
-        border: `1px solid ${isActive ? 'rgba(14,165,233,0.25)' : hasUnread ? 'rgba(14,165,233,0.14)' : 'rgba(255,255,255,0.06)'}`,
+        border: `1px solid ${isActive ? 'rgba(14,165,233,0.25)' : hasUnread ? 'rgba(14,165,233,0.14)' : 'rgba(255,255,255,0.08)'}`,
         marginBottom: 6, cursor: 'pointer', textAlign: 'left',
         transition: 'background 0.2s, border-color 0.2s',
       }}
@@ -607,10 +607,10 @@ function ChatPanel({ myPhone, chatId, otherPhone, adRef, onBack, onDeleted, onCh
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10,
         padding: '14px 16px',
-        borderBottom: '1px solid rgba(255,255,255,0.06)',
+        borderBottom: '1px solid rgba(255,255,255,0.08)',
         flexShrink: 0,
         background: 'rgba(8,15,31,0.8)',
-        backdropFilter: 'blur(12px)',
+        backdropFilter: 'blur(20px) saturate(160%)',
       }}>
         <button
           onClick={onBack}
@@ -656,7 +656,7 @@ function ChatPanel({ myPhone, chatId, otherPhone, adRef, onBack, onDeleted, onCh
         <div style={{
           display: 'flex', alignItems: 'center', gap: 8,
           padding: '8px 16px',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          borderBottom: '1px solid rgba(255,255,255,0.08)',
           background: 'rgba(8,15,31,0.6)', flexShrink: 0,
         }}>
           <Search style={{ width: 14, height: 14, color: '#4a6080', flexShrink: 0 }} />
@@ -749,12 +749,12 @@ function ChatPanel({ myPhone, chatId, otherPhone, adRef, onBack, onDeleted, onCh
       {/* ── Input ── */}
       <div style={{
         padding: '10px 14px',
-        borderTop: '1px solid rgba(255,255,255,0.06)',
+        borderTop: '1px solid rgba(255,255,255,0.08)',
         display: 'flex', gap: 8, alignItems: 'flex-end',
         flexShrink: 0,
         paddingBottom: 'calc(10px + env(safe-area-inset-bottom, 0px))',
         background: 'rgba(8,15,31,0.8)',
-        backdropFilter: 'blur(12px)',
+        backdropFilter: 'blur(20px) saturate(160%)',
       }}>
         <textarea
           ref={inputRef}
@@ -783,7 +783,7 @@ function ChatPanel({ myPhone, chatId, otherPhone, adRef, onBack, onDeleted, onCh
           disabled={!inputText.trim() || sending}
           style={{
             width: 44, height: 44, borderRadius: 14, flexShrink: 0, border: 'none',
-            background: inputText.trim() && !sending ? 'linear-gradient(135deg, #0369a1, #0ea5e9)' : 'rgba(255,255,255,0.06)',
+            background: inputText.trim() && !sending ? 'linear-gradient(135deg, #0369a1, #0ea5e9)' : 'rgba(255,255,255,0.08)',
             color: inputText.trim() && !sending ? '#fff' : '#3a5268',
             cursor: inputText.trim() && !sending ? 'pointer' : 'default',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -929,7 +929,7 @@ export function AviaMessagesPage() {
   const chatListContent = (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Заголовок */}
-      <div style={{ padding: '20px 16px 14px', borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
+      <div style={{ padding: '20px 16px 14px', borderBottom: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ width: 36, height: 36, borderRadius: 12, background: 'rgba(14,165,233,0.10)', border: '1px solid rgba(14,165,233,0.16)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <MessagesSquare style={{ width: 16, height: 16, color: '#0ea5e9' }} />
@@ -958,7 +958,7 @@ export function AviaMessagesPage() {
             <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '12px 14px', borderRadius: 14, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', marginBottom: 6 }}>
               <div style={{ width: 42, height: 42, borderRadius: 13, background: 'rgba(255,255,255,0.05)' }} />
               <div style={{ flex: 1 }}>
-                <div style={{ width: 130, height: 12, borderRadius: 6, background: 'rgba(255,255,255,0.06)', marginBottom: 6 }} />
+                <div style={{ width: 130, height: 12, borderRadius: 6, background: 'rgba(255,255,255,0.08)', marginBottom: 6 }} />
                 <div style={{ width: 200, height: 10, borderRadius: 5, background: 'rgba(255,255,255,0.04)' }} />
               </div>
             </div>
@@ -1011,7 +1011,7 @@ export function AviaMessagesPage() {
         {/* Левый столбец: список */}
         <div style={{
           width: 320, flexShrink: 0,
-          borderRight: '1px solid rgba(255,255,255,0.06)',
+          borderRight: '1px solid rgba(255,255,255,0.08)',
           display: 'flex', flexDirection: 'column',
           height: '100%', overflow: 'hidden',
         }}>

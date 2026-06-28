@@ -439,7 +439,7 @@ export function HelpPage() {
               {/* FAQ list */}
               {filteredFAQs.length === 0 ? (
                 <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'60px 0', gap:12 }}>
-                  <div style={{ width:60, height:60, borderRadius:20, display:'flex', alignItems:'center', justifyContent:'center', background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', borderWidth:1, borderStyle:'solid', borderColor:'#1a2d42' }}>
+                  <div style={{ width:60, height:60, borderRadius:20, display:'flex', alignItems:'center', justifyContent:'center', background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(20px) saturate(160%)', WebkitBackdropFilter: 'blur(20px) saturate(160%)', borderWidth:1, borderStyle:'solid', borderColor:'#1a2d42' }}>
                     <HelpCircle style={{ width:26, height:26, color:'#2a4060' }} />
                   </div>
                   <p style={{ fontSize:18, fontWeight:800, color:'#fff' }}>Ничего не найдено</p>

@@ -195,7 +195,7 @@ function DealOfferBubble({
         <div style={{
           display: 'flex', alignItems: 'center', gap: 8,
           padding: '10px 13px 8px',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          borderBottom: '1px solid rgba(255,255,255,0.08)',
           background: `${accentColor}08`,
         }}>
           <div style={{
@@ -495,9 +495,9 @@ function DateDivider({ date }: { date: string }) {
       display:        'flex', alignItems: 'center', gap: 10,
       margin:         '14px 0 10px',
     }}>
-      <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
+      <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.08)' }} />
       <span style={{ fontSize: 10, color: '#3a5268', fontWeight: 600 }}>{date}</span>
-      <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
+      <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.08)' }} />
     </div>
   );
 }
@@ -526,7 +526,7 @@ function ChatListItem({
         display:      'flex', alignItems: 'center', gap: 12,
         padding:      '12px 14px', borderRadius: 14,
         background:   hasUnread ? 'rgba(14,165,233,0.05)' : 'rgba(255,255,255,0.02)',
-        border:       `1px solid ${hasUnread ? 'rgba(14,165,233,0.14)' : 'rgba(255,255,255,0.06)'}`,
+        border:       `1px solid ${hasUnread ? 'rgba(14,165,233,0.14)' : 'rgba(255,255,255,0.08)'}`,
         marginBottom: 8, cursor: 'pointer', textAlign: 'left',
         transition:   'background 0.2s',
       }}
@@ -871,7 +871,7 @@ export function AviaChatDrawer({
           position:    'fixed', bottom: 0, left: '50%',
           transform:   'translateX(-50%)',
           width:       '100%', maxWidth: 520,
-          background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+          background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(20px) saturate(160%)', WebkitBackdropFilter: 'blur(20px) saturate(160%)',
           borderRadius:'20px 20px 0 0',
           border:      '1px solid rgba(255,255,255,0.07)',
           borderBottom:'none',
@@ -893,7 +893,7 @@ export function AviaChatDrawer({
         <div style={{
           display:        'flex', alignItems: 'center',
           padding:        '12px 16px 10px',
-          borderBottom:   '1px solid rgba(255,255,255,0.06)',
+          borderBottom:   '1px solid rgba(255,255,255,0.08)',
           flexShrink:     0, gap: 10,
         }}>
           {view === 'chat' && (
@@ -1007,7 +1007,7 @@ export function AviaChatDrawer({
                   }}>
                     <div style={{ width: 42, height: 42, borderRadius: 13, background: 'rgba(255,255,255,0.05)' }} />
                     <div style={{ flex: 1 }}>
-                      <div style={{ width: 130, height: 13, borderRadius: 6, background: 'rgba(255,255,255,0.06)', marginBottom: 6 }} />
+                      <div style={{ width: 130, height: 13, borderRadius: 6, background: 'rgba(255,255,255,0.08)', marginBottom: 6 }} />
                       <div style={{ width: 200, height: 10, borderRadius: 5, background: 'rgba(255,255,255,0.04)' }} />
                     </div>
                   </div>
@@ -1118,7 +1118,7 @@ export function AviaChatDrawer({
               {/* Input area */}
               <div style={{
                 padding:      '10px 14px',
-                borderTop:    '1px solid rgba(255,255,255,0.06)',
+                borderTop:    '1px solid rgba(255,255,255,0.08)',
                 display:      'flex', gap: 8, alignItems: 'flex-end',
                 flexShrink:   0,
                 paddingBottom: 'calc(10px + env(safe-area-inset-bottom, 0px))',
@@ -1158,7 +1158,7 @@ export function AviaChatDrawer({
                     border:     'none',
                     background: inputText.trim() && !sending
                       ? 'linear-gradient(135deg, #0369a1, #0ea5e9)'
-                      : 'rgba(255,255,255,0.06)',
+                      : 'rgba(255,255,255,0.08)',
                     color:      inputText.trim() && !sending ? '#fff' : '#3a5268',
                     cursor:     inputText.trim() && !sending ? 'pointer' : 'default',
                     display:    'flex', alignItems: 'center', justifyContent: 'center',

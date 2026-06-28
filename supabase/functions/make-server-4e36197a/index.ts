@@ -1,3 +1,4 @@
+// redeploy: restore --no-verify-jwt (fix AVIA /flights 500)
 import { Hono } from "npm:hono";
 import { setupAviaRoutes } from "./aviaRoutes.tsx";
 import * as bcryptAvia from "npm:bcryptjs"; // used by legacy dead-code block below

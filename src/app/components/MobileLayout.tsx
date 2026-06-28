@@ -407,7 +407,7 @@ function FloatingMenu({
               aria-label="Закрыть меню"
               onClick={() => setMenuOpen(false)}
               style={{
-                marginLeft: 'auto', width: 30, height: 30, borderRadius: 9, border: '1px solid rgba(255,255,255,0.06)',
+                marginLeft: 'auto', width: 30, height: 30, borderRadius: 9, border: '1px solid rgba(255,255,255,0.08)',
                 background: 'rgba(255,255,255,0.03)', display: 'flex', alignItems: 'center', justifyContent: 'center',
                 cursor: 'pointer', color: '#2a4060',
               }}

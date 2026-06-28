@@ -26,7 +26,7 @@ const ROLE_OPTIONS: { id: AviaRole; icon: typeof Package; label: string; color: 
 // ── Shared styles ─────────────────────────────────────────────────────────────
 
 const card: React.CSSProperties = {
-  background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+  background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(20px) saturate(160%)', WebkitBackdropFilter: 'blur(20px) saturate(160%)',
   border: '1px solid #ffffff0d',
   borderRadius: 20,
   overflow: 'hidden',
@@ -1767,7 +1767,7 @@ export function AviaProfile() {
         borderBottom: '1px solid #ffffff07',
         position: 'sticky', top: 0, zIndex: 10,
         background: 'var(--avia-bg)',
-        backdropFilter: 'blur(12px)',
+        backdropFilter: 'blur(20px) saturate(160%)',
       }}>
         <button
           onClick={() => navigate('/avia/dashboard')}

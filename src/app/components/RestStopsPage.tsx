@@ -301,7 +301,7 @@ export function RestStopsPage() {
           })}
           {activeFilters.length > 0 && (
             <button onClick={() => setActiveFilters([])}
-              style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 100, background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid #3a1a1a', color: '#ef4444', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+              style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 100, background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(20px) saturate(160%)', WebkitBackdropFilter: 'blur(20px) saturate(160%)', border: '1px solid #3a1a1a', color: '#ef4444', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
               <X style={{ width: 11, height: 11 }} /> Сбросить
             </button>
           )}
@@ -322,7 +322,7 @@ export function RestStopsPage() {
 
         {loading ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {[1,2,3].map(i => <div key={i} style={{ height: 280, borderRadius: 22, background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid #0d1e30', animation: 'pulse 1.5s ease-in-out infinite' }} />)}
+            {[1,2,3].map(i => <div key={i} style={{ height: 280, borderRadius: 22, background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(20px) saturate(160%)', WebkitBackdropFilter: 'blur(20px) saturate(160%)', border: '1px solid #0d1e30', animation: 'pulse 1.5s ease-in-out infinite' }} />)}
           </div>
         ) : displayed.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px 20px', color: '#3a5070' }}>

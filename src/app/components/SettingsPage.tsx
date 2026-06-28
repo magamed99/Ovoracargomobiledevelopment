@@ -207,7 +207,7 @@ export function SettingsPage() {
                     key={lang.code}
                     onClick={() => { setLang(lang.code as LangCode); setShowLang(false); toast.success(`Язык: ${lang.label}`); }}
                     className="w-full flex items-center gap-3.5 px-4 py-3 rounded-2xl text-left transition-all hover:opacity-90 active:scale-[0.98]"
-                    style={{ background: active ? '#5ba3f514' : 'rgba(255,255,255,0.03)', border: `1.5px solid ${active ? '#5ba3f540' : 'rgba(255,255,255,0.06)'}` }}
+                    style={{ background: active ? '#5ba3f514' : 'rgba(255,255,255,0.03)', border: `1.5px solid ${active ? '#5ba3f540' : 'rgba(255,255,255,0.08)'}` }}
                   >
                     <span className="text-2xl">{lang.flag}</span>
                     <div className="flex-1">

@@ -210,7 +210,7 @@ export function AviaDealOfferModal({ me, flight, onClose, onSuccess, onOpenChat,
           onClick={e => e.stopPropagation()}
           style={{
             width: '100%', maxWidth: 520,
-            background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+            background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(20px) saturate(160%)', WebkitBackdropFilter: 'blur(20px) saturate(160%)',
             borderRadius: '24px 24px 0 0',
             border: '1px solid #ffffff0c',
             borderBottom: 'none',

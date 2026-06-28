@@ -97,7 +97,7 @@ function RowActions({ sub, onRefresh }: { sub: Subscription; onRefresh: () => vo
         onClick={() => setOpen(o => !o)}
         disabled={loading}
         style={{
-          background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
+          background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)',
           borderRadius: 7, padding: '5px 8px', cursor: 'pointer', color: '#94a3b8',
           display: 'flex', alignItems: 'center',
         }}
@@ -291,7 +291,7 @@ export function SubscriptionManagement() {
       {/* ── Table ── */}
       <div style={{
         background: 'rgba(255,255,255,0.02)',
-        border: '1px solid rgba(255,255,255,0.06)',
+        border: '1px solid rgba(255,255,255,0.08)',
         borderRadius: 14, overflow: 'hidden',
       }}>
         <div style={{ overflowX: 'auto' }}>
@@ -301,7 +301,7 @@ export function SubscriptionManagement() {
           display: 'grid', gridTemplateColumns: '1fr 130px 90px 100px 100px 80px',
           padding: '12px 18px',
           background: 'rgba(255,255,255,0.03)',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          borderBottom: '1px solid rgba(255,255,255,0.08)',
           gap: 8,
         }}>
           {[
