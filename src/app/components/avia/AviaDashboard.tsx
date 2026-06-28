@@ -524,6 +524,7 @@ export function AviaDashboard() {
   const [myFlights, setMyFlights] = useState<AviaFlight[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [loadErrMsg, setLoadErrMsg] = useState(''); // ВРЕМЕННАЯ ДИАГНОСТИКА
   const [_loadingMy, setLoadingMy] = useState(false);
   const [showFlightModal, setShowFlightModal] = useState(false);
   const [detailFlight, setDetailFlight] = useState<AviaFlight | null>(null);
@@ -613,8 +614,9 @@ export function AviaDashboard() {
     setLoadingData(true);
     setLoadError(false);
     fetchMainData()
-      .catch(() => {
+      .catch((e) => {
         setLoadError(true);
+        setLoadErrMsg(String(e?.message || e)); // ВРЕМЕННАЯ ДИАГНОСТИКА
         toast.error('Не удалось загрузить рейсы', {
           action: { label: 'Повторить', onClick: () => loadMainData() },
         });
@@ -1312,7 +1314,7 @@ export function AviaDashboard() {
                   icon={AlertTriangle}
                   color="#ef4444"
                   title="Не удалось загрузить рейсы"
-                  subtitle="Проверьте соединение и попробуйте снова"
+                  subtitle={loadErrMsg || 'Проверьте соединение и попробуйте снова'}
                   action={{ label: 'Повторить', onClick: loadMainData }}
                 />
               ) : displayFlights.length === 0 ? (
