@@ -82,7 +82,7 @@ export async function handleEmailCheck(c: Context) {
 
   } catch (err) {
     console.log("Error POST /auth/email-check:", err);
-    return c.json({ success: false, error: `${err}` }, 500);
+    return c.json({ success: false, error: 'Внутренняя ошибка сервера' }, 500);
   }
 }
 
@@ -122,7 +122,7 @@ export async function handleSetCode(c: Context) {
 
   } catch (err) {
     console.log("Error POST /auth/set-code:", err);
-    return c.json({ success: false, error: `${err}` }, 500);
+    return c.json({ success: false, error: 'Внутренняя ошибка сервера' }, 500);
   }
 }
 
@@ -178,7 +178,7 @@ export async function handleVerifyPermCode(c: Context) {
 
   } catch (err) {
     console.log("Error POST /auth/verify-perm-code:", err);
-    return c.json({ success: false, error: `${err}` }, 500);
+    return c.json({ success: false, error: 'Внутренняя ошибка сервера' }, 500);
   }
 }
 
@@ -201,7 +201,7 @@ export async function handleResetCode(c: Context) {
 
   } catch (err) {
     console.log("Error POST /auth/reset-code:", err);
-    return c.json({ success: false, error: `${err}` }, 500);
+    return c.json({ success: false, error: 'Внутренняя ошибка сервера' }, 500);
   }
 }
 
@@ -225,6 +225,6 @@ export async function handleAdminListCodes(c: Context) {
     return c.json({ success: true, codes: result });
   } catch (err) {
     console.log("Error GET /admin/codes:", err);
-    return c.json({ success: false, error: `${err}` }, 500);
+    return c.json({ success: false, error: 'Внутренняя ошибка сервера' }, 500);
   }
 }

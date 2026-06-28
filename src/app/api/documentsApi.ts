@@ -46,6 +46,7 @@ export async function uploadDocument(params: {
   const formData = new FormData();
   formData.append('file', params.file);
   formData.append('userEmail', params.userEmail);
+  formData.append('callerEmail', params.userEmail); // 🔒 владелец = загружающий
   formData.append('documentId', params.documentId);
   formData.append('documentType', params.documentType);
   formData.append('title', params.title);

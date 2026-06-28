@@ -323,7 +323,7 @@ app.post("/make-server-4e36197a/push/subscribe", async (c) => {
     return c.json({ success: true });
   } catch (err) {
     console.log('Error POST /push/subscribe:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -349,7 +349,7 @@ app.post("/make-server-4e36197a/push/unsubscribe", async (c) => {
     return c.json({ success: true });
   } catch (err) {
     console.log('Error POST /push/unsubscribe:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -429,7 +429,7 @@ app.post("/make-server-4e36197a/admin/auth",
     return c.json({ success: true, token, role });
   } catch (err) {
     console.log('Error POST /admin/auth:', err);
-    return c.json({ success: false, error: `${err}` }, 500);
+    return c.json({ success: false, error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -443,7 +443,7 @@ app.post("/make-server-4e36197a/admin/auth/revoke-all", requireRole(['super-admi
     return c.json({ success: true });
   } catch (err) {
     console.log('Error POST /admin/auth/revoke-all:', err);
-    return c.json({ success: false, error: `${err}` }, 500);
+    return c.json({ success: false, error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -457,7 +457,7 @@ app.get("/make-server-4e36197a/config/yandex-key", requireAdminChecked, (c) => {
     return c.json({ apiKey });
   } catch (err) {
     console.log("Error /config/yandex-key:", err);
-    return c.json({ error: `${err}`, apiKey: '' }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера', apiKey: '' }, 500);
   }
 });
 
@@ -486,7 +486,7 @@ app.get("/make-server-4e36197a/config/ocr-status", (c) => {
     });
   } catch (err) {
     console.log("Error /config/ocr-status:", err);
-    return c.json({ error: `${err}`, configured: false }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера', configured: false }, 500);
   }
 });
 
@@ -707,7 +707,7 @@ app.post("/make-server-4e36197a/auth/login-email",
     return c.json({ found: true, user: safeUser });
   } catch (err) {
     console.log("Error /auth/login-email:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -732,7 +732,7 @@ app.post("/make-server-4e36197a/auth/login-phone",
     return c.json({ found: true, user: safeUser });
   } catch (err) {
     console.log("Error /auth/login-phone:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -767,7 +767,7 @@ app.put("/make-server-4e36197a/auth/user", async (c) => {
     return c.json({ success: true, user: safeUser });
   } catch (err) {
     console.log("Error PUT /auth/user:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -781,7 +781,7 @@ app.get("/make-server-4e36197a/auth/user/:email", async (c) => {
     return c.json({ found: true, user: safeUser });
   } catch (err) {
     console.log("Error GET /auth/user:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -970,7 +970,7 @@ app.post("/make-server-4e36197a/trips", async (c) => {
     return c.json({ success: true, trip });
   } catch (err) {
     console.log("Error POST /trips:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -1007,7 +1007,7 @@ app.get("/make-server-4e36197a/trips", async (c) => {
     return c.json({ trips: sorted });
   } catch (err) {
     console.log("Error GET /trips:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -1033,7 +1033,7 @@ app.post("/make-server-4e36197a/trips/batch", async (c) => {
     return c.json({ trips: results });
   } catch (err) {
     console.log("Error POST /trips/batch:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -1076,7 +1076,7 @@ app.get("/make-server-4e36197a/trips/my/:email", async (c) => {
     return c.json({ trips: userTrips });
   } catch (err) {
     console.log("Error GET /trips/my/:email:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -1099,7 +1099,7 @@ app.get("/make-server-4e36197a/trips/:id", async (c) => {
     return c.json({ found: true, trip: cleanedTrip });
   } catch (err) {
     console.log("Error GET /trips/:id:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -1189,7 +1189,7 @@ app.put("/make-server-4e36197a/trips/:id", async (c) => {
     return c.json({ success: true, trip: updated });
   } catch (err) {
     console.log("Error PUT /trips/:id:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -1229,7 +1229,7 @@ app.delete("/make-server-4e36197a/trips/:id", async (c) => {
     return c.json({ success: true });
   } catch (err) {
     console.log("Error DELETE /trips/:id:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -1275,7 +1275,7 @@ app.post("/make-server-4e36197a/cargos",
     return c.json({ success: true, cargo });
   } catch (err) {
     console.log("Error POST /cargos:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -1288,7 +1288,7 @@ app.get("/make-server-4e36197a/cargos", async (c) => {
     return c.json({ cargos: sorted });
   } catch (err) {
     console.log("Error GET /cargos:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -1318,7 +1318,7 @@ app.get("/make-server-4e36197a/cargos/my/:email", async (c) => {
     return c.json({ cargos: userCargos });
   } catch (err) {
     console.log("Error GET /cargos/my/:email:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -1330,7 +1330,7 @@ app.get("/make-server-4e36197a/cargos/:id", async (c) => {
     return c.json({ found: true, cargo });
   } catch (err) {
     console.log("Error GET /cargos/:id:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -1361,7 +1361,7 @@ app.put("/make-server-4e36197a/cargos/:id", async (c) => {
     return c.json({ success: true, cargo: updated });
   } catch (err) {
     console.log("Error PUT /cargos/:id:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -1387,7 +1387,7 @@ app.delete("/make-server-4e36197a/cargos/:id", async (c) => {
     return c.json({ success: true });
   } catch (err) {
     console.log("Error DELETE /cargos/:id:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -1489,7 +1489,7 @@ app.post("/make-server-4e36197a/offers",
     return c.json({ success: true, offer });
   } catch (err) {
     console.log("Error POST /offers:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -1503,7 +1503,7 @@ app.get("/make-server-4e36197a/offers/trip/:tripId", async (c) => {
     return c.json({ offers: sorted });
   } catch (err) {
     console.log("Error GET /offers/trip/:tripId:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -1547,7 +1547,7 @@ app.get("/make-server-4e36197a/offers/user/:email", async (c) => {
     return c.json({ offers: sorted });
   } catch (err) {
     console.log("Error GET /offers/user:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -1608,7 +1608,7 @@ app.get("/make-server-4e36197a/offers/driver/:email", async (c) => {
     return c.json({ offers: activeOffers });
   } catch (err) {
     console.log("Error GET /offers/driver:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -1673,7 +1673,7 @@ app.post("/make-server-4e36197a/offers/cleanup", async (c) => {
     return c.json({ cancelled: cancelledCount });
   } catch (err) {
     console.log("Error POST /offers/cleanup:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -1874,7 +1874,7 @@ app.put("/make-server-4e36197a/offers/:tripId/:offerId", async (c) => {
     return c.json({ success: true, offer: updated });
   } catch (err) {
     console.log("Error PUT /offers:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -1940,7 +1940,7 @@ app.post("/make-server-4e36197a/cargo-offers", async (c) => {
     return c.json({ success: true, offer });
   } catch (err) {
     console.log("Error POST /cargo-offers:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -1951,7 +1951,7 @@ app.get("/make-server-4e36197a/cargo-offers/cargo/:cargoId", async (c) => {
     return c.json({ offers: offers.filter(Boolean).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) });
   } catch (err) {
     console.log("Error GET /cargo-offers/cargo/:cargoId:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -1970,7 +1970,7 @@ app.get("/make-server-4e36197a/cargo-offers/driver/:email", async (c) => {
     return c.json({ offers: offers.filter(o => !['cancelled','declined','deleted'].includes(o.status)).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) });
   } catch (err) {
     console.log("Error GET /cargo-offers/driver/:email:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -1989,7 +1989,7 @@ app.get("/make-server-4e36197a/cargo-offers/sender/:email", async (c) => {
     return c.json({ offers: offers.filter(o => !['cancelled','deleted'].includes(o.status)).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) });
   } catch (err) {
     console.log("Error GET /cargo-offers/sender/:email:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -2048,7 +2048,7 @@ app.put("/make-server-4e36197a/cargo-offers/:cargoId/:offerId", async (c) => {
     return c.json({ success: true, offer: updated });
   } catch (err) {
     console.log("Error PUT /cargo-offers/:cargoId/:offerId:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -2186,7 +2186,7 @@ app.post("/make-server-4e36197a/reviews",
     return c.json({ success: true, review });
   } catch (err) {
     console.log("Error POST /reviews:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -2229,7 +2229,7 @@ app.get("/make-server-4e36197a/reviews/user/:email", async (c) => {
     return c.json({ reviews: userReviews });
   } catch (err) {
     console.log("Error GET /reviews/user:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -2249,7 +2249,7 @@ app.get("/make-server-4e36197a/reviews", async (c) => {
     return c.json({ reviews: sorted });
   } catch (err) {
     console.log("Error GET /reviews:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -2277,7 +2277,7 @@ app.delete("/make-server-4e36197a/reviews/:reviewId", async (c) => {
     return c.json({ success: true });
   } catch (err) {
     console.log("Error DELETE /reviews/:reviewId:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -2352,7 +2352,7 @@ app.post("/make-server-4e36197a/chat/init", async (c) => {
     return c.json({ success: true });
   } catch (err) {
     console.log("Error POST /chat/init:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -2462,7 +2462,7 @@ app.post("/make-server-4e36197a/chat/message", async (c) => {
     return c.json({ success: true, message });
   } catch (err) {
     console.log("Error POST /chat/message:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -2487,7 +2487,7 @@ app.get("/make-server-4e36197a/chat/:chatId/messages", async (c) => {
     return c.json({ messages: sorted });
   } catch (err) {
     console.log("Error GET /chat/:chatId/messages:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -2510,7 +2510,7 @@ app.put("/make-server-4e36197a/chat/:chatId/read", async (c) => {
     return c.json({ success: true });
   } catch (err) {
     console.log("Error PUT /chat/:chatId/read:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -2833,7 +2833,7 @@ app.put("/make-server-4e36197a/chat/:chatId/proposal/:proposalId", async (c) => 
     return c.json({ success: true, message: updatedMsg });
   } catch (err) {
     console.log("Error PUT /chat/proposal:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -2853,7 +2853,7 @@ app.get("/make-server-4e36197a/chats/user/:email", async (c) => {
     return c.json({ chats: userChats });
   } catch (err) {
     console.log("Error GET /chats/user:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -2875,7 +2875,7 @@ app.delete("/make-server-4e36197a/chats/cleanup-demo", requireAdminChecked, asyn
     return c.json({ deleted: demoMetas.length });
   } catch (err) {
     console.log("Error DELETE /chats/cleanup-demo:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -2950,7 +2950,7 @@ app.put("/make-server-4e36197a/users/:email/sync-chats", async (c) => {
     return c.json({ success: true, updated: updatedCount });
   } catch (err) {
     console.log("Error PUT /users/:email/sync-chats:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -3010,7 +3010,7 @@ app.put("/make-server-4e36197a/users/:email/sync-trips", async (c) => {
     return c.json({ success: true, updatedTrips, updatedOffers });
   } catch (err) {
     console.log("Error PUT /users/:email/sync-trips:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -3105,7 +3105,7 @@ app.delete("/make-server-4e36197a/chat/:chatId", async (c) => {
     return c.json({ success: true, deletedMessages: msgs.length });
   } catch (err) {
     console.log("Error DELETE /chat/:chatId:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -3162,7 +3162,7 @@ app.delete("/make-server-4e36197a/chat/:chatId/message/:msgId", async (c) => {
     return c.json({ success: true, remainingMessages: sorted.length });
   } catch (err) {
     console.log("Error DELETE /chat/:chatId/message/:msgId:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -4115,9 +4115,20 @@ app.post("/make-server-4e36197a/documents/upload", async (c) => {
     const subtitle = formData.get('subtitle') as string;
     const expiryDate = formData.get('expiryDate') as string | null;
     const extractedFullName = formData.get('extractedFullName') as string | null; // ✅ ФИО из формы
+    const callerEmail = (formData.get('callerEmail') as string | null) || '';
 
     if (!file || !userEmail || !documentId) {
       return c.json({ error: "file, userEmail and documentId required" }, 400);
+    }
+
+    // 🔒 IDOR: загружать документ можно только за себя (callerEmail === userEmail).
+    if (!callerEmail || callerEmail.toLowerCase().trim() !== userEmail.toLowerCase().trim()) {
+      return c.json({ error: 'Forbidden' }, 403);
+    }
+
+    // 🔒 Лимит размера файла — защита от заливки гигантских файлов (стоимость storage/OCR).
+    if (file.size > 10 * 1024 * 1024) {
+      return c.json({ error: 'Файл слишком большой (макс. 10 МБ)' }, 400);
     }
 
     console.log(`[documents/upload] Starting upload for user ${userEmail}, doc ${documentId}`);
@@ -4444,7 +4455,7 @@ app.get("/make-server-4e36197a/documents/user/:email", async (c) => {
     return c.json({ documents: withUrls });
   } catch (err) {
     console.log("Error GET /documents/user:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -4498,7 +4509,7 @@ app.put("/make-server-4e36197a/documents/:documentId", async (c) => {
     });
   } catch (err) {
     console.log("Error PUT /documents:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -4537,7 +4548,7 @@ app.delete("/make-server-4e36197a/documents/:documentId", async (c) => {
     return c.json({ success: true });
   } catch (err) {
     console.log("Error DELETE /documents:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -4578,7 +4589,7 @@ app.post("/make-server-4e36197a/documents/analyze/:documentId", async (c) => {
     return c.json({ success: true, photoQualityScore: newScore });
   } catch (err) {
     console.log("Error POST /documents/analyze:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -4625,7 +4636,7 @@ app.post("/make-server-4e36197a/test-ocr", requireAdminChecked, async (c) => {
     console.error("[test-ocr] Error name:", err?.name);
     console.error("[test-ocr] Error message:", err?.message);
     console.error("[test-ocr] Error stack:", err?.stack);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -4658,7 +4669,7 @@ app.get("/make-server-4e36197a/stats", async (c) => {
     return c.json({ drivers, cities: citySet.size, satisfied });
   } catch (err) {
     console.log("Error GET /stats:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -4689,7 +4700,7 @@ app.get("/make-server-4e36197a/admin/stats", async (c) => {
     });
   } catch (err) {
     console.log("Error GET /admin/stats:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -4710,7 +4721,7 @@ app.get("/make-server-4e36197a/admin/users", async (c) => {
     const { items, total, limit, offset } = paginate(c, users.filter(u => u));
     return c.json({ users: items, total, limit, offset });
   } catch (err) {
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -4720,7 +4731,7 @@ app.get("/make-server-4e36197a/admin/trips", async (c) => {
     const { items, total, limit, offset } = paginate(c, trips.filter(t => t && !t.deletedAt));
     return c.json({ trips: items, total, limit, offset });
   } catch (err) {
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -4730,7 +4741,7 @@ app.get("/make-server-4e36197a/admin/offers", async (c) => {
     const { items, total, limit, offset } = paginate(c, offers.filter(o => o));
     return c.json({ offers: items, total, limit, offset });
   } catch (err) {
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -4740,7 +4751,7 @@ app.get("/make-server-4e36197a/admin/reviews", async (c) => {
     const { items, total, limit, offset } = paginate(c, reviews.filter(r => r));
     return c.json({ reviews: items, total, limit, offset });
   } catch (err) {
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -4751,7 +4762,7 @@ app.get("/make-server-4e36197a/admin/shipments", async (c) => {
     const { items, total, limit, offset } = paginate(c, shipments.filter(s => s));
     return c.json({ shipments: items, total, limit, offset });
   } catch (err) {
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -4763,7 +4774,7 @@ app.get("/make-server-4e36197a/admin/chats", async (c) => {
     const { items, total, limit, offset } = paginate(c, chats.filter(ch => ch && ch.chatId));
     return c.json({ chats: items, total, limit, offset });
   } catch (err) {
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -4775,7 +4786,7 @@ app.get("/make-server-4e36197a/admin/chat/:chatId/messages", async (c) => {
     const sorted = messages.filter(m => m && m.msgId).sort((a, b) => (a.ts || 0) - (b.ts || 0));
     return c.json({ messages: sorted });
   } catch (err) {
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -4787,7 +4798,7 @@ app.get("/make-server-4e36197a/admin/cargos", async (c) => {
     return c.json({ cargos: items, total, limit, offset });
   } catch (err) {
     console.log("Error GET /admin/cargos:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -4840,7 +4851,7 @@ app.get("/make-server-4e36197a/admin/search", async (c) => {
     return c.json({ users: matchedUsers, trips: matchedTrips, offers: matchedOffers, cargos: matchedCargos, reviews: matchedReviews });
   } catch (err) {
     console.log("Error GET /admin/search:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -4869,7 +4880,7 @@ app.delete("/make-server-4e36197a/admin/cargos/:id", async (c) => {
     return c.json({ success: true });
   } catch (err) {
     console.log("Error DELETE /admin/cargos/:id:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -4897,7 +4908,7 @@ app.put("/make-server-4e36197a/admin/cargos/:id", async (c) => {
     return c.json({ success: true, cargo: updated });
   } catch (err) {
     console.log("Error PUT /admin/cargos/:id:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -4957,7 +4968,7 @@ app.put("/make-server-4e36197a/admin/offers/:tripId/:offerId/status", async (c) 
     return c.json({ success: true, offer: updated });
   } catch (err) {
     console.log("Error PUT /admin/offers/:tripId/:offerId/status:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -4991,7 +5002,7 @@ app.delete("/make-server-4e36197a/admin/reviews/:reviewId", async (c) => {
     return c.json({ success: true });
   } catch (err) {
     console.log("Error DELETE /admin/reviews/:reviewId:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -5037,7 +5048,7 @@ app.get("/make-server-4e36197a/admin/documents", async (c) => {
     return c.json({ documents: sorted });
   } catch (err) {
     console.log("Error GET /admin/documents:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -5075,7 +5086,7 @@ app.put("/make-server-4e36197a/admin/documents/:documentId/status", async (c) =>
     return c.json({ success: true, document: updated });
   } catch (err) {
     console.log("Error PUT /admin/documents/:id/status:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -5085,7 +5096,7 @@ app.get("/make-server-4e36197a/admin/settings", async (c) => {
     const settings = await kv.get("ovora:admin:settings");
     return c.json({ settings: settings || {} });
   } catch (err) {
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -5097,7 +5108,7 @@ app.put("/make-server-4e36197a/admin/settings", async (c) => {
     await CargoAuditLog.record({ action: 'settings.admin_update', actorEmail: 'admin', targetType: 'settings', details: { fields: Object.keys(body) } });
     return c.json({ success: true });
   } catch (err) {
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -5126,7 +5137,7 @@ app.put("/make-server-4e36197a/admin/users/:email/status", async (c) => {
     return c.json({ success: true, user: updated });
   } catch (err) {
     console.log("Error PUT /admin/users/:email/status:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -5155,7 +5166,7 @@ app.delete("/make-server-4e36197a/admin/users/:email", async (c) => {
     return c.json({ success: true, blacklisted: cleanPhone.length >= 7 });
   } catch (err) {
     console.log("Error DELETE /admin/users/:email:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -5166,7 +5177,7 @@ app.get("/make-server-4e36197a/admin/blacklist", async (c) => {
     return c.json({ entries });
   } catch (err) {
     console.log("Error GET /admin/blacklist:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -5178,7 +5189,7 @@ app.delete("/make-server-4e36197a/admin/blacklist/:phone", async (c) => {
     return c.json({ success: true });
   } catch (err) {
     console.log("Error DELETE /admin/blacklist/:phone:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -5221,7 +5232,7 @@ app.get("/make-server-4e36197a/admin/stats/full", async (c) => {
     });
   } catch (err) {
     console.log("Error GET /admin/stats/full:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -5241,7 +5252,7 @@ app.delete("/make-server-4e36197a/admin/trips/deleteAll", async (c) => {
     return c.json({ success: true, deleted });
   } catch (err) {
     console.log("Error DELETE /admin/trips/deleteAll:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -5257,7 +5268,7 @@ app.get("/make-server-4e36197a/admin/audit", async (c) => {
     return c.json(result);
   } catch (err) {
     console.log("Error GET /admin/audit:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -5288,7 +5299,7 @@ app.get("/make-server-4e36197a/tracking/user/:email", async (c) => {
     return c.json({ values: filtered });
   } catch (err) {
     console.log("Error GET /tracking/user/:email:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -5312,7 +5323,7 @@ app.get("/make-server-4e36197a/tracking/:tripId", async (c) => {
     return c.json({ value });
   } catch (err) {
     console.log("Error GET /tracking/:tripId:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -5358,7 +5369,7 @@ app.put("/make-server-4e36197a/tracking/:tripId", async (c) => {
     return c.json({ success: true, value });
   } catch (err) {
     console.log("Error PUT /tracking/:tripId:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -5370,7 +5381,7 @@ app.delete("/make-server-4e36197a/tracking/:tripId", requireAdminChecked, async 
     return c.json({ success: true });
   } catch (err) {
     console.log("Error DELETE /tracking/:tripId:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -5447,7 +5458,7 @@ app.post("/make-server-4e36197a/tracking/:tripId/status", async (c) => {
     return c.json({ success: true, value: updated });
   } catch (err) {
     console.log("Error POST /tracking/:tripId/status:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -5528,7 +5539,7 @@ app.post("/make-server-4e36197a/tracking/:tripId/pod",
     return c.json({ success: true, photo: podEntry });
   } catch (err) {
     console.log("Error POST /tracking/:tripId/pod:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -5549,7 +5560,7 @@ app.get("/make-server-4e36197a/tracking/:tripId/pod", async (c) => {
     return c.json({ photos: refreshed });
   } catch (err) {
     console.log("Error GET /tracking/:tripId/pod:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -5594,7 +5605,7 @@ app.get(
     return c.json({ found: true, shipment: publicData });
   } catch (err) {
     console.log("Error GET /public/tracking/:tripId:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -5610,7 +5621,7 @@ app.post("/make-server-4e36197a/kv/set", async (c) => {
     return c.json({ success: true, value });
   } catch (err) {
     console.log("Error POST /kv/set:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -5622,7 +5633,7 @@ app.post("/make-server-4e36197a/kv/get", async (c) => {
     return c.json({ value });
   } catch (err) {
     console.log("Error POST /kv/get:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -5634,7 +5645,7 @@ app.post("/make-server-4e36197a/kv/getByPrefix", async (c) => {
     return c.json({ values });
   } catch (err) {
     console.log("Error POST /kv/getByPrefix:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -5646,7 +5657,7 @@ app.post("/make-server-4e36197a/kv/del", async (c) => {
     return c.json({ success: true });
   } catch (err) {
     console.log("Error POST /kv/del:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -5694,7 +5705,7 @@ app.post(
     return c.json({ success: true, notification });
   } catch (err) {
     console.log("Error POST /notifications:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -5709,7 +5720,7 @@ app.get("/make-server-4e36197a/notifications/:email", async (c) => {
     return c.json({ notifications: sorted });
   } catch (err) {
     console.log("Error GET /notifications/:email:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -5725,7 +5736,7 @@ app.put("/make-server-4e36197a/notifications/:email/:id/read", async (c) => {
     return c.json({ success: true, notification: updated });
   } catch (err) {
     console.log("Error PUT /notifications/:email/:id/read:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -5741,7 +5752,7 @@ app.put("/make-server-4e36197a/notifications/:email/read-all", async (c) => {
     return c.json({ success: true });
   } catch (err) {
     console.log("Error PUT /notifications/:email/read-all:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -5753,7 +5764,7 @@ app.delete("/make-server-4e36197a/notifications/:email/:id", async (c) => {
     return c.json({ success: true });
   } catch (err) {
     console.log("Error DELETE /notifications/:email/:id:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -5769,7 +5780,7 @@ app.delete("/make-server-4e36197a/notifications/:email", async (c) => {
     return c.json({ success: true, deleted: notifications.length });
   } catch (err) {
     console.log("Error DELETE /notifications/:email:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -5797,7 +5808,7 @@ app.get("/make-server-4e36197a/users/:email", async (c) => {
     return c.json({ success: true, user: safeUser });
   } catch (err) {
     console.log("Error GET /users/:email:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -5842,7 +5853,7 @@ app.put("/make-server-4e36197a/users/:email", async (c) => {
     return c.json({ success: true, user: safeUser });
   } catch (err) {
     console.log("Error PUT /users/:email:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -5968,7 +5979,7 @@ app.post("/make-server-4e36197a/admin/ads/upload", requireAdminChecked, async (c
     return c.json({ success: true, url: publicUrl, filename });
   } catch (err) {
     console.log("Error POST /admin/ads/upload:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -5988,7 +5999,7 @@ app.get("/make-server-4e36197a/ads", async (c) => {
     return c.json({ ads: active });
   } catch (err) {
     console.log("Error GET /ads:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -6000,7 +6011,7 @@ app.get("/make-server-4e36197a/admin/ads", requireAdminChecked, async (c) => {
     return c.json({ ads: sorted });
   } catch (err) {
     console.log("Error GET /admin/ads:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -6030,7 +6041,7 @@ app.post("/make-server-4e36197a/admin/ads", requireAdminChecked, async (c) => {
     return c.json({ success: true, ad });
   } catch (err) {
     console.log("Error POST /admin/ads:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -6048,7 +6059,7 @@ app.put("/make-server-4e36197a/admin/ads/:id", requireAdminChecked, async (c) =>
     return c.json({ success: true, ad: updated });
   } catch (err) {
     console.log("Error PUT /admin/ads/:id:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -6062,7 +6073,7 @@ app.delete("/make-server-4e36197a/admin/ads/:id", requireAdminChecked, async (c)
     return c.json({ success: true });
   } catch (err) {
     console.log("Error DELETE /admin/ads/:id:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -6169,7 +6180,7 @@ app.get("/make-server-4e36197a/payments/:email", async (c) => {
     return c.json({ payments: result });
   } catch (err) {
     console.log("Error GET /payments/:email:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -6210,7 +6221,7 @@ app.get("/make-server-4e36197a/users/:email/stats", async (c) => {
     });
   } catch (err) {
     console.log("Error GET /users/:email/stats:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -6248,7 +6259,7 @@ app.get('/make-server-4e36197a/borders', async (c) => {
     return c.json({ borders: filtered });
   } catch (err) {
     console.log('Error GET /borders:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -6270,7 +6281,7 @@ app.post('/make-server-4e36197a/borders/:id/report', async (c) => {
     return c.json({ success: true, report });
   } catch (err) {
     console.log('Error POST /borders/:id/report:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -6282,7 +6293,7 @@ app.get('/make-server-4e36197a/borders/:id/reports', async (c) => {
     return c.json({ reports: sorted });
   } catch (err) {
     console.log('Error GET /borders/:id/reports:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -6320,7 +6331,7 @@ app.get('/make-server-4e36197a/rest-stops', async (c) => {
     return c.json({ places: sorted });
   } catch (err) {
     console.log('Error GET /rest-stops:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -6341,7 +6352,7 @@ app.post('/make-server-4e36197a/rest-stops/:id/review', async (c) => {
     return c.json({ success: true });
   } catch (err) {
     console.log('Error POST /rest-stops/:id/review:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -6383,7 +6394,7 @@ app.get('/make-server-4e36197a/radio/channels', async (c) => {
     return c.json({ channels: sorted });
   } catch (err) {
     console.log('Error GET /radio/channels:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -6400,7 +6411,7 @@ app.get('/make-server-4e36197a/radio/channels/:channelId/messages', async (c) =>
     return c.json({ messages: page, hasMore });
   } catch (err) {
     console.log('Error GET /radio/:id/messages:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -6416,7 +6427,7 @@ app.post('/make-server-4e36197a/radio/channels/:channelId/heartbeat', async (c) 
     });
     return c.json({ ok: true });
   } catch (err) {
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -6429,7 +6440,7 @@ app.get('/make-server-4e36197a/radio/channels/:channelId/presence', async (c) =>
       .sort((a, b) => (b.ts || 0) - (a.ts || 0));
     return c.json({ users, count: users.length });
   } catch (err) {
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -6476,7 +6487,7 @@ app.post('/make-server-4e36197a/radio/channels/:channelId/messages', async (c) =
     return c.json({ success: true, message });
   } catch (err) {
     console.log('Error POST /radio/:id/messages:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -6502,7 +6513,7 @@ app.post('/make-server-4e36197a/radio/voice-upload', async (c) => {
     return c.json({ success: true, audioUrl: pub.publicUrl });
   } catch (err) {
     console.log('Error POST /radio/voice-upload:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -6519,7 +6530,7 @@ app.on('DELETE', '/make-server-4e36197a/radio/channels/:channelId/messages/:msgI
     await kv.del(`ovora:radio:msg:${channelId}:${msgId}`);
     return c.json({ success: true });
   } catch (err) {
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -6547,7 +6558,7 @@ app.post('/make-server-4e36197a/radio/channels/:channelId/messages/:msgId/react'
     await kv.set(`ovora:radio:msg:${channelId}:${msgId}`, { ...msg, reactions });
     return c.json({ success: true, reactions });
   } catch (err) {
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -6564,7 +6575,7 @@ app.post('/make-server-4e36197a/radio/channels/:channelId/messages/:msgId/report
     });
     return c.json({ success: true });
   } catch (err) {
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -6611,7 +6622,7 @@ app.post("/make-server-4e36197a/avia/check-phone", async (c) => {
     return c.json({ success: true, isNew: true, hasPin: false });
   } catch (err) {
     console.log('Error POST /avia/check-phone:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -6666,7 +6677,7 @@ app.post("/make-server-4e36197a/avia/register", async (c) => {
     return c.json({ success: true, user });
   } catch (err) {
     console.log('Error POST /avia/register:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -6713,7 +6724,7 @@ app.post("/make-server-4e36197a/avia/login", async (c) => {
     return c.json({ success: true, user: user || { phone: clean } });
   } catch (err) {
     console.log('Error POST /avia/login:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -6794,7 +6805,7 @@ app.patch("/make-server-4e36197a/avia/users/:phone/pin", async (c) => {
     return c.json({ success: true });
   } catch (err) {
     console.log('Error PATCH /avia/users/:phone/pin:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -6807,7 +6818,7 @@ app.get("/make-server-4e36197a/avia/profile/:phone", async (c) => {
     return c.json({ found: true, user });
   } catch (err) {
     console.log('Error GET /avia/profile:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -6850,7 +6861,7 @@ app.put("/make-server-4e36197a/avia/profile", async (c) => {
     return c.json({ success: true, user: updated });
   } catch (err) {
     console.log('Error PUT /avia/profile:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -7032,7 +7043,7 @@ app.post("/make-server-4e36197a/avia/upload-passport", async (c) => {
     });
   } catch (err) {
     console.log('[AVIA] Upload passport error:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -7049,7 +7060,7 @@ app.get("/make-server-4e36197a/avia/passport-photo/:phone", async (c) => {
     return c.json({ found: true, photoUrl: data?.signedUrl || '' });
   } catch (err) {
     console.log('[AVIA] Get passport photo error:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -7122,7 +7133,7 @@ app.get("/make-server-4e36197a/avia/flights", async (c) => {
     return c.json({ flights: sorted });
   } catch (err) {
     console.log('Error GET /avia/flights:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -7135,7 +7146,7 @@ app.get("/make-server-4e36197a/avia/flights/:id", async (c) => {
     return c.json({ flight });
   } catch (err) {
     console.log('Error GET /avia/flights/:id:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -7209,7 +7220,7 @@ app.post("/make-server-4e36197a/avia/flights", async (c) => {
     return c.json({ success: true, flight });
   } catch (err) {
     console.log('Error POST /avia/flights:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -7234,7 +7245,7 @@ app.delete("/make-server-4e36197a/avia/flights/:id", async (c) => {
     return c.json({ success: true });
   } catch (err) {
     console.log('Error DELETE /avia/flights:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -7266,7 +7277,7 @@ app.get("/make-server-4e36197a/avia/requests", async (c) => {
     return c.json({ requests: sorted });
   } catch (err) {
     console.log('Error GET /avia/requests:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -7317,7 +7328,7 @@ app.post("/make-server-4e36197a/avia/requests", async (c) => {
     return c.json({ success: true, request });
   } catch (err) {
     console.log('Error POST /avia/requests:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -7342,7 +7353,7 @@ app.delete("/make-server-4e36197a/avia/requests/:id", async (c) => {
     return c.json({ success: true });
   } catch (err) {
     console.log('Error DELETE /avia/requests:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -7365,7 +7376,7 @@ app.patch("/make-server-4e36197a/avia/flights/:id/close", async (c) => {
     return c.json({ success: true, flight });
   } catch (err) {
     console.log('Error PATCH /avia/flights/close:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -7419,7 +7430,7 @@ app.patch("/make-server-4e36197a/avia/flights/:id/complete", async (c) => {
     return c.json({ success: true, flight: updatedFlight, completedDeals: completedCount });
   } catch (err) {
     console.log('Error PATCH /avia/flights/complete:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -7442,7 +7453,7 @@ app.patch("/make-server-4e36197a/avia/requests/:id/close", async (c) => {
     return c.json({ success: true, request: req });
   } catch (err) {
     console.log('Error PATCH /avia/requests/close:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -7471,7 +7482,7 @@ app.get("/make-server-4e36197a/avia/my/:phone", async (c) => {
     return c.json({ flights: myFlights, requests: myRequests });
   } catch (err) {
     console.log('Error GET /avia/my:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -7508,7 +7519,7 @@ app.get("/make-server-4e36197a/avia/notifications/:phone", async (c) => {
     return c.json({ notifications: sorted });
   } catch (err) {
     console.log('Error GET /avia/notifications/:phone:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -7544,7 +7555,7 @@ app.post("/make-server-4e36197a/avia/notifications/read", async (c) => {
     return c.json({ success: true });
   } catch (err) {
     console.log('Error POST /avia/notifications/read:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -7575,7 +7586,7 @@ app.post("/make-server-4e36197a/avia/notifications", async (c) => {
     return c.json({ success: true, notification: notif });
   } catch (err) {
     console.log('Error POST /avia/notifications:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -7589,7 +7600,7 @@ app.delete("/make-server-4e36197a/avia/notifications/:phone/:id", async (c) => {
     return c.json({ success: true });
   } catch (err) {
     console.log('Error DELETE /avia/notifications/:phone/:id:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -7650,7 +7661,7 @@ app.post("/make-server-4e36197a/avia/chat/init", async (c) => {
     return c.json({ success: true, chatId, meta: existing, isNew: false });
   } catch (err) {
     console.log('Error POST /avia/chat/init:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -7676,7 +7687,7 @@ app.get("/make-server-4e36197a/avia/chat/:chatId/messages", async (c) => {
     return c.json({ messages: sorted, meta });
   } catch (err) {
     console.log('Error GET /avia/chat/:chatId/messages:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -7762,7 +7773,7 @@ app.post("/make-server-4e36197a/avia/chat/:chatId/messages", async (c) => {
     return c.json({ success: true, message });
   } catch (err) {
     console.log('Error POST /avia/chat/:chatId/messages:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -7792,7 +7803,7 @@ app.post("/make-server-4e36197a/avia/chat/:chatId/seen", async (c) => {
     return c.json({ success: true });
   } catch (err) {
     console.log('Error POST /avia/chat/:chatId/seen:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -7820,7 +7831,7 @@ app.get("/make-server-4e36197a/avia/chats/user/:phone", async (c) => {
     return c.json({ chats });
   } catch (err) {
     console.log('Error GET /avia/chats/user/:phone:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -7935,7 +7946,7 @@ app.delete("/make-server-4e36197a/avia/chat/:chatId", async (c) => {
     return c.json({ success: true, cancelledDealIds });
   } catch (err) {
     console.log('Error DELETE /avia/chat/:chatId:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -8069,7 +8080,7 @@ app.post("/make-server-4e36197a/avia/deals", async (c) => {
     return c.json({ success: true, deal });
   } catch (err) {
     console.log('Error POST /avia/deals:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -8093,7 +8104,7 @@ app.get("/make-server-4e36197a/avia/deals/:id", async (c) => {
     return c.json({ deal });
   } catch (err) {
     console.log('Error GET /avia/deals/:id:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -8122,7 +8133,7 @@ app.get("/make-server-4e36197a/avia/deals/user/:phone", async (c) => {
     return c.json({ deals });
   } catch (err) {
     console.log('Error GET /avia/deals/user/:phone:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -8195,7 +8206,7 @@ app.patch("/make-server-4e36197a/avia/deals/:id/accept", async (c) => {
     return c.json({ success: true, deal: updated });
   } catch (err) {
     console.log('Error PATCH /avia/deals/:id/accept:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -8265,7 +8276,7 @@ app.patch("/make-server-4e36197a/avia/deals/:id/reject", async (c) => {
     return c.json({ success: true, deal: updated });
   } catch (err) {
     console.log('Error PATCH /avia/deals/:id/reject:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -8336,7 +8347,7 @@ app.patch("/make-server-4e36197a/avia/deals/:id/cancel", async (c) => {
     return c.json({ success: true, deal: updated });
   } catch (err) {
     console.log('Error PATCH /avia/deals/:id/cancel:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -8397,7 +8408,7 @@ app.post("/make-server-4e36197a/avia/deals/:id/pod", async (c) => {
     return c.json({ success: true, photo, deal: updated });
   } catch (err) {
     console.log('Error POST /avia/deals/:id/pod:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -8463,7 +8474,7 @@ app.patch("/make-server-4e36197a/avia/deals/:id/complete", async (c) => {
     return c.json({ success: true, deal: updated });
   } catch (err) {
     console.log('Error PATCH /avia/deals/:id/complete:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -8510,7 +8521,7 @@ app.get("/make-server-4e36197a/avia/stats/:phone", async (c) => {
     return c.json({ stats });
   } catch (err) {
     console.log('Error GET /avia/stats/:phone:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -8610,7 +8621,7 @@ app.post("/make-server-4e36197a/avia/reviews", async (c) => {
     return c.json({ success: true, review });
   } catch (err) {
     console.log('Error POST /avia/reviews:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -8622,7 +8633,7 @@ app.get("/make-server-4e36197a/avia/reviews/deal/:dealId", async (c) => {
     return c.json({ reviewed });
   } catch (err) {
     console.log('Error GET /avia/reviews/deal/:dealId:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -8638,7 +8649,7 @@ app.get("/make-server-4e36197a/avia/reviews/user/:phone", async (c) => {
     return c.json({ reviews: sorted });
   } catch (err) {
     console.log('Error GET /avia/reviews/user/:phone:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 });
 
@@ -8682,7 +8693,7 @@ app.get("/make-server-4e36197a/avia/profile/:phone", async (c) => {
     });
   } catch (err) {
     console.log('Error GET /avia/profile/:phone:', err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 }); } // end if(false) — legacy AVIA routes placeholder
 

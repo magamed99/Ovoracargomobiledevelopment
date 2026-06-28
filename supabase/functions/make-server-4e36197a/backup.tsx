@@ -315,6 +315,6 @@ export async function handleBackupExists(c: Context) {
     });
   } catch (err) {
     console.log("Error GET /auth/backup/exists:", err);
-    return c.json({ error: `${err}` }, 500);
+    return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
   }
 }
