@@ -65,7 +65,7 @@ function Counter({
   icon: React.ReactNode; color: string;
 }) {
   return (
-    <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-[#111c28] border border-white/[0.07] hover:border-white/[0.11] transition-colors">
+    <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/[0.06] backdrop-blur-md border border-white/[0.07] hover:border-white/[0.11] transition-colors">
       <div
         className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
         style={{ background: color + '1a' }}
@@ -349,7 +349,7 @@ export function CreateAnnouncementPage() {
 
         <div className="px-4 mb-5">
           <SectionLabel title="Маршрут" icon={<Navigation className="w-3 h-3 text-[#5ba3f5]" />} />
-          <div className="rounded-2xl border border-white/[0.07] bg-[#111c28]">
+          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.06] backdrop-blur-md">
             <div className="px-4 pt-4 pb-3 border-b border-white/[0.07]">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-2 h-2 rounded-full bg-[#5ba3f5] ring-2 ring-[#5ba3f5]/30" />
@@ -375,7 +375,7 @@ export function CreateAnnouncementPage() {
         <div className="px-4 mb-5">
           <SectionLabel title="Дата и Время" icon={<Calendar className="w-3 h-3 text-[#5ba3f5]" />} />
           <div className="grid grid-cols-2 gap-2">
-            <label className="flex flex-col gap-2 px-4 py-3 rounded-2xl bg-[#111c28] border border-white/[0.07] cursor-pointer">
+            <label className="flex flex-col gap-2 px-4 py-3 rounded-2xl bg-white/[0.06] backdrop-blur-md border border-white/[0.07] cursor-pointer">
               <div className="flex items-center gap-1.5">
                 <Calendar className="w-3 h-3 text-[#5ba3f5]" />
                 <p className="text-[9px] font-black uppercase tracking-widest text-[#4a6278]">Дата</p>
@@ -383,7 +383,7 @@ export function CreateAnnouncementPage() {
               <input type="date" value={driverDate} min={todayStr} onChange={e => setDriverDate(e.target.value)}
                 className="w-full text-[12px] font-bold bg-transparent outline-none text-white [color-scheme:dark]" />
             </label>
-            <label className="flex flex-col gap-2 px-4 py-3 rounded-2xl bg-[#111c28] border border-white/[0.07] cursor-pointer">
+            <label className="flex flex-col gap-2 px-4 py-3 rounded-2xl bg-white/[0.06] backdrop-blur-md border border-white/[0.07] cursor-pointer">
               <div className="flex items-center gap-1.5">
                 <Clock className="w-3 h-3 text-[#5ba3f5]" />
                 <p className="text-[9px] font-black uppercase tracking-widest text-[#4a6278]">Время</p>
@@ -406,7 +406,7 @@ export function CreateAnnouncementPage() {
         <div className="px-4 mb-5">
           <SectionLabel title="Цены и Валюта" icon={<DollarSign className="w-3 h-3 text-[#5ba3f5]" />} />
           <div className="space-y-2">
-            <div className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-[#111c28] border border-white/[0.07]">
+            <div className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-white/[0.06] backdrop-blur-md border border-white/[0.07]">
               <span className="text-[11px] font-bold text-[#4a6278] flex-shrink-0">Валюта</span>
               <div className="flex-1 flex gap-1.5 justify-end">
                 {(['TJS', 'USD', 'RUB'] as const).map(cur => (
@@ -423,7 +423,7 @@ export function CreateAnnouncementPage() {
 
         <div className="px-4 mb-5">
           <SectionLabel title="Примечание" icon={<FileText className="w-3 h-3 text-[#5ba3f5]" />} />
-          <div className="rounded-2xl bg-[#111c28] border border-white/[0.07] overflow-hidden focus-within:border-white/[0.13] transition-all">
+          <div className="rounded-2xl bg-white/[0.06] backdrop-blur-md border border-white/[0.07] overflow-hidden focus-within:border-white/[0.13] transition-all">
             <textarea rows={3} placeholder="Остановки, условия, требования к грузу…" value={notes} onChange={e => setNotes(e.target.value)}
               maxLength={500}
               className="w-full px-4 py-3 text-[13px] leading-relaxed bg-transparent outline-none resize-none text-white placeholder-[#253545]" />
@@ -439,7 +439,7 @@ export function CreateAnnouncementPage() {
 
             <div className="space-y-5">
 
-              <div className="rounded-3xl border border-white/[0.07] bg-[#111c28]">
+              <div className="rounded-3xl border border-white/[0.07] bg-white/[0.06] backdrop-blur-md">
                 <div className="px-5 py-3 border-b border-white/[0.06] flex items-center gap-2">
                   <Navigation className="w-3.5 h-3.5 text-[#5ba3f5]" />
                   <p className="text-[10px] font-black uppercase tracking-widest text-[#5ba3f5]">Маршрут</p>
@@ -460,7 +460,7 @@ export function CreateAnnouncementPage() {
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-white/[0.07] bg-[#111c28] overflow-hidden">
+              <div className="rounded-3xl border border-white/[0.07] bg-white/[0.06] backdrop-blur-md overflow-hidden">
                 <div className="px-5 py-3 border-b border-white/[0.06] flex items-center gap-2">
                   <Calendar className="w-3.5 h-3.5 text-[#5ba3f5]" />
                   <p className="text-[10px] font-black uppercase tracking-widest text-[#5ba3f5]">Дата и Время</p>
@@ -485,7 +485,7 @@ export function CreateAnnouncementPage() {
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-white/[0.07] bg-[#111c28] overflow-hidden">
+              <div className="rounded-3xl border border-white/[0.07] bg-white/[0.06] backdrop-blur-md overflow-hidden">
                 <div className="px-5 py-3 border-b border-white/[0.06] flex items-center gap-2">
                   <Users className="w-3.5 h-3.5 text-[#5ba3f5]" />
                   <p className="text-[10px] font-black uppercase tracking-widest text-[#5ba3f5]">Вместимость</p>
@@ -497,7 +497,7 @@ export function CreateAnnouncementPage() {
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-white/[0.07] bg-[#111c28] overflow-hidden">
+              <div className="rounded-3xl border border-white/[0.07] bg-white/[0.06] backdrop-blur-md overflow-hidden">
                 <div className="px-5 py-3 border-b border-white/[0.06] flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <DollarSign className="w-3.5 h-3.5 text-[#5ba3f5]" />
@@ -517,7 +517,7 @@ export function CreateAnnouncementPage() {
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-white/[0.07] bg-[#111c28] overflow-hidden">
+              <div className="rounded-3xl border border-white/[0.07] bg-white/[0.06] backdrop-blur-md overflow-hidden">
                 <div className="px-5 py-3 border-b border-white/[0.06] flex items-center gap-2">
                   <FileText className="w-3.5 h-3.5 text-[#5ba3f5]" />
                   <p className="text-[10px] font-black uppercase tracking-widest text-[#5ba3f5]">Примечание</p>
@@ -532,12 +532,12 @@ export function CreateAnnouncementPage() {
             </div>
 
             <div className="sticky top-6 space-y-4">
-              <div className="rounded-3xl overflow-hidden border border-white/[0.07] bg-[#111c28]">
+              <div className="rounded-3xl overflow-hidden border border-white/[0.07] bg-white/[0.06] backdrop-blur-md">
                 {fromAddress && toAddress && fromAddress.lat && toAddress.lat ? (
                   <RouteMap from={fromAddress} to={toAddress} height="220px" />
                 ) : (
                   <div className="h-[220px] flex flex-col items-center justify-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-[#1a2a3a] flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-2xl bg-white/[0.06] backdrop-blur-md flex items-center justify-center">
                       <MapPin className="w-5 h-5 text-[#4a6278]" />
                     </div>
                     <p className="text-[12px] text-[#4a6278] text-center px-6">Укажите маршрут,<br />чтобы увидеть карту</p>
@@ -612,7 +612,7 @@ export function CreateAnnouncementPage() {
                 </div>
               )}
 
-              <div className="rounded-3xl border border-white/[0.07] bg-[#111c28] px-4 py-4 space-y-2">
+              <div className="rounded-3xl border border-white/[0.07] bg-white/[0.06] backdrop-blur-md px-4 py-4 space-y-2">
                 <p className="text-[9px] font-black uppercase tracking-widest text-[#4a6278] mb-3">Готовность</p>
                 {[
                   { label: 'Маршрут указан',    done: !!(fromAddress && toAddress) },

@@ -716,7 +716,7 @@ export function DriverTripsPage() {
       {chatPicker && (
         <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center" onClick={() => setChatPicker(null)}>
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-          <div className="relative w-full max-w-md rounded-t-3xl md:rounded-3xl shadow-2xl overflow-y-auto max-h-[92vh] bg-[#162030]"
+          <div className="relative w-full max-w-md rounded-t-3xl md:rounded-3xl shadow-2xl overflow-y-auto max-h-[92vh] bg-white/[0.06] backdrop-blur-md"
             onClick={e => e.stopPropagation()}>
             <div className="w-10 h-1 rounded-full mx-auto mt-4 mb-2 bg-white/10 md:hidden" />
             <div className="px-6 pb-8 pt-4">
@@ -734,7 +734,7 @@ export function DriverTripsPage() {
                   <button
                     key={s.senderEmail}
                     onClick={() => { goToSenderChat(chatPicker.trip, s.senderEmail, s.senderName, s.senderPhone); setChatPicker(null); }}
-                    className="w-full flex items-center gap-3 p-3 rounded-2xl bg-[#1a2736] hover:bg-[#1e2f42] border border-white/[0.06] transition-all active:scale-[0.98]"
+                    className="w-full flex items-center gap-3 p-3 rounded-2xl bg-white/[0.06] backdrop-blur-md hover:bg-[#1e2f42] border border-white/[0.06] transition-all active:scale-[0.98]"
                   >
                     <div className="w-10 h-10 rounded-full flex items-center justify-center bg-[#1978e5]/15 text-[#5ba3f5] font-bold text-sm flex-shrink-0">
                       {(s.senderName || s.senderEmail).charAt(0).toUpperCase()}

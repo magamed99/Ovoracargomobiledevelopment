@@ -1909,7 +1909,7 @@ function ActiveTripDetail({ trip, isDark, userRole }: { trip: any; isDark: boole
                     </div>
                   )
                 ) : (
-                  <div style={{ display:'flex', alignItems:'center', justifyContent:'center', padding:'13px', borderRadius:16, background:'#0e1e32', border:'1px solid #1a2d42' }}>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'center', padding:'13px', borderRadius:16, background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border:'1px solid #1a2d42' }}>
                     <span style={{ fontSize:13, fontWeight:700, color:'#3a5570' }}>Мест нет · Груз заполнен</span>
                   </div>
                 )}
@@ -1955,7 +1955,7 @@ function ActiveTripDetail({ trip, isDark, userRole }: { trip: any; isDark: boole
 
                   {/* ── Children counter desktop ── */}
                   {hasSeats && (
-                    <div style={{ marginBottom:12, borderRadius:16, border:'1px solid #1a2d3d', background:'#0a1520', overflow:'hidden' }}>
+                    <div style={{ marginBottom:12, borderRadius:16, border:'1px solid #1a2d3d', background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', overflow:'hidden' }}>
                       <div style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px' }}>
                         <div style={{ width:32, height:32, borderRadius:11, display:'flex', alignItems:'center', justifyContent:'center', background:'#1a2d3d', flexShrink:0 }}>
                           <span style={{ fontSize:15 }}>👶</span>
@@ -2257,7 +2257,7 @@ function CargoDetail({ cargo, isDark: _isDark, userRole, currentUser }: {
 
       <div className="px-4 pt-5 space-y-4">
         {/* Route card */}
-        <div className="rounded-2xl bg-[#111c28] border border-white/[0.07] overflow-hidden">
+        <div className="rounded-2xl bg-white/[0.06] backdrop-blur-md border border-white/[0.07] overflow-hidden">
           <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2">
             <Navigation className="w-3.5 h-3.5 text-[#5ba3f5]" />
             <p className="text-[10px] font-black uppercase tracking-widest text-[#5ba3f5]">Маршрут</p>
@@ -2278,7 +2278,7 @@ function CargoDetail({ cargo, isDark: _isDark, userRole, currentUser }: {
         </div>
 
         {/* Details card */}
-        <div className="rounded-2xl bg-[#111c28] border border-white/[0.07] overflow-hidden">
+        <div className="rounded-2xl bg-white/[0.06] backdrop-blur-md border border-white/[0.07] overflow-hidden">
           <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2">
             <Package className="w-3.5 h-3.5 text-[#f59e0b]" />
             <p className="text-[10px] font-black uppercase tracking-widest text-[#f59e0b]">Детали груза</p>
@@ -2330,7 +2330,7 @@ function CargoDetail({ cargo, isDark: _isDark, userRole, currentUser }: {
         </div>
 
         {/* Sender info card */}
-        <div className="rounded-2xl bg-[#111c28] border border-white/[0.07] overflow-hidden">
+        <div className="rounded-2xl bg-white/[0.06] backdrop-blur-md border border-white/[0.07] overflow-hidden">
           <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2">
             <UserCheck className="w-3.5 h-3.5 text-[#a78bfa]" />
             <p className="text-[10px] font-black uppercase tracking-widest text-[#a78bfa]">Отправитель</p>
@@ -2384,7 +2384,7 @@ function CargoDetail({ cargo, isDark: _isDark, userRole, currentUser }: {
 
         {/* SENDER: incoming driver offers */}
         {isMyCargo && (
-          <div className="rounded-2xl bg-[#111c28] border border-white/[0.07] overflow-hidden">
+          <div className="rounded-2xl bg-white/[0.06] backdrop-blur-md border border-white/[0.07] overflow-hidden">
             <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Truck className="w-3.5 h-3.5 text-[#5ba3f5]" />

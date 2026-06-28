@@ -789,7 +789,7 @@ export function DriverTrackingPage() {
                   <div className="w-12 h-12 rounded-2xl bg-cover bg-center ring-2 ring-[#5ba3f5]/30"
                     style={{ backgroundImage: `url('${contactPerson.avatar}')` }} />
                 ) : (
-                  <div className="w-12 h-12 rounded-2xl bg-[#1e2d3a] flex items-center justify-center ring-2 ring-[#5ba3f5]/30">
+                  <div className="w-12 h-12 rounded-2xl bg-white/[0.06] backdrop-blur-md flex items-center justify-center ring-2 ring-[#5ba3f5]/30">
                     <span className="text-white text-lg font-black">{contactPerson.name?.charAt(0) || '?'}</span>
                   </div>
                 )}

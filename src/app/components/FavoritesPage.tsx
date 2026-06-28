@@ -360,7 +360,7 @@ export function FavoritesPage() {
                 <div className="fv-section" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>
                   <p style={{ fontSize:14, fontWeight:700, color:'#fff' }}>
                     Сохранённые рейсы
-                    <span style={{ marginLeft:10, fontSize:11, fontWeight:800, padding:'3px 10px', borderRadius:100, background:'#1e2d45', color:'#5ba3f5' }}>{favorites.length}</span>
+                    <span style={{ marginLeft:10, fontSize:11, fontWeight:800, padding:'3px 10px', borderRadius:100, background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', color:'#5ba3f5' }}>{favorites.length}</span>
                   </p>
                   <p style={{ fontSize:12, color:'#3a5570', fontWeight:600 }}>↓ Последние сохранения</p>
                 </div>
@@ -478,7 +478,7 @@ export function FavoritesPage() {
               <div style={{ height:3, background:'linear-gradient(90deg,#831843,#f43f5e,#fb923c)' }} />
               <div style={{ padding:'28px 28px 24px' }}>
                 {/* Icon */}
-                <div style={{ width:52, height:52, borderRadius:18, display:'flex', alignItems:'center', justifyContent:'center', background:'#3a0f0f', marginBottom:16, borderWidth:1, borderStyle:'solid', borderColor:'#f43f5e30' }}>
+                <div style={{ width:52, height:52, borderRadius:18, display:'flex', alignItems:'center', justifyContent:'center', background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', marginBottom:16, borderWidth:1, borderStyle:'solid', borderColor:'#f43f5e30' }}>
                   <Trash2 style={{ width:22, height:22, color:'#f43f5e' }} />
                 </div>
                 <h3 style={{ fontSize:20, fontWeight:900, color:'#fff', marginBottom:8 }}>Очистить избранное?</h3>

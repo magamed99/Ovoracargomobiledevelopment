@@ -392,7 +392,7 @@ export function BordersPage() {
         {loading ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {[1,2,3,4].map(i => (
-              <div key={i} style={{ height: 130, borderRadius: 20, background: '#0a1220', border: '1px solid #0d1e30', animation: 'pulse 1.5s ease-in-out infinite' }} />
+              <div key={i} style={{ height: 130, borderRadius: 20, background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid #0d1e30', animation: 'pulse 1.5s ease-in-out infinite' }} />
             ))}
           </div>
         ) : displayed.length === 0 ? (

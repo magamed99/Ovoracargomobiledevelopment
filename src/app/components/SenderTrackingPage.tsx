@@ -439,7 +439,7 @@ export function SenderTrackingPage() {
                   <div className="w-12 h-12 rounded-2xl bg-cover bg-center ring-2 ring-[#5ba3f5]/30"
                     style={{ backgroundImage: `url('${driver.avatar}')` }} />
                 ) : (
-                  <div className="w-12 h-12 rounded-2xl bg-[#1e2d3a] flex items-center justify-center ring-2 ring-[#5ba3f5]/30">
+                  <div className="w-12 h-12 rounded-2xl bg-white/[0.06] backdrop-blur-md flex items-center justify-center ring-2 ring-[#5ba3f5]/30">
                     <span className="text-white text-lg font-black">{driver.name?.charAt(0) || '?'}</span>
                   </div>
                 )}
@@ -770,7 +770,7 @@ export function SenderTrackingPage() {
 
           {!activeTrip && (
             <div className="stp-s4 stp-card p-6 flex flex-col items-center gap-3 text-center">
-              <div style={{ width:52, height:52, borderRadius:18, display:'flex', alignItems:'center', justifyContent:'center', background:'#1a2d42' }}>
+              <div style={{ width:52, height:52, borderRadius:18, display:'flex', alignItems:'center', justifyContent:'center', background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}>
                 <Package style={{ width:24, height:24, color:'#2a4060' }} />
               </div>
               <p style={{ fontSize:15, fontWeight:800, color:'#fff' }}>Нет активных отправлений</p>
