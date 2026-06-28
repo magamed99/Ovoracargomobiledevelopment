@@ -8,7 +8,9 @@
     "dev": "vite",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
-    "test": "vitest run"
+    "test": "vitest run",
+    "preview": "vite preview --port 4173",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",

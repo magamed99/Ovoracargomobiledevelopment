@@ -6,12 +6,11 @@
  * ✅ FIX П-CG: SenderCargoCard показывает кол-во откликов водителей.
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Package, X, MessageSquare, ArrowLeft, RefreshCw, Plus, AlertTriangle, Weight, Calendar, Trash2, Truck, CheckCircle, PhoneCall, Star } from 'lucide-react';
+import { Package, ArrowLeft, RefreshCw, Plus, AlertTriangle, Weight, Calendar, Trash2, Truck, CheckCircle, PhoneCall, Star } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../contexts/UserContext';
 import { useIsMounted } from '../hooks/useIsMounted';
-import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { toast } from 'sonner';
 import { getTripsByIds, getOffersForUser, getMyCargos, updateOffer, deleteCargo, getCargoOffersForSender } from '../api/dataApi';
 import { initChatRoom, getChats } from '../api/chatStore';

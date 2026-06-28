@@ -104,7 +104,11 @@ export const RL = {
  */
 export function rateLimitMiddleware(
   preset: { max: number; windowMs: number },
-  getId : (c: any) => string = (c) => c.req.header('x-forwarded-for') || 'unknown',
+  getId : (c: any) => string = (c) => {
+    const jwtEmail = c.get?.("verifiedEmail");
+    if (jwtEmail) return `user:${jwtEmail}`;
+    return `ip:${c.req.header('x-forwarded-for') || 'unknown'}`;
+  },
 ) {
   return async (c: any, next: any) => {
     const id     = getId(c);

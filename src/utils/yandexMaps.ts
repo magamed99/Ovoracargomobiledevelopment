@@ -116,7 +116,7 @@ export function generateStaticMapUrl(
  * Преобразует адрес в координаты (требует API ключ)
  * В реальном приложении это должно использовать Geocoding API
  */
-export async function geocodeAddress(address: string): Promise<YandexCoordinates | null> {
+export async function geocodeAddress(_address: string): Promise<YandexCoordinates | null> {
   // Stub — returns Dushanbe coordinates until real API is wired up
   return TAJIKISTAN_CENTER;
 }

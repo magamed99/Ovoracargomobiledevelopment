@@ -26,10 +26,6 @@
     { "name": "Мои поездки", "short_name": "Поездки", "description": "Просмотр активных поездок", "url": "./trips", "icons": [{ "src": "./icon-192.png", "sizes": "192x192" }] },
     { "name": "Сообщения", "short_name": "Чат", "description": "Открыть сообщения", "url": "./messages", "icons": [{ "src": "./icon-192.png", "sizes": "192x192" }] }
   ],
-  "screenshots": [
-    { "src": "./screenshot-1.png", "sizes": "540x720",  "type": "image/png", "form_factor": "narrow", "label": "Главная страница Ovora Cargo" },
-    { "src": "./screenshot-2.png", "sizes": "1080x720", "type": "image/png", "form_factor": "wide",   "label": "Поиск поездок" }
-  ],
   "related_applications": [],
   "prefer_related_applications": false,
   "share_target": {

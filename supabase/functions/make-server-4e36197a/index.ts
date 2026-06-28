@@ -127,6 +127,13 @@ async function requireAdminChecked(c: any, next: any) {
   return await requireAdmin(c, next, isAdminJwtRevoked);
 }
 
+// ── callerEmail: prefer JWT, fallback to body (legacy) ─────────────────────
+function getCallerEmail(c: any, body?: any): string | null {
+  const jwtEmail = c.get("verifiedEmail");
+  if (jwtEmail) return jwtEmail;
+  return body?.callerEmail || null;
+}
+
 // Применяем middleware ко всем /admin/* и /kv/* маршрутам (КРОМЕ /admin/auth).
 // CARGO-эндпоинты доступны cargo-admin и super-admin (см. CLAUDE.md RBAC).
 app.use('/make-server-4e36197a/admin/*', async (c, next) => {
@@ -302,9 +309,13 @@ app.get("/make-server-4e36197a/push/vapid-key", (c) => {
 /** Сохранить push-подписку устройства для пользователя */
 app.post("/make-server-4e36197a/push/subscribe", async (c) => {
   try {
-    const { email, subscription } = await c.req.json();
-    if (!email || !subscription?.endpoint) {
-      return c.json({ error: 'email and subscription.endpoint required' }, 400);
+    const { subscription } = await c.req.json();
+    if (!subscription?.endpoint) {
+      return c.json({ error: 'subscription.endpoint required' }, 400);
+    }
+    const email = getCallerEmail(c);
+    if (!email) {
+      return c.json({ error: 'Authentication required' }, 401);
     }
     const subId = btoa(subscription.endpoint).replace(/[^a-zA-Z0-9]/g, '').substring(0, 40);
     await kv.set(`ovora:push:sub:${email}:${subId}`, { ...subscription, email, savedAt: new Date().toISOString() });
@@ -319,8 +330,9 @@ app.post("/make-server-4e36197a/push/subscribe", async (c) => {
 /** Удалить push-подписку (при выходе или ручном отключении) */
 app.post("/make-server-4e36197a/push/unsubscribe", async (c) => {
   try {
-    const { email, endpoint } = await c.req.json();
-    if (!email) return c.json({ error: 'email required' }, 400);
+    const { endpoint } = await c.req.json();
+    const email = getCallerEmail(c);
+    if (!email) return c.json({ error: 'Authentication required' }, 401);
     if (endpoint) {
       const subId = btoa(endpoint).replace(/[^a-zA-Z0-9]/g, '').substring(0, 40);
       await kv.del(`ovora:push:sub:${email}:${subId}`);
@@ -436,7 +448,7 @@ app.post("/make-server-4e36197a/admin/auth/revoke-all", requireRole(['super-admi
 });
 
 // ── Config: Yandex API Key ────────────────────────────────────────────────────
-app.get("/make-server-4e36197a/config/yandex-key", (c) => {
+app.get("/make-server-4e36197a/config/yandex-key", requireAdminChecked, (c) => {
   try {
     const apiKey = Deno.env.get('YANDEX_GEOCODER_API_KEY') || '';
     if (!apiKey) {
@@ -1101,9 +1113,9 @@ app.put("/make-server-4e36197a/trips/:id", async (c) => {
     // ✅ FIX C-2: проверка владельца (пропускаем для admin-оверрайда — X-Admin-Code или JWT)
     const isAdmin = await isAdminCaller(c, isAdminJwtRevoked);
     if (!isAdmin) {
-      const { callerEmail } = body;
+      const callerEmail = getCallerEmail(c, body);
       if (!callerEmail) {
-        return c.json({ error: 'callerEmail required' }, 400);
+        return c.json({ error: 'Authentication required: callerEmail missing' }, 401);
       }
       if (existing.driverEmail && callerEmail !== existing.driverEmail) {
         console.warn(`[PUT /trips/${id}] Forbidden: caller=${callerEmail}, owner=${existing.driverEmail}`);
@@ -1330,9 +1342,9 @@ app.put("/make-server-4e36197a/cargos/:id", async (c) => {
     if (!existing) return c.json({ error: "Cargo not found" }, 404);
 
     // Ownership check — only the cargo sender may update it
-    const callerEmail: string | undefined = (body as any).callerEmail;
+    const callerEmail = getCallerEmail(c, body);
     if (!callerEmail) {
-      return c.json({ error: "callerEmail is required" }, 400);
+      return c.json({ error: "Authentication required: callerEmail missing" }, 401);
     }
     if (existing.senderEmail && existing.senderEmail !== callerEmail) {
       console.warn(`[PUT /cargos] IDOR attempt: ${callerEmail} tried to update cargo ${id} owned by ${existing.senderEmail}`);
@@ -1357,11 +1369,11 @@ app.delete("/make-server-4e36197a/cargos/:id", async (c) => {
   try {
     const id = c.req.param("id");
     const body = await c.req.json().catch(() => ({}));
-    const callerEmail: string | undefined = (body as any).callerEmail;
+    const callerEmail = getCallerEmail(c, body);
     const existing: any = await kv.get(`ovora:cargo:${id}`);
     if (!existing) return c.json({ error: "Cargo not found" }, 404);
 
-    if (!callerEmail) return c.json({ error: "callerEmail is required" }, 400);
+    if (!callerEmail) return c.json({ error: "Authentication required: callerEmail missing" }, 401);
     if (existing.senderEmail && existing.senderEmail !== callerEmail) {
       console.warn(`[DELETE /cargos] IDOR attempt: ${callerEmail} tried to delete cargo ${id} owned by ${existing.senderEmail}`);
       return c.json({ error: "Forbidden: you are not the owner of this cargo" }, 403);
@@ -1675,9 +1687,9 @@ app.put("/make-server-4e36197a/offers/:tripId/:offerId", async (c) => {
     if (!existing) return c.json({ error: "Offer not found" }, 404);
 
     // Проверка участника: только senderEmail или driverEmail вправе менять оферту
-    const callerEmail: string | undefined = body.callerEmail;
+    const callerEmail = getCallerEmail(c, body);
     if (!callerEmail) {
-      return c.json({ error: "callerEmail is required" }, 400);
+      return c.json({ error: "Authentication required: callerEmail missing" }, 401);
     }
     const isSender = existing.senderEmail && existing.senderEmail === callerEmail;
     const isDriver = existing.driverEmail && existing.driverEmail === callerEmail;
@@ -1990,10 +2002,10 @@ app.put("/make-server-4e36197a/cargo-offers/:cargoId/:offerId", async (c) => {
     const existing: any = await kv.get(key);
     if (!existing) return c.json({ error: "Offer not found" }, 404);
 
-    const callerEmail: string | undefined = (body as any).callerEmail;
+    const callerEmail = getCallerEmail(c, body);
     const isDriver = !!callerEmail && existing.driverEmail === callerEmail;
     const isSender = !!callerEmail && existing.senderEmail === callerEmail;
-    if (!callerEmail) return c.json({ error: "callerEmail is required" }, 400);
+    if (!callerEmail) return c.json({ error: "Authentication required: callerEmail missing" }, 401);
     if (!isDriver && !isSender) {
       console.warn(`[PUT /cargo-offers] IDOR attempt: ${callerEmail} tried to update cargo-offer ${cargoId}/${offerId}`);
       return c.json({ error: "Forbidden: you are not a participant of this offer" }, 403);
@@ -2046,12 +2058,12 @@ app.post("/make-server-4e36197a/reviews",
   try {
     const body = await c.req.json();
 
-    const callerEmail = String(body.callerEmail || '').toLowerCase().trim();
+    const callerEmail = String(getCallerEmail(c, body) || '').toLowerCase().trim();
     const authorEmail = String(body.authorEmail || '').toLowerCase().trim();
     const targetEmail = String(body.targetEmail || '').toLowerCase().trim();
     const tripId = body.tripId ? String(body.tripId) : '';
 
-    if (!callerEmail) return c.json({ error: 'callerEmail is required' }, 400);
+    if (!callerEmail) return c.json({ error: 'Authentication required: callerEmail missing' }, 401);
     if (!authorEmail || !targetEmail) return c.json({ error: 'authorEmail and targetEmail are required' }, 400);
     if (callerEmail !== authorEmail) {
       console.warn(`[POST /reviews] IDOR attempt: caller=${callerEmail} tried to post review as ${authorEmail}`);
@@ -5309,8 +5321,8 @@ app.put("/make-server-4e36197a/tracking/:tripId", async (c) => {
   try {
     const tripId = c.req.param("tripId");
     const body = await c.req.json();
-    const callerEmail = String((body as any).callerEmail || "").toLowerCase().trim();
-    if (!callerEmail) return c.json({ error: "callerEmail is required" }, 400);
+    const callerEmail = String(getCallerEmail(c, body) || "").toLowerCase().trim();
+    if (!callerEmail) return c.json({ error: "Authentication required: callerEmail missing" }, 401);
 
     const now = new Date().toISOString();
     const key = `ovora:shipment:${tripId}`;

@@ -29,7 +29,6 @@ jobs:
           echo "token_len=${#SUPABASE_ACCESS_TOKEN}"
           OUTPUT=$(supabase functions deploy make-server-4e36197a \
             --project-ref mkbcjxnoeevtkzaqcpsh \
-            --no-verify-jwt \
             --debug 2>&1 || true)
           echo "$OUTPUT"
           BODY=$(printf '%s' "$OUTPUT" | head -c 50000 | python3 -c "import sys,json; print(json.dumps(sys.stdin.read()))")

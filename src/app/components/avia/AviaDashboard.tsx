@@ -524,7 +524,7 @@ export function AviaDashboard() {
   const [myFlights, setMyFlights] = useState<AviaFlight[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [loadError, setLoadError] = useState(false);
-  const [loadingMy, setLoadingMy] = useState(false);
+  const [_loadingMy, setLoadingMy] = useState(false);
   const [showFlightModal, setShowFlightModal] = useState(false);
   const [detailFlight, setDetailFlight] = useState<AviaFlight | null>(null);
 
