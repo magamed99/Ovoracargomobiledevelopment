@@ -16,7 +16,7 @@ const shimmer: React.CSSProperties = {
 };
 
 const card: React.CSSProperties = {
-  background: '#0b1929',
+  background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
   border: '1px solid #ffffff0d',
   borderRadius: 20,
   overflow: 'hidden',

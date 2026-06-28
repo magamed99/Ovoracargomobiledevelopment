@@ -1210,7 +1210,7 @@ export function AviaDashboard() {
               style={{
                 padding: '8px 22px 8px 8px',
                 borderRadius: 10, border: '1px solid #ffffff10',
-                background: '#0a1628', color: '#8ea8b8',
+                background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', color: '#8ea8b8',
                 fontSize: 11, fontWeight: 600, cursor: 'pointer',
                 outline: 'none', minWidth: 96, flexShrink: 0,
                 appearance: 'none',

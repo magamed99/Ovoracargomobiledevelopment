@@ -871,7 +871,7 @@ export function AviaChatDrawer({
           position:    'fixed', bottom: 0, left: '50%',
           transform:   'translateX(-50%)',
           width:       '100%', maxWidth: 520,
-          background:  '#080f1f',
+          background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
           borderRadius:'20px 20px 0 0',
           border:      '1px solid rgba(255,255,255,0.07)',
           borderBottom:'none',

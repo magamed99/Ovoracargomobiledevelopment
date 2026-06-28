@@ -8,7 +8,7 @@ export function AviaComingSoon() {
   return (
     <div style={{
       minHeight: '100dvh',
-      background: '#060d18',
+      background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
