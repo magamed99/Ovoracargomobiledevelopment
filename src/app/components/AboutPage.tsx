@@ -92,7 +92,7 @@ export function AboutPage() {
       <div className="md:hidden flex flex-col min-h-screen max-w-3xl mx-auto">
         <div className="relative overflow-hidden">
           <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute inset-0" style={{ background: 'linear-gradient(150deg, #0a1f3d 0%, #0e1621 55%)' }} />
+            <div className="absolute inset-0" style={{ background: 'linear-gradient(150deg, #0a1f3d 0%, #060e1a 55%)' }} />
             <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full" style={{ background: 'radial-gradient(circle, #1d4ed8 0%, transparent 70%)', opacity: 0.22 }} />
             <div className="absolute top-16 -left-12 w-48 h-48 rounded-full" style={{ background: 'radial-gradient(circle, #0f4a30 0%, transparent 70%)', opacity: 0.30 }} />
           </div>
@@ -113,7 +113,7 @@ export function AboutPage() {
               <div className="w-20 h-20 rounded-3xl flex items-center justify-center shadow-2xl" style={{ background: 'linear-gradient(135deg, #1d4ed8 0%, #0f2a70 100%)', boxShadow: '0 8px 32px #1d4ed840' }}>
                 <Truck className="w-9 h-9 text-white" />
               </div>
-              <div className="absolute -bottom-1.5 -right-1.5 w-7 h-7 rounded-xl bg-emerald-500 flex items-center justify-center border-2 border-[#0e1621] shadow">
+              <div className="absolute -bottom-1.5 -right-1.5 w-7 h-7 rounded-xl bg-emerald-500 flex items-center justify-center border-2 border-[#060e1a] shadow">
                 <CheckCircle2 className="w-4 h-4 text-white" />
               </div>
             </div>

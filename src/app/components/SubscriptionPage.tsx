@@ -73,7 +73,7 @@ export function SubscriptionPage() {
   const [submitting, setSubmitting]     = useState(false);
   const [submitted, setSubmitted]       = useState(false);
 
-  const bg   = dark ? '#0e1621' : '#f5f7fa';
+  const bg   = dark ? '#060e1a' : '#f5f7fa';
   const card = dark ? '#131f2e' : '#ffffff';
   const border = dark ? '#1e2d3d' : '#e8edf2';
   const muted  = dark ? '#4a6a8a' : '#94a3b8';

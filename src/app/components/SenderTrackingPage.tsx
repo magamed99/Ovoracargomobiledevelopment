@@ -410,7 +410,7 @@ export function SenderTrackingPage() {
                 {podPhotos.map((p, i) => (
                   <button key={i} onClick={() => setSelectedPhoto(p.url)} className="relative rounded-xl overflow-hidden aspect-video border border-white/[0.08]">
                     <img src={p.url} alt={p.type} className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 flex items-end p-1.5" style={{ background: 'linear-gradient(transparent,#0e162199)' }}>
+                    <div className="absolute inset-0 flex items-end p-1.5" style={{ background: 'linear-gradient(transparent,#060e1a99)' }}>
                       <span className="text-[9px] font-black text-white">{p.type === 'loading' ? '📦 Загрузка' : '✅ Выгрузка'}</span>
                     </div>
                   </button>

@@ -357,7 +357,7 @@ export function SettingsPage() {
         {/* Header */}
         <div className="relative overflow-hidden">
           <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute inset-0" style={{ background: 'linear-gradient(145deg,#0f2744 0%,#0e1621 60%)' }} />
+            <div className="absolute inset-0" style={{ background: 'linear-gradient(145deg,#0f2744 0%,#060e1a 60%)' }} />
             <div className="absolute -top-12 sm:-top-16 -right-12 sm:-right-16 w-40 sm:w-52 h-40 sm:h-52 rounded-full"
               style={{ background: 'radial-gradient(circle,#1d4ed8 0%,transparent 70%)', opacity: 0.18 }} />
           </div>
@@ -391,10 +391,10 @@ export function SettingsPage() {
       </div>
 
       {/* ══════════════════════ DESKTOP ═════════════════════════════════════ */}
-      <div className="hidden md:block min-h-screen" style={{ background: '#0e1621' }}>
+      <div className="hidden md:block min-h-screen" style={{ background: '#060e1a' }}>
 
         {/* Top bar */}
-        <div className="border-b border-white/[0.06]" style={{ background: '#0e1621' }}>
+        <div className="border-b border-white/[0.06]" style={{ background: '#060e1a' }}>
           <div className="max-w-6xl mx-auto px-8 py-5 flex items-center justify-between">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-widest text-[#4a6278]">Конфигурация</p>

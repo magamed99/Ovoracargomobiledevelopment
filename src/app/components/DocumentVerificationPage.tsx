@@ -758,7 +758,7 @@ export function DocumentVerificationPage() {
       <div className="hidden md:block min-h-screen">
 
         {/* Top bar */}
-        <div className="border-b border-white/[0.06]" style={{ background: '#0e1621' }}>
+        <div className="border-b border-white/[0.06]" style={{ background: '#060e1a' }}>
           <div className="max-w-6xl mx-auto px-8 py-5 flex items-center justify-between">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-widest text-[#4a6278]">Верификация</p>

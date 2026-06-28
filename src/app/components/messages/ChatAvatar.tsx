@@ -37,10 +37,10 @@ export function ChatAvatar({ contact, hasUnread, size = 52 }: ChatAvatarProps) {
         </div>
       )}
       {contact.online ? (
-        <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-400 border-2 border-[#0e1621]" />
+        <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-400 border-2 border-[#060e1a]" />
       ) : (
         <div
-          className="absolute -bottom-1 -right-1 w-5 h-5 rounded-xl flex items-center justify-center border-2 border-[#0e1621]"
+          className="absolute -bottom-1 -right-1 w-5 h-5 rounded-xl flex items-center justify-center border-2 border-[#060e1a]"
           style={{ background: contact.role === 'driver' ? '#5ba3f5' : '#10b981' }}
         >
           {contact.role === 'driver'

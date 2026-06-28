@@ -183,7 +183,7 @@ export function Home() {
       <div className="relative overflow-hidden shrink-0">
         {/* BG */}
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute inset-0" style={{ background: 'linear-gradient(145deg, #0f2744 0%, #0e1621 60%)' }} />
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(145deg, #0f2744 0%, #060e1a 60%)' }} />
           <div className="absolute -top-20 -right-20 w-80 h-80 rounded-full"
             style={{ background: 'radial-gradient(circle, #1d4ed8 0%, transparent 70%)', opacity: 0.20 }} />
         </div>
@@ -207,7 +207,7 @@ export function Home() {
                   </div>
                 )}
               </div>
-              <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-lg flex items-center justify-center border-2 border-[#0e1621] shadow-lg ${isDriver ? 'bg-[#5ba3f5]' : 'bg-emerald-500'}`}>
+              <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-lg flex items-center justify-center border-2 border-[#060e1a] shadow-lg ${isDriver ? 'bg-[#5ba3f5]' : 'bg-emerald-500'}`}>
                 {isDriver
                   ? <Truck className="w-2.5 h-2.5 text-white" />
                   : <Package className="w-2.5 h-2.5 text-white" />
@@ -414,7 +414,7 @@ export function Home() {
                               style={{ background: 'linear-gradient(135deg, #1d4ed8, #7c3aed)' }}>{trip.driver.initials}</div>
                         }
                         {trip.driver.verified && (
-                          <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-[#10b981] border-2 border-[#0e1621] flex items-center justify-center">
+                          <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-[#10b981] border-2 border-[#060e1a] flex items-center justify-center">
                             <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                             </svg>

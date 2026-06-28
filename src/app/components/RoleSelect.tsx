@@ -195,7 +195,7 @@ export function RoleSelect() {
       <div className="relative overflow-hidden shrink-0">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute inset-0"
-            style={{ background: 'linear-gradient(150deg, #0a1f3d 0%, #0e1621 60%)' }} />
+            style={{ background: 'linear-gradient(150deg, #0a1f3d 0%, #060e1a 60%)' }} />
           <motion.div
             className="absolute -top-16 sm:-top-20 -right-16 sm:-right-20 w-56 sm:w-72 h-56 sm:h-72 rounded-full"
             animate={{ opacity: activeRole ? 0.25 : 0.15 }}

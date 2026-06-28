@@ -321,13 +321,13 @@ export function BordersPage() {
   ];
 
   return (
-    <div style={{ background: '#0E1621', minHeight: '100vh', fontFamily: "'Sora', sans-serif" }}>
+    <div style={{ background: '#060e1a', minHeight: '100vh', fontFamily: "'Sora', sans-serif" }}>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <header style={{
         position: 'sticky', top: 0, zIndex: 30,
-        background: '#0E1621ee', backdropFilter: 'blur(16px)',
+        background: '#060e1aee', backdropFilter: 'blur(16px)',
         borderBottom: '1px solid #0d2035',
         padding: '12px 16px',
         display: 'flex', alignItems: 'center', gap: 12,

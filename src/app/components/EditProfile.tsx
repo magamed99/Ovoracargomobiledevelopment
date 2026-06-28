@@ -135,7 +135,7 @@ export function EditProfile() {
           {/* Background */}
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute inset-0"
-              style={{ background: 'linear-gradient(160deg, #0d2040 0%, #0e1621 65%)' }} />
+              style={{ background: 'linear-gradient(160deg, #0d2040 0%, #060e1a 65%)' }} />
             <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-72 h-72 rounded-full pointer-events-none"
               style={{ background: `radial-gradient(circle, ${roleColor} 0%, transparent 70%)`, opacity: 0.10 }} />
           </div>
@@ -193,7 +193,7 @@ export function EditProfile() {
               {/* Camera button */}
               <motion.button
                 onClick={() => fileInputRef.current?.click()}
-                className="absolute bottom-0 right-0 w-8 h-8 rounded-2xl flex items-center justify-center text-white border-2 border-[#0e1621]"
+                className="absolute bottom-0 right-0 w-8 h-8 rounded-2xl flex items-center justify-center text-white border-2 border-[#060e1a]"
                 style={{ background: `linear-gradient(135deg, #1d4ed8, ${roleColor})` }}
                 whileTap={{ scale: 0.88 }}
               >

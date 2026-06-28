@@ -645,7 +645,7 @@ export function CreateAnnouncementPage() {
       >
         <div
           className="absolute inset-x-0 bottom-0 pointer-events-none"
-          style={{ top: '-32px', background: 'linear-gradient(to top,#0E1621 55%,transparent)' }}
+          style={{ top: '-32px', background: 'linear-gradient(to top,#060e1a 55%,transparent)' }}
         />
         <div className="relative px-4 pb-[80px] pt-3">
           {PublishBtn}

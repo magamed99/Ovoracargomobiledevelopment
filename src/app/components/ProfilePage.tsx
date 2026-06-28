@@ -123,7 +123,7 @@ export function ProfilePage() {
             </div>
         }
       </div>
-      <div className={`absolute -bottom-1.5 -right-1.5 rounded-xl flex items-center justify-center border-2 border-[#0e1621] ${isDriver ? 'bg-[#5ba3f5]' : 'bg-emerald-500'}`}
+      <div className={`absolute -bottom-1.5 -right-1.5 rounded-xl flex items-center justify-center border-2 border-[#060e1a] ${isDriver ? 'bg-[#5ba3f5]' : 'bg-emerald-500'}`}
         style={{ width: size > 60 ? 28 : 22, height: size > 60 ? 28 : 22, boxShadow: `0 4px 12px ${isDriver ? '#5ba3f550' : '#10b98150'}` }}>
         {isDriver ? <Truck style={{ width: size > 60 ? 14 : 10, height: size > 60 ? 14 : 10, color: '#fff' }} /> : <Package style={{ width: size > 60 ? 14 : 10, height: size > 60 ? 14 : 10, color: '#fff' }} />}
       </div>
@@ -140,7 +140,7 @@ export function ProfilePage() {
         <div className="relative overflow-hidden">
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute inset-0"
-              style={{ background: 'linear-gradient(145deg, #0f2744 0%, #0e1621 55%, #0e1621 100%)' }} />
+              style={{ background: 'linear-gradient(145deg, #0f2744 0%, #060e1a 55%, #060e1a 100%)' }} />
             <div className="absolute -top-20 sm:-top-24 -right-20 sm:-right-24 w-56 sm:w-72 h-56 sm:h-72 rounded-full"
               style={{ background: 'radial-gradient(circle, #1e4a8a 0%, transparent 70%)', opacity: 0.35 }} />
             <div className="absolute top-8 -left-12 sm:-left-16 w-40 sm:w-48 h-40 sm:h-48 rounded-full"

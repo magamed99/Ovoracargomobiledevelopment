@@ -31,7 +31,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
       return (
         <div
           className="min-h-screen flex items-center justify-center p-6"
-          style={{ background: '#0E1621' }}
+          style={{ background: '#060e1a' }}
         >
           <div
             className="max-w-sm w-full rounded-2xl p-8 text-center"

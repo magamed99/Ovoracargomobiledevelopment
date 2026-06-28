@@ -627,7 +627,7 @@ export function SearchPage() {
 
   // ══════════════════════════════════════════════════════════════════════════════
   return (
-    <div className="min-h-screen text-white" style={{ background: '#0e1621', fontFamily: "'Sora', sans-serif" }}>
+    <div className="min-h-screen text-white" style={{ background: '#060e1a', fontFamily: "'Sora', sans-serif" }}>
 
       {/* ── DESKTOP LAYOUT ─────────────────────────────────────────── */}
       <div className="hidden md:flex min-h-screen">
@@ -637,7 +637,7 @@ export function SearchPage() {
           {/* Hero */}
           <div className="relative overflow-hidden px-8 xl:px-10 pt-14 pb-8">
             <div className="absolute inset-0 pointer-events-none">
-              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(160deg, #0a1f3d 0%, #0e1621 70%)' }} />
+              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(160deg, #0a1f3d 0%, #060e1a 70%)' }} />
               <div style={{ position: 'absolute', top: -40, left: '30%', width: 260, height: 200, borderRadius: '50%', background: 'radial-gradient(circle, #1a47c8 0%, transparent 70%)', opacity: 0.12 }} />
             </div>
             <div className="relative">
@@ -764,7 +764,7 @@ export function SearchPage() {
         {/* Hero */}
         <div className="relative overflow-hidden px-4 pt-12 pb-5">
           <div className="absolute inset-0 pointer-events-none">
-            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(160deg, #0a1f3d 0%, #0e1621 65%)' }} />
+            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(160deg, #0a1f3d 0%, #060e1a 65%)' }} />
             <div style={{ position: 'absolute', top: -40, left: '50%', transform: 'translateX(-50%)', width: 240, height: 180, borderRadius: '50%', background: 'radial-gradient(circle, #1d4ed8 0%, transparent 70%)', opacity: 0.13 }} />
           </div>
           <motion.div className="relative" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>

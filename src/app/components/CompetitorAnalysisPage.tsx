@@ -592,7 +592,7 @@ function GapCard({ gap }: { gap: Gap }) {
       <div className="flex items-center justify-between">
         <div className="flex gap-1.5 flex-wrap">
           {gap.competitors.map(c => (
-            <span key={c} className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#0e1621', color: '#8ba4c0', border: '1px solid #1e3a55' }}>
+            <span key={c} className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#060e1a', color: '#8ba4c0', border: '1px solid #1e3a55' }}>
               {c}
             </span>
           ))}
@@ -669,9 +669,9 @@ export function CompetitorAnalysisPage() {
   const mediumCount = GAPS.filter(g => g.priority === 'medium').length;
 
   return (
-    <div className="min-h-screen pb-8" style={{ background: '#0e1621', color: '#e2eaf4' }}>
+    <div className="min-h-screen pb-8" style={{ background: '#060e1a', color: '#e2eaf4' }}>
       {/* Header */}
-      <div className="sticky top-0 z-30 px-4 pt-safe" style={{ background: '#0e1621', borderBottom: '1px solid #1e3a55' }}>
+      <div className="sticky top-0 z-30 px-4 pt-safe" style={{ background: '#060e1a', borderBottom: '1px solid #1e3a55' }}>
         <div className="flex items-center gap-3 py-4">
           <button
             onClick={() => navigate(-1)}

@@ -411,7 +411,7 @@ export function DriverTrackingPage() {
             src="https://images.unsplash.com/photo-1524661135-423995f22d0b?w=1200&h=1200&fit=crop" />
         )}
         <div className="absolute inset-0 pointer-events-none"
-          style={{ background: 'linear-gradient(180deg,#0e162166 0%,transparent 20%,transparent 60%,#0e162180 100%)' }} />
+          style={{ background: 'linear-gradient(180deg,#060e1a66 0%,transparent 20%,transparent 60%,#060e1a80 100%)' }} />
       </div>
 
       {/* ── TOP NAV ── */}

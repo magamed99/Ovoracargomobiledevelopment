@@ -91,7 +91,7 @@ export function PublicTrackingPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4" style={{ background: '#0e1621' }}>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4" style={{ background: '#060e1a' }}>
         <div className="w-12 h-12 rounded-full border-4 animate-spin" style={{ borderColor: '#1e3a55', borderTopColor: '#5ba3f5' }} />
         <p className="text-sm font-semibold" style={{ color: '#8ba4c0' }}>Загрузка трекинга…</p>
       </div>
@@ -100,7 +100,7 @@ export function PublicTrackingPage() {
 
   if (error || !shipment) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-6" style={{ background: '#0e1621' }}>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-6" style={{ background: '#060e1a' }}>
         <AlertCircle size={48} style={{ color: '#ef4444' }} />
         <h1 className="text-lg font-bold text-white text-center">{error || 'Трекинг не найден'}</h1>
         <p className="text-sm text-center" style={{ color: '#8ba4c0' }}>
@@ -143,11 +143,11 @@ export function PublicTrackingPage() {
     : [41.3, 69.2];
 
   return (
-    <div className="min-h-screen pb-10" style={{ background: '#0e1621', color: '#e2eaf4', fontFamily: "'Sora', sans-serif" }}>
+    <div className="min-h-screen pb-10" style={{ background: '#060e1a', color: '#e2eaf4', fontFamily: "'Sora', sans-serif" }}>
       {/* Header */}
       <div
         className="sticky top-0 z-20 px-4 py-3 flex items-center justify-between"
-        style={{ background: '#0e1621cc', backdropFilter: 'blur(16px)', borderBottom: '1px solid #1e3a55' }}
+        style={{ background: '#060e1acc', backdropFilter: 'blur(16px)', borderBottom: '1px solid #1e3a55' }}
       >
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: '#5ba3f520', border: '1px solid #5ba3f530' }}>
@@ -340,7 +340,7 @@ export function PublicTrackingPage() {
                 style={{ border: '1px solid #1e3a55' }}
               >
                 <img src={p.url} alt={p.type === 'loading' ? 'Загрузка' : 'Выгрузка'} className="w-full h-full object-cover" />
-                <div className="absolute inset-0 flex items-end p-2" style={{ background: 'linear-gradient(transparent,#0e162199)' }}>
+                <div className="absolute inset-0 flex items-end p-2" style={{ background: 'linear-gradient(transparent,#060e1a99)' }}>
                   <span className="text-[10px] font-bold text-white">
                     {p.type === 'loading' ? '📦 Загрузка' : '✅ Выгрузка'}
                   </span>

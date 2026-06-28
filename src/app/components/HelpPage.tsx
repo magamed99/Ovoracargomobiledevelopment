@@ -70,7 +70,7 @@ export function HelpPage() {
       <div className="md:hidden flex flex-col min-h-screen max-w-3xl mx-auto">
         <div className="relative overflow-hidden">
           <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute inset-0" style={{ background: 'linear-gradient(145deg, #0f2744 0%, #0e1621 60%)' }} />
+            <div className="absolute inset-0" style={{ background: 'linear-gradient(145deg, #0f2744 0%, #060e1a 60%)' }} />
             <div className="absolute -top-20 -right-20 w-64 h-64 rounded-full" style={{ background: 'radial-gradient(circle, #14b8a6 0%, transparent 70%)', opacity: 0.18 }} />
             <div className="absolute top-10 -left-10 w-40 h-40 rounded-full" style={{ background: 'radial-gradient(circle, #1d4ed8 0%, transparent 70%)', opacity: 0.20 }} />
           </div>

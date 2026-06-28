@@ -45,7 +45,7 @@ export function DriverStatsPage() {
   const { t } = useLanguage();
   const isDark = theme === 'dark';
 
-  const bg  = isDark ? '#0e1621' : '#ffffff';
+  const bg  = isDark ? '#060e1a' : '#ffffff';
   const cardBg = isDark ? '#131f2e' : '#f8fafc';
   const border = isDark ? '#1e2d3d' : '#f0f2f5';
   const txt = isDark ? '#ffffff' : '#0f172a';
@@ -230,7 +230,7 @@ export function DriverStatsPage() {
                   {stats.reviews.slice(0, 5).map((r: any, i: number) => (
                     <div key={i} style={{
                       padding: '12px',
-                      background: isDark ? '#0e1621' : '#ffffff',
+                      background: isDark ? '#060e1a' : '#ffffff',
                       borderRadius: 12,
                       border: `1px solid ${border}`,
                     }}>

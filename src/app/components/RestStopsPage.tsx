@@ -255,11 +255,11 @@ export function RestStopsPage() {
   });
 
   return (
-    <div style={{ background: '#0E1621', minHeight: '100vh', fontFamily: "'Sora', sans-serif" }}>
+    <div style={{ background: '#060e1a', minHeight: '100vh', fontFamily: "'Sora', sans-serif" }}>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <header style={{ position: 'sticky', top: 0, zIndex: 30, background: '#0E1621ee', backdropFilter: 'blur(16px)', borderBottom: '1px solid #0d2035', padding: '12px 16px' }}>
+      <header style={{ position: 'sticky', top: 0, zIndex: 30, background: '#060e1aee', backdropFilter: 'blur(16px)', borderBottom: '1px solid #0d2035', padding: '12px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
           <button onClick={() => navigate(-1)}
             style={{ width: 36, height: 36, borderRadius: 11, background: '#0a1828', border: '1px solid #1a2d45', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>

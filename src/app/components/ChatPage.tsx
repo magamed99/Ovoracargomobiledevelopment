@@ -683,7 +683,7 @@ export function ChatPage() {
           )}
           {/* Онлайн-индикатор */}
           {contact.online && (
-            <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 ${isDark ? 'border-[#0e1621]' : 'border-white'}`} />
+            <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 ${isDark ? 'border-[#060e1a]' : 'border-white'}`} />
           )}
           {/* Иконка роли поверх аватара */}
           <div className={`absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-[9px] ${

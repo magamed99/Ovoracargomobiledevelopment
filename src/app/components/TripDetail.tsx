@@ -791,7 +791,7 @@ function ActiveTripDetail({ trip, isDark, userRole }: { trip: any; isDark: boole
       >
         <div className="absolute inset-0 bg-cover bg-center scale-105 transition-all duration-700"
           style={{ backgroundImage: `url('${images[imgIdx]}')` }} />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/20 to-[#0e1621]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/20 to-[#060e1a]" />
 
         {/* Top controls */}
         <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 z-10"

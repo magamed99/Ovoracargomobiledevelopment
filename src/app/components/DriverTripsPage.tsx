@@ -576,7 +576,7 @@ export function DriverTripsPage() {
       {/* ══════════ DESKTOP LAYOUT ══════════ */}
       <div className="hidden md:flex flex-col min-h-screen">
         {/* Desktop Header */}
-        <div className="border-b border-white/[0.06] shrink-0" style={{ background: '#0E1621' }}>
+        <div className="border-b border-white/[0.06] shrink-0" style={{ background: '#060e1a' }}>
           <div className="max-w-6xl mx-auto px-8 py-5 flex items-center gap-4">
             <button onClick={() => navigate('/dashboard')}
               className="w-9 h-9 rounded-xl bg-white/[0.06] flex items-center justify-center text-[#607080] hover:text-white hover:bg-white/[0.10] transition-all shrink-0">
@@ -619,7 +619,7 @@ export function DriverTripsPage() {
         </div>
 
         {/* Desktop Tabs */}
-        <div className="border-b border-white/[0.06] shrink-0" style={{ background: '#0E1621' }}>
+        <div className="border-b border-white/[0.06] shrink-0" style={{ background: '#060e1a' }}>
           <div className="max-w-6xl mx-auto px-8 flex gap-1 pt-1">
             {tabs.map(tab => (
               <button key={tab.key} onClick={() => setActiveTab(tab.key)}
@@ -638,7 +638,7 @@ export function DriverTripsPage() {
         </div>
 
         {/* Desktop Grid */}
-        <div className="flex-1 overflow-y-auto" style={{ background: '#0E1621' }}>
+        <div className="flex-1 overflow-y-auto" style={{ background: '#060e1a' }}>
           <div className="max-w-6xl mx-auto px-8 py-6">
             {loading && filteredTrips.length === 0 && (
               <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">

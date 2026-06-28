@@ -441,7 +441,7 @@ export function EmailAuth() {
       <div className="relative overflow-hidden shrink-0">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute inset-0"
-            style={{ background: 'linear-gradient(145deg, #0a1f3d 0%, #0e1621 65%)' }} />
+            style={{ background: 'linear-gradient(145deg, #0a1f3d 0%, #060e1a 65%)' }} />
           <div className="absolute -top-16 -right-16 w-60 h-60 rounded-full"
             style={{ background: 'radial-gradient(circle, #1d4ed8 0%, transparent 70%)', opacity: 0.18 }} />
         </div>
@@ -520,7 +520,7 @@ export function EmailAuth() {
                   <div style={{ position: 'absolute', inset: 0, borderRadius: 24, boxShadow: '0 8px 32px #1d4ed840' }} />
                   <Mail className="w-9 h-9 text-white relative z-10" />
                 </div>
-                <div className="absolute -bottom-1.5 -right-1.5 z-20 w-7 h-7 rounded-xl bg-[#5ba3f5] flex items-center justify-center border-2 border-[#0e1621]">
+                <div className="absolute -bottom-1.5 -right-1.5 z-20 w-7 h-7 rounded-xl bg-[#5ba3f5] flex items-center justify-center border-2 border-[#060e1a]">
                   <Sparkles className="w-3.5 h-3.5 text-white" />
                 </div>
               </div>
