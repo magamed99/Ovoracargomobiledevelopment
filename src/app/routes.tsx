@@ -79,7 +79,7 @@ function redirectAviaIfAuthenticated() {
 
 function HydrateFallback() {
   return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: '#0E1621' }}>
+    <div className="min-h-screen flex items-center justify-center" style={{ background: '#060e1a' }}>
       <div className="animate-spin rounded-full h-10 w-10 border-4"
         style={{ borderColor: '#1e3a55', borderTopColor: '#5ba3f5' }} />
     </div>

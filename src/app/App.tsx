@@ -13,7 +13,7 @@ import { projectId, publicAnonKey } from '../../utils/supabase/info';
 
 function _AppLoadingFallback() {
   return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: '#0E1621' }}>
+    <div className="min-h-screen flex items-center justify-center" style={{ background: '#060e1a' }}>
       <div className="text-center">
         <div className="mb-6">
           <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-br from-[#1978e5] to-[#0d4d99] flex items-center justify-center shadow-xl">
