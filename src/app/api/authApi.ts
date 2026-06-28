@@ -1,5 +1,5 @@
 import { projectId, publicAnonKey } from '../../../utils/supabase/info';
-import { cacheClear as clearApiCache } from './dataApi';
+import { cacheClear as clearApiCache, adminHeaders } from './dataApi';
 import { CSRF_HEADER, CSRF_TOKEN } from './csrfToken';
 
 // authApi v2 - with getCachedUser export
@@ -293,9 +293,11 @@ export async function setUserCode(email: string, code: string): Promise<void> {
  * Сбросить код (удалить хеш) — пользователь сможет придумать новый
  */
 export async function resetUserCode(email: string): Promise<void> {
+  // 🔒 reset-code теперь требует прав админа на сервере (requireAdminChecked).
+  // adminHeaders() добавляет X-Admin-Token/X-Admin-Code из sessionStorage.
   const res = await fetch(`${BASE}/auth/reset-code`, {
     method: 'POST',
-    headers: HEADERS,
+    headers: adminHeaders(),
     body: JSON.stringify({ email: email.trim().toLowerCase() }),
   });
   const data = await res.json();

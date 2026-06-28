@@ -5918,7 +5918,10 @@ app.post("/make-server-4e36197a/auth/verify-otp", handleVerifyOtp);
 app.post("/make-server-4e36197a/auth/email-check", handleEmailCheck);
 app.post("/make-server-4e36197a/auth/set-code", handleSetCode);
 app.post("/make-server-4e36197a/auth/verify-perm-code", handleVerifyPermCode);
-app.post("/make-server-4e36197a/auth/reset-code", handleResetCode);
+// 🔒 reset-code удаляет хеш кода пользователя → требует прав админа.
+// Без серверной проверки любой по чужому email мог сбросить код и через set-code
+// поставить свой (захват аккаунта). UI-гейт isAdmin был только клиентским.
+app.post("/make-server-4e36197a/auth/reset-code", requireAdminChecked, handleResetCode);
 app.get("/make-server-4e36197a/admin/codes", handleAdminListCodes);
 
 // ── Backup Recovery Code ──────────────────────────────────────────────────────
