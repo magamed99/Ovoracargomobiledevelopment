@@ -378,7 +378,7 @@ export function DriverTrackingPage() {
   };
 
   return (
-    <div className="font-['Sora'] bg-[#0e1621] text-white min-h-screen">
+    <div className="font-['Sora'] bg-[#060e1a] text-white min-h-screen">
 
     {/* ════════ MOBILE (не трогаем) ════════ */}
     <div className="md:hidden relative h-dvh w-full flex flex-col overflow-hidden">
@@ -521,7 +521,7 @@ export function DriverTrackingPage() {
       {/* ── BOTTOM SHEET ── */}
       <div
         ref={sheetRef}
-        className="absolute left-0 right-0 bottom-0 z-40 rounded-t-3xl bg-[#0e1621] border-t border-white/[0.08] shadow-2xl"
+        className="absolute left-0 right-0 bottom-0 z-40 rounded-t-3xl bg-[#060e1a] border-t border-white/[0.08] shadow-2xl"
         style={{
           transform: `translateY(calc(${sheetTranslate} + ${dragY}px))`,
           transition: isDragging.current ? 'none' : 'transform 0.4s cubic-bezier(0.32,0.72,0,1)',
@@ -793,7 +793,7 @@ export function DriverTrackingPage() {
                     <span className="text-white text-lg font-black">{contactPerson.name?.charAt(0) || '?'}</span>
                   </div>
                 )}
-                <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-[#0e1621] flex items-center justify-center">
+                <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-[#060e1a] flex items-center justify-center">
                   <Package className="w-3 h-3 text-[#5ba3f5]" />
                 </div>
               </div>

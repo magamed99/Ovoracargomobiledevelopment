@@ -99,8 +99,8 @@ function CompletedTripDetail({ trip, isDark }: { trip: any; isDark: boolean }) {
   }, [userRole, tripOffers, trip, driver, myEmail]);
 
   return (
-    <div className="min-h-screen flex flex-col font-['Sora'] bg-[#0E1621] text-white">
-      <header className="sticky top-0 z-50 backdrop-blur-xl px-4 py-3 flex items-center justify-between border-b bg-[#0E1621]/95 border-white/[0.06]">
+    <div className="min-h-screen flex flex-col font-['Sora'] bg-[#060e1a] text-white">
+      <header className="sticky top-0 z-50 backdrop-blur-xl px-4 py-3 flex items-center justify-between border-b bg-[#060e1a]/95 border-white/[0.06]">
         <button onClick={() => navigate(-1)} className={`flex size-10 items-center justify-center rounded-full transition-colors ${isDark ? 'hover:bg-[#1e2d3a]' : 'hover:bg-[#e2e8f0]'}`}>
           <ArrowLeft className="w-5 h-5" />
         </button>
@@ -356,7 +356,7 @@ function ReviewCard({ trip, targetEmail, targetName, showName, userRole, current
                 {formRating === 5 ? '😍 Отлично!' : formRating === 4 ? '👍 Хорошо' : formRating === 3 ? '😐 Нейтрально' : formRating === 2 ? '😕 Плохо' : formRating === 1 ? '😤 Ужасно' : 'Нажмите на звезду'}
               </span>
             </div>
-            <div className={`rounded-2xl p-4 border ${isDark ? 'bg-[#0e1621]/60 border-[#1e2d3a]' : 'bg-[#f8fafc] border-[#e9eef5]'}`}>
+            <div className={`rounded-2xl p-4 border ${isDark ? 'bg-[#060e1a]/60 border-[#1e2d3a]' : 'bg-[#f8fafc] border-[#e9eef5]'}`}>
               <div className="space-y-3">
                 {Object.entries(CATEGORY_LABELS).map(([key, label]) => {
                   const Icon = CATEGORY_ICONS[key];
@@ -371,7 +371,7 @@ function ReviewCard({ trip, targetEmail, targetName, showName, userRole, current
               </div>
             </div>
             <textarea rows={3} placeholder="Расскажите о своём опыте..." value={formComment} onChange={e => setFormComment(e.target.value)}
-              className={`w-full px-4 py-3 rounded-2xl border text-sm outline-none focus:border-[#1978e5] resize-none transition-colors ${isDark ? 'bg-[#0e1621] border-[#1e2d3a] text-white placeholder-[#475569]' : 'bg-[#f8fafc] border-[#e2e8f0] text-[#0f172a] placeholder-[#94a3b8]'}`}
+              className={`w-full px-4 py-3 rounded-2xl border text-sm outline-none focus:border-[#1978e5] resize-none transition-colors ${isDark ? 'bg-[#060e1a] border-[#1e2d3a] text-white placeholder-[#475569]' : 'bg-[#f8fafc] border-[#e2e8f0] text-[#0f172a] placeholder-[#94a3b8]'}`}
             />
             <button onClick={submitReview} className="w-full flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold rounded-2xl shadow-lg shadow-emerald-500/25 active:scale-[0.98] transition-all">
               <Heart className="w-4 h-4" />Опубликовать отзыв
@@ -767,7 +767,7 @@ function ActiveTripDetail({ trip, isDark, userRole }: { trip: any; isDark: boole
   };
 
   return (
-    <div className="font-['Sora'] bg-[#0e1621] text-white min-h-screen">
+    <div className="font-['Sora'] bg-[#060e1a] text-white min-h-screen">
 
     {/* ════════════════ MOBILE (не трогаем) ════════════════ */}
     <div className="md:hidden flex flex-col pb-36 min-h-screen">
@@ -977,7 +977,7 @@ function ActiveTripDetail({ trip, isDark, userRole }: { trip: any; isDark: boole
               <div className="h-14 w-14 rounded-2xl bg-cover bg-center ring-2 ring-[#5ba3f5]/25"
                 style={{ backgroundImage: `url('${driver.avatar}')` }} />
               {driver.verified && (
-                <div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#0e1621]">
+                <div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#060e1a]">
                   <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                 </div>
               )}
@@ -1320,7 +1320,7 @@ function ActiveTripDetail({ trip, isDark, userRole }: { trip: any; isDark: boole
                 {hasSeats && (
                   <div className={`mb-3 rounded-2xl border overflow-hidden transition-all ${includeSeats
                     ? isDark ? 'border-[#1978e5]/40 bg-[#1978e5]/5' : 'border-[#bfdbfe] bg-[#eff6ff]'
-                    : isDark ? 'border-[#1e2d3a] bg-[#0e1621]/50 opacity-60' : 'border-[#e2e8f0] bg-[#f8fafc] opacity-70'}`}>
+                    : isDark ? 'border-[#1e2d3a] bg-[#060e1a]/50 opacity-60' : 'border-[#e2e8f0] bg-[#f8fafc] opacity-70'}`}>
                     <button onClick={() => setIncludeSeats(!includeSeats)} className="w-full flex items-center gap-3 px-4 py-3">
                       <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${includeSeats ? 'bg-[#1978e5]' : isDark ? 'bg-[#1e2d3a]' : 'bg-[#e2e8f0]'}`}>
                         <Users className={`w-4 h-4 ${includeSeats ? 'text-white' : isDark ? 'text-[#475569]' : 'text-[#94a3b8]'}`} />
@@ -1335,7 +1335,7 @@ function ActiveTripDetail({ trip, isDark, userRole }: { trip: any; isDark: boole
                     </button>
                     {includeSeats && (
                       <div className="px-4 pb-4">
-                        <div className={`flex items-center gap-2 p-3 rounded-xl border ${isDark ? 'bg-[#0e1621] border-[#1e2d3a]' : 'bg-white border-[#dbeafe]'}`}>
+                        <div className={`flex items-center gap-2 p-3 rounded-xl border ${isDark ? 'bg-[#060e1a] border-[#1e2d3a]' : 'bg-white border-[#dbeafe]'}`}>
                           <button onClick={() => setOfferSeats(Math.max(1, offerSeats - 1))} className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isDark ? 'bg-[#1e2d3a] text-white' : 'bg-[#f1f5f9] text-[#0f172a] border border-[#e2e8f0]'}`}><Minus className="w-4 h-4" /></button>
                           <div className="flex-1 flex flex-col items-center">
                             <input
@@ -1390,7 +1390,7 @@ function ActiveTripDetail({ trip, isDark, userRole }: { trip: any; isDark: boole
 
                 {/* ── Children counter — always visible when trip has seats ── */}
                 {hasSeats && (
-                  <div className={`mb-3 rounded-2xl border overflow-hidden ${isDark ? 'border-[#1e2d3a] bg-[#0e1621]/50' : 'border-[#e2e8f0] bg-[#f8fafc]'}`}>
+                  <div className={`mb-3 rounded-2xl border overflow-hidden ${isDark ? 'border-[#1e2d3a] bg-[#060e1a]/50' : 'border-[#e2e8f0] bg-[#f8fafc]'}`}>
                     <div className="flex items-center gap-3 px-4 py-3">
                       <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${isDark ? 'bg-[#1e2d3a]' : 'bg-[#e0edff]'}`}>
                         <span className="text-base">👶</span>
@@ -1434,7 +1434,7 @@ function ActiveTripDetail({ trip, isDark, userRole }: { trip: any; isDark: boole
                 {hasCargo && (
                   <div className={`mb-4 rounded-2xl border overflow-hidden transition-all ${includeCargo
                     ? isDark ? 'border-amber-500/40 bg-amber-500/5' : 'border-amber-200 bg-amber-50'
-                    : isDark ? 'border-[#1e2d3a] bg-[#0e1621]/50 opacity-60' : 'border-[#e2e8f0] bg-[#f8fafc] opacity-70'}`}>
+                    : isDark ? 'border-[#1e2d3a] bg-[#060e1a]/50 opacity-60' : 'border-[#e2e8f0] bg-[#f8fafc] opacity-70'}`}>
                     <button onClick={() => setIncludeCargo(!includeCargo)} className="w-full flex items-center gap-3 px-4 py-3">
                       <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${includeCargo ? 'bg-amber-500' : isDark ? 'bg-[#1e2d3a]' : 'bg-[#e2e8f0]'}`}>
                         <Truck className={`w-4 h-4 ${includeCargo ? 'text-white' : isDark ? 'text-[#475569]' : 'text-[#94a3b8]'}`} />
@@ -1449,7 +1449,7 @@ function ActiveTripDetail({ trip, isDark, userRole }: { trip: any; isDark: boole
                     </button>
                     {includeCargo && (
                       <div className="px-4 pb-4 space-y-2">
-                        <div className={`flex items-center gap-2 p-3 rounded-xl border ${isDark ? 'bg-[#0e1621] border-[#1e2d3a]' : 'bg-white border-[#fde68a]'}`}>
+                        <div className={`flex items-center gap-2 p-3 rounded-xl border ${isDark ? 'bg-[#060e1a] border-[#1e2d3a]' : 'bg-white border-[#fde68a]'}`}>
                           <button onClick={() => setOfferCargoKg(Math.max(1, offerCargoKg - 5))} className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isDark ? 'bg-[#1e2d3a] text-white' : 'bg-[#f1f5f9] text-[#0f172a] border border-[#e2e8f0]'}`}><Minus className="w-4 h-4" /></button>
                           <div className="flex-1 flex flex-col items-center">
                             <input
@@ -1480,7 +1480,7 @@ function ActiveTripDetail({ trip, isDark, userRole }: { trip: any; isDark: boole
                           <span className={`text-sm font-black ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>{totalCargoPrice} {trip.currency || 'TJS'}</span>
                         </div>
                         <input
-                          className={`w-full px-3 py-2.5 rounded-xl text-sm font-semibold border outline-none focus:ring-2 focus:ring-amber-400/30 transition ${isDark ? 'bg-[#0e1621] border-[#1e2d3a] text-white placeholder:text-[#475569]' : 'bg-white border-[#e2e8f0] text-[#0f172a] placeholder:text-[#94a3b8]'}`}
+                          className={`w-full px-3 py-2.5 rounded-xl text-sm font-semibold border outline-none focus:ring-2 focus:ring-amber-400/30 transition ${isDark ? 'bg-[#060e1a] border-[#1e2d3a] text-white placeholder:text-[#475569]' : 'bg-white border-[#e2e8f0] text-[#0f172a] placeholder:text-[#94a3b8]'}`}
                           placeholder="Описание груза (продукты, одежда...)"
                           value={offerCargoDesc}
                           onChange={(e) => setOfferCargoDesc(e.target.value)}
@@ -1510,7 +1510,7 @@ function ActiveTripDetail({ trip, isDark, userRole }: { trip: any; isDark: boole
 
                   {/* Profile preview card */}
                   {profileUser && (
-                    <div className={`flex items-center gap-3 p-3 rounded-2xl border ${isDark ? 'bg-[#0e1621] border-[#1e2d3a]' : 'bg-[#f8fafc] border-[#e2e8f0]'}`}>
+                    <div className={`flex items-center gap-3 p-3 rounded-2xl border ${isDark ? 'bg-[#060e1a] border-[#1e2d3a]' : 'bg-[#f8fafc] border-[#e2e8f0]'}`}>
                       {profileUser.avatarUrl ? (
                         <div className="w-10 h-10 rounded-xl bg-cover bg-center shrink-0" style={{ backgroundImage: `url('${profileUser.avatarUrl}')` }} />
                       ) : (
@@ -1534,13 +1534,13 @@ function ActiveTripDetail({ trip, isDark, userRole }: { trip: any; isDark: boole
                   )}
 
                   <input
-                    className={`w-full px-4 py-3 rounded-xl text-sm font-semibold border outline-none focus:ring-2 focus:ring-[#1978e5]/40 transition ${isDark ? 'bg-[#0e1621] border-[#1e2d3a] text-white placeholder:text-[#475569]' : 'bg-[#f8fafc] border-[#e2e8f0] text-[#0f172a] placeholder:text-[#94a3b8]'}`}
+                    className={`w-full px-4 py-3 rounded-xl text-sm font-semibold border outline-none focus:ring-2 focus:ring-[#1978e5]/40 transition ${isDark ? 'bg-[#060e1a] border-[#1e2d3a] text-white placeholder:text-[#475569]' : 'bg-[#f8fafc] border-[#e2e8f0] text-[#0f172a] placeholder:text-[#94a3b8]'}`}
                     placeholder="Ваше имя *"
                     value={offerName}
                     onChange={(e) => setOfferName(e.target.value)}
                   />
                   <input
-                    className={`w-full px-4 py-3 rounded-xl text-sm font-semibold border outline-none focus:ring-2 focus:ring-[#1978e5]/40 transition ${isDark ? 'bg-[#0e1621] border-[#1e2d3a] text-white placeholder:text-[#475569]' : 'bg-[#f8fafc] border-[#e2e8f0] text-[#0f172a] placeholder:text-[#94a3b8]'}`}
+                    className={`w-full px-4 py-3 rounded-xl text-sm font-semibold border outline-none focus:ring-2 focus:ring-[#1978e5]/40 transition ${isDark ? 'bg-[#060e1a] border-[#1e2d3a] text-white placeholder:text-[#475569]' : 'bg-[#f8fafc] border-[#e2e8f0] text-[#0f172a] placeholder:text-[#94a3b8]'}`}
                     placeholder="Телефон"
                     type="tel"
                     value={offerPhone}
@@ -2062,8 +2062,8 @@ function ActiveTripDetail({ trip, isDark, userRole }: { trip: any; isDark: boole
 function CancelledTripDetail({ trip, isDark }: { trip: any; isDark: boolean }) {
   const navigate = useNavigate();
   return (
-    <div className={`min-h-screen flex flex-col font-['Sora'] ${isDark ? 'bg-[#0E1621] text-white' : 'bg-[#f1f5f9] text-[#0f172a]'}`}>
-      <header className={`sticky top-0 z-50 backdrop-blur-xl px-4 py-3 flex items-center justify-between border-b ${isDark ? 'bg-[#0E1621]/95 border-white/[0.06]' : 'bg-white/95 border-[#e2e8f0]'}`}>
+    <div className={`min-h-screen flex flex-col font-['Sora'] ${isDark ? 'bg-[#060e1a] text-white' : 'bg-[#f1f5f9] text-[#0f172a]'}`}>
+      <header className={`sticky top-0 z-50 backdrop-blur-xl px-4 py-3 flex items-center justify-between border-b ${isDark ? 'bg-[#060e1a]/95 border-white/[0.06]' : 'bg-white/95 border-[#e2e8f0]'}`}>
         <button onClick={() => navigate(-1)} className={`flex size-10 items-center justify-center rounded-full transition-colors ${isDark ? 'hover:bg-[#1e2d3a]' : 'hover:bg-[#f1f5f9]'}`}>
           <ArrowLeft className="w-5 h-5" />
         </button>
@@ -2234,9 +2234,9 @@ function CargoDetail({ cargo, isDark: _isDark, userRole, currentUser }: {
   const pendingCount = offers.filter(o => o.status === 'pending').length;
 
   return (
-    <div className="min-h-screen font-['Sora'] bg-[#0E1621] text-white pb-32">
+    <div className="min-h-screen font-['Sora'] bg-[#060e1a] text-white pb-32">
       {/* Header */}
-      <div className="sticky top-0 z-30 bg-[#0E1621]/95 backdrop-blur-xl border-b border-white/[0.06]">
+      <div className="sticky top-0 z-30 bg-[#060e1a]/95 backdrop-blur-xl border-b border-white/[0.06]">
         <div style={{ height: 'env(safe-area-inset-top, 0px)' }} />
         <div className="flex items-center gap-3 px-4 py-3">
           <button onClick={() => navigate(-1)}
@@ -2677,7 +2677,7 @@ export function TripDetail() {
 
   if (!trip) {
     return (
-      <div className={`min-h-screen flex items-center justify-center font-['Sora'] ${isDark ? 'bg-[#0e1621]' : 'bg-[#f1f5f9]'}`}>
+      <div className={`min-h-screen flex items-center justify-center font-['Sora'] ${isDark ? 'bg-[#060e1a]' : 'bg-[#f1f5f9]'}`}>
         <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#1978e5] border-t-transparent" />
       </div>
     );
@@ -2685,7 +2685,7 @@ export function TripDetail() {
 
   if (trip.__notFound) {
     return (
-      <div className={`min-h-screen flex flex-col items-center justify-center gap-4 font-['Sora'] px-8 ${isDark ? 'bg-[#0e1621] text-white' : 'bg-[#f1f5f9] text-[#0f172a]'}`}>
+      <div className={`min-h-screen flex flex-col items-center justify-center gap-4 font-['Sora'] px-8 ${isDark ? 'bg-[#060e1a] text-white' : 'bg-[#f1f5f9] text-[#0f172a]'}`}>
         <div className={`w-20 h-20 rounded-2xl flex items-center justify-center ${isDark ? 'bg-[#1a2736]' : 'bg-white'}`}>
           <Route className="w-10 h-10 opacity-30" />
         </div>

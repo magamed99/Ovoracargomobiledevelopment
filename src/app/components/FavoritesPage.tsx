@@ -23,7 +23,7 @@ export function FavoritesPage() {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   /* ── helpers ── */
-  const bg      = 'bg-[#0E1621]';
+  const bg      = 'bg-[#060e1a]';
   const txt     = isDark ? 'text-white' : 'text-[#0f172a]';
   const _sub     = isDark ? 'text-[#64748b]' : 'text-slate-500';
   const divider = isDark ? 'border-white/[0.06]' : 'border-black/[0.06]';
@@ -40,7 +40,7 @@ export function FavoritesPage() {
 
       {/* ════════════════ MOBILE (не трогаем) ════════════════ */}
       <div className="md:hidden flex flex-col min-h-screen max-w-3xl mx-auto">
-        <header className="sticky top-0 z-20 flex items-center gap-3 px-4 py-3 border-b backdrop-blur-xl bg-[#0E1621]/95 border-white/[0.06]">
+        <header className="sticky top-0 z-20 flex items-center gap-3 px-4 py-3 border-b backdrop-blur-xl bg-[#060e1a]/95 border-white/[0.06]">
           <button onClick={() => navigate(-1)} className="w-9 h-9 flex items-center justify-center active:scale-90 text-white">
             <ArrowLeft className="w-5 h-5" />
           </button>
@@ -146,7 +146,7 @@ export function FavoritesPage() {
         {showClearConfirm && (
           <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowClearConfirm(false)} />
-            <div className="relative w-full max-w-sm p-6 bg-[#0E1621]">
+            <div className="relative w-full max-w-sm p-6 bg-[#060e1a]">
               <h3 className="text-[17px] font-bold mb-1 text-white">Очистить избранное?</h3>
               <p className="text-[13px] mb-6 text-[#64748b]">Все сохранённые поездки будут удалены</p>
               <div className="flex gap-3">

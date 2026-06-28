@@ -85,11 +85,11 @@ export function MessagesPage() {
   const openChat = (chat: Chat) => { msg.openChat(chat); navigate(`/chat/${chat.id}`); };
 
   return (
-    <div className="font-['Sora'] bg-[#0e1621] min-h-screen">
+    <div className="font-['Sora'] bg-[#060e1a] min-h-screen">
 
       {/* ══════════════ MOBILE ══════════════ */}
       <div className="md:hidden flex flex-col min-h-screen">
-        <div className="sticky top-0 z-30 bg-[#0e1621]">
+        <div className="sticky top-0 z-30 bg-[#060e1a]">
           <MessagesHeader
             variant="mobile"
             totalUnread={msg.totalUnread}

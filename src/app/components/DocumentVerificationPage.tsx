@@ -475,8 +475,8 @@ export function DocumentVerificationPage() {
   const issueCount = Object.values(issues).filter(Boolean).length;
 
   // ── Theme tokens (flat Telegram style) ────────────────────────────────────
-  const _bg          = isDark ? '_bg-[#0e1621]'   : '_bg-white';
-  const _header      = isDark ? 'bg-[#0e1621]/95 border-[#1e2d3d]' : 'bg-white/95 border-[#e8eaed]';
+  const _bg          = isDark ? '_bg-[#060e1a]'   : '_bg-white';
+  const _header      = isDark ? 'bg-[#060e1a]/95 border-[#1e2d3d]' : 'bg-white/95 border-[#e8eaed]';
   const textPrimary = isDark ? 'text-white'      : 'text-[#0f172a]';
   const textSec     = isDark ? 'text-[#6b7f94]'  : 'text-[#94a3b8]';
   const textMuted   = isDark ? 'text-[#3d5263]'  : 'text-[#cbd5e1]';
@@ -529,7 +529,7 @@ export function DocumentVerificationPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center font-['Sora'] bg-[#0e1621]">
+      <div className="min-h-screen flex items-center justify-center font-['Sora'] bg-[#060e1a]">
         <div className="text-center">
           <div className="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
           <p className="text-sm text-[#6b7f94]">Загрузка документов…</p>
@@ -539,13 +539,13 @@ export function DocumentVerificationPage() {
   }
 
   return (
-    <div className="font-['Sora'] bg-[#0e1621] text-white">
+    <div className="font-['Sora'] bg-[#060e1a] text-white">
 
       {/* ══════════════════════ MOBILE (unchanged) ══════════════════════════ */}
       <div className="md:hidden min-h-screen flex flex-col max-w-2xl mx-auto">
 
       {/* ── Sticky header ───────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-30 backdrop-blur-md px-4 py-3 flex items-center gap-3 border-b bg-[#0e1621]/95 border-[#1e2d3d]">
+      <header className="sticky top-0 z-30 backdrop-blur-md px-4 py-3 flex items-center gap-3 border-b bg-[#060e1a]/95 border-[#1e2d3d]">
         <button onClick={() => navigate('/profile')} className="w-8 h-8 flex items-center justify-center transition-colors text-[#8a9bb0] hover:text-white">
           <ArrowLeft className="w-5 h-5" />
         </button>
@@ -1012,7 +1012,7 @@ export function DocumentVerificationPage() {
             {/* Modal panel */}
             <motion.div
               className={`relative w-full max-w-md mx-0 sm:mx-4 sm:rounded-2xl font-['Sora'] flex flex-col mb-[72px] sm:mb-0 max-h-[calc(100dvh-100px)] sm:max-h-[88vh] overflow-hidden ${
-                isDark ? 'bg-[#0e1621]' : 'bg-white'
+                isDark ? 'bg-[#060e1a]' : 'bg-white'
               }`}
               initial={{ y: 80, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}

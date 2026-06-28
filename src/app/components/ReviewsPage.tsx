@@ -292,7 +292,7 @@ export function ReviewsPage() {
   };
 
   /* ────────── Mobile styles ────────── */
-  const bg      = 'bg-[#0E1621]';
+  const bg      = 'bg-[#060e1a]';
   const txt     = isDark ? 'text-white' : 'text-[#0f172a]';
   const sub     = isDark ? 'text-[#64748b]' : 'text-slate-500';
   const divider = isDark ? 'border-white/[0.06]' : 'border-black/[0.06]';
@@ -307,7 +307,7 @@ export function ReviewsPage() {
 
       {/* ════════════════ MOBILE (unchanged) ════════════════ */}
       <div className="md:hidden flex flex-col min-h-screen max-w-3xl mx-auto">
-        <header className={`sticky top-0 z-20 flex items-center justify-between px-4 py-3 border-b backdrop-blur-xl bg-[#0E1621]/95 border-white/[0.06]`}>
+        <header className={`sticky top-0 z-20 flex items-center justify-between px-4 py-3 border-b backdrop-blur-xl bg-[#060e1a]/95 border-white/[0.06]`}>
           <button onClick={() => navigate(-1)} className="w-9 h-9 flex items-center justify-center active:scale-90 text-white">
             <ArrowLeft className="w-5 h-5" />
           </button>
@@ -362,7 +362,7 @@ export function ReviewsPage() {
               <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showSort ? 'rotate-180' : ''}`} />
             </button>
             {showSort && (
-              <div className={`absolute right-0 top-7 w-44 z-50 border shadow-2xl bg-[#0E1621] border-white/[0.08]`}>
+              <div className={`absolute right-0 top-7 w-44 z-50 border shadow-2xl bg-[#060e1a] border-white/[0.08]`}>
                 {[{ key: 'newest', label: 'Сначала новые' }, { key: 'highest', label: 'Высокий рейтинг' }, { key: 'lowest', label: 'Низкий рейтинг' }].map(opt => (
                   <button key={opt.key} onClick={() => { setSortBy(opt.key as any); setShowSort(false); }}
                     className={`w-full text-left px-4 py-3 text-[13px] font-medium border-b last:border-b-0 ${divider} ${sortBy === opt.key ? 'text-[#1978e5]' : `${txt} ${hover}`}`}>
@@ -455,7 +455,7 @@ export function ReviewsPage() {
         {showModal && (
           <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={() => setShowModal(false)}>
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-            <div className="relative w-full max-w-md pb-10 shadow-2xl bg-[#0E1621]" onClick={e => e.stopPropagation()}>
+            <div className="relative w-full max-w-md pb-10 shadow-2xl bg-[#060e1a]" onClick={e => e.stopPropagation()}>
               <div className="w-10 h-1 rounded-full mx-auto mt-3 mb-4 bg-slate-500/30" />
               <div className={`flex items-center justify-between px-4 pb-3 border-b ${divider}`}>
                 <h2 className="text-[17px] font-bold text-white">Написать отзыв</h2>

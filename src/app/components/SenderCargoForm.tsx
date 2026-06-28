@@ -157,8 +157,8 @@ export function SenderCargoForm() {
   );
 
   return (
-    <div className="font-['Sora'] bg-[#0E1621] min-h-screen">
-      <div className="md:hidden sticky top-0 z-30 bg-[#0E1621]/95 backdrop-blur-xl border-b border-white/[0.06]">
+    <div className="font-['Sora'] bg-[#060e1a] min-h-screen">
+      <div className="md:hidden sticky top-0 z-30 bg-[#060e1a]/95 backdrop-blur-xl border-b border-white/[0.06]">
         <div style={{ height: 'env(safe-area-inset-top, 0px)' }} />
         <div className="flex items-center gap-3 px-4 py-3">
           <button
@@ -178,7 +178,7 @@ export function SenderCargoForm() {
         <Stepper current={step} />
       </div>
 
-      <div className="hidden md:block border-b border-white/[0.06] bg-[#0E1621]">
+      <div className="hidden md:block border-b border-white/[0.06] bg-[#060e1a]">
         <div className="max-w-5xl mx-auto px-8 py-5 flex items-center gap-4">
           <button
             onClick={() => navigate(-1)}
@@ -283,7 +283,7 @@ export function SenderCargoForm() {
         </div>
       </div>
 
-      <div className="md:hidden fixed bottom-0 left-0 right-0 p-4 bg-[#0E1621]/95 backdrop-blur-xl border-t border-white/[0.06] z-40 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 p-4 bg-[#060e1a]/95 backdrop-blur-xl border-t border-white/[0.06] z-40 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
         {PublishBtn}
       </div>
     </div>

@@ -7,11 +7,11 @@ export function TermsOfServicePage() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
-  const bg  = isDark ? 'bg-[#0e1621]' : 'bg-white';
+  const bg  = isDark ? 'bg-[#060e1a]' : 'bg-white';
   const txt = isDark ? 'text-white'    : 'text-[#0f172a]';
   const sub = isDark ? 'text-[#6b7f94]' : 'text-[#94a3b8]';
   const div = isDark ? 'border-[#1e2d3d]' : 'border-[#f0f2f5]';
-  const hdr = isDark ? 'bg-[#0e1621]/95 border-[#1e2d3d]' : 'bg-white/95 border-[#e8eaed]';
+  const hdr = isDark ? 'bg-[#060e1a]/95 border-[#1e2d3d]' : 'bg-white/95 border-[#e8eaed]';
 
   const sections = [
     {

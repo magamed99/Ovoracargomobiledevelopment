@@ -413,11 +413,11 @@ export function SenderTripsPage() {
 
   // ════════════════════════════════════════════════════════════════════════════
   return (
-    <div className="fixed inset-0 z-30 md:relative md:inset-auto md:z-auto md:min-h-screen flex flex-col font-['Sora'] bg-[#0E1621]">
+    <div className="fixed inset-0 z-30 md:relative md:inset-auto md:z-auto md:min-h-screen flex flex-col font-['Sora'] bg-[#060e1a]">
 
       {/* ══════════ MOBILE LAYOUT ══════════ */}
       <div className="md:hidden flex flex-col h-full overflow-hidden">
-        <header className="shrink-0 flex items-center gap-3 px-4 border-b backdrop-blur-xl bg-[#0E1621]/95 border-white/[0.06]"
+        <header className="shrink-0 flex items-center gap-3 px-4 border-b backdrop-blur-xl bg-[#060e1a]/95 border-white/[0.06]"
           style={{ paddingTop: 'max(48px, env(safe-area-inset-top, 48px))', paddingBottom: 14 }}>
           <button onClick={() => navigate('/dashboard')} className="w-9 h-9 rounded-full flex items-center justify-center text-white hover:bg-white/10 active:scale-90 transition-all">
             <ArrowLeft className="w-5 h-5" />

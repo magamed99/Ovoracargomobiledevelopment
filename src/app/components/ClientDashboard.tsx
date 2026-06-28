@@ -177,7 +177,7 @@ export function Home() {
       />
 
       {/* ── MOBILE: оригинальный дизайн (только телефон) ── */}
-      <div className="md:hidden min-h-screen flex flex-col overflow-x-hidden font-['Sora'] bg-[#0e1621] text-white">
+      <div className="md:hidden min-h-screen flex flex-col overflow-x-hidden font-['Sora'] bg-[#060e1a] text-white">
 
       {/* ── HERO HEADER ── */}
       <div className="relative overflow-hidden shrink-0">

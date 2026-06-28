@@ -189,7 +189,7 @@ export function RoleSelect() {
   // MOBILE LAYOUT
   // ══════════════════════════════════════════════════════
   const MobileContent = (
-    <div className="md:hidden w-full flex flex-col font-['Sora'] bg-[#0e1621] text-white overflow-x-hidden" style={{ minHeight: '100dvh' }}>
+    <div className="md:hidden w-full flex flex-col font-['Sora'] bg-[#060e1a] text-white overflow-x-hidden" style={{ minHeight: '100dvh' }}>
 
       {/* ── HERO / BG ── */}
       <div className="relative overflow-hidden shrink-0">

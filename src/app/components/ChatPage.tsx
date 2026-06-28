@@ -648,17 +648,17 @@ export function ChatPage() {
 
   if (!contact) {
     return (
-      <div className={`fixed inset-0 z-[60] flex items-center justify-center ${isDark ? 'bg-[#0e1621]' : 'bg-white'}`}>
+      <div className={`fixed inset-0 z-[60] flex items-center justify-center ${isDark ? 'bg-[#060e1a]' : 'bg-white'}`}>
         <div className="animate-spin w-8 h-8 border-2 border-[#1978e5] border-t-transparent rounded-full" />
       </div>
     );
   }
 
   return (
-    <div className={`fixed inset-0 z-40 flex flex-col pb-0 font-['Sora'] ${isDark ? 'bg-[#0e1621]' : 'bg-white'}`}>
+    <div className={`fixed inset-0 z-40 flex flex-col pb-0 font-['Sora'] ${isDark ? 'bg-[#060e1a]' : 'bg-white'}`}>
 
       {/* ── HEADER ─────────────────────────────────────────────────────── */}
-      <div className={`flex items-center gap-3 border-b shrink-0 ${ isDark ? 'bg-[#0e1621] border-[#1e2d3d]' : 'bg-white border-[#f0f2f5]' } px-[16px] pt-[20px] pb-[12px]`}>
+      <div className={`flex items-center gap-3 border-b shrink-0 ${ isDark ? 'bg-[#060e1a] border-[#1e2d3d]' : 'bg-white border-[#f0f2f5]' } px-[16px] pt-[20px] pb-[12px]`}>
         <button
           onClick={() => navigate('/messages')}
           className={`w-8 h-8 flex items-center justify-center shrink-0 transition-colors ${

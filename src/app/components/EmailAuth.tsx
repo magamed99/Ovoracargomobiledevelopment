@@ -435,7 +435,7 @@ export function EmailAuth() {
 
   // ═══════════════════════════════════════════════════════════════════════════
   return (
-    <div className="min-h-screen font-['Sora'] bg-[#0e1621] text-white">
+    <div className="min-h-screen font-['Sora'] bg-[#060e1a] text-white">
 
       {/* ── HERO / BG ── */}
       <div className="relative overflow-hidden shrink-0">

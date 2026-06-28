@@ -350,7 +350,7 @@ export function SettingsPage() {
   );
 
   return (
-    <div className="font-['Sora'] bg-[#0e1621] text-white">
+    <div className="font-['Sora'] bg-[#060e1a] text-white">
 
       {/* ══════════════════════ MOBILE (unchanged) ══════════════════════════ */}
       <div className="md:hidden min-h-screen flex flex-col md:max-w-2xl md:mx-auto">

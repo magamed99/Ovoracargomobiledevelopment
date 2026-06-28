@@ -64,7 +64,7 @@ export function HelpPage() {
 
   /* ══════════════════════════════════════════════════════════ */
   return (
-    <div className="font-['Sora'] bg-[#0e1621] text-white min-h-screen">
+    <div className="font-['Sora'] bg-[#060e1a] text-white min-h-screen">
 
       {/* ════════════════ MOBILE (не трогаем) ════════════════ */}
       <div className="md:hidden flex flex-col min-h-screen max-w-3xl mx-auto">

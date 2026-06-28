@@ -290,10 +290,10 @@ export function CreateAnnouncementPage() {
   );
 
   return (
-    <div className="font-['Sora'] bg-[#0E1621]">
+    <div className="font-['Sora'] bg-[#060e1a]">
 
       {/* MOBILE HEADER */}
-      <div className="md:hidden sticky top-0 z-30 bg-[#0E1621]/95 backdrop-blur-xl border-b border-white/[0.06]">
+      <div className="md:hidden sticky top-0 z-30 bg-[#060e1a]/95 backdrop-blur-xl border-b border-white/[0.06]">
         <div style={{ height: 'env(safe-area-inset-top, 0px)' }} />
         <div className="flex items-center gap-3 px-4 py-3">
           <button
@@ -314,7 +314,7 @@ export function CreateAnnouncementPage() {
       </div>
 
       {/* DESKTOP HEADER */}
-      <div className="hidden md:block border-b border-white/[0.06] bg-[#0E1621]">
+      <div className="hidden md:block border-b border-white/[0.06] bg-[#060e1a]">
         <div className="max-w-5xl mx-auto px-8 py-5 flex items-center gap-4">
           <button
             onClick={() => navigate(-1)}

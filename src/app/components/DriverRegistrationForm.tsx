@@ -79,10 +79,10 @@ export function DriverRegistrationForm() {
   const dark = isDark;
 
   return (
-    <div className={`min-h-screen overflow-y-auto font-['Sora'] ${dark ? 'bg-[#0e1621] text-white' : 'bg-[#f5f7fa] text-[#0f172a]'}`}>
+    <div className={`min-h-screen overflow-y-auto font-['Sora'] ${dark ? 'bg-[#060e1a] text-white' : 'bg-[#f5f7fa] text-[#0f172a]'}`}>
 
       {/* Header */}
-      <header className={`sticky top-0 z-20 flex items-center gap-3 px-4 py-3 border-b backdrop-blur-md ${dark ? 'bg-[#0e1621]/95 border-[#1e2d3d]' : 'bg-white/95 border-[#e8edf2]'}`}>
+      <header className={`sticky top-0 z-20 flex items-center gap-3 px-4 py-3 border-b backdrop-blur-md ${dark ? 'bg-[#060e1a]/95 border-[#1e2d3d]' : 'bg-white/95 border-[#e8edf2]'}`}>
         <button onClick={() => navigate(-1)} className={`w-9 h-9 rounded-xl border flex items-center justify-center cursor-pointer transition-colors ${dark ? 'border-[#1e2d3d] bg-[#0a1828] text-[#6b7f94] hover:text-white' : 'border-[#e2e8f0] bg-white text-[#8a97a8] hover:text-[#0f172a]'}`}>
           <ArrowLeft className="w-4 h-4" />
         </button>

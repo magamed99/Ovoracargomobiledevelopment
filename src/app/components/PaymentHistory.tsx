@@ -56,7 +56,7 @@ export function PaymentHistory() {
   const totalExpense = payments.filter(p => p.type === 'expense').reduce((s, p) => s + Math.abs(p.amount), 0);
   const balance      = totalIncome - totalExpense;
 
-  const bg      = 'bg-[#0E1621]';
+  const bg      = 'bg-[#060e1a]';
   const txt     = isDark ? 'text-white' : 'text-[#0f172a]';
   const sub     = isDark ? 'text-[#64748b]' : 'text-slate-500';
   const divider = isDark ? 'border-white/[0.06]' : 'border-black/[0.06]';
@@ -67,7 +67,7 @@ export function PaymentHistory() {
 
       {/* Header */}
       <header className={`sticky top-0 z-20 flex items-center gap-3 px-4 py-3 border-b backdrop-blur-xl ${
-        'bg-[#0E1621]/95 border-white/[0.06]'
+        'bg-[#060e1a]/95 border-white/[0.06]'
       }`}>
         <button
           onClick={() => navigate(-1)}

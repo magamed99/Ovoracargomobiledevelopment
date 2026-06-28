@@ -95,7 +95,7 @@ export function BackupCodeModal({ code, email, isDark, onAcknowledged }: BackupC
       {/* Modal */}
       <div
         className={`relative w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden ${
-          dark ? 'bg-[#0E1621] border border-[#253840]' : 'bg-[#0E1621] border border-[#253840]'
+          dark ? 'bg-[#060e1a] border border-[#253840]' : 'bg-[#060e1a] border border-[#253840]'
         }`}
       >
         {/* Top danger stripe */}

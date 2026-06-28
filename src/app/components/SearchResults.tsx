@@ -181,13 +181,13 @@ export function SearchResults() {
 
   // ════════════════════════════════════════════════════════════════════════════
   return (
-    <div className="min-h-screen flex flex-col font-['Sora'] bg-[#0E1621]">
+    <div className="min-h-screen flex flex-col font-['Sora'] bg-[#060e1a]">
 
       {/* ══════════════════ MOBILE LAYOUT ══════════════════ */}
       <div className="md:hidden flex flex-col min-h-screen">
 
         {/* Header */}
-        <header className="sticky top-0 z-50 backdrop-blur-xl bg-[#0E1621]/95 border-b border-white/[0.06]">
+        <header className="sticky top-0 z-50 backdrop-blur-xl bg-[#060e1a]/95 border-b border-white/[0.06]">
           <div className="flex items-center gap-2 px-3"
             style={{ paddingTop: 'max(52px, env(safe-area-inset-top, 52px))', paddingBottom: 12 }}>
             <button onClick={() => navigate(-1)}

@@ -281,11 +281,11 @@ export function NotificationsPage() {
   );
 
   return (
-    <div className="font-['Sora'] bg-[#0E1621] text-white min-h-screen">
+    <div className="font-['Sora'] bg-[#060e1a] text-white min-h-screen">
 
       {/* ══════════ MOBILE ══════════ */}
       <div className="md:hidden flex flex-col min-h-screen">
-        <header className="sticky top-0 z-20 flex items-center gap-3 px-4 py-3 border-b backdrop-blur-xl bg-[#0E1621]/95 border-white/[0.06]"
+        <header className="sticky top-0 z-20 flex items-center gap-3 px-4 py-3 border-b backdrop-blur-xl bg-[#060e1a]/95 border-white/[0.06]"
           style={{ paddingTop: 'max(12px, env(safe-area-inset-top, 12px))' }}>
           <button onClick={() => navigate(-1)} className="w-9 h-9 flex items-center justify-center transition-all active:scale-90 text-white">
             <ArrowLeft className="w-5 h-5" />

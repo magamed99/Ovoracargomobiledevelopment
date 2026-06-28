@@ -141,7 +141,7 @@ export function PriceCalculator() {
     };
   }, [fromCity, toCity, weight, volume, cargoType, currency, dbTrips]);
 
-  const bg = 'bg-[#0E1621]';
+  const bg = 'bg-[#060e1a]';
   const _card = isDark ? 'bg-white/[0.03] border-white/[0.06]' : 'bg-black/[0.02] border-black/[0.06]';
   const txt = isDark ? 'text-white' : 'text-[#0f172a]';
   const sub = isDark ? 'text-[#64748b]' : 'text-slate-500';
@@ -155,7 +155,7 @@ export function PriceCalculator() {
     <div className={`min-h-screen flex flex-col font-['Sora'] ${bg} ${txt} md:max-w-2xl md:mx-auto`}>
       {/* Header */}
       <header className={`sticky top-0 z-20 flex items-center gap-3 px-4 py-3 border-b backdrop-blur-xl ${
-        'bg-[#0E1621]/95 border-white/[0.06]'
+        'bg-[#060e1a]/95 border-white/[0.06]'
       }`}>
         <button
           onClick={() => navigate(-1)}
@@ -190,7 +190,7 @@ export function PriceCalculator() {
                   onBlur={() => setTimeout(() => setShowFromDrop(false), 150)}
                 />
                 {showFromDrop && fromSuggestions.length > 0 && (
-                  <div className="absolute top-full mt-1 w-full border z-30 overflow-hidden shadow-xl bg-[#0E1621] border-white/[0.08]">
+                  <div className="absolute top-full mt-1 w-full border z-30 overflow-hidden shadow-xl bg-[#060e1a] border-white/[0.08]">
                     {fromSuggestions.map(c => (
                       <button key={c.name} onClick={() => { setFromCity(c.name); setShowFromDrop(false); }}
                         className={`w-full text-left px-4 py-2.5 text-[14px] border-b last:border-b-0 ${isDark ? 'border-white/[0.06] text-white hover:bg-white/[0.03]' : 'border-black/[0.06] text-[#0f172a] hover:bg-black/[0.02]'}`}>
@@ -216,7 +216,7 @@ export function PriceCalculator() {
                   onBlur={() => setTimeout(() => setShowToDrop(false), 150)}
                 />
                 {showToDrop && toSuggestions.length > 0 && (
-                  <div className="absolute top-full mt-1 w-full border z-30 overflow-hidden shadow-xl bg-[#0E1621] border-white/[0.08]">
+                  <div className="absolute top-full mt-1 w-full border z-30 overflow-hidden shadow-xl bg-[#060e1a] border-white/[0.08]">
                     {toSuggestions.map(c => (
                       <button key={c.name} onClick={() => { setToCity(c.name); setShowToDrop(false); }}
                         className={`w-full text-left px-4 py-2.5 text-[14px] border-b last:border-b-0 ${isDark ? 'border-white/[0.06] text-white hover:bg-white/[0.03]' : 'border-black/[0.06] text-[#0f172a] hover:bg-black/[0.02]'}`}>
