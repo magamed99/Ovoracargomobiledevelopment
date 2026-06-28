@@ -79,7 +79,7 @@ app.use("/*", cors({
     if (/^https?:\/\/([a-z0-9-]+\.)?ovora-cargo\.ru$/.test(origin)) return origin;
     return null; // deny
   },
-  allowHeaders: ["Content-Type", "Authorization", "X-Admin-Code", "X-Admin-Token", "X-Csrf-Token"],
+  allowHeaders: ["Content-Type", "Authorization", "X-Admin-Code", "X-Admin-Token", "X-Avia-Token", "X-Csrf-Token"],
   allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   exposeHeaders: ["Content-Length"],
   credentials: true,

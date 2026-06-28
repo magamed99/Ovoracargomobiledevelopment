@@ -538,8 +538,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ flights });
     } catch (err) {
       console.log('Error GET /avia/flights:', err);
-      // ВРЕМЕННАЯ ДИАГНОСТИКА: отдаём реальный текст ошибки в приложение
-      return c.json({ error: 'DIAG: ' + (err instanceof Error ? err.message : String(err)) }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 

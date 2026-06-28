@@ -362,10 +362,9 @@ function buildFilterParams(filters?: AviaFilters): string {
 
 export async function getAviaFlights(filters?: AviaFilters): Promise<AviaFlight[]> {
   const qs = buildFilterParams(filters);
-  // ВРЕМЕННАЯ ДИАГНОСТИКА: на ошибке пробрасываем реальный текст с сервера
-  const res = await fetch(`${BASE}/avia/flights${qs}`, { headers: getHeaders() });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+  const res = await fetchWithRetry(`${BASE}/avia/flights${qs}`, { headers: getHeaders() });
+  if (!res.ok) return [];
+  const data = await res.json();
   return data.flights || [];
 }
 
