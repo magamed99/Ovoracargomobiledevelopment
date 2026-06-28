@@ -327,7 +327,7 @@ export function DesktopDashboard({
                   onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = s.color + '0d'; (e.currentTarget as HTMLElement).style.borderColor = s.color + '55'; }}
                   onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#ffffff06'; (e.currentTarget as HTMLElement).style.borderColor = '#ffffff08'; }}>
                   <div className="absolute top-0 right-0 w-12 h-12 rounded-full pointer-events-none"
-                    style={{ background: s.color + '20', filter: 'blur(12px)', transform: 'translate(30%,-30%)' }} />
+                    style={{ background: s.color + '20', filter: 'blur(20px) saturate(160%)', transform: 'translate(30%,-30%)' }} />
                   <s.icon style={{ width: 16, height: 16, marginBottom: 8, color: s.color }} />
                   <p className="text-[22px] font-black text-white leading-none"><AnimCounter to={s.value} suffix={s.suffix} /></p>
                   <p className="text-[10px] text-[#607080] mt-1 leading-snug">{s.label}</p>

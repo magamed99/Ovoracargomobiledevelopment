@@ -173,7 +173,7 @@ export function FlightDetailModal({
         style={{
           width: '100%', maxWidth: 520,
           maxHeight: '92dvh', overflowY: 'auto',
-          background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', borderRadius: '24px 24px 0 0',
+          background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(20px) saturate(160%)', WebkitBackdropFilter: 'blur(20px) saturate(160%)', borderRadius: '24px 24px 0 0',
           padding: 'clamp(16px, 5vw, 24px)',
           fontFamily: "'Sora', 'Inter', sans-serif",
         }}

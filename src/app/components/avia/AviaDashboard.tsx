@@ -41,7 +41,7 @@ function SkeletonCard() {
   return (
     <div className="avia-card-item" style={{
       padding: '15px 16px', borderRadius: 20,
-      background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)',
+      background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
       overflow: 'hidden', position: 'relative',
     }}>
       <style>{`
@@ -228,7 +228,7 @@ const FlightCard = memo(function FlightCard({
           <div style={{
             width: 34, height: 34, borderRadius: 11, flexShrink: 0,
             background: isClosed ? 'rgba(255,255,255,0.04)' : 'rgba(14,165,233,0.1)',
-            border: `1px solid ${isClosed ? 'rgba(255,255,255,0.06)' : 'rgba(14,165,233,0.18)'}`,
+            border: `1px solid ${isClosed ? 'rgba(255,255,255,0.08)' : 'rgba(14,165,233,0.18)'}`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             boxShadow: isClosed ? 'none' : '0 0 10px rgba(14,165,233,0.1)',
           }}>
@@ -837,8 +837,8 @@ export function AviaDashboard() {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           borderBottom: '1px solid rgba(14,165,233,0.07)',
           background: 'rgba(6,14,26,0.8)',
-          backdropFilter: 'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)',
+          backdropFilter: 'blur(20px) saturate(160%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(160%)',
           position: 'sticky', top: 0, zIndex: 30,
         }}
       >
@@ -1210,7 +1210,7 @@ export function AviaDashboard() {
               style={{
                 padding: '8px 22px 8px 8px',
                 borderRadius: 10, border: '1px solid #ffffff10',
-                background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', color: '#8ea8b8',
+                background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(20px) saturate(160%)', WebkitBackdropFilter: 'blur(20px) saturate(160%)', color: '#8ea8b8',
                 fontSize: 11, fontWeight: 600, cursor: 'pointer',
                 outline: 'none', minWidth: 96, flexShrink: 0,
                 appearance: 'none',

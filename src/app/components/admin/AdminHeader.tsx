@@ -67,7 +67,7 @@ export function AdminHeader({
       className="sticky top-0 z-30 flex-shrink-0"
       style={{
         background: '#ffffffee',
-        backdropFilter: 'blur(12px)',
+        backdropFilter: 'blur(20px) saturate(160%)',
         borderBottom: '1px solid #e2e8f0',
         boxShadow: '0 1px 8px #00000008',
       }}

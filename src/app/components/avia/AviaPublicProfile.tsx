@@ -103,7 +103,7 @@ export function AviaPublicProfile() {
   return (
     <div style={{
       minHeight: '100dvh',
-      background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+      background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(20px) saturate(160%)', WebkitBackdropFilter: 'blur(20px) saturate(160%)',
       fontFamily: "'Sora', 'Inter', sans-serif",
     }}>
       {/* Header */}

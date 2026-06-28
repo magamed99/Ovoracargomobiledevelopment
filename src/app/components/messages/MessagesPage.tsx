@@ -135,7 +135,7 @@ export function MessagesPage() {
         <div className="flex-1 overflow-hidden">
           <div className="max-w-6xl mx-auto flex h-full" style={{ maxHeight: 'calc(100vh - 73px)' }}>
             {/* Left: Chat list */}
-            <div className="flex flex-col" style={{ width: 400, borderRight: '1px solid rgba(255,255,255,0.06)' }}>
+            <div className="flex flex-col" style={{ width: 400, borderRight: '1px solid rgba(255,255,255,0.08)' }}>
               <SearchBar value={msg.searchQuery} onChange={msg.setSearchQuery} className="px-4 pt-4 pb-3" />
 
               <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: '#1e2d3d transparent' }}>

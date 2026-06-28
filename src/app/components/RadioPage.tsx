@@ -517,7 +517,7 @@ export function RadioPage() {
         {hasMore && messages.length > 0 && (
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}>
             <button onClick={loadMore} disabled={loadingMore} style={{
-              padding: '6px 16px', borderRadius: 100, background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid #1a3560',
+              padding: '6px 16px', borderRadius: 100, background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(20px) saturate(160%)', WebkitBackdropFilter: 'blur(20px) saturate(160%)', border: '1px solid #1a3560',
               color: '#5ba3f5', fontSize: 12, fontWeight: 600, cursor: loadingMore ? 'default' : 'pointer',
               opacity: loadingMore ? 0.6 : 1,
             }}>
@@ -735,7 +735,7 @@ export function RadioPage() {
             <div style={{ display: 'flex', gap: 6, marginBottom: 8, overflowX: 'auto', scrollbarWidth: 'none', paddingBottom: 2 }}>
               {['На связи 👍', 'Еду 🚛', 'Понял ✅', 'Стою 🅿️', 'Спасибо 🙏', 'Осторожно ⚠️'].map(q => (
                 <button key={q} onClick={() => { setText(q); inputRef.current?.focus(); }}
-                  style={{ flexShrink: 0, padding: '5px 11px', borderRadius: 100, background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid #1a3560', color: '#7ab0d4', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  style={{ flexShrink: 0, padding: '5px 11px', borderRadius: 100, background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(20px) saturate(160%)', WebkitBackdropFilter: 'blur(20px) saturate(160%)', border: '1px solid #1a3560', color: '#7ab0d4', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                   {q}
                 </button>
               ))}

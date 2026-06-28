@@ -770,7 +770,7 @@ export function SenderTrackingPage() {
 
           {!activeTrip && (
             <div className="stp-s4 stp-card p-6 flex flex-col items-center gap-3 text-center">
-              <div style={{ width:52, height:52, borderRadius:18, display:'flex', alignItems:'center', justifyContent:'center', background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}>
+              <div style={{ width:52, height:52, borderRadius:18, display:'flex', alignItems:'center', justifyContent:'center', background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(20px) saturate(160%)', WebkitBackdropFilter: 'blur(20px) saturate(160%)' }}>
                 <Package style={{ width:24, height:24, color:'#2a4060' }} />
               </div>
               <p style={{ fontSize:15, fontWeight:800, color:'#fff' }}>Нет активных отправлений</p>

@@ -624,7 +624,7 @@ export function ReviewsPage() {
                       <div key={d.r} style={{ display:'flex', alignItems:'center', gap:6, marginBottom:5 }}>
                         <span style={{ fontSize:11, fontWeight:700, color:'#4a6580', width:8, textAlign:'right' }}>{d.r}</span>
                         <Star style={{ width:10, height:10, fill:'#fbbf24', color:'#fbbf24', flexShrink:0 }} />
-                        <div style={{ flex:1, height:5, borderRadius:100, background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', overflow:'hidden' }}>
+                        <div style={{ flex:1, height:5, borderRadius:100, background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(20px) saturate(160%)', WebkitBackdropFilter: 'blur(20px) saturate(160%)', overflow:'hidden' }}>
                           <div className="rv-cat-bar"
                             style={{
                               height:'100%', borderRadius:100,
@@ -713,7 +713,7 @@ export function ReviewsPage() {
                 <p style={{ fontSize:14, fontWeight:700, color:'#fff' }}>
                   {activeTab === 'received' ? 'Полученные отзывы' : 'Оставленные отзывы'}
                 </p>
-                <span style={{ fontSize:11, fontWeight:800, padding:'3px 10px', borderRadius:100, background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', color:'#5ba3f5' }}>
+                <span style={{ fontSize:11, fontWeight:800, padding:'3px 10px', borderRadius:100, background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(20px) saturate(160%)', WebkitBackdropFilter: 'blur(20px) saturate(160%)', color:'#5ba3f5' }}>
                   {sorted.length}
                 </span>
               </div>
@@ -729,7 +729,7 @@ export function ReviewsPage() {
               </div>
             ) : sorted.length === 0 ? (
               <div className="rv-section" style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'80px 0', gap:16 }}>
-                <div style={{ width:72, height:72, borderRadius:24, display:'flex', alignItems:'center', justifyContent:'center', background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', borderWidth:1, borderStyle:'solid', borderColor:'#1a2d42' }}>
+                <div style={{ width:72, height:72, borderRadius:24, display:'flex', alignItems:'center', justifyContent:'center', background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(20px) saturate(160%)', WebkitBackdropFilter: 'blur(20px) saturate(160%)', borderWidth:1, borderStyle:'solid', borderColor:'#1a2d42' }}>
                   <MessageSquare style={{ width:32, height:32, color:'#2a4060' }} />
                 </div>
                 <p style={{ fontSize:18, fontWeight:800, color:'#fff' }}>Пока нет отзывов</p>
@@ -799,7 +799,7 @@ export function ReviewsPage() {
                                   <span style={{ fontSize:10, color:'#3a5570', fontWeight:600 }}>{label}</span>
                                   <span style={{ marginLeft:'auto', fontSize:10, fontWeight:800, color:catColor }}>{val}/5</span>
                                 </div>
-                                <div style={{ height:5, borderRadius:100, background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', overflow:'hidden' }}>
+                                <div style={{ height:5, borderRadius:100, background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(20px) saturate(160%)', WebkitBackdropFilter: 'blur(20px) saturate(160%)', overflow:'hidden' }}>
                                   <div className="rv-cat-bar"
                                     style={{ height:'100%', borderRadius:100, background:catColor, '--w': `${(val/5)*100}%` } as React.CSSProperties} />
                                 </div>

@@ -1697,7 +1697,7 @@ function ActiveTripDetail({ trip, isDark, userRole }: { trip: any; isDark: boole
                   ))}
                 </div>
               )}
-              <div style={{ position:'absolute', top:16, right:16, padding:'8px 14px', borderRadius:14, backdropFilter:'blur(12px)', background:'#ffffff15', border:'1px solid #ffffff20' }}>
+              <div style={{ position:'absolute', top:16, right:16, padding:'8px 14px', borderRadius:14, backdropFilter:'blur(20px) saturate(160%)', background:'#ffffff15', border:'1px solid #ffffff20' }}>
                 <p style={{ fontSize:9, fontWeight:800, textTransform:'uppercase', letterSpacing:'.14em', color:'#ffffffa0', marginBottom:2 }}>Расстояние</p>
                 <p style={{ fontSize:16, fontWeight:900, color:'#fff' }}>{displayDistance}</p>
               </div>
@@ -1909,7 +1909,7 @@ function ActiveTripDetail({ trip, isDark, userRole }: { trip: any; isDark: boole
                     </div>
                   )
                 ) : (
-                  <div style={{ display:'flex', alignItems:'center', justifyContent:'center', padding:'13px', borderRadius:16, background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border:'1px solid #1a2d42' }}>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'center', padding:'13px', borderRadius:16, background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(20px) saturate(160%)', WebkitBackdropFilter: 'blur(20px) saturate(160%)', border:'1px solid #1a2d42' }}>
                     <span style={{ fontSize:13, fontWeight:700, color:'#3a5570' }}>Мест нет · Груз заполнен</span>
                   </div>
                 )}
@@ -1955,7 +1955,7 @@ function ActiveTripDetail({ trip, isDark, userRole }: { trip: any; isDark: boole
 
                   {/* ── Children counter desktop ── */}
                   {hasSeats && (
-                    <div style={{ marginBottom:12, borderRadius:16, border:'1px solid #1a2d3d', background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', overflow:'hidden' }}>
+                    <div style={{ marginBottom:12, borderRadius:16, border:'1px solid #1a2d3d', background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(20px) saturate(160%)', WebkitBackdropFilter: 'blur(20px) saturate(160%)', overflow:'hidden' }}>
                       <div style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px' }}>
                         <div style={{ width:32, height:32, borderRadius:11, display:'flex', alignItems:'center', justifyContent:'center', background:'#1a2d3d', flexShrink:0 }}>
                           <span style={{ fontSize:15 }}>👶</span>

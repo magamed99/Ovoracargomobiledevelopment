@@ -93,7 +93,7 @@ function NotifItem({
         background: notif.isUnread ? 'rgba(14,165,233,0.05)' : 'rgba(255,255,255,0.02)',
         borderWidth: 1,
         borderStyle: 'solid',
-        borderColor: notif.isUnread ? 'rgba(14,165,233,0.14)' : 'rgba(255,255,255,0.06)',
+        borderColor: notif.isUnread ? 'rgba(14,165,233,0.14)' : 'rgba(255,255,255,0.08)',
         marginBottom: 8,
         cursor: 'pointer',
         position: 'relative',
@@ -251,7 +251,7 @@ export function NotificationCenter({
           margin: '0 auto',                   // центрирование без transform
           width: '100%',
           maxWidth: isMobile ? '100%' : 540,
-          background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+          background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(20px) saturate(160%)', WebkitBackdropFilter: 'blur(20px) saturate(160%)',
           borderRadius: isMobile ? '20px 20px 0 0' : '22px 22px 0 0',
           borderWidth: '1px 1px 0 1px',
           borderStyle: 'solid',
@@ -399,7 +399,7 @@ export function NotificationCenter({
         <div style={{
           height: isMobile ? 8 : 'max(env(safe-area-inset-bottom), 16px)',
           flexShrink: 0,
-          background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+          background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(20px) saturate(160%)', WebkitBackdropFilter: 'blur(20px) saturate(160%)',
         }} />
       </motion.div>
     </>

@@ -82,7 +82,7 @@ export function DriverStatsPage() {
       <header style={{
         position: 'sticky', top: 0, zIndex: 10,
         background: isDark ? 'rgba(14,22,33,0.95)' : 'rgba(255,255,255,0.95)',
-        backdropFilter: 'blur(12px)',
+        backdropFilter: 'blur(20px) saturate(160%)',
         borderBottom: `1px solid ${border}`,
         padding: '12px 16px',
         display: 'flex', alignItems: 'center', gap: 12,
