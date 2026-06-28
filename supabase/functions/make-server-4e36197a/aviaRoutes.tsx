@@ -90,7 +90,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ success: true, isNew: true, hasPin: false });
     } catch (err) {
       console.log('Error POST /avia/check-phone:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -134,7 +134,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ success: true, user, token });
     } catch (err) {
       console.log('Error POST /avia/register:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -176,7 +176,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ success: true, user: user || { phone: clean }, token });
     } catch (err) {
       console.log('Error POST /avia/login:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -230,7 +230,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ success: true });
     } catch (err) {
       console.log('Error PATCH /avia/users/:phone/pin:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -246,7 +246,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ found: true, user });
     } catch (err) {
       console.log('Error GET /avia/profile:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -315,7 +315,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ success: true, user: updated });
     } catch (err) {
       console.log('Error PUT /avia/profile:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -460,7 +460,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ success: true, user: updated, photoUrl, expiryDate: finalExpiry, isExpired, ocrFullName, ocrFailed });
     } catch (err) {
       console.log('[AVIA] Upload passport error:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -483,7 +483,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ found: true, photoUrl: data?.signedUrl || '' });
     } catch (err) {
       console.log('[AVIA] Get passport photo error:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -538,7 +538,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ flights });
     } catch (err) {
       console.log('Error GET /avia/flights:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -560,7 +560,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ flight });
     } catch (err) {
       console.log('Error GET /avia/flights/:id:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -611,7 +611,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ success: true, flight });
     } catch (err) {
       console.log('Error POST /avia/flights:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -650,7 +650,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ success: true, flight: updated });
     } catch (err) {
       console.log('Error PATCH /avia/flights/:id:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -671,7 +671,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ success: true });
     } catch (err) {
       console.log('Error DELETE /avia/flights:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -724,7 +724,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ success: true, flight: updated });
     } catch (err) {
       console.log('Error PATCH /avia/flights/start:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -750,7 +750,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ success: true, flight: updated });
     } catch (err) {
       console.log('Error PATCH /avia/flights/close:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -789,7 +789,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ success: true, flight: updated, completedDeals });
     } catch (err) {
       console.log('Error PATCH /avia/flights/complete:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -805,7 +805,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ flights });
     } catch (err) {
       console.log('Error GET /avia/my:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -835,7 +835,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ notifications });
     } catch (err) {
       console.log('Error GET /avia/notifications/:phone:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -851,7 +851,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ success: true });
     } catch (err) {
       console.log('Error POST /avia/notifications/read:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -875,7 +875,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ success: true, notification: notif });
     } catch (err) {
       console.log('Error POST /avia/notifications:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -888,7 +888,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ success: true });
     } catch (err) {
       console.log('Error DELETE /avia/notifications/:phone/:id:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -933,7 +933,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ success: true, chatId, meta: existing, isNew: false });
     } catch (err) {
       console.log('Error POST /avia/chat/init:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -956,7 +956,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ messages, meta });
     } catch (err) {
       console.log('Error GET /avia/chat/:chatId/messages:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -1024,7 +1024,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ success: true, message });
     } catch (err) {
       console.log('Error POST /avia/chat/:chatId/messages:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -1045,7 +1045,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ success: true });
     } catch (err) {
       console.log('Error POST /avia/chat/:chatId/seen:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -1064,7 +1064,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ chats });
     } catch (err) {
       console.log('Error GET /avia/chats/user/:phone:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -1138,7 +1138,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ success: true, cancelledDealIds });
     } catch (err) {
       console.log('Error DELETE /avia/chat/:chatId:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -1233,7 +1233,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ success: true, deal });
     } catch (err) {
       console.log('Error POST /avia/deals:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -1252,7 +1252,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ deal });
     } catch (err) {
       console.log('Error GET /avia/deals/:id:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -1317,7 +1317,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ deals: enriched });
     } catch (err) {
       console.log('Error GET /avia/deals/user/:phone:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -1351,7 +1351,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ success: true, deleted });
     } catch (err) {
       console.log('Error POST /avia/deals/delete-by-id:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -1407,7 +1407,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ success: true, deal: updated });
     } catch (err) {
       console.log('Error PATCH /avia/deals/:id/accept:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -1447,7 +1447,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ success: true, deal: updated });
     } catch (err) {
       console.log('Error PATCH /avia/deals/:id/reject:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -1494,7 +1494,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ success: true, deal: updated });
     } catch (err) {
       console.log('Error PATCH /avia/deals/:id/undo-reject:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -1533,7 +1533,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ success: true, deal: updated });
     } catch (err) {
       console.log('Error PATCH /avia/deals/:id/cancel:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -1587,7 +1587,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ success: true, deal: updated });
     } catch (err) {
       console.log('Error PATCH /avia/deals/:id/complete:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -1650,7 +1650,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ success: true, photo, deal: updated });
     } catch (err) {
       console.log('Error POST /avia/deals/:id/pod:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -1687,7 +1687,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ stats });
     } catch (err) {
       console.log('Error GET /avia/stats/:phone:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -1764,7 +1764,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ success: true, review });
     } catch (err) {
       console.log('Error POST /avia/reviews:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -1775,7 +1775,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ reviewed });
     } catch (err) {
       console.log('Error GET /avia/reviews/deal/:dealId:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -1788,7 +1788,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ statuses });
     } catch (err) {
       console.log('Error POST /avia/reviews/deal-batch:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -1799,7 +1799,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ reviews });
     } catch (err) {
       console.log('Error GET /avia/reviews/user/:phone:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -1845,7 +1845,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json(result);
     } catch (err) {
       console.log('Error GET /avia/public-profile/:phone:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -1864,7 +1864,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ users: safe });
     } catch (err) {
       console.log('Error GET /avia/admin/users:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -1882,7 +1882,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ found: true, photoUrl: data?.signedUrl || '' });
     } catch (err) {
       console.log('Error GET /avia/admin/users/:phone/passport-photo:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -1921,7 +1921,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ success: true, user: updated });
     } catch (err) {
       console.log('Error PUT /avia/admin/users/:phone:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -1944,7 +1944,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ success: true, user: updated });
     } catch (err) {
       console.log('Error PATCH /avia/admin/users/:phone/block:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -1967,7 +1967,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ success: true, blacklisted: true });
     } catch (err) {
       console.log('Error DELETE /avia/admin/users/:phone:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -1986,7 +1986,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ success: true, newPin });
     } catch (err) {
       console.log('Error POST /avia/admin/users/:phone/reset-code:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -2002,7 +2002,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ deals });
     } catch (err) {
       console.log('Error GET /avia/admin/deals:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -2012,7 +2012,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ flights });
     } catch (err) {
       console.log('Error GET /avia/admin/flights:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -2040,7 +2040,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ success: true, flight: updated });
     } catch (err) {
       console.log('Error PUT /avia/admin/flights/:id/status:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -2054,7 +2054,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ success: true });
     } catch (err) {
       console.log('Error DELETE /avia/admin/deals/:id:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -2069,7 +2069,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json(result);
     } catch (err) {
       console.log('Error GET /avia/admin/audit:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -2087,7 +2087,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ entries });
     } catch (err) {
       console.log('Error GET /avia/admin/blacklist:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -2104,7 +2104,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ success: true });
     } catch (err) {
       console.log('Error DELETE /avia/admin/blacklist/:phone:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -2120,7 +2120,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ settings: settings || {} });
     } catch (err) {
       console.log('Error GET /avia/admin/settings:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
@@ -2132,7 +2132,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
       return c.json({ success: true });
     } catch (err) {
       console.log('Error PUT /avia/admin/settings:', err);
-      return c.json({ error: `${err}` }, 500);
+      return c.json({ error: 'Внутренняя ошибка сервера' }, 500);
     }
   });
 
