@@ -199,7 +199,7 @@ export function SenderCargoForm() {
             {/* Маршрут */}
             <div>
               <SectionLabel title="Маршрут" icon={<Navigation className="w-3 h-3 text-[#5ba3f5]" />} />
-              <div className="rounded-3xl border border-white/[0.07] bg-[#111c28] overflow-hidden">
+              <div className="rounded-3xl border border-white/[0.07] bg-white/[0.06] backdrop-blur-md overflow-hidden">
                 <div className="px-5 py-4 border-b border-white/[0.06]">
                   <div className="flex items-center gap-2 mb-3">
                     <div className="w-2 h-2 rounded-full bg-[#5ba3f5] ring-2 ring-[#5ba3f5]/30" />
@@ -220,7 +220,7 @@ export function SenderCargoForm() {
             {/* Детали */}
             <div>
               <SectionLabel title="Детали груза" icon={<Package className="w-3 h-3 text-[#5ba3f5]" />} />
-              <div className="rounded-3xl border border-white/[0.07] bg-[#111c28] overflow-hidden px-5 py-4 space-y-4">
+              <div className="rounded-3xl border border-white/[0.07] bg-white/[0.06] backdrop-blur-md overflow-hidden px-5 py-4 space-y-4">
                 <label className="flex flex-col gap-2 cursor-pointer">
                   <div className="flex items-center gap-1.5">
                     <Calendar className="w-3 h-3 text-[#5ba3f5]" />
@@ -243,7 +243,7 @@ export function SenderCargoForm() {
             {/* Бюджет */}
             <div>
               <SectionLabel title="Бюджет" icon={<DollarSign className="w-3 h-3 text-[#5ba3f5]" />} />
-              <div className="rounded-3xl border border-white/[0.07] bg-[#111c28] overflow-hidden px-5 py-4 space-y-4">
+              <div className="rounded-3xl border border-white/[0.07] bg-white/[0.06] backdrop-blur-md overflow-hidden px-5 py-4 space-y-4">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-[11px] font-bold text-[#4a6278] flex-shrink-0">Валюта</span>
                   <div className="flex-1 flex gap-1.5 justify-end">
@@ -267,7 +267,7 @@ export function SenderCargoForm() {
             {/* Примечание */}
             <div>
               <SectionLabel title="Описание груза" icon={<FileText className="w-3 h-3 text-[#5ba3f5]" />} />
-              <div className="rounded-3xl border border-white/[0.07] bg-[#111c28] overflow-hidden px-5 py-4">
+              <div className="rounded-3xl border border-white/[0.07] bg-white/[0.06] backdrop-blur-md overflow-hidden px-5 py-4">
                 <textarea rows={3} placeholder="Что везете? Хрупкое, габариты и т.д." value={notes} onChange={e => setNotes(e.target.value)}
                   maxLength={500}
                   className="w-full text-[14px] leading-relaxed bg-transparent outline-none resize-none text-white placeholder-[#253545]" />

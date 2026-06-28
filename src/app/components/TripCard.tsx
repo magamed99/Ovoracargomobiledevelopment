@@ -262,7 +262,7 @@ function ConfirmDialog({ open, title, message, confirmLabel, confirmColor = 'ros
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.92 }}
         transition={{ duration: 0.2 }}
-        className="w-full max-w-[320px] rounded-2xl bg-[#0f1f35] border border-white/[0.1] p-5 space-y-4 shadow-2xl"
+        className="w-full max-w-[320px] rounded-2xl bg-white/[0.06] backdrop-blur-md border border-white/[0.1] p-5 space-y-4 shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
         <h3 id="tripcard-confirm-title" className="text-[15px] font-bold text-white">{title}</h3>

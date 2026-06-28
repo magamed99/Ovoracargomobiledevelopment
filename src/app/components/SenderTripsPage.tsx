@@ -52,7 +52,7 @@ function SenderCargoCard({
 
   return (
     <div
-      className="rounded-2xl border border-white/[0.08] bg-[#0d1929] p-4 space-y-3 cursor-pointer hover:border-white/[0.14] transition-all active:scale-[0.99]"
+      className="rounded-2xl border border-white/[0.08] bg-white/[0.06] backdrop-blur-md p-4 space-y-3 cursor-pointer hover:border-white/[0.14] transition-all active:scale-[0.99]"
       onClick={() => navigate(`/trip/${cargo.id}`)}
     >
       <div className="flex items-center justify-between gap-2">
@@ -652,7 +652,7 @@ export function SenderTripsPage() {
       {confirmModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center" onClick={() => setConfirmModal(null)}>
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-          <div role="alertdialog" aria-modal="true" aria-labelledby="confirm-modal-title" aria-describedby="confirm-modal-message" className="relative w-full max-w-sm mx-4 rounded-3xl shadow-2xl bg-[#162030] overflow-hidden" onClick={e => e.stopPropagation()}>
+          <div role="alertdialog" aria-modal="true" aria-labelledby="confirm-modal-title" aria-describedby="confirm-modal-message" className="relative w-full max-w-sm mx-4 rounded-3xl shadow-2xl bg-white/[0.06] backdrop-blur-md overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="px-6 pt-6 pb-2">
               <div className="flex items-start gap-3">
                 {confirmModal.isDanger && (
