@@ -135,9 +135,9 @@ export function EditProfile() {
           {/* Background */}
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute inset-0"
-              style={{ background: 'linear-gradient(160deg, #0d2040 0%, #060e1a 65%)' }} />
+              style={{ background: '#060e1a' }} />
             <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-72 h-72 rounded-full pointer-events-none"
-              style={{ background: `radial-gradient(circle, ${roleColor} 0%, transparent 70%)`, opacity: 0.10 }} />
+              style={{ background: `transparent`, opacity: 0.10 }} />
           </div>
 
           {/* Top bar */}

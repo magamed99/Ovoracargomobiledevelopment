@@ -183,9 +183,9 @@ export function Home() {
       <div className="relative overflow-hidden shrink-0">
         {/* BG */}
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute inset-0" style={{ background: 'linear-gradient(145deg, #0f2744 0%, #060e1a 60%)' }} />
+          <div className="absolute inset-0" style={{ background: '#060e1a' }} />
           <div className="absolute -top-20 -right-20 w-80 h-80 rounded-full"
-            style={{ background: 'radial-gradient(circle, #1d4ed8 0%, transparent 70%)', opacity: 0.20 }} />
+            style={{ background: 'transparent', opacity: 0.20 }} />
         </div>
 
         {/* Top bar + user info */}

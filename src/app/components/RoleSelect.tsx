@@ -195,13 +195,13 @@ export function RoleSelect() {
       <div className="relative overflow-hidden shrink-0">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute inset-0"
-            style={{ background: 'linear-gradient(150deg, #0a1f3d 0%, #060e1a 60%)' }} />
+            style={{ background: '#060e1a' }} />
           <motion.div
             className="absolute -top-16 sm:-top-20 -right-16 sm:-right-20 w-56 sm:w-72 h-56 sm:h-72 rounded-full"
             animate={{ opacity: activeRole ? 0.25 : 0.15 }}
             transition={{ duration: 0.5 }}
             style={{
-              background: `radial-gradient(circle, ${activeRole?.gFrom ?? '#1d4ed8'} 0%, transparent 70%)`,
+              background: `transparent`,
             }}
           />
           <motion.div
@@ -209,7 +209,7 @@ export function RoleSelect() {
             animate={{ opacity: activeRole ? 0.20 : 0.10 }}
             transition={{ duration: 0.5 }}
             style={{
-              background: `radial-gradient(circle, ${activeRole?.gTo ?? '#0ea5e9'} 0%, transparent 70%)`,
+              background: `transparent`,
             }}
           />
         </div>
@@ -449,7 +449,7 @@ export function RoleSelect() {
         {/* Background */}
         <div style={{
           position: 'absolute', inset: 0,
-          background: 'linear-gradient(160deg, #071324 0%, #0a1930 50%, #060e1a 100%)',
+          background: '#060e1a',
         }} />
         {/* Grid */}
         <div style={{
@@ -461,13 +461,13 @@ export function RoleSelect() {
         <div style={{
           position: 'absolute', top: -80, right: -60,
           width: 360, height: 360, borderRadius: '50%',
-          background: 'radial-gradient(circle, #1d4ed822 0%, transparent 70%)',
+          background: 'transparent',
           animation: 'rs_orb1 9s ease-in-out infinite',
         }} />
         <div style={{
           position: 'absolute', bottom: 40, left: -80,
           width: 280, height: 280, borderRadius: '50%',
-          background: 'radial-gradient(circle, #10b98118 0%, transparent 70%)',
+          background: 'transparent',
           animation: 'rs_orb2 12s ease-in-out infinite',
         }} />
 
@@ -660,21 +660,21 @@ export function RoleSelect() {
           {/* reactive color wash — shifts with hovered/selected role */}
           <motion.div
             animate={{
-              background: `radial-gradient(circle at 75% 18%, ${(focusRole?.gFrom ?? '#1d4ed8')}26 0%, transparent 55%)`,
+              background: `transparent`,
             }}
             transition={{ duration: 0.6 }}
             style={{ position: 'absolute', inset: 0 }}
           />
           <motion.div
             animate={{
-              background: `radial-gradient(circle at 20% 90%, ${(focusRole?.gTo ?? '#0ea5e9')}1c 0%, transparent 50%)`,
+              background: `transparent`,
             }}
             transition={{ duration: 0.6 }}
             style={{ position: 'absolute', inset: 0 }}
           />
           {/* drifting glow orb */}
           <motion.div
-            animate={{ background: `radial-gradient(circle, ${(focusRole?.color ?? '#1d4ed8')}1f 0%, transparent 70%)` }}
+            animate={{ background: `transparent` }}
             transition={{ duration: 0.6 }}
             style={{
               position: 'absolute', top: -60, right: -40, width: 320, height: 320, borderRadius: '50%',
@@ -905,7 +905,7 @@ export function RoleSelect() {
                   transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
                   style={{
                     width: 64, height: 64, borderRadius: '50%', margin: '0 auto 14px',
-                    background: 'radial-gradient(circle, #5ba3f53a, transparent 70%)',
+                    background: 'transparent',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}
                 >

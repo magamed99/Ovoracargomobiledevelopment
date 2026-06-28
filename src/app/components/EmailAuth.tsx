@@ -441,9 +441,9 @@ export function EmailAuth() {
       <div className="relative overflow-hidden shrink-0">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute inset-0"
-            style={{ background: 'linear-gradient(145deg, #0a1f3d 0%, #060e1a 65%)' }} />
+            style={{ background: '#060e1a' }} />
           <div className="absolute -top-16 -right-16 w-60 h-60 rounded-full"
-            style={{ background: 'radial-gradient(circle, #1d4ed8 0%, transparent 70%)', opacity: 0.18 }} />
+            style={{ background: 'transparent', opacity: 0.18 }} />
         </div>
 
         {/* Top bar */}
