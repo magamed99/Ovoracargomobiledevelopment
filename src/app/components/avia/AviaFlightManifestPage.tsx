@@ -419,7 +419,7 @@ export function AviaFlightManifestPage() {
   };
 
   return (
-    <div style={{ minHeight: '100dvh', background: '#060d18', fontFamily: "'Sora','Inter',sans-serif" }}>
+    <div style={{ minHeight: '100dvh', background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', fontFamily: "'Sora','Inter',sans-serif" }}>
       <motion.div
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}

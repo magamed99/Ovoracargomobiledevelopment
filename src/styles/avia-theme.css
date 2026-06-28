@@ -76,6 +76,8 @@
   border:        1px solid var(--avia-border-subtle);
   border-radius: var(--avia-radius-card);
   box-shadow:    var(--avia-shadow-card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   transition:    background var(--avia-dur-fast) ease,
                  border-color var(--avia-dur-fast) ease,
                  box-shadow var(--avia-dur-fast) ease;
@@ -90,6 +92,8 @@
   border:        1px solid var(--avia-border-my);
   border-radius: var(--avia-radius-card);
   box-shadow:    var(--avia-shadow-card), inset 0 1px 0 rgba(56,189,248,0.06);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 /* ── Кнопки ── */

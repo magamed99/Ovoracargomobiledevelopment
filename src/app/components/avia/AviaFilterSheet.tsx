@@ -217,7 +217,7 @@ export function AviaFilterSheet({
                       onChange={v => v ? set('from', v) : unset('from')}
                       placeholder="Город..."
                       accentColor={accentColor}
-                      inputStyle={{ padding: '10px 12px', borderRadius: 10, border: '1px solid #ffffff10', background: '#0d1f35', fontSize: 13, fontWeight: 600 }}
+                      inputStyle={{ padding: '10px 12px', borderRadius: 10, border: '1px solid #ffffff10', background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', fontSize: 13, fontWeight: 600 }}
                       showIcon={false}
                     />
                   </div>
@@ -228,7 +228,7 @@ export function AviaFilterSheet({
                       onChange={v => v ? set('to', v) : unset('to')}
                       placeholder="Город..."
                       accentColor={accentColor}
-                      inputStyle={{ padding: '10px 12px', borderRadius: 10, border: '1px solid #ffffff10', background: '#0d1f35', fontSize: 13, fontWeight: 600 }}
+                      inputStyle={{ padding: '10px 12px', borderRadius: 10, border: '1px solid #ffffff10', background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', fontSize: 13, fontWeight: 600 }}
                       showIcon={false}
                     />
                   </div>
@@ -246,7 +246,7 @@ export function AviaFilterSheet({
                   onChange={e => e.target.value ? set('date', e.target.value) : unset('date')}
                   style={{
                     width: '100%', padding: '10px 12px', borderRadius: 10,
-                    border: '1px solid #ffffff10', background: '#0d1f35',
+                    border: '1px solid #ffffff10', background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
                     color: '#fff', fontSize: 13, fontWeight: 600,
                     outline: 'none', boxSizing: 'border-box',
                     colorScheme: 'dark',

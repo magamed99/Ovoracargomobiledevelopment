@@ -231,7 +231,7 @@ export function AviaVerificationSheet({
             style={{
               position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 201,
               maxHeight: '94dvh',
-              background: '#080f1c',
+              background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
               borderRadius: '24px 24px 0 0',
               borderTop: '1px solid #ffffff0d',
               borderLeft: '1px solid #ffffff0d',

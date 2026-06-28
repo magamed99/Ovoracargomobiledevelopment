@@ -251,7 +251,7 @@ export function NotificationCenter({
           margin: '0 auto',                   // центрирование без transform
           width: '100%',
           maxWidth: isMobile ? '100%' : 540,
-          background: '#080f1f',
+          background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
           borderRadius: isMobile ? '20px 20px 0 0' : '22px 22px 0 0',
           borderWidth: '1px 1px 0 1px',
           borderStyle: 'solid',
@@ -399,7 +399,7 @@ export function NotificationCenter({
         <div style={{
           height: isMobile ? 8 : 'max(env(safe-area-inset-bottom), 16px)',
           flexShrink: 0,
-          background: '#080f1f',
+          background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
         }} />
       </motion.div>
     </>
