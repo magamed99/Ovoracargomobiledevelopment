@@ -637,8 +637,8 @@ export function SearchPage() {
           {/* Hero */}
           <div className="relative overflow-hidden px-8 xl:px-10 pt-14 pb-8">
             <div className="absolute inset-0 pointer-events-none">
-              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(160deg, #0a1f3d 0%, #060e1a 70%)' }} />
-              <div style={{ position: 'absolute', top: -40, left: '30%', width: 260, height: 200, borderRadius: '50%', background: 'radial-gradient(circle, #1a47c8 0%, transparent 70%)', opacity: 0.12 }} />
+              <div style={{ position: 'absolute', inset: 0, background: '#060e1a' }} />
+              <div style={{ position: 'absolute', top: -40, left: '30%', width: 260, height: 200, borderRadius: '50%', background: 'transparent', opacity: 0.12 }} />
             </div>
             <div className="relative">
               <div className="flex items-center gap-2 mb-4">
@@ -764,8 +764,8 @@ export function SearchPage() {
         {/* Hero */}
         <div className="relative overflow-hidden px-4 pt-12 pb-5">
           <div className="absolute inset-0 pointer-events-none">
-            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(160deg, #0a1f3d 0%, #060e1a 65%)' }} />
-            <div style={{ position: 'absolute', top: -40, left: '50%', transform: 'translateX(-50%)', width: 240, height: 180, borderRadius: '50%', background: 'radial-gradient(circle, #1d4ed8 0%, transparent 70%)', opacity: 0.13 }} />
+            <div style={{ position: 'absolute', inset: 0, background: '#060e1a' }} />
+            <div style={{ position: 'absolute', top: -40, left: '50%', transform: 'translateX(-50%)', width: 240, height: 180, borderRadius: '50%', background: 'transparent', opacity: 0.13 }} />
           </div>
           <motion.div className="relative" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
             <p className="text-[9px] font-black uppercase tracking-widest mb-1" style={{ color: '#2e4a62' }}>Ovora Cargo</p>

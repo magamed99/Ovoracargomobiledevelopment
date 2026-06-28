@@ -45,7 +45,7 @@ function MapBackground() {
     <div style={{ position: 'absolute', inset: 0, zIndex: 0, overflow: 'hidden' }}>
       <div style={{
         position: 'absolute', inset: 0,
-        backgroundImage: 'radial-gradient(rgba(91,163,245,0.12) 1px, transparent 1px)',
+        backgroundImage: 'transparent',
         backgroundSize: '18px 18px',
         maskImage: 'radial-gradient(ellipse 80% 60% at 50% 30%, #000 30%, transparent 75%)',
         WebkitMaskImage: 'radial-gradient(ellipse 80% 60% at 50% 30%, #000 30%, transparent 75%)',
@@ -53,7 +53,7 @@ function MapBackground() {
       <div style={{
         position: 'absolute', top: '-10%', left: '50%', transform: 'translateX(-50%)',
         width: 520, height: 520, borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(33,118,232,0.35) 0%, transparent 60%)',
+        background: 'transparent',
         filter: 'blur(20px)',
       }} />
       <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} viewBox="0 0 460 920" preserveAspectRatio="none">
@@ -314,7 +314,7 @@ export function Welcome() {
                 fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
                 transition: 'all 0.18s ease', position: 'relative', overflow: 'hidden',
               }}>
-                {active && <span style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at top, rgba(91,163,245,0.18), transparent 70%)' }} />}
+                {active && <span style={{ position: 'absolute', inset: 0, background: 'transparent' }} />}
                 <span style={{ fontSize: 15, position: 'relative' }}>{l.flag}</span>
                 <span style={{ position: 'relative' }}>{l.display}</span>
               </button>
@@ -352,7 +352,7 @@ export function Welcome() {
                     cursor: 'pointer', fontFamily: 'inherit', position: 'relative', overflow: 'hidden',
                     transition: 'all 0.18s ease',
                   }}>
-                    {active && <span style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at top, rgba(91,163,245,0.22), transparent 70%)' }} />}
+                    {active && <span style={{ position: 'absolute', inset: 0, background: 'transparent' }} />}
                     <span style={{ fontSize: 'clamp(14px,4vw,17px)', position: 'relative' }}>{l.flag}</span>
                     <span style={{ position: 'relative' }}>{l.display}</span>
                   </button>

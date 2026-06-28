@@ -140,11 +140,11 @@ export function ProfilePage() {
         <div className="relative overflow-hidden">
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute inset-0"
-              style={{ background: 'linear-gradient(145deg, #0f2744 0%, #060e1a 55%, #060e1a 100%)' }} />
+              style={{ background: '#060e1a' }} />
             <div className="absolute -top-20 sm:-top-24 -right-20 sm:-right-24 w-56 sm:w-72 h-56 sm:h-72 rounded-full"
-              style={{ background: 'radial-gradient(circle, #1e4a8a 0%, transparent 70%)', opacity: 0.35 }} />
+              style={{ background: 'transparent', opacity: 0.35 }} />
             <div className="absolute top-8 -left-12 sm:-left-16 w-40 sm:w-48 h-40 sm:h-48 rounded-full"
-              style={{ background: 'radial-gradient(circle, #1a3a6b 0%, transparent 70%)', opacity: 0.25 }} />
+              style={{ background: 'transparent', opacity: 0.25 }} />
           </div>
 
           <div className="relative flex items-center justify-between px-4 sm:px-5"

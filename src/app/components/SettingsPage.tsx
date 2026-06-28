@@ -357,9 +357,9 @@ export function SettingsPage() {
         {/* Header */}
         <div className="relative overflow-hidden">
           <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute inset-0" style={{ background: 'linear-gradient(145deg,#0f2744 0%,#060e1a 60%)' }} />
+            <div className="absolute inset-0" style={{ background: '#060e1a' }} />
             <div className="absolute -top-12 sm:-top-16 -right-12 sm:-right-16 w-40 sm:w-52 h-40 sm:h-52 rounded-full"
-              style={{ background: 'radial-gradient(circle,#1d4ed8 0%,transparent 70%)', opacity: 0.18 }} />
+              style={{ background: 'transparent', opacity: 0.18 }} />
           </div>
           <div className="relative flex items-center gap-2 sm:gap-3 px-3 sm:px-4"
             style={{ paddingTop: 'max(52px, env(safe-area-inset-top, 52px))', paddingBottom: 12 }}>

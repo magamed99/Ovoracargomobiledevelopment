@@ -75,7 +75,7 @@ export function AviaDesktopSidebar() {
       {/* Top ambient glow */}
       <div style={{
         position: 'absolute', top: 0, left: 0, right: 0, height: 180, pointerEvents: 'none',
-        background: 'radial-gradient(ellipse at 50% 0%, rgba(14,165,233,0.08) 0%, transparent 70%)',
+        background: 'transparent',
       }} />
 
       {/* ══ Logo ══ */}
@@ -166,7 +166,7 @@ export function AviaDesktopSidebar() {
               {active && (
                 <div style={{
                   position: 'absolute', inset: 0, pointerEvents: 'none',
-                  background: 'radial-gradient(ellipse at 20% 50%, rgba(14,165,233,0.07) 0%, transparent 60%)',
+                  background: 'transparent',
                 }} />
               )}
 
