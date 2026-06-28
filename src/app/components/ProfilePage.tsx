@@ -221,7 +221,7 @@ export function ProfilePage() {
           {currentUser && (displayPhone || displayEmail || currentUser.city || displayBirthDate) && (
             <section>
               <p className="text-[10px] font-bold uppercase tracking-widest text-[#607080] mb-2 px-1">Контакты</p>
-              <div className="rounded-3xl bg-white/[0.04] border border-white/[0.07] overflow-hidden divide-y divide-white/[0.06]">
+              <div className="rounded-3xl bg-white/[0.08] border border-white/[0.12] overflow-hidden backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 {displayPhone && <ContactRow icon={Phone} color="#5ba3f5" label="Телефон" value={displayPhone} />}
                 {displayEmail && (
                   <div className="flex items-center gap-3 px-4 py-3.5">
@@ -443,8 +443,8 @@ export function ProfilePage() {
                       {(displayPhone || displayEmail || currentUser.city || displayBirthDate) && (
                         <div>
                           <p className="text-[9px] font-black uppercase tracking-[.18em] mb-2.5" style={{ color: '#3a5570' }}>Контакты</p>
-                          <div className="rounded-2xl overflow-hidden divide-y"
-                            style={{ background: '#0a1622', border: '1px solid #1a2d40', divideColor: '#1a2d40' } as any}>
+                          <div className="rounded-2xl overflow-hidden backdrop-blur-xl"
+                            style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.18)' }}>
                             {displayPhone && <DesktopContactRow icon={Phone} color="#5ba3f5" label="Телефон" value={displayPhone} />}
                             {displayEmail && (
                               <div className="flex items-center gap-3 px-4 py-3" style={{ borderTop: '1px solid #1a2d40' }}>
@@ -528,7 +528,7 @@ function MenuSection({ title, items }: {
   return (
     <section>
       <p className="text-[10px] font-bold uppercase tracking-widest text-[#607080] mb-2 px-1">{title}</p>
-      <div className="rounded-3xl bg-white/[0.04] border border-white/[0.07] overflow-hidden divide-y divide-white/[0.06]">
+      <div className="rounded-3xl bg-white/[0.08] border border-white/[0.12] overflow-hidden backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
         {items.map((item) => {
           const Icon = item.icon;
           return (
