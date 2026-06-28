@@ -8,6 +8,7 @@ import { usePolling } from '../hooks/usePolling';
 import { PushPermissionBanner } from './PushPermissionBanner';
 import { SubscriptionBanner } from './SubscriptionBanner';
 import { useUser } from '../contexts/UserContext';
+import { Onboarding, isOnboardingDone } from './Onboarding';
 
 const navigation = [
   { name: 'Главная',   href: '/home',     icon: Home,          badge: null as 'chat' | 'trips' | null },
@@ -605,6 +606,12 @@ export function MobileLayout() {
   const [chatUnread,    setChatUnread]    = useState(0);
   const [pendingOffers, setPendingOffers] = useState(0);
   const [menuOpen,      setMenuOpen]      = useState(false);
+  // Онбординг показываем один раз авторизованному пользователю
+  const [showOnboarding, setShowOnboarding] = useState(() => !!userEmail && !isOnboardingDone());
+  // userEmail грузится асинхронно (UserContext) — поднимаем онбординг, как только он появился
+  useEffect(() => {
+    if (userEmail && !isOnboardingDone()) setShowOnboarding(true);
+  }, [userEmail]);
 
   /* ── Chat badge ── */
   const refreshChat = useCallback(() => {
@@ -695,6 +702,13 @@ export function MobileLayout() {
         >
           <Outlet />
         </main>
+
+        {showOnboarding && (
+          <Onboarding
+            role={userRole === 'driver' ? 'driver' : 'sender'}
+            onClose={() => setShowOnboarding(false)}
+          />
+        )}
 
         {/* ══ Mobile Bottom Nav ══ */}
         {!hideNav && (
