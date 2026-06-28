@@ -3,10 +3,7 @@ import { AlertTriangle, Home, RefreshCw } from 'lucide-react';
 import { useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { Sentry } from '../config/sentry';
-
-// After a new deploy, an already-open tab may still reference an old
-// content-hashed chunk filename that no longer exists on the server.
-const CHUNK_RELOAD_KEY = 'ovora_chunk_reload_ts';
+import { recoverFromStaleChunk } from '../utils/staleChunkRecovery';
 
 export function ErrorPage() {
   const error = useRouteError();
@@ -27,16 +24,11 @@ export function ErrorPage() {
     if (!isStaleChunk) Sentry.captureException(error);
   }, [error, isStaleChunk]);
 
-  // Auto-recover once: reload to fetch the fresh app shell instead of
-  // stranding the user on this screen. Guarded by a timestamp so a
-  // genuinely broken deploy can't trigger a reload loop.
+  // Auto-recover once: чистим кеши + снимаем SW и перезагружаемся за свежим
+  // app shell, чтобы не оставлять пользователя на этом экране. Защита от
+  // цикла — внутри recoverFromStaleChunk (таймстамп).
   useEffect(() => {
-    if (!isStaleChunk) return;
-    const lastReload = Number(sessionStorage.getItem(CHUNK_RELOAD_KEY) || 0);
-    if (Date.now() - lastReload > 10_000) {
-      sessionStorage.setItem(CHUNK_RELOAD_KEY, String(Date.now()));
-      window.location.reload();
-    }
+    if (isStaleChunk) void recoverFromStaleChunk();
   }, [isStaleChunk]);
 
   return (
@@ -63,7 +55,7 @@ export function ErrorPage() {
       {/* Actions */}
       <div className="flex flex-col gap-3 w-full max-w-xs">
         <button
-          onClick={() => window.location.reload()}
+          onClick={() => { if (isStaleChunk) void recoverFromStaleChunk(true); else window.location.reload(); }}
           className="flex items-center justify-center gap-2 h-12 rounded-2xl bg-[#1978e5] text-white text-sm font-bold"
         >
           <RefreshCw className="w-4 h-4" />
