@@ -11,11 +11,6 @@ function getSupabase() {
 
 const OTP_TTL_MS = 10 * 60 * 1000;
 
-async function hashOtp(otp: string): Promise<string> {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(otp));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
-}
-
 export async function handleSendEmailOtp(c: Context) {
   try {
     const { email } = await c.req.json();
@@ -30,21 +25,21 @@ export async function handleSendEmailOtp(c: Context) {
       return c.json({ success: true, rateLimited: true, cooldownRemaining: Math.ceil((60_000 - (Date.now() - last.ts)) / 1000) });
     }
 
-    // Supabase Auth sends OTP email automatically
     const supabase = getSupabase();
-    const { error } = await supabase.auth.signInWithOtp({ email: e });
+    const { data, error } = await supabase.auth.signInWithOtp({ email: e });
+
     if (error) {
-      console.error("[OTP] Supabase error:", error.message);
-      return c.json({ success: false, error: error.message });
+      console.error("[OTP] Supabase error:", JSON.stringify(error));
+      return c.json({ success: false, error: error.message || JSON.stringify(error) });
     }
 
     await kv.set(rlKey, { ts: Date.now() });
-    console.log(`[OTP] ✅ Sent to ${e}`);
+    console.log(`[OTP] ✅ Sent to ${e}`, JSON.stringify(data));
 
     return c.json({ success: true, expiresIn: OTP_TTL_MS / 1000 });
   } catch (err) {
-    console.error("Error:", err);
-    return c.json({ success: false, error: String(err) }, 500);
+    console.error("[OTP] Catch error:", err);
+    return c.json({ success: false, error: err?.message || String(err) }, 500);
   }
 }
 
@@ -55,22 +50,19 @@ export async function handleVerifyEmailOtp(c: Context) {
 
     const e = email.toLowerCase().trim();
     const supabase = getSupabase();
-
-    // Verify via Supabase Auth
     const { data, error } = await supabase.auth.verifyOtp({ email: e, token: token.trim(), type: "email" });
+
     if (error) {
-      console.error("[OTP] Verify error:", error.message);
-      return c.json({ success: false, error: error.message });
+      console.error("[OTP] Verify error:", JSON.stringify(error));
+      return c.json({ success: false, error: error.message || JSON.stringify(error) });
     }
 
-    // Check if user exists in our DB
     const users: any[] = (await kv.get("ovora:users")) || [];
     const existing = users.find(u => u.email?.toLowerCase() === e);
 
-    console.log(`[OTP] ✅ Verified: ${e}`);
-    return c.json({ success: true, user: existing || null, isNew: !existing, supabaseUser: data?.user ? { id: data.user.id, email: data.user.email } : null });
+    return c.json({ success: true, user: existing || null, isNew: !existing });
   } catch (err) {
-    return c.json({ success: false, error: String(err) }, 500);
+    return c.json({ success: false, error: err?.message || String(err) }, 500);
   }
 }
 
@@ -89,6 +81,6 @@ export async function handleRegisterWithOtp(c: Context) {
 
     return c.json({ success: true, user });
   } catch (err) {
-    return c.json({ error: String(err) }, 500);
+    return c.json({ error: err?.message || String(err) }, 500);
   }
 }
