@@ -5926,6 +5926,9 @@ app.post("/make-server-4e36197a/users/:email/avatar", async (c) => {
 
 app.post("/make-server-4e36197a/auth/send-otp", handleSendOtp);
 app.post("/make-server-4e36197a/auth/verify-otp", handleVerifyOtp);
+app.post("/make-server-4e36197a/auth/send-email-otp", handleSendEmailOtp);
+app.post("/make-server-4e36197a/auth/verify-email-otp", handleVerifyEmailOtp);
+app.post("/make-server-4e36197a/auth/register-with-otp", handleRegisterWithOtp);
 
 // ── Permanent Crypto Code ──────────────────────────────────────────────────────
 app.post("/make-server-4e36197a/auth/email-check", handleEmailCheck);
