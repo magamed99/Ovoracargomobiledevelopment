@@ -246,8 +246,10 @@ export function EmailAuth() {
         resetOtp(); setOtpErr('');
         setStep('otp');
         setCooldown(60);
-        if ((result as any).otp) {
-          toast.success('Код: ' + (result as any).otp, { duration: 30000 });
+        if (result.emailSent) {
+          toast.success('Код отправлен на ' + t);
+        } else if ((result as any).otp) {
+          toast('Код: ' + (result as any).otp, { duration: 60000, description: 'Скопируйте и введите код', style: { background: '#1a2a3a', border: '1px solid #5ba3f5', color: '#fff' } });
         } else {
           toast.success('Код отправлен на ' + t);
         }
