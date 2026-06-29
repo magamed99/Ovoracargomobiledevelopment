@@ -47,7 +47,7 @@ export async function createNotification(data: CreateNotificationInput): Promise
  */
 export async function getNotifications(userEmail: string): Promise<Notification[]> {
   const res = await fetch(`${API_BASE}/notifications/${encodeURIComponent(userEmail)}`, {
-    headers: { 'Authorization': `Bearer ${publicAnonKey}` },
+    headers: { 'Authorization': `Bearer ${publicAnonKey}`, [CSRF_HEADER]: CSRF_TOKEN },
   });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || 'Failed to fetch notifications');
