@@ -1,15 +1,25 @@
 import type { Context } from "npm:hono";
-import { createClient } from "npm:@supabase/supabase-js";
 import * as kv from "./kv_store.tsx";
 
-function getSupabase() {
-  const url = Deno.env.get("SUPABASE_URL");
-  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!url || !key) throw new Error("SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY missing");
-  return createClient(url, key);
+function getEnv(name: string): string {
+  const v = Deno.env.get(name);
+  if (!v) throw new Error(`${name} missing`);
+  return v;
 }
 
 const OTP_TTL_MS = 10 * 60 * 1000;
+
+async function supabasePost(path: string, body: Record<string, any>, apiKey: string): Promise<any> {
+  const url = `${getEnv("SUPABASE_URL")}/auth/v1${path}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "apikey": apiKey, "Authorization": `Bearer ${getEnv("SUPABASE_SERVICE_ROLE_KEY")}` },
+    body: JSON.stringify(body),
+  });
+  const text = await res.text();
+  try { return { status: res.status, data: JSON.parse(text) }; }
+  catch { return { status: res.status, data: null, raw: text }; }
+}
 
 export async function handleSendEmailOtp(c: Context) {
   try {
@@ -17,28 +27,32 @@ export async function handleSendEmailOtp(c: Context) {
     if (!email?.includes("@")) return c.json({ success: false, error: "Valid email required" }, 400);
 
     const e = email.toLowerCase().trim();
+    const apiKey = getEnv("SUPABASE_ANON_KEY");
 
-    // Rate limit 60s
+    // Rate limit
     const rlKey = `ovora:otp:rl:${e}`;
     const last: any = await kv.get(rlKey);
     if (last?.ts && Date.now() - last.ts < 60_000) {
       return c.json({ success: true, rateLimited: true, cooldownRemaining: Math.ceil((60_000 - (Date.now() - last.ts)) / 1000) });
     }
 
-    const supabase = getSupabase();
-    const { data, error } = await supabase.auth.signInWithOtp({ email: e });
+    // Call Supabase Auth REST API directly
+    const result = await supabasePost("/otp", { email: e, type: "email" }, apiKey);
 
-    if (error) {
-      console.error("[OTP] Supabase error:", JSON.stringify(error));
-      return c.json({ success: false, error: error.message || JSON.stringify(error) });
+    console.log(`[OTP] Supabase response:`, JSON.stringify(result));
+
+    if (result.status !== 200 || result.data?.error) {
+      const errMsg = result.data?.error_description || result.data?.msg || result.data?.error || result.raw || "Unknown error";
+      console.error(`[OTP] Error:`, errMsg);
+      return c.json({ success: false, error: String(errMsg) });
     }
 
     await kv.set(rlKey, { ts: Date.now() });
-    console.log(`[OTP] ✅ Sent to ${e}`, JSON.stringify(data));
+    console.log(`[OTP] ✅ Sent to ${e}`);
 
     return c.json({ success: true, expiresIn: OTP_TTL_MS / 1000 });
   } catch (err) {
-    console.error("[OTP] Catch error:", err);
+    console.error("[OTP] Catch:", err);
     return c.json({ success: false, error: err?.message || String(err) }, 500);
   }
 }
@@ -49,12 +63,16 @@ export async function handleVerifyEmailOtp(c: Context) {
     if (!email || !token) return c.json({ success: false, error: "Email and token required" }, 400);
 
     const e = email.toLowerCase().trim();
-    const supabase = getSupabase();
-    const { data, error } = await supabase.auth.verifyOtp({ email: e, token: token.trim(), type: "email" });
+    const apiKey = getEnv("SUPABASE_ANON_KEY");
 
-    if (error) {
-      console.error("[OTP] Verify error:", JSON.stringify(error));
-      return c.json({ success: false, error: error.message || JSON.stringify(error) });
+    // Verify via Supabase Auth REST API
+    const result = await supabasePost("/verify", { email: e, token: token.trim(), type: "email" }, apiKey);
+
+    console.log(`[OTP] Verify response:`, JSON.stringify(result));
+
+    if (result.status !== 200 || result.data?.error) {
+      const errMsg = result.data?.error_description || result.data?.msg || result.data?.error || "Invalid code";
+      return c.json({ success: false, error: String(errMsg) });
     }
 
     const users: any[] = (await kv.get("ovora:users")) || [];
