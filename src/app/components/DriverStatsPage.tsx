@@ -76,7 +76,7 @@ export function DriverStatsPage() {
   const maxEarning = earnings.length ? Math.max(...earnings.map(e => e.amount)) : 1;
 
   return (
-    <div style={{ minHeight: '100vh', background: bg, color: txt, fontFamily: "'Sora', sans-serif" }}>
+    <div className="md:max-w-3xl md:mx-auto" style={{ minHeight: '100vh', background: bg, color: txt, fontFamily: "'Sora', sans-serif" }}>
 
       {/* Header */}
       <header style={{
