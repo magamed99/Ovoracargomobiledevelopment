@@ -600,7 +600,7 @@ export function SenderTrackingPage() {
 
         {/* Back button */}
         <div className="absolute top-6 left-6 z-10">
-          <button onClick={() => navigate(-1)} className="w-11 h-11 rounded-2xl flex items-center justify-center backdrop-blur-xl border border-white/15 transition-all hover:scale-105" style={{ background:'#0a1520cc' }}>
+          <button onClick={() => navigate(-1)} className="w-11 h-11 rounded-2xl flex items-center justify-center backdrop-blur-xl border border-white/15 transition-all hover:scale-105" style={{ background:'rgba(255,255,255,0.06)' }}>
             <ArrowLeft className="w-5 h-5 text-white" />
           </button>
         </div>

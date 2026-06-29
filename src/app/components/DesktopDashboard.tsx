@@ -201,7 +201,7 @@ export function DesktopDashboard({
 
         {/* ════ LEFT PANEL ══════════════════════════════════════════════════ */}
         <div className="relative flex flex-col w-[420px] xl:w-[480px] shrink-0 overflow-y-auto border-r"
-          style={{ background: '#0d1929cc', backdropFilter: 'blur(20px)', borderColor: '#ffffff08' }}>
+          style={{ background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(20px)', borderColor: '#ffffff08' }}>
 
           {/* User hero */}
           <div className="relative px-8 pt-10 pb-6 overflow-hidden">
@@ -369,7 +369,7 @@ export function DesktopDashboard({
 
           {/* Sticky top bar */}
           <motion.div className="sticky top-0 z-20 flex flex-col gap-0 border-b border-[#ffffff06]"
-            style={{ background: '#080f1acc', backdropFilter: 'blur(16px)' }}
+            style={{ background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(16px)' }}
             initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
             {/* Top row: branding + nav */}
             <div className="flex items-center justify-between px-6 pt-3 pb-2">
