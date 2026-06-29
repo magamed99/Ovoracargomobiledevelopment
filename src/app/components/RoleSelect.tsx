@@ -442,7 +442,7 @@ export function RoleSelect() {
   // DESKTOP LAYOUT (новый)
   // ══════════════════════════════════════════════════════
   const DesktopContent = (
-    <div className="hidden md:flex h-screen overflow-hidden font-['Sora']" style={{ background: '#07101e' }}>
+    <div className="hidden md:flex h-screen overflow-hidden font-['Sora']" style={{ background: '#060e1a' }}>
 
       {/* ══ LEFT PANEL ══ */}
       <div className="rs-left relative flex flex-col overflow-hidden">
@@ -455,7 +455,7 @@ export function RoleSelect() {
         <div style={{
           position: 'absolute', inset: 0,
           backgroundImage: 'linear-gradient(#5ba3f5 1px, transparent 1px), linear-gradient(90deg, #5ba3f5 1px, transparent 1px)',
-          backgroundSize: '48px 48px', opacity: 0.025,
+          backgroundSize: '48px 48px', opacity: 0,
         }} />
         {/* Glow orbs */}
         <div style={{
@@ -645,7 +645,7 @@ export function RoleSelect() {
       </div>
 
       {/* ══ RIGHT PANEL ══ */}
-      <div className="rs-right flex flex-col overflow-y-auto relative" style={{ background: '#0a1322' }}>
+      <div className="rs-right flex flex-col overflow-y-auto relative" style={{ background: '#060e1a' }}>
 
         {/* Ambient reactive background */}
         <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden', zIndex: 0 }}>
@@ -653,7 +653,7 @@ export function RoleSelect() {
           <div style={{
             position: 'absolute', inset: 0,
             backgroundImage: 'linear-gradient(#5ba3f5 1px, transparent 1px), linear-gradient(90deg, #5ba3f5 1px, transparent 1px)',
-            backgroundSize: '54px 54px', opacity: 0.022,
+            backgroundSize: '54px 54px', opacity: 0,
             maskImage: 'radial-gradient(ellipse 90% 70% at 70% 20%, #000 30%, transparent 80%)',
             WebkitMaskImage: 'radial-gradient(ellipse 90% 70% at 70% 20%, #000 30%, transparent 80%)',
           }} />
