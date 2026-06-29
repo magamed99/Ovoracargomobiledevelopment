@@ -19,7 +19,8 @@ function cacheSet(key: string, data: any): void {
 }
 export function cacheClear(prefix?: string): void {
   if (!prefix) { _cache.clear(); return; }
-  for (const k of _cache.keys()) { if (k.startsWith(prefix)) _cache.delete(k); }
+  const keys = [..._cache.keys()];
+  for (const k of keys) { if (k.startsWith(prefix)) _cache.delete(k); }
 }
 
 const TRIPS_TTL   = 30_000; // 30 сек
