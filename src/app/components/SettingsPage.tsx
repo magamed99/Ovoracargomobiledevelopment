@@ -292,7 +292,7 @@ export function SettingsPage() {
   };
 
   const MobileCard = ({ children }: { children: React.ReactNode }) => (
-    <div className="rounded-3xl border border-white/[0.07] overflow-hidden divide-y divide-white/[0.06]" style={{ background: 'rgba(255,255,255,0.04)' }}>
+    <div className="rounded-3xl border border-white/[0.07] overflow-hidden backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]" style={{ background: 'rgba(255,255,255,0.04)' }}>
       {children}
     </div>
   );

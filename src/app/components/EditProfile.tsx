@@ -243,7 +243,7 @@ export function EditProfile() {
                 <p className="text-[10px] font-black uppercase tracking-widest text-[#607080]">Личные данные</p>
               </div>
 
-              <div className="rounded-3xl border border-white/[0.07] overflow-hidden divide-y divide-white/[0.06]"
+              <div className="rounded-3xl border border-white/[0.07] overflow-hidden backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]"
                 style={{ background: 'rgba(255,255,255,0.04)' }}>
                 {FIELDS.map(({ label, name, type, icon: Icon, placeholder, color, maxLength }) => {
                   const isFocused = focusedField === name;
