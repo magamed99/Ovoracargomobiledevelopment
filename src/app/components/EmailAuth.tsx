@@ -94,7 +94,7 @@ function handleOtpChange(
 ) {
   const d = val.replace(/\D/g, '').slice(-1);
   const next = [...arr]; next[i] = d; setArr(next); onClearError();
-  if (d && i < 5) setTimeout(() => { refs.current[i + 1]?.focus(); refs.current[i + 1]?.select(); }, 10);
+  if (d && i < 7) setTimeout(() => { refs.current[i + 1]?.focus(); refs.current[i + 1]?.select(); }, 10);
 }
 
 function handleOtpKeyDown(
@@ -110,11 +110,11 @@ function handleOtpKeyDown(
     else if (i > 0) { next[i - 1] = ''; setArr(next); setTimeout(() => refs.current[i - 1]?.focus(), 10); }
     onClearError();
   } else if (e.key === 'ArrowLeft' && i > 0) { e.preventDefault(); refs.current[i - 1]?.focus(); }
-  else if (e.key === 'ArrowRight' && i < 5) { e.preventDefault(); refs.current[i + 1]?.focus(); }
+  else if (e.key === 'ArrowRight' && i < 7) { e.preventDefault(); refs.current[i + 1]?.focus(); }
   else if (/^\d$/.test(e.key)) {
     e.preventDefault();
     const next = [...arr]; next[i] = e.key; setArr(next); onClearError();
-    if (i < 5) setTimeout(() => { refs.current[i + 1]?.focus(); refs.current[i + 1]?.select(); }, 10);
+    if (i < 7) setTimeout(() => { refs.current[i + 1]?.focus(); refs.current[i + 1]?.select(); }, 10);
   }
 }
 
@@ -125,11 +125,11 @@ function handleOtpPaste(
   onClearError: () => void,
 ) {
   e.preventDefault();
-  const digits = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6).split('');
-  const next = Array(6).fill('');
-  digits.forEach((d, i) => { if (i < 6) next[i] = d; });
+  const digits = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 8).split('');
+  const next = Array(8).fill('');
+  digits.forEach((d, i) => { if (i < 8) next[i] = d; });
   setArr(next); onClearError();
-  setTimeout(() => refs.current[Math.min(digits.length, 5)]?.focus(), 10);
+  setTimeout(() => refs.current[Math.min(digits.length, 7)]?.focus(), 10);
 }
 
 function OtpRow({
@@ -191,7 +191,7 @@ export function EmailAuth() {
   const [checking, setChecking] = useState(false);
 
   // OTP
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [otp, setOtp] = useState(['', '', '', '', '', '', '', '']);
   const [otpErr, setOtpErr] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [resending, setResending] = useState(false);
@@ -265,7 +265,7 @@ export function EmailAuth() {
 
   // ── Step 2: Verify OTP ───────────────────────────────────────────────────
   const handleVerifyOtp = async () => {
-    if (otpStr.length < 6) { setOtpErr('Введите 6-значный код'); return; }
+    if (otpStr.length < 8) { setOtpErr('Введите 6-значный код'); return; }
     setOtpErr('');
     setVerifying(true);
     const calledFromStep = stepRef.current;
@@ -522,7 +522,7 @@ export function EmailAuth() {
 
             <CTAButton
               onClick={handleVerifyOtp}
-              disabled={otpStr.length < 6}
+              disabled={otpStr.length < 8}
               loading={verifying} loadingText="Проверяем...">
               <CheckCircle2 className="w-4.5 h-4.5" style={{ width: 18, height: 18 }} />
               <span>Верифицировать</span>
