@@ -321,7 +321,7 @@ export function BordersPage() {
   ];
 
   return (
-    <div style={{ background: '#060e1a', minHeight: '100vh', fontFamily: "'Sora', sans-serif" }}>
+    <div className="md:max-w-3xl md:mx-auto" style={{ background: '#060e1a', minHeight: '100vh', fontFamily: "'Sora', sans-serif" }}>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}

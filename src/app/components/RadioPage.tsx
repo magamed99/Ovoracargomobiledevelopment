@@ -456,7 +456,7 @@ export function RadioPage() {
   }
 
   return (
-    <div style={{ background: '#0b1420', height: '100dvh', display: 'flex', flexDirection: 'column', fontFamily: "'Sora',sans-serif", overflow: 'hidden', position: 'relative' }}>
+    <div style={{ background: '#0b1420', height: '100dvh', maxWidth: 900, margin: '0 auto', width: '100%', display: 'flex', flexDirection: 'column', fontFamily: "'Sora',sans-serif", overflow: 'hidden', position: 'relative' }}>
 
       {/* ── Header ── */}
       <header style={{ background: '#080f1c', borderBottom: '1px solid #0d2035', padding: '0 16px', height: 60, display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>

@@ -108,7 +108,7 @@ export function TermsOfServicePage() {
   ];
 
   return (
-    <div className={`min-h-screen ${bg} pb-20 font-['Sora']`}>
+    <div className={`min-h-screen ${bg} pb-20 font-['Sora'] md:max-w-3xl md:mx-auto`}>
       {/* Header */}
       <header className={`sticky top-0 z-10 backdrop-blur-md px-4 py-3 flex items-center gap-3 border-b ${hdr}`}>
         <button
