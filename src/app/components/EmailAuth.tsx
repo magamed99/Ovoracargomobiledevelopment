@@ -443,7 +443,7 @@ export function EmailAuth() {
           <div className="absolute inset-0"
             style={{ background: '#060e1a' }} />
           <div className="absolute -top-16 -right-16 w-60 h-60 rounded-full"
-            style={{ background: 'radial-gradient(circle, rgba(29,78,216,0.55), transparent 70%)', opacity: 0.18 }} />
+            style={{ background: 'transparent', opacity: 0.18 }} />
         </div>
 
         {/* Top bar */}
