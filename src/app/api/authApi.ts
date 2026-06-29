@@ -325,17 +325,19 @@ export async function sendEmailOtp(email: string): Promise<{ success: boolean; e
 /**
  * Верифицировать OTP с email
  */
-export async function verifyEmailOtp(email: string, token: string): Promise<{ success: boolean; error?: string; user?: OvoraUser }> {
+export async function verifyEmailOtp(email: string, token: string): Promise<{ success: boolean; error?: string; user?: OvoraUser; isNew?: boolean }> {
   const res = await fetch(`${BASE}/auth/verify-email-otp`, {
     method: 'POST',
     headers: HEADERS,
     body: JSON.stringify({ email: email.trim().toLowerCase(), token }),
   });
-  const data = await res.json();
+  const text = await res.text();
+  let data: any;
+  try { data = JSON.parse(text); } catch { return { success: false, error: 'Сервер вернул некорректный ответ' }; }
   if (!res.ok || !data.success) {
     return { success: false, error: data.error || 'Неверный OTP код' };
   }
-  return { success: true, user: data.user };
+  return { success: true, user: data.user, isNew: data.isNew };
 }
 
 /**
