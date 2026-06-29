@@ -61,15 +61,15 @@ export async function handleSendEmailOtp(c: Context) {
 
     console.log(`[EmailOTP] Generated OTP for ${normalizedEmail}`);
 
-    // In development, return OTP for testing
-    const isDev = Deno.env.get("DENO_ENV") === "development";
+    // Return OTP in response (email service not configured yet)
+    // TODO: Add Resend/Supabase Auth email sending for production
+    console.log(`[EmailOTP] OTP for ${normalizedEmail}: ${otp}`);
     
     return c.json({
       success: true,
       expiresIn: OTP_TTL_MS / 1000,
-      // Dev mode: return OTP directly
-      ...(isDev ? { otp } : {}),
-      message: isDev ? "OTP generated (dev mode)" : "OTP sent to email",
+      otp: otp,
+      message: "OTP generated",
     });
   } catch (err) {
     console.error("Error POST /auth/send-email-otp:", err);
