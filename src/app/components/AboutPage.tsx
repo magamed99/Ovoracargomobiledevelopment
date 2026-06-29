@@ -180,7 +180,7 @@ export function AboutPage() {
           </section>
           <section>
             <SectionHeaderMobile icon={Target} title="Миссия и ценности" color="#8b5cf6" />
-            <div className="rounded-3xl bg-white/[0.04] border border-white/[0.07] overflow-hidden divide-y divide-white/[0.06]">
+            <div className="rounded-3xl bg-white/[0.08] border border-white/[0.12] overflow-hidden backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
               {values.map(v => {
                 const Icon = v.icon;
                 return (
@@ -223,7 +223,7 @@ export function AboutPage() {
           </section>
           <section>
             <SectionHeaderMobile icon={CheckCircle2} title="Почему выбирают нас" color="#10b981" />
-            <div className="rounded-3xl bg-white/[0.04] border border-white/[0.07] overflow-hidden divide-y divide-white/[0.06]">
+            <div className="rounded-3xl bg-white/[0.08] border border-white/[0.12] overflow-hidden backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
               {whyUs.map((item, i) => (
                 <div key={i} className="flex items-center gap-3 px-4 py-3.5">
                   <span className="text-[16px] shrink-0">{item.icon}</span>

@@ -101,7 +101,7 @@ export function HelpPage() {
                 );
               })}
             </div>
-            <div className="rounded-2xl bg-white/[0.04] border border-white/[0.07] overflow-hidden divide-y divide-white/[0.06]">
+            <div className="rounded-2xl bg-white/[0.08] border border-white/[0.12] overflow-hidden backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
               {[
                 { icon: MapPin, label: 'Адрес', value: 'г. Душанбе, Таджикистан', color: '#f59e0b' },
                 { icon: Clock,  label: 'Режим работы', value: 'Пн–Вс: 08:00 – 22:00', color: '#607080' },
@@ -146,7 +146,7 @@ export function HelpPage() {
                 })}
               </div>
             )}
-            <div className="rounded-3xl bg-white/[0.04] border border-white/[0.07] overflow-hidden divide-y divide-white/[0.06]">
+            <div className="rounded-3xl bg-white/[0.08] border border-white/[0.12] overflow-hidden backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
               {filteredFAQs.length === 0 ? (
                 <div className="flex flex-col items-center gap-2 py-10 px-4">
                   <HelpCircle className="w-8 h-8 text-[#607080]" />
