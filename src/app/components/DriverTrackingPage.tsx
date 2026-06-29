@@ -950,7 +950,7 @@ export function DriverTrackingPage() {
         <div className="absolute top-6 left-6 z-10">
           <button onClick={() => navigate(-1)}
             className="w-11 h-11 rounded-2xl flex items-center justify-center backdrop-blur-xl border border-white/15 transition-all hover:scale-105"
-            style={{ background:'#0a1520cc' }}>
+            style={{ background:'rgba(255,255,255,0.06)' }}>
             <ArrowLeft className="w-5 h-5 text-white" />
           </button>
         </div>
@@ -964,13 +964,13 @@ export function DriverTrackingPage() {
               <span style={{ fontSize:12, fontWeight:800, color:'#10b981' }}>LIVE GPS · {pct}%</span>
             </div>
           ) : geoError === 'denied' ? (
-            <div className="flex items-center gap-2 px-4 py-2 rounded-full backdrop-blur-xl border border-rose-400/30" style={{ background:'#0a1520cc' }}>
+            <div className="flex items-center gap-2 px-4 py-2 rounded-full backdrop-blur-xl border border-rose-400/30" style={{ background:'rgba(255,255,255,0.06)' }}>
               <XCircle style={{ width:13, height:13, color:'#f87171' }} />
               <span style={{ fontSize:12, fontWeight:700, color:'#f87171' }}>Геолокация заблокирована</span>
               <button onClick={retryGeo} style={{ fontSize:11, fontWeight:800, color:'#5ba3f5', cursor:'pointer', background:'none', border:'none', fontFamily:'inherit', padding:0 }}>Попробовать</button>
             </div>
           ) : (
-            <div className="flex items-center gap-2 px-4 py-2 rounded-full backdrop-blur-xl border border-white/10" style={{ background:'#0a1520cc' }}>
+            <div className="flex items-center gap-2 px-4 py-2 rounded-full backdrop-blur-xl border border-white/10" style={{ background:'rgba(255,255,255,0.06)' }}>
               <LocateFixed style={{ width:13, height:13, color:'#5ba3f5' }} className="animate-pulse" />
               <span style={{ fontSize:12, fontWeight:700, color:'#8a9bb0' }}>Поиск GPS...</span>
             </div>
