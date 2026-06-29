@@ -307,17 +307,19 @@ export async function resetUserCode(email: string): Promise<void> {
 /**
  * Отправить OTP на email через Supabase Auth
  */
-export async function sendEmailOtp(email: string): Promise<{ success: boolean; error?: string }> {
+export async function sendEmailOtp(email: string): Promise<{ success: boolean; error?: string; otp?: string }> {
   const res = await fetch(`${BASE}/auth/send-email-otp`, {
     method: 'POST',
     headers: HEADERS,
     body: JSON.stringify({ email: email.trim().toLowerCase() }),
   });
-  const data = await res.json();
+  const text = await res.text();
+  let data: any;
+  try { data = JSON.parse(text); } catch { return { success: false, error: 'Сервер вернул некорректный ответ' }; }
   if (!res.ok || !data.success) {
     return { success: false, error: data.error || 'Ошибка отправки OTP' };
   }
-  return { success: true };
+  return { success: true, otp: data.otp };
 }
 
 /**
