@@ -20,6 +20,7 @@ import * as kv from "./kv_store.tsx";
 import { Blacklist } from "./blacklist.tsx";
 import { AuditLog as CargoAuditLog } from "./cargoAudit.tsx";
 import { handleSendOtp, handleVerifyOtp } from "./otp.tsx";
+import { handleSendEmailOtp, handleVerifyEmailOtp, handleRegisterWithOtp } from "./emailOtp.tsx";
 import { handleGenerateBackup, handleVerifyBackup, handleBackupExists } from "./backup.tsx";
 import { handleEmailCheck, handleSetCode, handleVerifyPermCode, handleResetCode, handleAdminListCodes } from "./permCode.tsx";
 import {
