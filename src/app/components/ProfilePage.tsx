@@ -142,9 +142,9 @@ export function ProfilePage() {
             <div className="absolute inset-0"
               style={{ background: '#060e1a' }} />
             <div className="absolute -top-20 sm:-top-24 -right-20 sm:-right-24 w-56 sm:w-72 h-56 sm:h-72 rounded-full"
-              style={{ background: 'transparent', opacity: 0.35 }} />
+              style={{ background: 'radial-gradient(circle, rgba(29,78,216,0.55), transparent 70%)', opacity: 0.35 }} />
             <div className="absolute top-8 -left-12 sm:-left-16 w-40 sm:w-48 h-40 sm:h-48 rounded-full"
-              style={{ background: 'transparent', opacity: 0.25 }} />
+              style={{ background: 'radial-gradient(circle, rgba(124,58,237,0.45), transparent 70%)', opacity: 0.25 }} />
           </div>
 
           <div className="relative flex items-center justify-between px-4 sm:px-5"

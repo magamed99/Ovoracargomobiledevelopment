@@ -185,7 +185,7 @@ export function Home() {
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute inset-0" style={{ background: '#060e1a' }} />
           <div className="absolute -top-20 -right-20 w-80 h-80 rounded-full"
-            style={{ background: 'transparent', opacity: 0.20 }} />
+            style={{ background: 'radial-gradient(circle, rgba(29,78,216,0.55), transparent 70%)', opacity: 0.20 }} />
         </div>
 
         {/* Top bar + user info */}

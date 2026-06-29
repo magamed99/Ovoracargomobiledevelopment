@@ -93,8 +93,8 @@ export function AboutPage() {
         <div className="relative overflow-hidden">
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute inset-0" style={{ background: '#060e1a' }} />
-            <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full" style={{ background: 'transparent', opacity: 0.22 }} />
-            <div className="absolute top-16 -left-12 w-48 h-48 rounded-full" style={{ background: 'transparent', opacity: 0.30 }} />
+            <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full" style={{ background: 'radial-gradient(circle, rgba(29,78,216,0.55), transparent 70%)', opacity: 0.22 }} />
+            <div className="absolute top-16 -left-12 w-48 h-48 rounded-full" style={{ background: 'radial-gradient(circle, rgba(124,58,237,0.45), transparent 70%)', opacity: 0.30 }} />
           </div>
           <div className="relative flex items-center justify-between px-4" style={{ paddingTop: 'max(52px, env(safe-area-inset-top, 52px))', paddingBottom: 4 }}>
             <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-2xl flex items-center justify-center bg-white/[0.07] border border-white/10 text-white active:scale-90 transition-all shrink-0">
