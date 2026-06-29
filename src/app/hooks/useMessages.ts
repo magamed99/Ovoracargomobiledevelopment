@@ -28,9 +28,9 @@ export function useMessages() {
     try {
       await fetchChats();
       setChats([...getChats()]);
-    } catch { /* use cache */ } finally {
-      setSyncing(false);
       setInitialLoading(false);
+    } catch { /* use cache — keep initialLoading if first load fails */ } finally {
+      setSyncing(false);
     }
   }, []);
 
