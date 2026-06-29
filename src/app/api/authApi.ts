@@ -304,6 +304,60 @@ export async function resetUserCode(email: string): Promise<void> {
   if (!res.ok || !data.success) throw new Error(data.error || 'Ошибка сброса кода');
 }
 
+/**
+ * Отправить OTP на email через Supabase Auth
+ */
+export async function sendEmailOtp(email: string): Promise<{ success: boolean; error?: string }> {
+  const res = await fetch(`${BASE}/auth/send-email-otp`, {
+    method: 'POST',
+    headers: HEADERS,
+    body: JSON.stringify({ email: email.trim().toLowerCase() }),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    return { success: false, error: data.error || 'Ошибка отправки OTP' };
+  }
+  return { success: true };
+}
+
+/**
+ * Верифицировать OTP с email
+ */
+export async function verifyEmailOtp(email: string, token: string): Promise<{ success: boolean; error?: string; user?: OvoraUser }> {
+  const res = await fetch(`${BASE}/auth/verify-email-otp`, {
+    method: 'POST',
+    headers: HEADERS,
+    body: JSON.stringify({ email: email.trim().toLowerCase(), token }),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    return { success: false, error: data.error || 'Неверный OTP код' };
+  }
+  return { success: true, user: data.user };
+}
+
+/**
+ * Зарегистрировать нового пользователя с OTP верификацией
+ */
+export async function registerWithOtp(
+  email: string,
+  role: 'driver' | 'sender',
+  profile: { firstName: string; lastName: string; phone: string }
+): Promise<OvoraUser> {
+  const res = await fetch(`${BASE}/auth/register-with-otp`, {
+    method: 'POST',
+    headers: HEADERS,
+    body: JSON.stringify({ email: email.trim().toLowerCase(), role, ...profile }),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Ошибка регистрации: ${err}`);
+  }
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+  return data.user;
+}
+
 // ── Старые OTP функции (оставлены для обратной совместимости) ─────────────────
 
 /**
