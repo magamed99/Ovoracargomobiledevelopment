@@ -246,7 +246,11 @@ export function EmailAuth() {
         resetOtp(); setOtpErr('');
         setStep('otp');
         setCooldown(60);
-        toast.success('Код отправлен на ' + t);
+        if ((result as any).otp) {
+          toast.success('Код: ' + (result as any).otp, { duration: 30000 });
+        } else {
+          toast.success('Код отправлен на ' + t);
+        }
       } else {
         setEmailErr(result.error || 'Ошибка отправки');
       }
