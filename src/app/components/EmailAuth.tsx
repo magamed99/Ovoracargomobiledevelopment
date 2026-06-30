@@ -13,6 +13,7 @@ import {
   findUserByEmail, type OvoraUser,
 } from '../api/authApi';
 import { motion } from 'motion/react';
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '../ui/input-otp';
 import { validateCisPhone, getCisCountryName, getCisCountryFlag, type PhoneValidationResult } from '../utils/phoneValidator';
 
 // ── Steps ──────────────────────────────────────────────────────────────────────
