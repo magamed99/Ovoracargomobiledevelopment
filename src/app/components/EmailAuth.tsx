@@ -53,15 +53,16 @@ function GlassCard({ children, className = '' }: { children: React.ReactNode; cl
 }
 
 function CTAButton({
-  onClick, disabled, loading, loadingText, children, color = '#1d4ed8',
+  onClick, disabled, loading, loadingText, children, color, ariaLabel = '#1d4ed8',
 }: {
   onClick: () => void; disabled?: boolean; loading?: boolean;
-  loadingText?: string; children: React.ReactNode; color?: string;
+  loadingText?: string; children: React.ReactNode; color?: string; ariaLabel?: string;
 }) {
   return (
     <button
       onClick={onClick}
       disabled={disabled || loading}
+      aria-label={ariaLabel}
       className="w-full rounded-3xl font-black text-[15px] text-white flex items-center justify-center gap-2.5 transition-all active:scale-[0.97] disabled:opacity-50"
       style={{
         background: `linear-gradient(135deg, ${color}, ${color}cc)`,
@@ -392,7 +393,7 @@ export function EmailAuth() {
       <div className="relative overflow-hidden shrink-0">
         <div className="relative flex items-center justify-between px-4"
           style={{ paddingTop: 'max(52px, env(safe-area-inset-top, 52px))', paddingBottom: 8 }}>
-          <button onClick={handleBack}
+          <button onClick={handleBack} aria-label="Назад"
             className="w-10 h-10 rounded-2xl flex items-center justify-center bg-white/[0.07] border border-white/10 text-white active:scale-90 transition-all">
             <ArrowLeft className="w-5 h-5" />
           </button>
@@ -466,7 +467,7 @@ export function EmailAuth() {
                   <Mail className="absolute left-3.5 w-4 h-4 text-[#607080]" />
                   <input ref={emailRef} type="email" value={email}
                     onChange={e => { setEmail(e.target.value); setEmailErr(''); }}
-                    placeholder="example@mail.com" autoComplete="email"
+                    placeholder="example@mail.com" autoComplete="email" aria-label="Email адрес"
                     onKeyDown={e => e.key === 'Enter' && handleEmailSubmit()}
                     className="flex-1 bg-transparent outline-none py-3.5 pl-10 pr-4 font-medium text-white placeholder-[#607080]"
                     style={{ fontSize: 16 }} />
@@ -488,7 +489,7 @@ export function EmailAuth() {
               </p>
             </div>
 
-            <CTAButton onClick={handleEmailSubmit} loading={checking} loadingText="Отправляем...">
+            <CTAButton onClick={handleEmailSubmit} loading={checking} loadingText="Отправляем..." ariaLabel="Получить код верификации">
               <Send className="w-4.5 h-4.5" style={{ width: 18, height: 18 }} />
               <span>Получить код</span>
             </CTAButton>
@@ -582,7 +583,7 @@ export function EmailAuth() {
                   style={{ background: formErr.firstName ? 'rgba(239,68,68,0.07)' : 'rgba(255,255,255,0.04)', borderColor: formErr.firstName ? '#ef4444' : 'rgba(255,255,255,0.09)' }}>
                   <User className="absolute left-3.5 w-4 h-4 text-[#607080]" />
                   <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)}
-                    placeholder="Ваше имя" className="flex-1 bg-transparent outline-none py-3.5 pl-10 pr-4 font-medium text-white placeholder-[#607080]" style={{ fontSize: 16 }} />
+                    placeholder="Ваше имя" className="flex-1 bg-transparent outline-none py-3.5 pl-10 pr-4 font-medium text-white placeholder-[#607080]" style={{ fontSize: 16 }} aria-invalid={!!emailErr} />
                 </div>
                 {formErr.firstName && <p className="mt-1 text-[11px] text-red-400">{formErr.firstName}</p>}
               </div>
@@ -593,7 +594,7 @@ export function EmailAuth() {
                   style={{ background: formErr.lastName ? 'rgba(239,68,68,0.07)' : 'rgba(255,255,255,0.04)', borderColor: formErr.lastName ? '#ef4444' : 'rgba(255,255,255,0.09)' }}>
                   <User className="absolute left-3.5 w-4 h-4 text-[#607080]" />
                   <input type="text" value={lastName} onChange={e => setLastName(e.target.value)}
-                    placeholder="Ваша фамилия" className="flex-1 bg-transparent outline-none py-3.5 pl-10 pr-4 font-medium text-white placeholder-[#607080]" style={{ fontSize: 16 }} />
+                    placeholder="Ваша фамилия" className="flex-1 bg-transparent outline-none py-3.5 pl-10 pr-4 font-medium text-white placeholder-[#607080]" style={{ fontSize: 16 }} aria-invalid={!!emailErr} />
                 </div>
                 {formErr.lastName && <p className="mt-1 text-[11px] text-red-400">{formErr.lastName}</p>}
               </div>
@@ -604,13 +605,13 @@ export function EmailAuth() {
                   style={{ background: formErr.phone ? 'rgba(239,68,68,0.07)' : 'rgba(255,255,255,0.04)', borderColor: formErr.phone ? '#ef4444' : 'rgba(255,255,255,0.09)' }}>
                   <Phone className="absolute left-3.5 w-4 h-4 text-[#607080]" />
                   <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
-                    placeholder="+992 900 123 456" className="flex-1 bg-transparent outline-none py-3.5 pl-10 pr-4 font-medium text-white placeholder-[#607080]" style={{ fontSize: 16 }} />
+                    placeholder="+992 900 123 456" className="flex-1 bg-transparent outline-none py-3.5 pl-10 pr-4 font-medium text-white placeholder-[#607080]" style={{ fontSize: 16 }} aria-invalid={!!emailErr} />
                 </div>
                 {formErr.phone && <p className="mt-1 text-[11px] text-red-400">{formErr.phone}</p>}
               </div>
             </GlassCard>
 
-            <CTAButton onClick={handleRegister} loading={submitting} loadingText="Создаём..."
+            <CTAButton onClick={handleRegister} loading={submitting} loadingText="Создаём..." ariaLabel="Создать аккаунт"
               color="#059669">
               <CheckCircle2 className="w-4.5 h-4.5" style={{ width: 18, height: 18 }} />
               <span>Создать аккаунт</span>
