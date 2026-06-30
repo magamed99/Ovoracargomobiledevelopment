@@ -119,10 +119,10 @@ export function SettingsPage() {
 
   // ── Sections data ───────────────────────────────────────────────────────────
   const notifRows: RowItem[] = [
-    { icon: BellRing,     iconColor: '#5ba3f5', iconBg: '#5ba3f514', label: 'Push-уведомления', sublabel: 'Все уведомления приложения', onClick: () => toggleNotif('push'),     right: <Toggle value={notifs.push}     onChange={() => toggleNotif('push')} /> },
-    { icon: Star,         iconColor: '#f59e0b', iconBg: '#f59e0b14', label: 'Новые заявки',     sublabel: 'Уведомления об офферах',    onClick: () => toggleNotif('offers'),   right: <Toggle value={notifs.offers}   onChange={() => toggleNotif('offers')} /> },
+    { icon: BellRing,     iconColor: '#5ba3f5', iconBg: '#5ba3f514', label: 'Push-уведомления', sublabel: 'Все уведомления приложения', onClick: () => toggleNotif('push'),     right: <Switch checked={notifs.push} onCheckedChange={() => toggleNotif('push')} /> },
+    { icon: Star,         iconColor: '#f59e0b', iconBg: '#f59e0b14', label: 'Новые заявки',     sublabel: 'Уведомления об офферах',    onClick: () => toggleNotif('offers'),   right: <Switch checked={notifs.offers} onCheckedChange={() => toggleNotif('offers')} /> },
     { icon: MessageSquare,iconColor: '#10b981', iconBg: '#10b98114', label: 'Сообщения',        sublabel: 'Новые сообщения в чате',    onClick: () => toggleNotif('messages'), right: <Switch checked={notifs.messages} onCheckedChange={() => toggleNotif('messages')} /> },
-    { icon: Navigation,   iconColor: '#a855f7', iconBg: '#a855f714', label: 'Поездки',          sublabel: 'Обновления статуса поездок',onClick: () => toggleNotif('trips'),    right: <Toggle value={notifs.trips}    onChange={() => toggleNotif('trips')} /> },
+    { icon: Navigation,   iconColor: '#a855f7', iconBg: '#a855f714', label: 'Поездки',          sublabel: 'Обновления статуса поездок',onClick: () => toggleNotif('trips'),    right: <Switch checked={notifs.trips} onCheckedChange={() => toggleNotif('trips')} /> },
   ];
 
   const securityRows: RowItem[] = [
@@ -153,8 +153,8 @@ export function SettingsPage() {
         toast.success('Кэш очищен! Данные обновлены.');
       }
     },
-    { icon: Volume2,   iconColor: '#5ba3f5', iconBg: '#5ba3f514',         label: 'Звуки',          sublabel: 'Включить/выключить звуки',          onClick: () => toggleSound(),          right: <Toggle value={soundOn}     onChange={() => toggleSound()} /> },
-    { icon: Vibrate,   iconColor: '#5ba3f5', iconBg: '#5ba3f514',         label: 'Вибрация',       sublabel: 'Включить/выключить вибрацию',       onClick: () => toggleHaptic(),         right: <Toggle value={hapticOn}    onChange={() => toggleHaptic()} /> },
+    { icon: Volume2,   iconColor: '#5ba3f5', iconBg: '#5ba3f514',         label: 'Звуки',          sublabel: 'Включить/выключить звуки',          onClick: () => toggleSound(),          right: <Switch checked={soundOn} onCheckedChange={() => toggleSound()} /> },
+    { icon: Vibrate,   iconColor: '#5ba3f5', iconBg: '#5ba3f514',         label: 'Вибрация',       sublabel: 'Включить/выключить вибрацию',       onClick: () => toggleHaptic(),         right: <Switch checked={hapticOn} onCheckedChange={() => toggleHaptic()} /> },
   ];
 
   const dangerRows: RowItem[] = [
