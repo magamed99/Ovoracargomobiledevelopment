@@ -350,16 +350,34 @@ export function AviaAuth() {
                 padding: 'clamp(18px, 4vw, 24px)',
                 marginBottom: 12,
               }}>
-                <div style={{ position: 'relative', marginBottom: 14 }}>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+                  <select
+                    value={selectedCountry}
+                    onChange={(e) => setSelectedCountry(e.target.value)}
+                    style={{
+                      width: 85, padding: '15px 6px',
+                      borderRadius: 14, border: '1.5px solid #ffffff18',
+                      background: '#ffffff08', color: '#fff',
+                      fontSize: 15, fontWeight: 600, outline: 'none',
+                      cursor: 'pointer', flexShrink: 0,
+                      appearance: 'none', textAlign: 'center',
+                    }}
+                  >
+                    {CIS_LIST.map(c => (
+                      <option key={c.code} value={c.code} style={{ background: '#0d1a28', color: '#fff' }}>
+                        {c.flag} {c.code}
+                      </option>
+                    ))}
+                  </select>
                   <input
                     type="tel"
                     value={phone}
                     onChange={(e) => handlePhoneChange(e.target.value)}
-                    placeholder="+992 XX XXX XX XX"
+                    placeholder="900 123 456"
                     autoFocus
                     onKeyDown={(e) => e.key === 'Enter' && handlePhoneSubmit()}
                     style={{
-                      width: '100%', padding: '15px 18px',
+                      flex: 1, padding: '15px 18px',
                       borderRadius: 14, border: '1.5px solid #ffffff18',
                       background: '#ffffff08', color: '#fff',
                       fontSize: 18, fontWeight: 600,
