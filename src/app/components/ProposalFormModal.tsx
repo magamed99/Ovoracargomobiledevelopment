@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { X } from 'lucide-react';
 import { Users, Truck, Plus, Minus, CheckCircle, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { validateCisPhone } from '../utils/phoneValidator';
 import { useUser } from '../contexts/UserContext';
 import { getTripById, submitOffer } from '../api/dataApi';
 import type { ChatContact, ChatProposal } from '../api/chatStore';
