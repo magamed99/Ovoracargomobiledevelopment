@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Globe, Bell, Shield, LogOut, ChevronRight, ArrowLeft, Check, Smartphone, Info, Trash2, RefreshCw, Truck, Package, BellRing, MessageSquare, Navigation, KeyRound, Star, Volume2, Vibrate } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { Switch } from '../ui/switch';
 import { useNavigate } from 'react-router';
 import { useLanguage } from '../context/LanguageContext';
 import { useUser } from '../contexts/UserContext';
@@ -114,26 +115,13 @@ export function SettingsPage() {
   const displayName = user ? (user.fullName || `${user.firstName || ''} ${user.lastName || ''}`.trim()) : 'Пользователь';
 
   // ── Toggle (motion animates only x — safe) ─────────────────────────────────
-  const Toggle = ({ value, onChange }: { value: boolean; onChange: () => void }) => (
-    <div
-      role="switch" aria-checked={value}
-      onClick={e => { e.stopPropagation(); onChange(); }}
-      className="relative flex-shrink-0 cursor-pointer transition-colors duration-300"
-      style={{ width: 44, height: 26, borderRadius: 13, background: value ? '#5ba3f5' : 'rgba(255,255,255,0.10)' }}
-    >
-      <motion.span
-        className="absolute top-[3px] left-[3px] w-5 h-5 rounded-full bg-white shadow-md"
-        animate={{ x: value ? 18 : 0 }}
-        transition={{ type: 'spring', stiffness: 500, damping: 28 }}
-      />
-    </div>
-  );
+
 
   // ── Sections data ───────────────────────────────────────────────────────────
   const notifRows: RowItem[] = [
     { icon: BellRing,     iconColor: '#5ba3f5', iconBg: '#5ba3f514', label: 'Push-уведомления', sublabel: 'Все уведомления приложения', onClick: () => toggleNotif('push'),     right: <Toggle value={notifs.push}     onChange={() => toggleNotif('push')} /> },
     { icon: Star,         iconColor: '#f59e0b', iconBg: '#f59e0b14', label: 'Новые заявки',     sublabel: 'Уведомления об офферах',    onClick: () => toggleNotif('offers'),   right: <Toggle value={notifs.offers}   onChange={() => toggleNotif('offers')} /> },
-    { icon: MessageSquare,iconColor: '#10b981', iconBg: '#10b98114', label: 'Сообщения',        sublabel: 'Новые сообщения в чате',    onClick: () => toggleNotif('messages'), right: <Toggle value={notifs.messages} onChange={() => toggleNotif('messages')} /> },
+    { icon: MessageSquare,iconColor: '#10b981', iconBg: '#10b98114', label: 'Сообщения',        sublabel: 'Новые сообщения в чате',    onClick: () => toggleNotif('messages'), right: <Switch checked={notifs.messages} onCheckedChange={() => toggleNotif('messages')} /> },
     { icon: Navigation,   iconColor: '#a855f7', iconBg: '#a855f714', label: 'Поездки',          sublabel: 'Обновления статуса поездок',onClick: () => toggleNotif('trips'),    right: <Toggle value={notifs.trips}    onChange={() => toggleNotif('trips')} /> },
   ];
 
