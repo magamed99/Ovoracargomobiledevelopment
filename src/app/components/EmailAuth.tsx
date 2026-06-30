@@ -13,6 +13,7 @@ import {
   findUserByEmail, type OvoraUser,
 } from '../api/authApi';
 import { motion } from 'motion/react';
+import { validateCisPhone, getCisCountryName, getCisCountryFlag, type PhoneValidationResult } from '../utils/phoneValidator';
 
 // ── Steps ──────────────────────────────────────────────────────────────────────
 type Step = 'email' | 'otp' | 'register' | 'login_found' | 'role_conflict';
@@ -321,7 +322,12 @@ export function EmailAuth() {
     const errs: Record<string, string> = {};
     if (!firstName.trim()) errs.firstName = 'Введите имя';
     if (!lastName.trim()) errs.lastName = 'Введите фамилию';
-    if (!phone.trim() || phone.replace(/\D/g, '').length < 9) errs.phone = 'Введите корректный номер';
+    if (!phone.trim()) {
+    errs.phone = 'Введите номер телефона';
+  } else {
+    const pv = validateCisPhone(phone);
+    if (!pv.valid) errs.phone = pv.error || 'Неверный номер';
+  }
     setFormErr(errs);
     return !Object.keys(errs).length;
   };
