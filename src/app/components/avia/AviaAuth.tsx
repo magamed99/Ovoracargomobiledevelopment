@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import { ArrowLeft, Plane, Lock, Users, Package, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAvia } from './AviaContext';
-import { validateCisPhone, getCisCountryName, getCisCountryFlag, type PhoneValidationResult } from '../../utils/phoneValidator';
+import { validateLocalPhone, validateCisPhone, CIS_LIST, getCisCountryFlag, getCisCountryCode } from '../../utils/phoneValidator';
 import { checkPhone, registerAvia, loginAvia } from '../../api/aviaApi';
 
 type Step = 'phone' | 'pin-create' | 'pin-login' | 'role';
@@ -29,7 +29,7 @@ export function AviaAuth() {
   const [showPin, setShowPin] = useState(false);
   const [selectedRole, setSelectedRole] = useState<AviaRole | null>(null);
   const [error, setError] = useState('');
-  const [phoneValidation, setPhoneValidation] = useState<PhoneValidationResult | null>(null);
+  const [phoneValidation, setPhoneValidation] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
 
@@ -60,7 +60,7 @@ export function AviaAuth() {
     setError('');
     // Validate phone
     if (cleaned.length >= 5) {
-      const validation = validateCisPhone(cleaned);
+      const validation = validateLocalPhone(cleaned);
       setPhoneValidation(validation);
     } else {
       setPhoneValidation(null);
@@ -390,11 +390,11 @@ export function AviaAuth() {
                   style={{
                     width: '100%', padding: '15px 24px',
                     borderRadius: 14, border: 'none',
-                    background: loading || !validateCisPhone(phone).valid
+                    background: loading || !validateLocalPhone(selectedCountry, phone).valid
                       ? '#ffffff10' : 'linear-gradient(135deg, #0369a1 0%, #0ea5e9 100%)',
-                    color: loading || !validateCisPhone(phone).valid ? '#3d5268' : '#fff',
+                    color: loading || !validateLocalPhone(selectedCountry, phone).valid ? '#3d5268' : '#fff',
                     fontSize: 15, fontWeight: 700,
-                    cursor: loading ? 'wait' : !validateCisPhone(phone).valid ? 'default' : 'pointer',
+                    cursor: loading ? 'wait' : !validateLocalPhone(selectedCountry, phone).valid ? 'default' : 'pointer',
                     boxShadow: phone.replace(/\D/g, '').length >= 9 ? '0 6px 20px #0ea5e930' : 'none',
                     transition: 'all 0.25s',
                   }}
