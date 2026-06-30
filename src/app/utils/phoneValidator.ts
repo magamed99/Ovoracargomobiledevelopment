@@ -1,78 +1,69 @@
-// CIS Phone Validation - works without external dependencies
+// CIS Phone Validation with country selector support
 
-const CIS: Record<string, { name: string; flag: string; prefixes: string[]; len: number }> = {
-  'TJ': { name: 'Таджикистан', flag: '🇹🇯', prefixes: ['90','91','93','98','99'], len: 9 },
-  'RU': { name: 'Россия', flag: '🇷🇺', prefixes: ['9','3','4','8'], len: 10 },
-  'KZ': { name: 'Казахстан', flag: '🇰🇿', prefixes: ['7'], len: 10 },
-  'UZ': { name: 'Узбекистан', flag: '🇺🇿', prefixes: ['9','3'], len: 9 },
-  'KG': { name: 'Кыргызстан', flag: '🇰🇬', prefixes: ['5','7'], len: 9 },
-  'AM': { name: 'Армения', flag: '🇦🇲', prefixes: ['4','5','6','7','9'], len: 8 },
-  'AZ': { name: 'Азербайджан', flag: '🇦🇿', prefixes: ['10','50','51','70','77'], len: 9 },
-  'BY': { name: 'Беларусь', flag: '🇧🇾', prefixes: ['25','29','33'], len: 9 },
-  'MD': { name: 'Молдова', flag: '🇲🇩', prefixes: ['6','7'], len: 8 },
-  'GE': { name: 'Грузия', flag: '🇬🇪', prefixes: ['5','7'], len: 9 },
+const CIS: Record<string, { name: string; flag: string; code: string; prefixes: string[]; len: number }> = {
+  'TJ': { name: 'Таджикистан', flag: '🇹🇯', code: '+992', prefixes: ['90','91','93','98','99'], len: 9 },
+  'RU': { name: 'Россия', flag: '🇷🇺', code: '+7', prefixes: ['9','3','4','8'], len: 10 },
+  'KZ': { name: 'Казахстан', flag: '🇰🇿', code: '+7', prefixes: ['7'], len: 10 },
+  'UZ': { name: 'Узбекистан', flag: '🇺🇿', code: '+998', prefixes: ['9','3'], len: 9 },
+  'KG': { name: 'Кыргызстан', flag: '🇰🇬', code: '+996', prefixes: ['5','7'], len: 9 },
+  'AM': { name: 'Армения', flag: '🇦🇲', code: '+374', prefixes: ['4','5','6','7','9'], len: 8 },
+  'AZ': { name: 'Азербайджан', flag: '🇦🇿', code: '+994', prefixes: ['10','50','51','70','77'], len: 9 },
+  'BY': { name: 'Беларусь', flag: '🇧🇾', code: '+375', prefixes: ['25','29','33'], len: 9 },
+  'MD': { name: 'Молдова', flag: '🇲🇩', code: '+373', prefixes: ['6','7'], len: 8 },
+  'GE': { name: 'Грузия', flag: '🇬🇪', code: '+995', prefixes: ['5','7'], len: 9 },
 };
+
+export const CIS_LIST = Object.entries(CIS).map(([key, val]) => ({ code: key, ...val }));
 
 export interface PhoneValidationResult {
   valid: boolean;
   country?: string;
   countryName?: string;
   countryFlag?: string;
+  countryCode?: string;
   error?: string;
 }
 
-function detectAndValidate(raw: string): { code: string; local: string } | null {
-  const d = raw.replace(/[^\d]/g, '');
-  
-  // With country code
-  if (d.startsWith('992') && d.length >= 12) return { code: 'TJ', local: d.slice(3, 12) };
-  if (d.startsWith('7') && d.length === 11) {
-    return d[1] === '7' ? { code: 'KZ', local: d.slice(1) } : { code: 'RU', local: d.slice(1) };
-  }
-  if (d.startsWith('998') && d.length >= 12) return { code: 'UZ', local: d.slice(3, 12) };
-  if (d.startsWith('996') && d.length >= 12) return { code: 'KG', local: d.slice(3, 12) };
-  if (d.startsWith('374') && d.length >= 11) return { code: 'AM', local: d.slice(3, 11) };
-  if (d.startsWith('994') && d.length >= 12) return { code: 'AZ', local: d.slice(3, 12) };
-  if (d.startsWith('375') && d.length >= 12) return { code: 'BY', local: d.slice(3, 12) };
-  if (d.startsWith('373') && d.length >= 11) return { code: 'MD', local: d.slice(3, 11) };
-  if (d.startsWith('995') && d.length >= 12) return { code: 'GE', local: d.slice(3, 12) };
+// Validate local number with known country
+export function validateLocalPhone(countryCode: string, localNumber: string): PhoneValidationResult {
+  const info = CIS[countryCode];
+  if (!info) return { valid: false, error: 'Страна не поддерживается' };
 
-  // Without + but with code
-  if (d.startsWith('992') && d.length === 12) return { code: 'TJ', local: d.slice(3) };
-  if (d.startsWith('998') && d.length === 12) return { code: 'UZ', local: d.slice(3) };
-  if (d.startsWith('996') && d.length === 12) return { code: 'KG', local: d.slice(3) };
+  const cleaned = localNumber.replace(/[^\d]/g, '');
+  if (cleaned.length === 0) return { valid: false, country: countryCode, error: 'Введите номер' };
+  if (cleaned.length !== info.len) return { valid: false, country: countryCode, error: 'Нужно ' + info.len + ' цифр' };
 
-  return null;
+  const prefix = cleaned.slice(0, 2);
+  const ok = info.prefixes.some(p => prefix.startsWith(p));
+  if (!ok) return { valid: false, country: countryCode, error: 'Неизвестный оператор' };
+
+  return { valid: true, country: countryCode, countryName: info.name, countryFlag: info.flag, countryCode: info.code };
 }
 
+// Validate full phone with country code (legacy support)
 export function validateCisPhone(phone: string): PhoneValidationResult {
   if (!phone || phone.trim().length < 3) {
     return { valid: false, error: 'Введите номер телефона' };
   }
 
-  const detected = detectAndValidate(phone);
-  if (!detected) {
-    return { valid: false, error: 'Формат: +992 900 123 456' };
-  }
+  const d = phone.replace(/[^\d]/g, '');
 
-  const info = CIS[detected.code];
-  if (!info) return { valid: false, error: 'Страна не поддерживается' };
+  // Detect country from full number
+  let country: string | null = null;
+  let local = '';
 
-  if (detected.local.length !== info.len) {
-    return { valid: false, country: detected.code, error: 'Неверная длина' };
-  }
+  if (d.startsWith('992') && d.length >= 12) { country = 'TJ'; local = d.slice(3, 12); }
+  else if (d.startsWith('7') && d.length === 11) { country = d[1] === '7' ? 'KZ' : 'RU'; local = d.slice(1); }
+  else if (d.startsWith('998') && d.length >= 12) { country = 'UZ'; local = d.slice(3, 12); }
+  else if (d.startsWith('996') && d.length >= 12) { country = 'KG'; local = d.slice(3, 12); }
+  else if (d.startsWith('374') && d.length >= 11) { country = 'AM'; local = d.slice(3, 11); }
+  else if (d.startsWith('994') && d.length >= 12) { country = 'AZ'; local = d.slice(3, 12); }
+  else if (d.startsWith('375') && d.length >= 12) { country = 'BY'; local = d.slice(3, 12); }
+  else if (d.startsWith('373') && d.length >= 11) { country = 'MD'; local = d.slice(3, 11); }
+  else if (d.startsWith('995') && d.length >= 12) { country = 'GE'; local = d.slice(3, 12); }
 
-  if (!/^\d+$/.test(detected.local)) {
-    return { valid: false, country: detected.code, error: 'Только цифры' };
-  }
-
-  const prefix = detected.local.slice(0, 2);
-  const ok = info.prefixes.some(p => prefix.startsWith(p));
-  if (!ok) {
-    return { valid: false, country: detected.code, error: 'Неизвестный оператор' };
-  }
-
-  return { valid: true, country: detected.code, countryName: info.name, countryFlag: info.flag };
+  if (!country) return { valid: false, error: 'Формат: +992 900 123 456' };
+  return validateLocalPhone(country, local);
 }
 
 export function getCisCountryName(code: string): string {
@@ -81,4 +72,8 @@ export function getCisCountryName(code: string): string {
 
 export function getCisCountryFlag(code: string): string {
   return CIS[code]?.flag || '🏳️';
+}
+
+export function getCisCountryCode(code: string): string {
+  return CIS[code]?.code || '+?';
 }
