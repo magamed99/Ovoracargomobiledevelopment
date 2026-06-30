@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router';
 import { useUser } from '../contexts/UserContext';
 import { toast } from 'sonner';
+import { validateCisPhone, getCisCountryName, getCisCountryFlag, type PhoneValidationResult } from '../utils/phoneValidator';
 import {
   updateUser as updateUserApi, uploadAvatar,
   syncUserNameInChats, syncUserNameInTrips,
@@ -13,7 +14,10 @@ import {
 const FIELDS = [
   { label: 'Имя',           name: 'firstName', type: 'text',  icon: UserIcon, placeholder: 'Введите имя',         color: '#5ba3f5', maxLength: 50  },
   { label: 'Фамилия',       name: 'lastName',  type: 'text',  icon: UserIcon, placeholder: 'Введите фамилию',     color: '#5ba3f5', maxLength: 50  },
-  { label: 'Телефон',       name: 'phone',     type: 'tel',   icon: Phone,    placeholder: '+992 900 000 000',    color: '#10b981', maxLength: 20  },
+  { label: 'Телефон',       name: 'phone',     type: 'tel',   icon: Phone,    placeholder: '+992 900 000 000',    color: '#10b981', maxLength: 20, validate: (v: string) => {
+    const pv = validateCisPhone(v);
+    return pv.valid ? null : (pv.error || 'Неверный номер');
+  }},
   { label: 'Email',         name: 'email',     type: 'email', icon: Mail,     placeholder: 'example@mail.com',    color: '#a855f7', maxLength: 100 },
   { label: 'Город',         name: 'city',      type: 'text',  icon: MapPin,   placeholder: 'Душанбе',             color: '#f59e0b', maxLength: 80  },
   { label: 'Дата рождения', name: 'birthDate', type: 'date',  icon: Calendar, placeholder: '',                    color: '#ec4899', maxLength: undefined },
