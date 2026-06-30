@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import { ArrowLeft, Plane, Lock, Users, Package, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAvia } from './AviaContext';
+import { validateCisPhone, getCisCountryName, getCisCountryFlag, type PhoneValidationResult } from '../../utils/phoneValidator';
 import { checkPhone, registerAvia, loginAvia } from '../../api/aviaApi';
 
 type Step = 'phone' | 'pin-create' | 'pin-login' | 'role';
@@ -27,6 +28,7 @@ export function AviaAuth() {
   const [showPin, setShowPin] = useState(false);
   const [selectedRole, setSelectedRole] = useState<AviaRole | null>(null);
   const [error, setError] = useState('');
+  const [phoneValidation, setPhoneValidation] = useState<PhoneValidationResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
 
@@ -55,6 +57,13 @@ export function AviaAuth() {
     const cleaned = value.replace(/[^\d+]/g, '');
     setPhone(cleaned);
     setError('');
+    // Validate phone
+    if (cleaned.length >= 5) {
+      const validation = validateCisPhone(cleaned);
+      setPhoneValidation(validation);
+    } else {
+      setPhoneValidation(null);
+    }
   };
 
   // ── Проверка телефона ──────────────────────────────────────────────────────
