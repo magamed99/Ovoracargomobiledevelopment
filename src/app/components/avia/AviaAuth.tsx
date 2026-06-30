@@ -68,9 +68,9 @@ export function AviaAuth() {
 
   // ── Проверка телефона ──────────────────────────────────────────────────────
   const handlePhoneSubmit = async () => {
-    const digits = phone.replace(/\D/g, '');
-    if (digits.length < 9) {
-      setError('Введите корректный номер телефона');
+    const pv = validateCisPhone(phone);
+    if (!pv.valid) {
+      setError(pv.error || 'Введите корректный номер телефона');
       return;
     }
     setLoading(true);
@@ -384,15 +384,15 @@ export function AviaAuth() {
                 <motion.button
                   whileTap={{ scale: 0.97 }}
                   onClick={handlePhoneSubmit}
-                  disabled={loading || phone.replace(/\D/g, '').length < 9}
+                  disabled={loading || !validateCisPhone(phone).valid}
                   style={{
                     width: '100%', padding: '15px 24px',
                     borderRadius: 14, border: 'none',
-                    background: loading || phone.replace(/\D/g, '').length < 9
+                    background: loading || !validateCisPhone(phone).valid
                       ? '#ffffff10' : 'linear-gradient(135deg, #0369a1 0%, #0ea5e9 100%)',
-                    color: loading || phone.replace(/\D/g, '').length < 9 ? '#3d5268' : '#fff',
+                    color: loading || !validateCisPhone(phone).valid ? '#3d5268' : '#fff',
                     fontSize: 15, fontWeight: 700,
-                    cursor: loading ? 'wait' : phone.replace(/\D/g, '').length < 9 ? 'default' : 'pointer',
+                    cursor: loading ? 'wait' : !validateCisPhone(phone).valid ? 'default' : 'pointer',
                     boxShadow: phone.replace(/\D/g, '').length >= 9 ? '0 6px 20px #0ea5e930' : 'none',
                     transition: 'all 0.25s',
                   }}
