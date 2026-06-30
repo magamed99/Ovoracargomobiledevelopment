@@ -5,6 +5,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../contexts/UserContext';
 import { toast } from 'sonner';
 import { registerUser } from '../api/authApi';
+import { validateCisPhone, getCisCountryName, getCisCountryFlag, type PhoneValidationResult } from '../utils/phoneValidator';
 
 export function SenderRegistrationForm() {
   const navigate = useNavigate();
@@ -18,6 +19,7 @@ export function SenderRegistrationForm() {
     phone: cachedUser?.phone || '',
   });
   const [submitting, setSubmitting] = useState(false);
+  const [phoneValidation, setPhoneValidation] = useState<PhoneValidationResult | null>(null);
 
   const bg  = isDark ? 'bg-[#060e1a]' : 'bg-white';
   const txt = isDark ? 'text-white'   : 'text-[#0f172a]';
@@ -33,6 +35,11 @@ export function SenderRegistrationForm() {
     e.preventDefault();
     if (!formData.firstName || !formData.lastName || !formData.phone) {
       toast.error('Заполните все поля');
+      return;
+    }
+    const pv = validateCisPhone(formData.phone);
+    if (!pv.valid) {
+      toast.error(pv.error || 'Введите корректный номер телефона');
       return;
     }
 
