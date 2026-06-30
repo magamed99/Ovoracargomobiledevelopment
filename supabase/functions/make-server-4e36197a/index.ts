@@ -51,6 +51,53 @@ function clampStr(s: unknown, max: number): string {
   if (typeof s !== 'string') return '';
   return s.trim().slice(0, max);
 }
+
+// CIS phone validation
+const CIS_PREFIXES: Record<string, { prefixes: string[]; length: number }> = {
+  'TJ': { prefixes: ['90', '91', '93', '98', '99'], length: 9 },
+  'RU': { prefixes: ['9', '3', '4', '8'], length: 10 },
+  'KZ': { prefixes: ['7'], length: 10 },
+  'UZ': { prefixes: ['9', '3'], length: 9 },
+  'KG': { prefixes: ['5', '7'], length: 9 },
+  'AM': { prefixes: ['4', '5', '6', '7', '9'], length: 8 },
+  'AZ': { prefixes: ['10', '50', '51', '70', '77'], length: 9 },
+  'BY': { prefixes: ['25', '29', '33'], length: 9 },
+  'MD': { prefixes: ['6', '7'], length: 8 },
+  'GE': { prefixes: ['5', '7'], length: 9 },
+};
+
+function validateCisPhone(phone: string): string | null {
+  if (!phone) return null; // optional
+  const cleaned = phone.replace(/[^+\d]/g, '');
+  if (cleaned.length < 5) return 'Некорректный номер';
+  
+  let countryCode = '';
+  let localNumber = '';
+  
+  if (cleaned.startsWith('+992')) { countryCode = 'TJ'; localNumber = cleaned.slice(4); }
+  else if (cleaned.startsWith('+7')) { countryCode = cleaned.slice(2, 3) === '7' ? 'KZ' : 'RU'; localNumber = cleaned.slice(2); }
+  else if (cleaned.startsWith('+998')) { countryCode = 'UZ'; localNumber = cleaned.slice(4); }
+  else if (cleaned.startsWith('+996')) { countryCode = 'KG'; localNumber = cleaned.slice(4); }
+  else if (cleaned.startsWith('+374')) { countryCode = 'AM'; localNumber = cleaned.slice(4); }
+  else if (cleaned.startsWith('+994')) { countryCode = 'AZ'; localNumber = cleaned.slice(4); }
+  else if (cleaned.startsWith('+375')) { countryCode = 'BY'; localNumber = cleaned.slice(4); }
+  else if (cleaned.startsWith('+373')) { countryCode = 'MD'; localNumber = cleaned.slice(4); }
+  else if (cleaned.startsWith('+995')) { countryCode = 'GE'; localNumber = cleaned.slice(4); }
+  else if (cleaned.startsWith('992')) { countryCode = 'TJ'; localNumber = cleaned.slice(3); }
+  else if (cleaned.startsWith('998')) { countryCode = 'UZ'; localNumber = cleaned.slice(3); }
+  else if (cleaned.startsWith('996')) { countryCode = 'KG'; localNumber = cleaned.slice(3); }
+  else return 'Страна не поддерживается';
+  
+  const data = CIS_PREFIXES[countryCode];
+  if (!data) return 'Страна не поддерживается';
+  if (localNumber.length !== data.length) return 'Неверная длина номера';
+  if (!/^\d+$/.test(localNumber)) return 'Номер должен содержать только цифры';
+  
+  const prefix = localNumber.slice(0, 2);
+  if (!data.prefixes.some(p => prefix.startsWith(p))) return 'Неизвестный префикс оператора';
+  
+  return null; // valid
+}
 function assertMaxLen(fields: Record<string, unknown>, limits: Record<string, number>): string | null {
   for (const [key, max] of Object.entries(limits)) {
     const val = fields[key];
@@ -634,6 +681,10 @@ app.post("/make-server-4e36197a/auth/register",
     const body = await c.req.json();
     const { email, firstName, lastName, phone, role, vehicle } = body;
     if (!email || !role) return c.json({ error: "email and role are required" }, 400);
+    if (phone) {
+      const phoneErr = validateCisPhone(phone);
+      if (phoneErr) return c.json({ error: phoneErr }, 400);
+    }
 
     const lenErr = assertMaxLen({ email, firstName, lastName, phone, vehicle },
       { email: 254, firstName: 60, lastName: 60, phone: 20, vehicle: 100 });
