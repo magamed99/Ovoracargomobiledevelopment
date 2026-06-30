@@ -13,12 +13,6 @@ import {
   findUserByEmail, type OvoraUser,
 } from '../api/authApi';
 import { motion } from 'motion/react';
-import { Button } from '../ui/button';
-import { Card, CardContent } from '../ui/card';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Alert, AlertDescription } from '../ui/alert';
-import { InputOTP, InputOTPGroup, InputOTPSlot } from '../ui/input-otp';
 import { validateCisPhone, getCisCountryName, getCisCountryFlag, type PhoneValidationResult } from '../utils/phoneValidator';
 
 // ── Steps ──────────────────────────────────────────────────────────────────────
@@ -463,7 +457,7 @@ export function EmailAuth() {
               </p>
             </div>
 
-            <Card className="border-white/[0.07] bg-white/[0.04]">
+            <GlassCard>
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-[#607080] mb-2">Email адрес</p>
                 <div className="relative flex items-center rounded-2xl border transition-all"
@@ -482,7 +476,7 @@ export function EmailAuth() {
                   </p>
                 )}
               </div>
-            </Card>
+            </GlassCard>
 
             <div className="relative flex items-start gap-3 px-4 py-3.5 rounded-2xl overflow-hidden"
               style={{ background: '#5ba3f50e' }}>
@@ -493,10 +487,10 @@ export function EmailAuth() {
               </p>
             </div>
 
-            <Button variant="default" size="lg" className="w-full" style={{ background: "linear-gradient(135deg, #059669, #059669cc)" }}>
+            <CTAButton onClick={handleEmailSubmit} loading={checking} loadingText="Отправляем...">
               <Send className="w-4.5 h-4.5" style={{ width: 18, height: 18 }} />
               <span>Получить код</span>
-            </Button>
+            </CTAButton>
           </>)}
 
           {/* ══ STEP 2: OTP Verification ══ */}
@@ -524,18 +518,21 @@ export function EmailAuth() {
 
             <EmailBadge email={email} tag="OTP" tagColor="#5ba3f5" />
 
-            <Card className="border-white/[0.07] bg-white/[0.04]">
+            <GlassCard className="flex flex-col gap-4">
               <OtpRow
                 arr={otp} setArr={setOtp} refs={otpRefs}
                 label="Код из письма" codeErr={otpErr} onClearError={clearOtpErr}
               />
-              {otpErr && <Alert variant="destructive"><AlertDescription>{otpErr}</AlertDescription></Alert>}
-            </Card>
+              {otpErr && <ErrorBanner msg={otpErr} />}
+            </GlassCard>
 
-            <Button variant="default" size="lg" className="w-full" style={{ background: "linear-gradient(135deg, #059669, #059669cc)" }}>
+            <CTAButton
+              onClick={handleVerifyOtp}
+              disabled={otpStr.length < 6}
+              loading={verifying} loadingText="Проверяем...">
               <CheckCircle2 className="w-4.5 h-4.5" style={{ width: 18, height: 18 }} />
               <span>Верифицировать</span>
-            </Button>
+            </CTAButton>
 
             <button
               onClick={handleResendOtp}
@@ -577,7 +574,7 @@ export function EmailAuth() {
 
             <EmailBadge email={email} tag="НОВЫЙ" tagColor="#10b981" />
 
-            <Card className="border-white/[0.07] bg-white/[0.04]">
+            <GlassCard className="flex flex-col gap-4">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-[#607080] mb-2">Имя</p>
                 <div className="relative flex items-center rounded-2xl border transition-all"
@@ -610,12 +607,13 @@ export function EmailAuth() {
                 </div>
                 {formErr.phone && <p className="mt-1 text-[11px] text-red-400">{formErr.phone}</p>}
               </div>
-            </Card>
+            </GlassCard>
 
-            <Button variant="default" size="lg" className="w-full" style={{ background: "linear-gradient(135deg, #059669, #059669cc)" }}>
+            <CTAButton onClick={handleRegister} loading={submitting} loadingText="Создаём..."
+              color="#059669">
               <CheckCircle2 className="w-4.5 h-4.5" style={{ width: 18, height: 18 }} />
               <span>Создать аккаунт</span>
-            </Button>
+            </CTAButton>
           </>)}
 
           {/* ══ STEP: Login Found ══ */}
@@ -633,10 +631,10 @@ export function EmailAuth() {
 
             <EmailBadge email={email} tag="СУЩЕСТВУЮЩИЙ" tagColor="#5ba3f5" />
 
-            <Button variant="default" size="lg" className="w-full" style={{ background: "linear-gradient(135deg, #059669, #059669cc)" }}> handleLogin(existingUser)}>
+            <CTAButton onClick={() => handleLogin(existingUser)}>
               <span>Войти как {existingUser.firstName}</span>
               <ChevronRight className="w-5 h-5" />
-            </Button>
+            </CTAButton>
           </>)}
 
           {/* ══ STEP: Role Conflict ══ */}
