@@ -10,10 +10,10 @@ import { toast } from 'sonner';
 import * as notificationsApi from '../api/notificationsApi';
 import {
   sendEmailOtp, verifyEmailOtp, registerWithOtp, loginUser,
-  findUserByEmail, type OvoraUser,
+  type OvoraUser,
 } from '../api/authApi';
 import { motion } from 'motion/react';
-import { validateCisPhone, getCisCountryName, getCisCountryFlag, type PhoneValidationResult } from '../utils/phoneValidator';
+import { validateCisPhone } from '../utils/phoneValidator';
 
 // ── Steps ──────────────────────────────────────────────────────────────────────
 type Step = 'email' | 'otp' | 'register' | 'login_found' | 'role_conflict';

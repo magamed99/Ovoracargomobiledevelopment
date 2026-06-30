@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { CIS_LIST, validateLocalPhone, type PhoneValidationResult } from '../../utils/phoneValidator';
+import { CIS_LIST, validateLocalPhone } from '../../utils/phoneValidator';
 
 interface PhoneInputProps {
   value: string;

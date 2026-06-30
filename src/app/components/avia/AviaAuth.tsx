@@ -4,7 +4,7 @@ import { ArrowLeft, Plane, Lock, Users, Package, Eye, EyeOff, CheckCircle2 } fro
 import { motion, AnimatePresence } from 'motion/react';
 import { useAvia } from './AviaContext';
 import { PhoneInput } from '../ui/PhoneInput';
-import { validateLocalPhone, validateCisPhone, CIS_LIST, getCisCountryFlag, getCisCountryCode } from '../../utils/phoneValidator';
+import { validateLocalPhone, getCisCountryCode } from '../../utils/phoneValidator';
 import { checkPhone, registerAvia, loginAvia } from '../../api/aviaApi';
 
 type Step = 'phone' | 'pin-create' | 'pin-login' | 'role';

@@ -5,7 +5,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../contexts/UserContext';
 import { toast } from 'sonner';
 import { registerUser } from '../api/authApi';
-import { validateCisPhone, getCisCountryName, getCisCountryFlag, type PhoneValidationResult } from '../utils/phoneValidator';
+import { validateCisPhone, type PhoneValidationResult } from '../utils/phoneValidator';
 
 export function SenderRegistrationForm() {
   const navigate = useNavigate();
