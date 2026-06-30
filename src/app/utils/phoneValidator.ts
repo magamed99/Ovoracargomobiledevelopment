@@ -1,6 +1,6 @@
 // CIS Phone Validation with country selector support
 
-const CIS: Record<string, { name: string; flag: string; code: string; prefixes: string[]; len: number }> = {
+const CIS: Record<string, { name: string; flag: string; dialCode: string; prefixes: string[]; len: number }> = {
   'TJ': { name: 'Таджикистан', flag: '🇹🇯', code: '+992', prefixes: ['90','91','93','98','99'], len: 9 },
   'RU': { name: 'Россия', flag: '🇷🇺', code: '+7', prefixes: ['9','3','4','8'], len: 10 },
   'KZ': { name: 'Казахстан', flag: '🇰🇿', code: '+7', prefixes: ['7'], len: 10 },
@@ -13,7 +13,7 @@ const CIS: Record<string, { name: string; flag: string; code: string; prefixes: 
   'GE': { name: 'Грузия', flag: '🇬🇪', code: '+995', prefixes: ['5','7'], len: 9 },
 };
 
-export const CIS_LIST = Object.entries(CIS).map(([key, val]) => ({ code: key, ...val }));
+export const CIS_LIST = Object.entries(CIS).map(([key, val]) => ({ code: key, name: val.name, flag: val.flag, dialCode: val.dialCode, prefixes: val.prefixes, len: val.len }));
 
 export interface PhoneValidationResult {
   valid: boolean;
@@ -52,6 +52,9 @@ export function validateCisPhone(phone: string): PhoneValidationResult {
   let country: string | null = null;
   let local = '';
 
+  // Remove spaces for detection
+  const d = phone.replace(/[^\d]/g, '');
+
   if (d.startsWith('992') && d.length >= 12) { country = 'TJ'; local = d.slice(3, 12); }
   else if (d.startsWith('7') && d.length === 11) { country = d[1] === '7' ? 'KZ' : 'RU'; local = d.slice(1); }
   else if (d.startsWith('998') && d.length >= 12) { country = 'UZ'; local = d.slice(3, 12); }
@@ -75,5 +78,5 @@ export function getCisCountryFlag(code: string): string {
 }
 
 export function getCisCountryCode(code: string): string {
-  return CIS[code]?.code || '+?';
+  return CIS[code]?.dialCode || '+?';
 }
