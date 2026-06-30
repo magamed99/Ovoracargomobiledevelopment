@@ -61,7 +61,7 @@ export function AviaAuth() {
     setError('');
     // Validate phone
     if (cleaned.length >= 5) {
-      const validation = validateLocalPhone(cleaned);
+      const validation = validateLocalPhone(selectedCountry, cleaned);
       setPhoneValidation(validation);
     } else {
       setPhoneValidation(null);
