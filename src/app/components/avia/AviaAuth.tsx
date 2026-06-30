@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import { ArrowLeft, Plane, Lock, Users, Package, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAvia } from './AviaContext';
+import { PhoneInput } from '../ui/PhoneInput';
 import { validateLocalPhone, validateCisPhone, CIS_LIST, getCisCountryFlag, getCisCountryCode } from '../../utils/phoneValidator';
 import { checkPhone, registerAvia, loginAvia } from '../../api/aviaApi';
 
@@ -350,56 +351,15 @@ export function AviaAuth() {
                 padding: 'clamp(18px, 4vw, 24px)',
                 marginBottom: 12,
               }}>
-                <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-                  <select
-                    value={selectedCountry}
-                    onChange={(e) => setSelectedCountry(e.target.value)}
-                    style={{
-                      width: 85, padding: '15px 6px',
-                      borderRadius: 14, border: '1.5px solid #ffffff18',
-                      background: '#ffffff08', color: '#fff',
-                      fontSize: 15, fontWeight: 600, outline: 'none',
-                      cursor: 'pointer', flexShrink: 0,
-                      appearance: 'none', textAlign: 'center',
-                    }}
-                  >
-                    {CIS_LIST.map(c => (
-                      <option key={c.code} value={c.code} style={{ background: '#0d1a28', color: '#fff' }}>
-                        {c.flag} {c.code}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => handlePhoneChange(e.target.value)}
-                    placeholder="900 123 456"
-                    autoFocus
-                    onKeyDown={(e) => e.key === 'Enter' && handlePhoneSubmit()}
-                    style={{
-                      flex: 1, padding: '15px 18px',
-                      borderRadius: 14, border: '1.5px solid #ffffff18',
-                      background: '#ffffff08', color: '#fff',
-                      fontSize: 18, fontWeight: 600,
-                      outline: 'none', letterSpacing: '0.5px',
-                      textAlign: 'center',
-                      boxSizing: 'border-box',
-                      transition: 'border-color 0.2s',
-                    }}
-                    onFocus={e => (e.target as HTMLInputElement).style.borderColor = '#0ea5e960'}
-                    onBlur={e => (e.target as HTMLInputElement).style.borderColor = '#ffffff18'}
-                  />
-                </div>
+                <PhoneInput
+                  value={phone}
+                  country={selectedCountry}
+                  onChange={(v) => { setPhone(v); setError(''); }}
+                  onCountryChange={setSelectedCountry}
+                  error={error}
+                />
 
-                {error && (
-                  <motion.p
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    style={{ color: '#f87171', fontSize: 13, marginBottom: 14, textAlign: 'center' }}
-                  >
-                    {error}
-                  </motion.p>
-                )}
+                
 
                 <motion.button
                   whileTap={{ scale: 0.97 }}
