@@ -22,7 +22,8 @@ export function AviaAuth() {
   const { login } = useAvia();
 
   const [step, setStep] = useState<Step>('phone');
-  const [phone, setPhone] = useState('+992');
+  const [phone, setPhone] = useState('');
+  const [selectedCountry, setSelectedCountry] = useState('TJ');
   const [pin, setPin] = useState(['', '', '', '']);
   const [pinConfirm, setPinConfirm] = useState(['', '', '', '']);
   const [showPin, setShowPin] = useState(false);
@@ -68,11 +69,12 @@ export function AviaAuth() {
 
   // ── Проверка телефона ──────────────────────────────────────────────────────
   const handlePhoneSubmit = async () => {
-    const pv = validateCisPhone(phone);
+    const pv = validateLocalPhone(selectedCountry, phone);
     if (!pv.valid) {
       setError(pv.error || 'Введите корректный номер телефона');
       return;
     }
+    const fullPhone = getCisCountryCode(selectedCountry) + phone.replace(/[^\d]/g, '');
     setLoading(true);
     setError('');
     try {
@@ -384,7 +386,7 @@ export function AviaAuth() {
                 <motion.button
                   whileTap={{ scale: 0.97 }}
                   onClick={handlePhoneSubmit}
-                  disabled={loading || !validateCisPhone(phone).valid}
+                  disabled={loading || !validateLocalPhone(selectedCountry, phone).valid}
                   style={{
                     width: '100%', padding: '15px 24px',
                     borderRadius: 14, border: 'none',
