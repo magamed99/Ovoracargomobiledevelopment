@@ -204,7 +204,7 @@ export function TermsOfServicePage() {
           <div>📍 Адрес: г. Душанбе, ул. Рудаки, 95</div>
         </div>
         <button
-          onClick={() => navigate('/contact')}
+          onClick={() => window.open('mailto:legal@ovoracargo.tj')}
           className="mt-3 text-[13px] font-semibold text-[#1978e5] transition-opacity active:opacity-60"
         >
           Связаться с нами →

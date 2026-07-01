@@ -241,8 +241,14 @@ export function SettingsPage() {
   // ── Mobile Row ──────────────────────────────────────────────────────────────
   const MobileRow = ({ item }: { item: RowItem }) => {
     const { icon: Icon, iconColor, iconBg, label, sublabel, right, onClick, danger } = item;
+    // ✅ right (Switch) рендерит собственный <button> — вложенный button внутри
+    // button невалиден по HTML5 и непредсказуем в разных браузерах. Строка
+    // теперь div с role="button", клик по Switch гасится stopPropagation,
+    // чтобы не дублировать его собственный onCheckedChange.
     return (
-      <button onClick={onClick} className="w-full flex items-center gap-3.5 px-4 py-3.5 transition-all active:scale-[0.98] active:bg-white/[0.03] text-left">
+      <div role="button" tabIndex={0} onClick={onClick}
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick?.(); } }}
+        className="w-full flex items-center gap-3.5 px-4 py-3.5 transition-all active:scale-[0.98] active:bg-white/[0.03] text-left cursor-pointer">
         <div className="w-9 h-9 rounded-2xl flex items-center justify-center shrink-0"
           style={{ background: danger ? 'rgba(239,68,68,0.12)' : iconBg }}>
           <Icon className="w-[18px] h-[18px]" style={{ color: danger ? '#f87171' : iconColor }} />
@@ -251,8 +257,10 @@ export function SettingsPage() {
           <p className={`text-[14px] font-semibold ${danger ? 'text-red-400' : 'text-white'}`}>{label}</p>
           {sublabel && <p className="text-[11px] text-[#607080] mt-0.5">{sublabel}</p>}
         </div>
-        {right !== undefined ? right : <ChevronRight className="w-4 h-4 text-[#607080] shrink-0" />}
-      </button>
+        {right !== undefined
+          ? <div onClick={e => e.stopPropagation()}>{right}</div>
+          : <ChevronRight className="w-4 h-4 text-[#607080] shrink-0" />}
+      </div>
     );
   };
 
