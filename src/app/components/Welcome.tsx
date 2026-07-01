@@ -305,6 +305,19 @@ export function Welcome() {
             <div style={{ fontSize: 17, fontWeight: 900, color: '#fff', lineHeight: 1.08, letterSpacing: '-0.5px' }}>{t('wl_brand_platform')}</div>
             <div style={{ fontSize: 17, fontWeight: 900, color: C.blueLight, lineHeight: 1.08, letterSpacing: '-0.5px' }}>Ovora</div>
           </div>
+          <p style={{ fontSize: 9.5, color: C.dim, lineHeight: 1.4, margin: '6px 0 0', maxWidth: 190 }}>
+            {t('wl_tagline')}
+          </p>
+          <div style={{ display: 'flex', gap: 14, marginTop: 8 }}>
+            {_statsStrip.map((s, i) => (
+              <div key={i} style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 15, fontWeight: 900, color: s.color, lineHeight: 1, letterSpacing: '-0.3px' }}>
+                  {s.target.toLocaleString()}{s.suffix}
+                </div>
+                <div style={{ fontSize: 7, color: C.dim, marginTop: 2, fontWeight: 600 }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </motion.div>
 
