@@ -14,6 +14,7 @@ import {
 } from '../api/authApi';
 import { motion } from 'motion/react';
 import { validateCisPhone } from '../utils/phoneValidator';
+import { Turnstile } from './ui/Turnstile';
 
 // ── Steps ──────────────────────────────────────────────────────────────────────
 type Step = 'email' | 'otp' | 'register' | 'login_found' | 'role_conflict';
@@ -159,7 +160,7 @@ function OtpRow({
             onPaste={e => handleOtpPaste(e, setArr, refs, onClearError)}
             onFocus={e => setTimeout(() => e.target.select(), 10)}
             autoComplete="one-time-code"
-            className="text-center font-black outline-none transition-all rounded-2xl border-2" aria-invalid={!!otpErr}
+            className="text-center font-black outline-none transition-all rounded-2xl border-2" aria-invalid={!!codeErr}
             style={{
               width: 'clamp(28px, calc((100vw - 120px) / 6), 52px)',
               height: 'clamp(36px, calc((100vw - 120px) / 6 * 1.2), 60px)',
@@ -209,6 +210,12 @@ export function EmailAuth() {
   const [existingUser, setExistingUser] = useState<OvoraUser | null>(null);
   const [conflictRole] = useState<'driver' | 'sender' | null>(null);
 
+  // Cloudflare Turnstile — токен одноразовый, поэтому nonce форсирует
+  // ремонт виджета (новый вызов) после каждой отправки формы.
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileNonce, setTurnstileNonce] = useState(0);
+  const refreshTurnstile = () => { setTurnstileToken(null); setTurnstileNonce(n => n + 1); };
+
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const emailRef = useRef<HTMLInputElement>(null);
   const stepRef = useRef<Step>(step);
@@ -243,7 +250,8 @@ export function EmailAuth() {
     setEmailErr('');
     setChecking(true);
     try {
-      const result = await sendEmailOtp(t);
+      const result = await sendEmailOtp(t, turnstileToken);
+      refreshTurnstile();
       if (result.success) {
         resetOtp(); setOtpErr('');
         setStep('otp');
@@ -304,7 +312,8 @@ export function EmailAuth() {
     if (cooldown > 0) return;
     setResending(true);
     try {
-      const result = await sendEmailOtp(email.trim());
+      const result = await sendEmailOtp(email.trim(), turnstileToken);
+      refreshTurnstile();
       if (result.success) {
         setCooldown(60);
         toast.success('Код повторно отправлен');
@@ -341,7 +350,8 @@ export function EmailAuth() {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         phone: phone.trim(),
-      });
+      }, turnstileToken);
+      refreshTurnstile();
       try {
         await notificationsApi.createNotification({
           userEmail: newUser.email, type: 'auth', iconName: 'UserCheck',
@@ -495,6 +505,8 @@ export function EmailAuth() {
               </p>
             </div>
 
+            <Turnstile key={`email-${turnstileNonce}`} onVerify={setTurnstileToken} />
+
             <CTAButton onClick={handleEmailSubmit} loading={checking} loadingText="Отправляем..." ariaLabel="Получить код верификации">
               <Send className="w-4.5 h-4.5" style={{ width: 18, height: 18 }} />
               <span>Получить код</span>
@@ -541,6 +553,8 @@ export function EmailAuth() {
               <CheckCircle2 className="w-4.5 h-4.5" style={{ width: 18, height: 18 }} />
               <span>Верифицировать</span>
             </CTAButton>
+
+            {cooldown <= 0 && <Turnstile key={`resend-${turnstileNonce}`} onVerify={setTurnstileToken} />}
 
             <button
               onClick={handleResendOtp}
@@ -616,6 +630,8 @@ export function EmailAuth() {
                 {formErr.phone && <p className="mt-1 text-[11px] text-red-400">{formErr.phone}</p>}
               </div>
             </GlassCard>
+
+            <Turnstile key={`register-${turnstileNonce}`} onVerify={setTurnstileToken} />
 
             <CTAButton onClick={handleRegister} loading={submitting} loadingText="Создаём..." ariaLabel="Создать аккаунт"
               color="#059669">
