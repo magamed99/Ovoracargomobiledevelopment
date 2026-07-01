@@ -479,6 +479,13 @@ export function EmailAuth() {
               </div>
             </GlassCard>
 
+            {checking && (
+              <div className="animate-pulse space-y-3 px-4 py-3">
+                <div className="h-3 bg-white/10 rounded w-3/4" />
+                <div className="h-3 bg-white/10 rounded w-1/2" />
+              </div>
+            )}
+
             <div className="relative flex items-start gap-3 px-4 py-3.5 rounded-2xl overflow-hidden"
               style={{ background: '#5ba3f50e' }}>
               <div className="absolute left-0 top-0 bottom-0 w-[2px] rounded-r-full bg-[#5ba3f5]" />
