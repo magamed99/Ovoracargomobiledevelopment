@@ -11,6 +11,7 @@ import { ShieldCheck, Eye, EyeOff, RefreshCw, ArrowLeft } from 'lucide-react';
 import { projectId, publicAnonKey } from '../../../../utils/supabase/info';
 import { useNavigate } from 'react-router';
 import { CSRF_HEADER, CSRF_TOKEN } from '../../api/csrfToken';
+import { Turnstile } from '../ui/Turnstile';
 
 const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-4e36197a`;
 const HEADERS = { 'Content-Type': 'application/json', Authorization: `Bearer ${publicAnonKey}`, [CSRF_HEADER]: CSRF_TOKEN };
@@ -27,6 +28,7 @@ export function AdminAuthGate({ onSuccess }: Props) {
   const [error, setError] = useState('');
   const [showCode, setShowCode] = useState(false);
   const [shake, setShake] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -56,7 +58,7 @@ export function AdminAuthGate({ onSuccess }: Props) {
       const res = await fetch(`${BASE}/admin/auth`, {
         method: 'POST',
         headers: HEADERS,
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({ code, turnstileToken }),
       });
       const data = await res.json();
 
@@ -320,6 +322,8 @@ export function AdminAuthGate({ onSuccess }: Props) {
                 {showCode ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                 {showCode ? 'Скрыть' : 'Показать'}
               </button>
+
+              <Turnstile onVerify={setTurnstileToken} />
 
               {/* Error */}
               <AnimatePresence>

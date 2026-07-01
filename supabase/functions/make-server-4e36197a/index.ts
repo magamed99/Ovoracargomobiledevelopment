@@ -15,6 +15,7 @@ import {
   isAdminCaller,
 } from "./adminAuth.tsx";
 import { rateLimitMiddleware, RL } from "./rateLimit.tsx";
+import { requireTurnstile } from "./turnstile.tsx";
 import { calculateAverageRating } from "./rating.tsx";
 import * as kv from "./kv_store.tsx";
 import { Blacklist } from "./blacklist.tsx";
@@ -425,6 +426,7 @@ app.get("/make-server-4e36197a/health", (c) => c.json({ status: "ok" }));
 // ── Admin Auth — проверка кода из env ─────────────────────────────────────────
 app.post("/make-server-4e36197a/admin/auth",
   rateLimitMiddleware(RL.LOGIN, (c) => c.req.header('x-forwarded-for') || 'unknown'),
+  requireTurnstile,
   async (c) => {
   try {
     const { code } = await c.req.json();
@@ -616,7 +618,9 @@ app.get("/make-server-4e36197a/config/test-ocr-direct", requireAdminChecked, asy
 });
 
 // ── OCR: Pre-scan document (client-side preview before upload) ────────────────
-app.post("/make-server-4e36197a/ocr/scan-document", async (c) => {
+app.post("/make-server-4e36197a/ocr/scan-document",
+  rateLimitMiddleware(RL.UPLOAD, (c) => `ocr-scan:${c.req.header('x-forwarded-for') || 'unknown'}`),
+  async (c) => {
   try {
     const body = await c.req.json();
     const { imageBase64, documentType, callerEmail } = body;
@@ -677,6 +681,7 @@ app.post("/make-server-4e36197a/ocr/scan-document", async (c) => {
 
 app.post("/make-server-4e36197a/auth/register",
   rateLimitMiddleware(RL.REGISTER, (c) => c.req.header('x-forwarded-for') || 'unknown'),
+  requireTurnstile,
   async (c) => {
   try {
     const body = await c.req.json();
@@ -6023,11 +6028,24 @@ app.post("/make-server-4e36197a/users/:email/avatar", async (c) => {
 //  OTP AUTHENTICATION — KV store + Gmail SMTP (email) / dev mode (phone)
 // ══════════════════════════════════════════════════════════════════════════════
 
-app.post("/make-server-4e36197a/auth/send-otp", handleSendOtp);
-app.post("/make-server-4e36197a/auth/verify-otp", handleVerifyOtp);
-app.post("/make-server-4e36197a/auth/send-email-otp", handleSendEmailOtp);
-app.post("/make-server-4e36197a/auth/verify-email-otp", handleVerifyEmailOtp);
-app.post("/make-server-4e36197a/auth/register-with-otp", handleRegisterWithOtp);
+app.post("/make-server-4e36197a/auth/send-otp",
+  rateLimitMiddleware(RL.OTP_SEND, (c) => `otp-send:${c.req.header('x-forwarded-for') || 'unknown'}`),
+  requireTurnstile,
+  handleSendOtp);
+app.post("/make-server-4e36197a/auth/verify-otp",
+  rateLimitMiddleware(RL.OTP_VERIFY, (c) => `otp-verify:${c.req.header('x-forwarded-for') || 'unknown'}`),
+  handleVerifyOtp);
+app.post("/make-server-4e36197a/auth/send-email-otp",
+  rateLimitMiddleware(RL.OTP_SEND, (c) => `email-otp-send:${c.req.header('x-forwarded-for') || 'unknown'}`),
+  requireTurnstile,
+  handleSendEmailOtp);
+app.post("/make-server-4e36197a/auth/verify-email-otp",
+  rateLimitMiddleware(RL.OTP_VERIFY, (c) => `email-otp-verify:${c.req.header('x-forwarded-for') || 'unknown'}`),
+  handleVerifyEmailOtp);
+app.post("/make-server-4e36197a/auth/register-with-otp",
+  rateLimitMiddleware(RL.REGISTER, (c) => `register-otp:${c.req.header('x-forwarded-for') || 'unknown'}`),
+  requireTurnstile,
+  handleRegisterWithOtp);
 
 // ── Permanent Crypto Code ──────────────────────────────────────────────────────
 app.post("/make-server-4e36197a/auth/email-check", handleEmailCheck);

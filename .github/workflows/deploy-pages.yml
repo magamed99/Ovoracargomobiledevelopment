@@ -34,6 +34,15 @@ jobs:
       - name: Tests
         run: npm run test
 
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E smoke tests
+        # Закрепляют конкретные регрессии из ручного баг-теста (ToS/Privacy без
+        # логина, i18n мобильного hero, чекбокс согласия) — не блокирующий шаг
+        # (|| true), пока набор новый и не обкатан на CI, но виден в логах.
+        run: npm run test:e2e || true
+
       - name: Lint
         run: npm run lint || true
 
@@ -43,6 +52,11 @@ jobs:
           # DSN не секрет (см. Sentry docs) — безопасно хранить открыто, иначе
           # клиентский бандл всё равно его публикует у любого посетителя сайта.
           VITE_SENTRY_DSN: https://eece7ec757346f579308fcf051448120@o4510186278223872.ingest.us.sentry.io/4510186278354944
+          # Cloudflare Turnstile site key — тоже не секрет (Cloudflare docs), но пока
+          # не задан ни здесь, ни в Supabase (TURNSTILE_SECRET_KEY) — капча не активна,
+          # см. docs/TURNSTILE_SETUP.md. Добавить repo variable VITE_TURNSTILE_SITE_KEY,
+          # чтобы включить без правки этого файла.
+          VITE_TURNSTILE_SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY }}
 
       - name: Upload Pages artifact
         if: github.ref == 'refs/heads/main'

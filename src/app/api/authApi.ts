@@ -150,11 +150,11 @@ export function getCachedUser(): Partial<OvoraUser> | null {
   };
 }
 
-export async function registerUser(user: Partial<OvoraUser>): Promise<OvoraUser> {
+export async function registerUser(user: Partial<OvoraUser>, turnstileToken?: string | null): Promise<OvoraUser> {
   const res = await fetch(`${BASE}/auth/register`, {
     method: 'POST',
     headers: HEADERS,
-    body: JSON.stringify(user),
+    body: JSON.stringify({ ...user, turnstileToken }),
   });
   if (!res.ok) {
     const err = await res.text();
@@ -307,11 +307,11 @@ export async function resetUserCode(email: string): Promise<void> {
 /**
  * Отправить OTP на email через Supabase Auth
  */
-export async function sendEmailOtp(email: string): Promise<{ success: boolean; error?: string; otp?: string; emailSent?: boolean }> {
+export async function sendEmailOtp(email: string, turnstileToken?: string | null): Promise<{ success: boolean; error?: string; otp?: string; emailSent?: boolean }> {
   const res = await fetch(`${BASE}/auth/send-email-otp`, {
     method: 'POST',
     headers: HEADERS,
-    body: JSON.stringify({ email: email.trim().toLowerCase() }),
+    body: JSON.stringify({ email: email.trim().toLowerCase(), turnstileToken }),
   });
   const text = await res.text();
   let data: any;
@@ -346,12 +346,13 @@ export async function verifyEmailOtp(email: string, token: string): Promise<{ su
 export async function registerWithOtp(
   email: string,
   role: 'driver' | 'sender',
-  profile: { firstName: string; lastName: string; phone: string }
+  profile: { firstName: string; lastName: string; phone: string },
+  turnstileToken?: string | null
 ): Promise<OvoraUser> {
   const res = await fetch(`${BASE}/auth/register-with-otp`, {
     method: 'POST',
     headers: HEADERS,
-    body: JSON.stringify({ email: email.trim().toLowerCase(), role, ...profile }),
+    body: JSON.stringify({ email: email.trim().toLowerCase(), role, ...profile, turnstileToken }),
   });
   if (!res.ok) {
     const err = await res.text();

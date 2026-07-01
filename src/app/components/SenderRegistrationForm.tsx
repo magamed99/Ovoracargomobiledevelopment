@@ -6,6 +6,7 @@ import { useUser } from '../contexts/UserContext';
 import { toast } from 'sonner';
 import { registerUser } from '../api/authApi';
 import { validateCisPhone } from '../utils/phoneValidator';
+import { Turnstile } from './ui/Turnstile';
 
 export function SenderRegistrationForm() {
   const navigate = useNavigate();
@@ -19,6 +20,7 @@ export function SenderRegistrationForm() {
     phone: cachedUser?.phone || '',
   });
   const [submitting, setSubmitting] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
   const bg  = isDark ? 'bg-[#060e1a]' : 'bg-white';
   const txt = isDark ? 'text-white'   : 'text-[#0f172a]';
@@ -57,7 +59,7 @@ export function SenderRegistrationForm() {
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
         phone: formData.phone.trim(),
-      });
+      }, turnstileToken);
 
       setUserDirectly(savedUser);
       toast.success('Регистрация успешно завершена!');
@@ -175,6 +177,7 @@ export function SenderRegistrationForm() {
 
         {/* Submit */}
         <div className="px-4 py-5 mt-auto">
+          <Turnstile onVerify={setTurnstileToken} />
           <button
             type="submit"
             disabled={submitting}

@@ -57,6 +57,11 @@ function VoiceBubble({ audioUrl, duration, isMe }: { audioUrl: string; duration:
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const speed = SPEEDS[speedIdx];
 
+  // ⚠️ Намеренно без 'speed' в зависимостях: этот эффект пересоздаёт Audio
+  // только при смене трека (audioUrl). Смена скорости воспроизведения
+  // обрабатывается отдельным эффектом ниже (playbackRate), чтобы не
+  // пересоздавать Audio и не сбрасывать позицию воспроизведения на 0
+  // каждый раз, когда пользователь меняет скорость.
   useEffect(() => {
     const a = new Audio(audioUrl);
     audioRef.current = a;
@@ -66,6 +71,7 @@ function VoiceBubble({ audioUrl, duration, isMe }: { audioUrl: string; duration:
       if (a.duration) { setProgress(a.currentTime / a.duration); setElapsed(a.currentTime); }
     };
     return () => { a.pause(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [audioUrl]);
 
   useEffect(() => { if (audioRef.current) audioRef.current.playbackRate = speed; }, [speed]);

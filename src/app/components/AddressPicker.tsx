@@ -160,10 +160,16 @@ export function AddressPicker({
   }, []);
 
   // Sync input when value changes externally
+  // ⚠️ Намеренно без 'query' в зависимостях: этот эффект синхронизирует
+  // query ТОЛЬКО когда меняется внешний value.address (например, выбор
+  // из другого источника). Если добавить query — эффект будет срабатывать
+  // на каждое нажатие клавиши и затирать то, что печатает пользователь,
+  // откатывая query обратно к value.address.
   useEffect(() => {
     if (value?.address && value.address !== query) {
       setQuery(value.address);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value?.address]);
 
   // Debounced search — 400ms

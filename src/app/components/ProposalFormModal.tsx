@@ -94,6 +94,10 @@ export function ProposalFormModal({
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 
   // Auto-fill form with trip data
+  // ⚠️ Намеренно без 'profileUser' в зависимостях: автозаполнение должно
+  // сработать один раз при открытии модалки для конкретной поездки, а не
+  // повторно при каждом обновлении контекста профиля (иначе уже введённые
+  // пользователем правки в форме будут затираться обратно).
   useEffect(() => {
     if (!showOffer || !trip) return;
 
@@ -116,6 +120,7 @@ export function ProposalFormModal({
       duration: 2000,
       icon: '✅',
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showOffer, trip]);
 
   // ── Price calculations ────────────────────────────────────────────────────

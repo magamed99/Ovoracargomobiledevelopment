@@ -144,10 +144,14 @@ X-Admin-Token: <jwt>          // payload: { role: 'super-admin' | 'cargo-admin' 
 | `AVIA_JWT_SECRET` | Секрет для подписи AVIA session-токенов (`X-Avia-Token`, минимум 32 символа) |
 | `YANDEX_GEOCODER_API_KEY` | Yandex Geocoder API |
 | `OCR_SPACE_API_KEY` | OCR.space для распознавания документов |
+| `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile (капча) — секрет для проверки токена на бэкенде |
+
+Плюс отдельно **frontend build-time переменная** (не Supabase secret, задаётся в настройках хостинга/CI, как `VITE_SENTRY_DSN`): `VITE_TURNSTILE_SITE_KEY` — публичный сайт-ключ Turnstile.
 
 **Критично:**
 - `ADMIN_JWT_SECRET` ещё не добавлен в Supabase Secrets — без него JWT не выдаётся, работает только legacy `X-Admin-Code` (роль `super-admin`). Роли `cargo-admin`/`avia-admin` недоступны, пока не настроены `ADMIN_JWT_SECRET` + соответствующий `ADMIN_ACCESS_CODE_*`.
 - `AVIA_JWT_SECRET` ещё не добавлен в Supabase Secrets — без него `verifyAviaActor()` в `aviaAuth.tsx` работает в legacy-режиме (пропускает все проверки без подтверждения личности), т.е. защита от подмены `callerPhone` в AVIA-эндпоинтах **не действует**, пока секрет не настроен.
+- `TURNSTILE_SECRET_KEY` ещё не добавлен в Supabase Secrets, `VITE_TURNSTILE_SITE_KEY` — в frontend-окружении. Без обоих `requireTurnstile` (`turnstile.tsx`) молча пропускает проверку (см. `docs/CLOUDFLARE_DDOS_SETUP.md` и `docs/TURNSTILE_SETUP.md` для включения).
 
 ---
 

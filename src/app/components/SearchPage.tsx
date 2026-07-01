@@ -268,9 +268,11 @@ export function SearchPage() {
   useEffect(() => {
     localStorage.removeItem('ovora_published_trips');
     setPopularTrips([]);
+    setLoading(true);
     getTrips()
       .then(trips => { if (trips?.length) setPopularTrips(buildPopularTrips(trips)); })
-      .catch(() => setPopularTrips([]));
+      .catch(() => setPopularTrips([]))
+      .finally(() => setLoading(false));
   }, [buildPopularTrips]);
 
   usePolling(async () => {

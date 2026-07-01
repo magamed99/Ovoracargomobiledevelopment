@@ -176,11 +176,11 @@ export async function checkPhone(phone: string): Promise<AviaCheckResult> {
 }
 
 /** Регистрация: phone + pin + role */
-export async function registerAvia(phone: string, pin: string, role: string): Promise<AviaUser> {
+export async function registerAvia(phone: string, pin: string, role: string, turnstileToken?: string | null): Promise<AviaUser> {
   const res = await fetch(`${BASE}/avia/register`, {
     method: 'POST',
     headers: getHeaders(),
-    body: JSON.stringify({ phone, pin, role }),
+    body: JSON.stringify({ phone, pin, role, turnstileToken }),
   });
   const data = await res.json();
   if (!res.ok || data.error) throw new Error(data.error || 'Ошибка регистрации');
