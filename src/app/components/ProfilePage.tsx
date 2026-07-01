@@ -51,7 +51,7 @@ export function ProfilePage() {
   useEffect(() => {
     if (!currentUser?.email) return;
     getUserStats(currentUser.email, userRole as 'driver' | 'sender')
-      .then(stats => { setRatingData({ avg: stats.avgRating, count: stats.reviewCount, trips: stats.tripCount }); setLoading(false); })
+      .then(stats => setRatingData({ avg: stats.avgRating, count: stats.reviewCount, trips: stats.tripCount }); setLoading(false))
       .catch(() => {});
   }, [currentUser?.email, userRole]);
 
