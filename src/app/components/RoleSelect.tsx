@@ -183,7 +183,7 @@ export function RoleSelect() {
 
   const activeRole = ROLES.find(r => r.id === selected) ?? null;
   // Role driving the reactive ambient glow: hovered takes priority, then selected
-  const focusRole  = ROLES.find(r => r.id === (hovered ?? selected)) ?? null;
+  const _focusRole = ROLES.find(r => r.id === (hovered ?? selected)) ?? null;
 
   // ══════════════════════════════════════════════════════
   // MOBILE LAYOUT

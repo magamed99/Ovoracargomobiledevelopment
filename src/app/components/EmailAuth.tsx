@@ -181,7 +181,7 @@ function OtpRow({
 // ═══════════════════════════════════════════════════════════════════════════════
 export function EmailAuth() {
   const navigate = useNavigate();
-  const { setUserEmail, user } = useUser();
+  const { setUserEmail } = useUser();
   const [searchParams] = useSearchParams();
   const role = (searchParams.get('role') as 'driver' | 'sender') || 'sender';
 
@@ -207,7 +207,7 @@ export function EmailAuth() {
   const [submitting, setSubmitting] = useState(false);
 
   const [existingUser, setExistingUser] = useState<OvoraUser | null>(null);
-  const [conflictRole, setConflictRole] = useState<'driver' | 'sender' | null>(null);
+  const [conflictRole] = useState<'driver' | 'sender' | null>(null);
 
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const emailRef = useRef<HTMLInputElement>(null);

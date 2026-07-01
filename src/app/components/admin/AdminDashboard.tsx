@@ -160,7 +160,7 @@ export function AdminDashboard() {
   }, [trips, offers, users]);
 
   // ── AVIA chart data ──────────────────────────────────────────────────────
-  const { aviaCouriers, aviaSenders, aviaBlocked, aviaActiveDeals, aviaCompletedDeals, aviaDealStatusData, aviaRoleData, recentDeals, topCouriers } = useMemo(() => {
+  const { aviaCouriers, aviaSenders, aviaBlocked, aviaActiveDeals, aviaDealStatusData, aviaRoleData, recentDeals, topCouriers } = useMemo(() => {
     const courierMap: Record<string, { name: string; flights: number }> = {};
     aviaFlights.forEach(f => {
       if (!f?.courierId) return;
