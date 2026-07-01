@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Globe, Bell, Shield, LogOut, ChevronRight, ArrowLeft, Check, Smartphone, Info, Trash2, RefreshCw, Truck, Package, BellRing, MessageSquare, Navigation, KeyRound, Star, Volume2, Vibrate } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Switch } from './ui/switch';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useNavigate } from 'react-router';
 import { useLanguage } from '../context/LanguageContext';
 import { useUser } from '../contexts/UserContext';
@@ -222,42 +223,20 @@ export function SettingsPage() {
 
   const LogoutModal = () => (
     <AnimatePresence>
-      {showLogout && (
-        <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center px-5"
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        >
-          <motion.div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={() => setShowLogout(false)} />
-          <motion.div
-            className="relative w-full max-w-sm rounded-3xl border border-white/[0.10] overflow-hidden"
-            style={{ background: '#131e2b' }}
-            initial={{ scale: 0.85, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.85, opacity: 0, y: 20 }}
-            transition={{ type: 'spring', stiffness: 320, damping: 26 }}
-          >
-            <div className="h-[2px] bg-gradient-to-r from-red-500 to-rose-400" />
-            <div className="p-6">
-              <div className="w-14 h-14 rounded-3xl bg-red-500/[0.12] flex items-center justify-center mb-4">
-                <LogOut className="w-7 h-7 text-red-400" />
-              </div>
-              <h3 className="text-[20px] font-black text-white mb-1.5">Выйти из аккаунта?</h3>
-              <p className="text-[13px] text-[#607080] leading-snug mb-6">
-                Вам нужно будет снова войти через email и PIN для продолжения работы
-              </p>
-              <div className="flex gap-3">
-                <button onClick={() => setShowLogout(false)}
-                  className="flex-1 h-12 rounded-2xl text-[14px] font-bold text-[#607080] border border-white/[0.08] hover:border-white/[0.15] hover:text-white transition-all">
-                  Отмена
-                </button>
-                <button onClick={handleLogout}
-                  className="flex-1 h-12 rounded-2xl text-[14px] font-black text-white transition-all active:scale-[0.97]"
-                  style={{ background: 'linear-gradient(135deg,#ef4444,#dc2626)', boxShadow: '0 4px 16px rgba(239,68,68,0.30)' }}>
-                  Выйти
-                </button>
-              </div>
-            </div>
-          </motion.div>
+      <AlertDialog open={showLogout} onOpenChange={setShowLogout}>
+        <AlertDialogContent className="bg-[#131e2b] border-white/[0.10]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">Выйти из аккаунта?</AlertDialogTitle>
+            <AlertDialogDescription className="text-[#607080]">
+              Вам нужно будет снова войти через email и PIN для продолжения работы
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-transparent border-white/[0.08] text-[#607080] hover:text-white hover:border-white/[0.15]">Отмена</AlertDialogCancel>
+            <AlertDialogAction onClick={handleLogout} className="bg-gradient-to-r from-red-500 to-rose-500 text-white hover:bg-red-600">Выйти</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
         </motion.div>
       )}
     </AnimatePresence>
