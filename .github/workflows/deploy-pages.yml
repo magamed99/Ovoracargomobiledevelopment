@@ -34,6 +34,15 @@ jobs:
       - name: Tests
         run: npm run test
 
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E smoke tests
+        # Закрепляют конкретные регрессии из ручного баг-теста (ToS/Privacy без
+        # логина, i18n мобильного hero, чекбокс согласия) — не блокирующий шаг
+        # (|| true), пока набор новый и не обкатан на CI, но виден в логах.
+        run: npm run test:e2e || true
+
       - name: Lint
         run: npm run lint || true
 
