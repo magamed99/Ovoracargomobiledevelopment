@@ -442,6 +442,7 @@ export function AviaAuth() {
 
                 {error && (
                   <motion.p
+                    id="phone-error"
                     role="alert"
                     initial={{ opacity: 0, y: -4 }}
                     animate={{ opacity: 1, y: 0 }}
