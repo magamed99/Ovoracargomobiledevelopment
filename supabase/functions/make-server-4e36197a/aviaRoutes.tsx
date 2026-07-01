@@ -26,6 +26,7 @@ import { AuditLog } from "./aviaAudit.tsx";
 import * as kv from "./kv_store.tsx";
 import { Blacklist } from "./blacklist.tsx";
 import { signAviaToken, verifyAviaActor } from "./aviaAuth.tsx";
+import { requireTurnstile } from "./turnstile.tsx";
 
 // ── Константы ────────────────────────────────────────────────────────────────
 const BCRYPT_ROUNDS          = 10;
@@ -94,7 +95,7 @@ export function setupAviaRoutes(app: Hono, deps: AviaDeps): void {
     }
   });
 
-  app.post(`${P}/register`, rlIp(RL.REGISTER), async (c) => {
+  app.post(`${P}/register`, rlIp(RL.REGISTER), requireTurnstile, async (c) => {
     try {
       const { phone, pin, role } = await c.req.json();
       if (!phone || !pin || !role) return c.json({ error: 'phone, pin, role required' }, 400);

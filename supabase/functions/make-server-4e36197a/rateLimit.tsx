@@ -95,6 +95,8 @@ export const RL = {
   DEAL_CREATE  : { max: 10,  windowMs: 3_600_000     }, // 10/час
   GENERAL_READ : { max: 120, windowMs: 60_000        }, // 120/мин — чтение
   GENERAL_WRITE: { max: 30,  windowMs: 60_000        }, // 30/мин — запись
+  OTP_SEND     : { max: 5,   windowMs: 3_600_000     }, // 5/час на IP — против email-флуда
+  OTP_VERIFY   : { max: 10,  windowMs: 300_000       }, // 10/5мин на IP — против брутфорса кода
 } as const;
 
 // ── Hono middleware factory ───────────────────────────────────────────────────

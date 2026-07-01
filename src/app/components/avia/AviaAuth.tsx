@@ -6,6 +6,7 @@ import { useAvia } from './AviaContext';
 import { PhoneInput } from '../ui/PhoneInput';
 import { validateLocalPhone, getCisCountryCode } from '../../utils/phoneValidator';
 import { checkPhone, registerAvia, loginAvia } from '../../api/aviaApi';
+import { Turnstile } from '../ui/Turnstile';
 
 type Step = 'phone' | 'pin-create' | 'pin-login' | 'role';
 type AviaRole = 'courier' | 'sender';
@@ -34,6 +35,7 @@ export function AviaAuth() {
   const [_phoneValidation, setPhoneValidation] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
   const pinRefs = useRef<(HTMLInputElement | null)[]>([]);
   const confirmRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -143,7 +145,7 @@ export function AviaAuth() {
     setError('');
     try {
       const pinStr = pin.join('');
-      const user = await registerAvia(phone, pinStr, selectedRole);
+      const user = await registerAvia(phone, pinStr, selectedRole, turnstileToken);
       login(user);
       navigate('/avia/dashboard', { replace: true });
     } catch (e: any) {
@@ -647,6 +649,8 @@ export function AviaAuth() {
                   <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" style={{ color: '#5ba3f5' }}>политикой конфиденциальности</a>
                 </span>
               </label>
+
+              <Turnstile onVerify={setTurnstileToken} />
 
               <motion.button
                 whileTap={{ scale: 0.97 }}

@@ -43,7 +43,7 @@ export function ProfilePage() {
     ? new Date(currentUser.birthDate).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
     : null;
 
-  const [ratingLoading, setRatingLoading] = useState(true);
+  const [, setRatingLoading] = useState(true);
   const [ratingData, setRatingData] = useState({ avg: 0, count: 0, trips: 0 });
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [copied, setCopied] = useState(false);
