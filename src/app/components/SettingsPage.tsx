@@ -94,6 +94,8 @@ export function SettingsPage() {
         }
       } catch {
         toast.error('Ошибка при изменении настроек уведомлений');
+      } catch (err) {
+        toast.error('Ошибка при изменении настроек уведомлений');
       } finally { setPushLoading(false); }
       return;
     }
