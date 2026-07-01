@@ -38,7 +38,7 @@ function ErrorBanner({ msg }: { msg: string }) {
   return (
     <div className="flex items-center gap-2.5 px-3.5 py-3 rounded-2xl bg-red-500/10 border border-red-500/20">
       <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
-      <p className="text-[12px] text-red-400 font-medium">{msg}</p>
+      <p className="text-[12px] text-red-400 font-medium" role="alert">{msg}</p>
     </div>
   );
 }
@@ -159,7 +159,7 @@ function OtpRow({
             onPaste={e => handleOtpPaste(e, setArr, refs, onClearError)}
             onFocus={e => setTimeout(() => e.target.select(), 10)}
             autoComplete="one-time-code"
-            className="text-center font-black outline-none transition-all rounded-2xl border-2"
+            className="text-center font-black outline-none transition-all rounded-2xl border-2" aria-invalid={!!otpErr}
             style={{
               width: 'clamp(28px, calc((100vw - 120px) / 6), 52px)',
               height: 'clamp(36px, calc((100vw - 120px) / 6 * 1.2), 60px)',
@@ -469,10 +469,10 @@ export function EmailAuth() {
                     placeholder="example@mail.com" autoComplete="email" aria-label="Email адрес"
                     onKeyDown={e => e.key === 'Enter' && handleEmailSubmit()}
                     className="flex-1 bg-transparent outline-none py-3.5 pl-10 pr-4 font-medium text-white placeholder-[#607080]"
-                    style={{ fontSize: 16 }} />
+                    style={{ fontSize: 16 }} aria-invalid={!!emailErr} aria-describedby={emailErr ? "email-error" : undefined} />
                 </div>
                 {emailErr && (
-                  <p className="mt-1.5 text-[11px] text-red-400 flex items-center gap-1">
+                  <p id="email-error" className="mt-1.5 text-[11px] text-red-400 flex items-center gap-1" role="alert">
                     <AlertCircle className="w-3 h-3 shrink-0" />{emailErr}
                   </p>
                 )}
@@ -589,7 +589,7 @@ export function EmailAuth() {
                   style={{ background: formErr.firstName ? 'rgba(239,68,68,0.07)' : 'rgba(255,255,255,0.04)', borderColor: formErr.firstName ? '#ef4444' : 'rgba(255,255,255,0.09)' }}>
                   <User className="absolute left-3.5 w-4 h-4 text-[#607080]" />
                   <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)}
-                    placeholder="Ваше имя" className="flex-1 bg-transparent outline-none py-3.5 pl-10 pr-4 font-medium text-white placeholder-[#607080]" style={{ fontSize: 16 }} aria-describedby={emailErr ? "email-error" : undefined} aria-invalid={!!emailErr} />
+                    placeholder="Ваше имя" aria-label="Имя" className="flex-1 bg-transparent outline-none py-3.5 pl-10 pr-4 font-medium text-white placeholder-[#607080]" style={{ fontSize: 16 }} aria-describedby={emailErr ? "email-error" : undefined} aria-invalid={!!emailErr} />
                 </div>
                 {formErr.firstName && <p className="mt-1 text-[11px] text-red-400">{formErr.firstName}</p>}
               </div>
@@ -600,7 +600,7 @@ export function EmailAuth() {
                   style={{ background: formErr.lastName ? 'rgba(239,68,68,0.07)' : 'rgba(255,255,255,0.04)', borderColor: formErr.lastName ? '#ef4444' : 'rgba(255,255,255,0.09)' }}>
                   <User className="absolute left-3.5 w-4 h-4 text-[#607080]" />
                   <input type="text" value={lastName} onChange={e => setLastName(e.target.value)}
-                    placeholder="Ваша фамилия" className="flex-1 bg-transparent outline-none py-3.5 pl-10 pr-4 font-medium text-white placeholder-[#607080]" style={{ fontSize: 16 }} aria-invalid={!!emailErr} />
+                    placeholder="Ваша фамилия" aria-label="Фамилия" className="flex-1 bg-transparent outline-none py-3.5 pl-10 pr-4 font-medium text-white placeholder-[#607080]" style={{ fontSize: 16 }} aria-invalid={!!emailErr} />
                 </div>
                 {formErr.lastName && <p className="mt-1 text-[11px] text-red-400">{formErr.lastName}</p>}
               </div>
@@ -611,7 +611,7 @@ export function EmailAuth() {
                   style={{ background: formErr.phone ? 'rgba(239,68,68,0.07)' : 'rgba(255,255,255,0.04)', borderColor: formErr.phone ? '#ef4444' : 'rgba(255,255,255,0.09)' }}>
                   <Phone className="absolute left-3.5 w-4 h-4 text-[#607080]" />
                   <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
-                    placeholder="+992 900 123 456" className="flex-1 bg-transparent outline-none py-3.5 pl-10 pr-4 font-medium text-white placeholder-[#607080]" style={{ fontSize: 16 }} aria-invalid={!!emailErr} />
+                    placeholder="+992 900 123 456" aria-label="Номер телефона" className="flex-1 bg-transparent outline-none py-3.5 pl-10 pr-4 font-medium text-white placeholder-[#607080]" style={{ fontSize: 16 }} aria-invalid={!!emailErr} />
                 </div>
                 {formErr.phone && <p className="mt-1 text-[11px] text-red-400">{formErr.phone}</p>}
               </div>
