@@ -8,7 +8,7 @@ import { getTrips } from '../api/dataApi';
 import { toast } from 'sonner';
 import { countryFlag, getCityCountry } from '../utils/addressUtils';
 import { useLanguage } from '../context/LanguageContext';
-import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
 
 const HISTORY_KEY = 'ovora_search_history';
 

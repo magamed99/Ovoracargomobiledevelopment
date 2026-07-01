@@ -3,7 +3,7 @@ import { Settings, Star, Shield, Bell, HelpCircle, LogOut, ChevronRight, Phone, 
 import { useNavigate } from 'react-router';
 import { useUser } from '../contexts/UserContext';
 import { useLanguage } from '../context/LanguageContext';
-import { Badge } from '../ui/badge';
+import { Badge } from './ui/badge';
 import * as notificationsApi from '../api/notificationsApi';
 import { getUserStats } from '../api/dataApi';
 
