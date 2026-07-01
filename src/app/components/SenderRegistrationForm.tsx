@@ -167,9 +167,9 @@ export function SenderRegistrationForm() {
           />
           <label htmlFor="terms" className={`text-[12.5px] leading-relaxed ${sub}`}>
             Я согласен с{' '}
-            <a href="#" className="text-[#1978e5]">условиями использования</a>
+            <a href="/terms-of-service" target="_blank" rel="noopener noreferrer" className="text-[#1978e5]">условиями использования</a>
             {' '}и{' '}
-            <a href="#" className="text-[#1978e5]">политикой конфиденциальности</a>
+            <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-[#1978e5]">политикой конфиденциальности</a>
           </label>
         </div>
 

@@ -304,7 +304,7 @@ export function DesktopDashboard({
                   <motion.button onClick={() => navigate('/search')}
                     className="flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-bold text-white"
                     style={{ background: accent }} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-                    <Search style={{ width: 14, height: 14 }} /> Найи поездку
+                    <Search style={{ width: 14, height: 14 }} /> Найти поездку
                   </motion.button>
                 </>
               )}
