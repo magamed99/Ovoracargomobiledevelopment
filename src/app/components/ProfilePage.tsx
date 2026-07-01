@@ -43,6 +43,7 @@ export function ProfilePage() {
     ? new Date(currentUser.birthDate).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
     : null;
 
+  const [loading, setLoading] = useState(true);
   const [ratingData, setRatingData] = useState({ avg: 0, count: 0, trips: 0 });
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [copied, setCopied] = useState(false);
@@ -50,7 +51,7 @@ export function ProfilePage() {
   useEffect(() => {
     if (!currentUser?.email) return;
     getUserStats(currentUser.email, userRole as 'driver' | 'sender')
-      .then(stats => setRatingData({ avg: stats.avgRating, count: stats.reviewCount, trips: stats.tripCount }))
+      .then(stats => setRatingData({ avg: stats.avgRating, count: stats.reviewCount, trips: stats.tripCount }); setLoading(false))
       .catch(() => {});
   }, [currentUser?.email, userRole]);
 
@@ -83,7 +84,7 @@ export function ProfilePage() {
   const stats = [
     { label: isDriver ? 'Поездки' : 'Заказов', value: ratingData.trips > 0 ? String(ratingData.trips) : '0', icon: isDriver ? Truck : Package, color: accent },
     { label: 'Рейтинг', value: displayRating || '—', icon: Star, color: '#f59e0b' },
-    { label: 'Отзывы', value: String(ratingData.count), icon: Award, color: '#8b5cf6' },
+    { label: 'Отзывы', value: ratingData.count > 0 ? String(ratingData.count) : '—', icon: Award, color: '#8b5cf6' },
   ];
 
   const accountItems = [
