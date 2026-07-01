@@ -29,6 +29,7 @@ export function AviaAuth() {
   const [pinConfirm, setPinConfirm] = useState(['', '', '', '']);
   const [showPin, setShowPin] = useState(false);
   const [selectedRole, setSelectedRole] = useState<AviaRole | null>(null);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [error, setError] = useState('');
   const [_phoneValidation, setPhoneValidation] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -137,6 +138,7 @@ export function AviaAuth() {
   // ── Регистрация с ролью ────────────────────────────────────────────────────
   const handleRegister = async () => {
     if (!selectedRole) { setError('Выберите роль'); return; }
+    if (!agreedToTerms) { setError('Нужно согласие с условиями использования'); return; }
     setLoading(true);
     setError('');
     try {
@@ -631,18 +633,33 @@ export function AviaAuth() {
                 </motion.p>
               )}
 
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 16, fontSize: 12.5, lineHeight: 1.5, color: '#8899aa', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={agreedToTerms}
+                  onChange={e => { setAgreedToTerms(e.target.checked); if (error === 'Нужно согласие с условиями использования') setError(''); }}
+                  style={{ marginTop: 2, width: 16, height: 16, flexShrink: 0, accentColor: '#0ea5e9' }}
+                />
+                <span>
+                  Я согласен с{' '}
+                  <a href="/terms-of-service" target="_blank" rel="noopener noreferrer" style={{ color: '#5ba3f5' }}>условиями использования</a>
+                  {' '}и{' '}
+                  <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" style={{ color: '#5ba3f5' }}>политикой конфиденциальности</a>
+                </span>
+              </label>
+
               <motion.button
                 whileTap={{ scale: 0.97 }}
                 onClick={handleRegister}
-                disabled={loading || !selectedRole}
+                disabled={loading || !selectedRole || !agreedToTerms}
                 style={{
                   width: '100%', padding: '16px 24px', marginTop: 24,
                   borderRadius: 16, border: 'none',
-                  background: loading || !selectedRole
+                  background: loading || !selectedRole || !agreedToTerms
                     ? '#ffffff10' : 'linear-gradient(135deg, #0369a1 0%, #0ea5e9 100%)',
                   color: '#fff', fontSize: 15, fontWeight: 700,
                   cursor: loading ? 'wait' : 'pointer',
-                  opacity: !selectedRole ? 0.4 : 1,
+                  opacity: !selectedRole || !agreedToTerms ? 0.4 : 1,
                   boxShadow: '0 8px 24px #0ea5e933',
                 }}
               >

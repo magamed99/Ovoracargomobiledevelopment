@@ -203,6 +203,7 @@ export function EmailAuth() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [formErr, setFormErr] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -329,6 +330,7 @@ export function EmailAuth() {
     const pv = validateCisPhone(phone);
     if (!pv.valid) errs.phone = pv.error || 'Неверный номер';
   }
+    if (!agreedToTerms) errs.terms = 'Нужно согласие с условиями использования';
     setFormErr(errs);
     return !Object.keys(errs).length;
   };
@@ -616,6 +618,23 @@ export function EmailAuth() {
                 {formErr.phone && <p className="mt-1 text-[11px] text-red-400">{formErr.phone}</p>}
               </div>
             </GlassCard>
+
+            <div className="flex items-start gap-2.5 px-1">
+              <input
+                type="checkbox"
+                id="register-terms"
+                checked={agreedToTerms}
+                onChange={e => { setAgreedToTerms(e.target.checked); if (formErr.terms) setFormErr(prev => { const { terms: _t, ...rest } = prev; return rest; }); }}
+                className="mt-0.5 w-4 h-4 rounded border-white/20 text-[#10b981] focus:ring-[#10b981] bg-transparent shrink-0"
+              />
+              <label htmlFor="register-terms" className="text-[12px] leading-relaxed text-[#8899aa]">
+                Я согласен с{' '}
+                <a href="/terms-of-service" target="_blank" rel="noopener noreferrer" className="text-[#5ba3f5]">условиями использования</a>
+                {' '}и{' '}
+                <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-[#5ba3f5]">политикой конфиденциальности</a>
+              </label>
+            </div>
+            {formErr.terms && <ErrorBanner msg={formErr.terms} />}
 
             <CTAButton onClick={handleRegister} loading={submitting} loadingText="Создаём..." ariaLabel="Создать аккаунт"
               color="#059669">
