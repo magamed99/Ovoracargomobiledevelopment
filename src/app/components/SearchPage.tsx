@@ -154,6 +154,7 @@ export function SearchPage() {
   const [toFocused,      setToFocused]      = useState(false);
   const [swapping,       setSwapping]       = useState(false);
 
+  const [loading, setLoading] = useState(false);
   const [popularTrips, setPopularTrips] = useState<any[]>([]);
   const [searchHistory, setSearchHistory] = useState<Array<{ from: string; to: string }>>(() => {
     try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch { return []; }
@@ -603,6 +604,13 @@ export function SearchPage() {
         </div>
       )}
 
+      {loading && (
+        <div className="flex flex-col gap-3 px-4 py-8">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="animate-pulse h-20 bg-white/5 rounded-2xl" />
+          ))}
+        </div>
+      )}
       {popularTrips.length === 0 && searchHistory.length === 0 && !loading && (
         <div className="flex flex-col items-center justify-center py-16 gap-4">
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: '#0a1826', border: '1px solid #0f2035' }}>
