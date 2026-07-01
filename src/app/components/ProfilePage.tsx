@@ -43,7 +43,7 @@ export function ProfilePage() {
     ? new Date(currentUser.birthDate).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
     : null;
 
-  const [loading, setLoading] = useState(true);
+  const [ratingLoading, setRatingLoading] = useState(true);
   const [ratingData, setRatingData] = useState({ avg: 0, count: 0, trips: 0 });
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [copied, setCopied] = useState(false);
@@ -51,7 +51,7 @@ export function ProfilePage() {
   useEffect(() => {
     if (!currentUser?.email) return;
     getUserStats(currentUser.email, userRole as 'driver' | 'sender')
-      .then(stats => setRatingData({ avg: stats.avgRating, count: stats.reviewCount, trips: stats.tripCount }); setLoading(false))
+      .then(stats => { setRatingData({ avg: stats.avgRating, count: stats.reviewCount, trips: stats.tripCount }); setRatingLoading(false); })
       .catch(() => {});
   }, [currentUser?.email, userRole]);
 
