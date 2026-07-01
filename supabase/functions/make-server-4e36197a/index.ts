@@ -219,6 +219,7 @@ const AVATAR_BUCKET = 'make-4e36197a-avatars';
 const ADS_BUCKET = 'make-4e36197a-ads';
 const AVIA_PASSPORT_BUCKET = 'make-4e36197a-avia-passports';
 const POD_BUCKET = 'make-4e36197a-pod';
+const POD_SIGNED_URL_TTL = 365 * 24 * 3600; // 1 год — старые ссылки (7д) гасли раньше архива поездки
 const RADIO_VOICE_BUCKET = 'make-4e36197a-radio-voice';
 (async () => {
   const { data: buckets } = await supabase.storage.listBuckets();
@@ -5373,6 +5374,16 @@ app.get("/make-server-4e36197a/tracking/:tripId", async (c) => {
       return c.json({ error: "Forbidden" }, 403);
     }
 
+    // Signed URL у POD-фото живёт ограниченное время — перевыпускаем перед
+    // отдачей, иначе в архиве поездки картинки гаснут через несколько дней.
+    if (value.podPhotos?.length) {
+      value.podPhotos = await Promise.all(value.podPhotos.map(async (p: any) => {
+        if (!p.path) return p;
+        const { data } = await supabase.storage.from(POD_BUCKET).createSignedUrl(p.path, POD_SIGNED_URL_TTL);
+        return { ...p, url: data?.signedUrl || p.url };
+      }));
+    }
+
     return c.json({ value });
   } catch (err) {
     console.log("Error GET /tracking/:tripId:", err);
@@ -5558,10 +5569,9 @@ app.post("/make-server-4e36197a/tracking/:tripId/pod",
       throw uploadError;
     }
 
-    // Подписанный URL на 7 дней
     const { data: signedData } = await supabase.storage
       .from(POD_BUCKET)
-      .createSignedUrl(fileName, 7 * 24 * 3600);
+      .createSignedUrl(fileName, POD_SIGNED_URL_TTL);
 
     const podEntry = {
       type,
@@ -5606,7 +5616,7 @@ app.get("/make-server-4e36197a/tracking/:tripId/pod", async (c) => {
     const photos = shipment.podPhotos || [];
     const refreshed = await Promise.all(photos.map(async (p: any) => {
       if (!p.path) return p;
-      const { data } = await supabase.storage.from(POD_BUCKET).createSignedUrl(p.path, 7 * 24 * 3600);
+      const { data } = await supabase.storage.from(POD_BUCKET).createSignedUrl(p.path, POD_SIGNED_URL_TTL);
       return { ...p, url: data?.signedUrl || p.url };
     }));
 
