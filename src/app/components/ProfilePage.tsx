@@ -3,6 +3,7 @@ import { Settings, Star, Shield, Bell, HelpCircle, LogOut, ChevronRight, Phone, 
 import { useNavigate } from 'react-router';
 import { useUser } from '../contexts/UserContext';
 import { useLanguage } from '../context/LanguageContext';
+import { Badge } from '../ui/badge';
 import * as notificationsApi from '../api/notificationsApi';
 import { getUserStats } from '../api/dataApi';
 
@@ -177,9 +178,7 @@ export function ProfilePage() {
                   <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                     <h2 className="text-[16px] sm:text-[18px] font-black text-white leading-tight truncate max-w-[140px] sm:max-w-[180px]">{displayName}</h2>
                     {isDriver && (
-                      <span className="flex items-center gap-0.5 sm:gap-1 px-1.5 sm:px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 text-[9px] sm:text-[10px] font-bold shrink-0">
-                        <Shield className="w-2 sm:w-2.5 h-2 sm:h-2.5" /> Верифицирован
-                      </span>
+                      <Badge variant="outline" className="border-emerald-500/25 text-emerald-400 bg-emerald-500/10 text-[9px] sm:text-[10px] shrink-0"><Shield className="w-2 sm:w-2.5 h-2 sm:h-2.5" /> Верифицирован</Badge>
                     )}
                   </div>
                   <div className="flex items-center gap-2 sm:gap-2.5 mt-0.5 sm:mt-1 flex-wrap">
