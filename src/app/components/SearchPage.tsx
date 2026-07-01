@@ -8,6 +8,7 @@ import { getTrips } from '../api/dataApi';
 import { toast } from 'sonner';
 import { countryFlag, getCityCountry } from '../utils/addressUtils';
 import { useLanguage } from '../context/LanguageContext';
+import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
 
 const HISTORY_KEY = 'ovora_search_history';
 
@@ -286,27 +287,16 @@ export function SearchPage() {
   const SearchForm = (
     <div className="flex flex-col gap-4">
       {/* Type tabs */}
-      <div className="flex gap-2">
-        {(['trip', 'cargo'] as const).map(type => {
-          const active = searchType === type;
-          return (
-            <button
-              key={type}
-              onClick={() => { setSearchType(type); setActiveFilter(null); }}
-              className="flex-1 h-11 rounded-2xl flex items-center justify-center gap-2 text-[13px] font-black"
-              style={{
-                background: active ? (type === 'trip' ? '#1d4ed815' : '#10b98115') : '#0a1826',
-                border: `1.5px solid ${active ? (type === 'trip' ? '#1d4ed840' : '#10b98140') : '#0f2035'}`,
-                color: active ? (type === 'trip' ? '#5ba3f5' : '#10b981') : '#2e4a62',
-                transition: 'all .15s',
-              }}
-            >
-              {type === 'trip' ? <Users className="w-4 h-4" /> : <Package className="w-4 h-4" />}
-              {type === 'trip' ? 'Поездка' : 'Груз'}
-            </button>
-          );
-        })}
-      </div>
+      <Tabs value={searchType} onValueChange={(v) => { setSearchType(v as 'trip' | 'cargo'); setActiveFilter(null); }}>
+        <TabsList className="grid w-full grid-cols-2 h-11 bg-[#0a1826] border border-[#0f2035]">
+          <TabsTrigger value="trip" className="flex items-center gap-2 text-[13px] font-black data-[state=active]:bg-[#1d4ed815] data-[state=active]:text-[#5ba3f5] data-[state=active]:border data-[state=active]:border-[#1d4ed840]">
+            <Users className="w-4 h-4" /> Поездка
+          </TabsTrigger>
+          <TabsTrigger value="cargo" className="flex items-center gap-2 text-[13px] font-black data-[state=active]:bg-[#10b98115] data-[state=active]:text-[#10b981] data-[state=active]:border data-[state=active]:border-[#10b98140]">
+            <Package className="w-4 h-4" /> Груз
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {/* Route card */}
       <div className="rounded-2xl overflow-visible" style={{ background: '#0a1826', border: '1px solid #0f2035' }}>
