@@ -214,9 +214,9 @@ export function Welcome() {
   if (!mounted) return null;
 
   const _statsStrip = [
-    { target: liveStats?.drivers  ?? 3400, suffix: liveStats ? '' : '+', label: 'Водителей', color: C.blueLight },
-    { target: liveStats?.cities   ?? 12,   suffix: '',                    label: 'Городов',   color: C.purple },
-    { target: liveStats?.satisfied ?? 98,  suffix: '%',                   label: 'Довольных', color: C.green },
+    { target: liveStats?.drivers  ?? 3400, suffix: liveStats ? '' : '+', label: t('wl_stat_drivers'),   color: C.blueLight },
+    { target: liveStats?.cities   ?? 12,   suffix: '',                    label: t('wl_stat_cities'),    color: C.purple },
+    { target: liveStats?.satisfied ?? 98,  suffix: '%',                   label: t('wl_stat_satisfied'), color: C.green },
   ];
 
   const _bottomStats: { icon: string; val: number; suffix: string; label: string; color: string }[] = [
@@ -362,10 +362,27 @@ export function Welcome() {
           </div>
         </motion.div>
 
-        {/* ╔╗ AREA: BRAND (только десктоп — лого + заголовок + текст) ╔╗ */}
+        {/* ╔╗ AREA: BRAND — лого + заголовок + текст. Раньше был desktop-only,
+            на мобиле его место занимала статичная картинка hero-promo с зашитым
+            русским текстом (не переводилась на TJ/EN). Теперь живой, переводимый
+            блок виден и на мобиле (см. .ovora-area-brand в index.css). ╔╗ */}
         <motion.div className="ovora-area-brand"
           initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.45 }}
         >
+          {/* Лого-строка — первой, на мобиле это единственное место с вордмарком
+              (navbar с лого скрыт на мобиле) */}
+          <div className="ovora-brand-logo-row" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <Logo />
+            <div>
+              <div style={{ fontSize: 'clamp(18px,2vw,24px)', fontWeight: 900, color: '#fff', letterSpacing: '-0.3px', lineHeight: 1.1 }}>
+                Ovora <span style={{ color: C.blueLight }}>Cargo</span>
+              </div>
+              <div style={{ fontSize: 'clamp(8px,0.9vw,10px)', fontWeight: 700, color: C.dim2, letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 2 }}>
+                Logistics & Air Cargo
+              </div>
+            </div>
+          </div>
+
           {/* Заголовок + разделитель + описание */}
           <div>
             <div style={{ fontSize: 'clamp(28px,3.2vw,48px)', fontWeight: 900, color: '#fff', lineHeight: 1.06, letterSpacing: '-1.5px' }}>{t('wl_brand_platform')}</div>
@@ -386,19 +403,6 @@ export function Welcome() {
                 <div style={{ fontSize: 'clamp(9px,0.9vw,11px)', color: C.dim, marginTop: 4, fontWeight: 600 }}>{s.label}</div>
               </div>
             ))}
-          </div>
-
-          {/* Лого-строка */}
-          <div className="ovora-brand-logo-row" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <Logo />
-            <div>
-              <div style={{ fontSize: 'clamp(18px,2vw,24px)', fontWeight: 900, color: '#fff', letterSpacing: '-0.3px', lineHeight: 1.1 }}>
-                Ovora <span style={{ color: C.blueLight }}>Cargo</span>
-              </div>
-              <div style={{ fontSize: 'clamp(8px,0.9vw,10px)', fontWeight: 700, color: C.dim2, letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 2 }}>
-                Logistics & Air Cargo
-              </div>
-            </div>
           </div>
         </motion.div>
 

@@ -33,7 +33,11 @@ export const DEFAULT_ICONS: SiteIcons = {
   logo:  `${import.meta.env.BASE_URL}icons/logo-bird.png`,
   truck: `${import.meta.env.BASE_URL}icons/cargo-truck.png`,
   plane: `${import.meta.env.BASE_URL}icons/avia-plane.png`,
-  hero:  `${import.meta.env.BASE_URL}icons/hero-promo.png`,
+  // ✅ hero-promo.png был снят: маркетинговый текст (заголовок, описание,
+  // фичи) был зашит прямо в пиксели картинки на русском и не переводился
+  // на TJ/EN. Дефолт — чистое фото (тот же файл, что и на десктопе);
+  // текст теперь живой, переводимый компонент поверх фото (см. Welcome.tsx).
+  hero:  `${import.meta.env.BASE_URL}icons/hero-desktop.png`,
 };
 
 const DEFAULT_CONFIG: SiteConfig = {
