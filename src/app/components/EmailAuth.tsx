@@ -53,7 +53,7 @@ function GlassCard({ children, className = '' }: { children: React.ReactNode; cl
 }
 
 function CTAButton({
-  onClick, disabled, loading, loadingText, children, color, ariaLabel = '#1d4ed8',
+  onClick, disabled, loading, loadingText, children, color = '#1d4ed8', ariaLabel,
 }: {
   onClick: () => void; disabled?: boolean; loading?: boolean;
   loadingText?: string; children: React.ReactNode; color?: string; ariaLabel?: string;
