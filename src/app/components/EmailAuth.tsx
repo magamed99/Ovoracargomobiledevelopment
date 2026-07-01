@@ -582,7 +582,7 @@ export function EmailAuth() {
                   style={{ background: formErr.firstName ? 'rgba(239,68,68,0.07)' : 'rgba(255,255,255,0.04)', borderColor: formErr.firstName ? '#ef4444' : 'rgba(255,255,255,0.09)' }}>
                   <User className="absolute left-3.5 w-4 h-4 text-[#607080]" />
                   <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)}
-                    placeholder="Ваше имя" className="flex-1 bg-transparent outline-none py-3.5 pl-10 pr-4 font-medium text-white placeholder-[#607080]" style={{ fontSize: 16 }} aria-invalid={!!emailErr} />
+                    placeholder="Ваше имя" className="flex-1 bg-transparent outline-none py-3.5 pl-10 pr-4 font-medium text-white placeholder-[#607080]" style={{ fontSize: 16 }} aria-describedby={emailErr ? "email-error" : undefined} aria-invalid={!!emailErr} />
                 </div>
                 {formErr.firstName && <p className="mt-1 text-[11px] text-red-400">{formErr.firstName}</p>}
               </div>
@@ -654,12 +654,12 @@ export function EmailAuth() {
             <EmailBadge email={email} tag="КОНФЛИКТ" tagColor="#ef4444" />
 
             <div className="flex flex-col gap-2">
-              <button onClick={() => handleLogin(existingUser)}
+              <button onClick={() => handleLogin(existingUser)} aria-label="Войти в аккаунт"
                 className="w-full h-12 rounded-2xl font-bold text-white flex items-center justify-center gap-2"
                 style={{ background: 'linear-gradient(135deg, #1d4ed8, #2563eb)' }}>
                 <span>Войти как {conflictRole === 'driver' ? 'Водитель' : 'Отправитель'}</span>
               </button>
-              <button onClick={() => setStep('email')}
+              <button onClick={() => setStep('email')} aria-label="Использовать другой email"
                 className="w-full h-12 rounded-2xl text-[13px] font-semibold text-[#607080] border border-white/[0.07] hover:border-white/[0.15] hover:text-white transition-all">
                 Использовать другой email
               </button>
