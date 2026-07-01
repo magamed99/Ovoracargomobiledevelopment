@@ -22,6 +22,8 @@ function CityDropdown({ suggestions, onSelect, addLabel, onAdd }: {
   if (!suggestions.length && !addLabel) return null;
   return (
     <motion.div
+      role="listbox"
+      aria-label="Города"
       className="absolute left-0 right-0 top-full z-50 overflow-hidden"
       style={{ background: '#0d1a28', border: '1px solid #1a2e42', borderTop: 'none', borderRadius: '0 0 16px 16px', boxShadow: '0 16px 40px #000000a0' }}
       initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
@@ -32,7 +34,7 @@ function CityDropdown({ suggestions, onSelect, addLabel, onAdd }: {
           key={`${city.name}-${i}`}
           onMouseDown={e => e.preventDefault()}
           onClick={() => onSelect(city)}
-          className="w-full px-4 py-3 flex items-center gap-3 text-left border-b last:border-b-0"
+          role="option" className="w-full px-4 py-3 flex items-center gap-3 text-left border-b last:border-b-0"
           style={{ borderColor: '#ffffff08', transition: 'background .12s' }}
           onMouseEnter={e => (e.currentTarget.style.background = '#ffffff08')}
           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
@@ -601,7 +603,7 @@ export function SearchPage() {
         </div>
       )}
 
-      {popularTrips.length === 0 && searchHistory.length === 0 && (
+      {popularTrips.length === 0 && searchHistory.length === 0 && !loading && (
         <div className="flex flex-col items-center justify-center py-16 gap-4">
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: '#0a1826', border: '1px solid #0f2035' }}>
             <Sparkles className="w-7 h-7" style={{ color: '#1e3a55' }} />
