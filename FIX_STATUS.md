@@ -1,0 +1,1 @@
+# Исправления для Claude\n\n## Status: Готово к проверке\n\n| Файл | Исправление | Статус |\n|------|-------------|--------|\n| SettingsPage.tsx | Toggle → Switch | ✅ |\n| AviaAuth.tsx | validateLocalPhone args | ✅ |

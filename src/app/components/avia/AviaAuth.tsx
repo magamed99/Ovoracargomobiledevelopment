@@ -4,7 +4,7 @@ import { ArrowLeft, Plane, Lock, Users, Package, Eye, EyeOff, CheckCircle2 } fro
 import { motion, AnimatePresence } from 'motion/react';
 import { useAvia } from './AviaContext';
 import { PhoneInput } from '../ui/PhoneInput';
-import { validateLocalPhone, validateCisPhone, CIS_LIST, getCisCountryFlag, getCisCountryCode } from '../../utils/phoneValidator';
+import { validateLocalPhone, getCisCountryCode } from '../../utils/phoneValidator';
 import { checkPhone, registerAvia, loginAvia } from '../../api/aviaApi';
 
 type Step = 'phone' | 'pin-create' | 'pin-login' | 'role';
@@ -30,7 +30,7 @@ export function AviaAuth() {
   const [showPin, setShowPin] = useState(false);
   const [selectedRole, setSelectedRole] = useState<AviaRole | null>(null);
   const [error, setError] = useState('');
-  const [phoneValidation, setPhoneValidation] = useState<any>(null);
+  const [_phoneValidation, setPhoneValidation] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
 
@@ -54,7 +54,7 @@ export function AviaAuth() {
   }, [step, isConfirming]);
 
   // ── Форматирование телефона ────────────────────────────────────────────────
-  const handlePhoneChange = (value: string) => {
+  const _handlePhoneChange = (value: string) => {
     // Разрешаем только + и цифры
     const cleaned = value.replace(/[^\d+]/g, '');
     setPhone(cleaned);
@@ -75,7 +75,7 @@ export function AviaAuth() {
       setError(pv.error || 'Введите корректный номер телефона');
       return;
     }
-    const fullPhone = getCisCountryCode(selectedCountry) + phone.replace(/[^\d]/g, '');
+    const _fullPhone = getCisCountryCode(selectedCountry) + phone.replace(/[^\d]/g, '');
     setLoading(true);
     setError('');
     try {

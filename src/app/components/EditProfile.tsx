@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router';
 import { useUser } from '../contexts/UserContext';
 import { toast } from 'sonner';
-import { validateCisPhone, getCisCountryName, getCisCountryFlag, type PhoneValidationResult } from '../utils/phoneValidator';
+import { validateCisPhone } from '../utils/phoneValidator';
 import {
   updateUser as updateUserApi, uploadAvatar,
   syncUserNameInChats, syncUserNameInTrips,

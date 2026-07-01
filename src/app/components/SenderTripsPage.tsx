@@ -147,7 +147,7 @@ export function SenderTripsPage() {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   useEffect(() => { setVisibleCount(PAGE_SIZE); }, [activeTab]);
 
-  const [reviewedTrips, setReviewedTrips] = useState<string[]>(() => {
+  const [reviewedTrips] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem(REVIEWED_TRIPS_KEY) || '[]'); }
     catch { return []; }
   });
@@ -275,7 +275,6 @@ export function SenderTripsPage() {
   // активным (см. карточка в TripCard.tsx с пояснением и кнопкой отмены) —
   // должна оставаться в «Бронированиях», иначе поездка пропадает из всех табов.
   const activeCount  = senderTrips.filter(t => t.status === 'active' || t.status === 'inProgress' || t.status === 'frozen').length;
-  const cargosCount  = publishedCargos.length;
   const filteredTrips = senderTrips.filter(t => {
     if (activeTab === 'active')    return t.status === 'active' || t.status === 'inProgress' || t.status === 'frozen';
     if (activeTab === 'completed') return t.status === 'completed';
@@ -373,7 +372,7 @@ export function SenderTripsPage() {
   ];
 
   // ── Cargo list (переиспользуемый блок) ────────────────────────────────────
-  const renderCargoList = (grid = false) => {
+  const _renderCargoList = (grid = false) => {
     if (loading) {
       return (
         <div className={grid ? 'grid grid-cols-2 xl:grid-cols-3 gap-4' : 'px-4 pt-3 space-y-3'}>

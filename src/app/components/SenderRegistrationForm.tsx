@@ -5,7 +5,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../contexts/UserContext';
 import { toast } from 'sonner';
 import { registerUser } from '../api/authApi';
-import { validateCisPhone, getCisCountryName, getCisCountryFlag, type PhoneValidationResult } from '../utils/phoneValidator';
+import { validateCisPhone } from '../utils/phoneValidator';
 
 export function SenderRegistrationForm() {
   const navigate = useNavigate();
@@ -19,7 +19,6 @@ export function SenderRegistrationForm() {
     phone: cachedUser?.phone || '',
   });
   const [submitting, setSubmitting] = useState(false);
-  const [phoneValidation, setPhoneValidation] = useState<PhoneValidationResult | null>(null);
 
   const bg  = isDark ? 'bg-[#060e1a]' : 'bg-white';
   const txt = isDark ? 'text-white'   : 'text-[#0f172a]';
