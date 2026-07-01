@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { usePolling } from '../hooks/usePolling';
 import { useNavigate } from 'react-router';
 import { Star, Users as UsersIcon, Truck, Zap, TrendingUp, ArrowRight, MapPin, Package } from 'lucide-react';
@@ -120,7 +120,7 @@ export function Home() {
   };
 
   // ── Trip mapping ──────────────────────────────────────────────────────────
-  const allPopularTrips = publishedTrips
+  const allPopularTrips = useMemo(() => publishedTrips
     .filter(t => {
       const s = t.status?.toLowerCase();
       // Скрываем завершённые, отменённые и начатые поездки
@@ -154,7 +154,7 @@ export function Home() {
       };
     })
     // Скрываем полностью заполненные поездки (нет ни мест, ни груза)
-    .filter(trip => trip.seats !== null || trip.childSeats !== null || trip.cargo !== null);
+    .filter(trip => trip.seats !== null || trip.childSeats !== null || trip.cargo !== null), [publishedTrips]);
 
   // ══════════════════════════════════════════════════════════════════════════
   return (
