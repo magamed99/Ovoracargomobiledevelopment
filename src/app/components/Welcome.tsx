@@ -287,7 +287,7 @@ export function Welcome() {
             углу — там на фото тёмное небо/город, а не грузовик/машина. Только
             мобиль (.ovora-hero-overlay-brand скрыт на десктопе через CSS —
             там текст уже живёт в .ovora-area-brand рядом с фото). ── */}
-        <div className="ovora-hero-overlay-brand">
+        <div className="ovora-hero-overlay-brand" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.85), 0 1px 12px rgba(0,0,0,0.6)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ transform: 'scale(0.64)', transformOrigin: 'left center', marginRight: -14 }}>
               <Logo />
@@ -305,9 +305,6 @@ export function Welcome() {
             <div style={{ fontSize: 17, fontWeight: 900, color: '#fff', lineHeight: 1.08, letterSpacing: '-0.5px' }}>{t('wl_brand_platform')}</div>
             <div style={{ fontSize: 17, fontWeight: 900, color: C.blueLight, lineHeight: 1.08, letterSpacing: '-0.5px' }}>Ovora</div>
           </div>
-          <p style={{ fontSize: 9.5, color: C.dim, lineHeight: 1.4, margin: '6px 0 0', maxWidth: 190 }}>
-            {t('wl_tagline')}
-          </p>
           <div style={{ display: 'flex', gap: 14, marginTop: 8 }}>
             {_statsStrip.map((s, i) => (
               <div key={i} style={{ minWidth: 0 }}>
@@ -318,6 +315,9 @@ export function Welcome() {
               </div>
             ))}
           </div>
+          <p style={{ fontSize: 9.5, color: C.dim, lineHeight: 1.4, margin: '8px 0 0', maxWidth: 190 }}>
+            {t('wl_tagline')}
+          </p>
         </div>
       </motion.div>
 
