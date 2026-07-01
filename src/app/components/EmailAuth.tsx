@@ -159,7 +159,7 @@ function OtpRow({
             onPaste={e => handleOtpPaste(e, setArr, refs, onClearError)}
             onFocus={e => setTimeout(() => e.target.select(), 10)}
             autoComplete="one-time-code"
-            className="text-center font-black outline-none transition-all rounded-2xl border-2" aria-invalid={!!otpErr}
+            className="text-center font-black outline-none transition-all rounded-2xl border-2" aria-invalid={!!codeErr}
             style={{
               width: 'clamp(28px, calc((100vw - 120px) / 6), 52px)',
               height: 'clamp(36px, calc((100vw - 120px) / 6 * 1.2), 60px)',

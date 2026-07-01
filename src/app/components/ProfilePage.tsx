@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Star, Shield, Bell, HelpCircle, LogOut, ChevronRight, Phone, Mail, MapPin, Heart, Calendar, Info, Edit2, Truck, Package, Award, Copy, Check, User, Calculator, FileText, Scale, UserCheck, Share2, BarChart2 } from 'lucide-react';
+import { Settings, Star, Shield, Bell, HelpCircle, LogOut, ChevronRight, Phone, Mail, MapPin, Heart, Calendar, Info, Edit2, Truck, Package, Award, Copy, Check, User, Calculator, FileText, Scale, UserCheck, Share2, BarChart2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { useUser } from '../contexts/UserContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -25,7 +25,7 @@ function calcCompleteness(user: any, isDriver: boolean): { pct: number; missing:
 
 export function ProfilePage() {
   const navigate = useNavigate();
-  const { user: currentUser, loading } = useUser();
+  const { user: currentUser, loading, refreshUser } = useUser();
   const { t } = useLanguage();
   const userRole = sessionStorage.getItem('userRole') || 'sender';
   const isDriver = userRole === 'driver';
@@ -133,6 +133,22 @@ export function ProfilePage() {
     </div>
   );
 
+  // ── Не удалось загрузить пользователя (сессия валидна, но запрос упал) ──
+  const renderLoadError = () => (
+    <div className="flex flex-col items-center gap-3 px-4 py-8 text-center">
+      <AlertTriangle className="w-8 h-8 text-amber-400" />
+      <div>
+        <p className="text-[14px] font-bold text-white">Не удалось загрузить профиль</p>
+        <p className="text-[12px] text-[#607080] mt-1">Проверьте соединение и попробуйте снова</p>
+      </div>
+      <button onClick={() => refreshUser()}
+        className="flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-bold text-white transition-all active:scale-95"
+        style={{ background: accent }}>
+        <RefreshCw className="w-3.5 h-3.5" /> Повторить
+      </button>
+    </div>
+  );
+
   return (
     <div className="font-['Sora'] bg-[#060e1a] text-white min-h-screen">
 
@@ -215,7 +231,7 @@ export function ProfilePage() {
                 })}
               </div>
             </div>
-          ) : null}
+          ) : renderLoadError()}
         </div>
 
         <main className="flex-1 px-3 sm:px-4 pb-28 sm:pb-32 md:pb-10 flex flex-col gap-3 sm:gap-4 mt-1">
@@ -466,7 +482,7 @@ export function ProfilePage() {
                         </div>
                       )}
                     </>
-                  ) : null}
+                  ) : renderLoadError()}
                 </div>
               </div>
 
