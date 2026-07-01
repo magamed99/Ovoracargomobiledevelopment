@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router';
 import { useUser } from '../contexts/UserContext';
 import { useLanguage } from '../context/LanguageContext';
 import { Badge } from './ui/badge';
+import { Progress } from './ui/progress';
 import * as notificationsApi from '../api/notificationsApi';
 import { getUserStats } from '../api/dataApi';
 
@@ -262,10 +263,7 @@ export function ProfilePage() {
                       Заполнить
                     </button>
                   </div>
-                  <div className="w-full h-1.5 rounded-full bg-white/[0.06] overflow-hidden mb-2.5">
-                    <div className="h-full rounded-full transition-all duration-500"
-                      style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${accent}, ${accent}aa)` }} />
-                  </div>
+                  <Progress value={pct} className="h-1.5 mb-2.5" style={{ background: 'rgba(255,255,255,0.06)' }} />
                   <div className="flex flex-wrap gap-1.5">
                     {missing.slice(0, 3).map(m => (
                       <span key={m} className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
