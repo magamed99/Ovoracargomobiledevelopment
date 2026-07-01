@@ -329,7 +329,11 @@ button, a {
 /* ── Mobile area defaults ── */
 .ovora-navbar       { display: none; }
 .ovora-brand-stats  { display: none; }
-.ovora-area-brand   { display: none; }
+/* ✅ Раньше .ovora-area-brand был display:none на мобиле — единственным
+   текстом на первом экране была статичная картинка hero-promo с зашитым
+   русским текстом, не переводившаяся на TJ/EN. Теперь блок живой и виден
+   первым (order:0), сразу под фото. */
+.ovora-area-brand   { display: flex; flex-direction: column; gap: 10px; order: 0; padding: 4px clamp(4px,2vw,10px) 2px; }
 .ovora-area-cards   { order: 1; }
 .ovora-area-lang    { order: 2; }
 .ovora-area-bottom  { order: 3; }

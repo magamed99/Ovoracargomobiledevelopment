@@ -128,6 +128,18 @@ export const router = createBrowserRouter([
           .then(m => ({ Component: m.SenderRegistrationForm })),
       },
 
+      // ── Legal (публичные — читаются до регистрации, требовать логин нельзя) ──
+      {
+        path: "/privacy-policy",
+        lazy: () => import("./components/PrivacyPolicyPage")
+          .then(m => ({ Component: m.PrivacyPolicyPage })),
+      },
+      {
+        path: "/terms-of-service",
+        lazy: () => import("./components/TermsOfServicePage")
+          .then(m => ({ Component: m.TermsOfServicePage })),
+      },
+
       // ── AVIA Module ─────────────────────────────────────────────────────────────
       {
         path: "/avia",
@@ -286,16 +298,6 @@ export const router = createBrowserRouter([
             path: "favorites",
             lazy: () => import("./components/FavoritesPage")
               .then(m => ({ Component: m.FavoritesPage })),
-          },
-          {
-            path: "privacy-policy",
-            lazy: () => import("./components/PrivacyPolicyPage")
-              .then(m => ({ Component: m.PrivacyPolicyPage })),
-          },
-          {
-            path: "terms-of-service",
-            lazy: () => import("./components/TermsOfServicePage")
-              .then(m => ({ Component: m.TermsOfServicePage })),
           },
           // ── Driver-specific (requires driver role) ──
           {
