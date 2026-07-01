@@ -282,6 +282,30 @@ export function Welcome() {
           <source media="(min-width: 700px)" srcSet={`${import.meta.env.BASE_URL}icons/hero-desktop.png`} />
           <img src={siteConfig.icons.hero} alt="Ovora Cargo" />
         </picture>
+
+        {/* ── Мобильный оверлей: лого + заголовок поверх фото, в верхнем левом
+            углу — там на фото тёмное небо/город, а не грузовик/машина. Только
+            мобиль (.ovora-hero-overlay-brand скрыт на десктопе через CSS —
+            там текст уже живёт в .ovora-area-brand рядом с фото). ── */}
+        <div className="ovora-hero-overlay-brand">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ transform: 'scale(0.64)', transformOrigin: 'left center', marginRight: -14 }}>
+              <Logo />
+            </div>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 900, color: '#fff', letterSpacing: '-0.2px', lineHeight: 1.1 }}>
+                Ovora <span style={{ color: C.blueLight }}>Cargo</span>
+              </div>
+              <div style={{ fontSize: 7, fontWeight: 700, color: C.dim2, letterSpacing: '0.09em', textTransform: 'uppercase', marginTop: 1 }}>
+                Logistics & Air Cargo
+              </div>
+            </div>
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <div style={{ fontSize: 17, fontWeight: 900, color: '#fff', lineHeight: 1.08, letterSpacing: '-0.5px' }}>{t('wl_brand_platform')}</div>
+            <div style={{ fontSize: 17, fontWeight: 900, color: C.blueLight, lineHeight: 1.08, letterSpacing: '-0.5px' }}>Ovora</div>
+          </div>
+        </div>
       </motion.div>
 
       {/* ── Desktop Navbar (скрыт на мобайле через CSS) ── */}
@@ -383,15 +407,18 @@ export function Welcome() {
             </div>
           </div>
 
-          {/* Заголовок + разделитель + описание */}
-          <div>
+          {/* Заголовок + разделитель — на мобиле дублируется оверлеем на фото
+              (.ovora-hero-overlay-brand), поэтому здесь скрыт через CSS, чтобы
+              не показывать дважды. Описание ниже (без класса) остаётся видимым
+              и на мобиле, и на десктопе. */}
+          <div className="ovora-brand-heading">
             <div style={{ fontSize: 'clamp(28px,3.2vw,48px)', fontWeight: 900, color: '#fff', lineHeight: 1.06, letterSpacing: '-1.5px' }}>{t('wl_brand_platform')}</div>
             <div style={{ fontSize: 'clamp(28px,3.2vw,48px)', fontWeight: 900, color: C.blueLight, lineHeight: 1.06, letterSpacing: '-1.5px' }}>Ovora</div>
             <div style={{ width: 38, height: 2.5, background: C.blue, borderRadius: 2, margin: 'clamp(7px,1.2vh,12px) 0' }} />
-            <p style={{ fontSize: 'clamp(11px,1.2vw,14px)', color: C.dim, lineHeight: 1.6, margin: 0, maxWidth: 300 }}>
-              {t('wl_tagline')}
-            </p>
           </div>
+          <p style={{ fontSize: 'clamp(11px,1.2vw,14px)', color: C.dim, lineHeight: 1.6, margin: 0, maxWidth: 300 }}>
+            {t('wl_tagline')}
+          </p>
 
           {/* Stats strip — только на десктопе */}
           <div className="ovora-brand-stats" style={{ display: 'flex', gap: 'clamp(20px,3vw,40px)' }}>
