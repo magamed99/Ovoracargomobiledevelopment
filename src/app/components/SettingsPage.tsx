@@ -222,24 +222,20 @@ export function SettingsPage() {
   );
 
   const LogoutModal = () => (
-    <AnimatePresence>
-      <AlertDialog open={showLogout} onOpenChange={setShowLogout}>
-        <AlertDialogContent className="bg-[#131e2b] border-white/[0.10]">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">Выйти из аккаунта?</AlertDialogTitle>
-            <AlertDialogDescription className="text-[#607080]">
-              Вам нужно будет снова войти через email и PIN для продолжения работы
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="bg-transparent border-white/[0.08] text-[#607080] hover:text-white hover:border-white/[0.15]">Отмена</AlertDialogCancel>
-            <AlertDialogAction onClick={handleLogout} className="bg-gradient-to-r from-red-500 to-rose-500 text-white hover:bg-red-600">Выйти</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    <AlertDialog open={showLogout} onOpenChange={setShowLogout}>
+      <AlertDialogContent className="bg-[#131e2b] border-white/[0.10]">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="text-white">Выйти из аккаунта?</AlertDialogTitle>
+          <AlertDialogDescription className="text-[#607080]">
+            Вам нужно будет снова войти через email и PIN для продолжения работы
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel className="bg-transparent border-white/[0.08] text-[#607080] hover:text-white hover:border-white/[0.15]">Отмена</AlertDialogCancel>
+          <AlertDialogAction onClick={handleLogout} className="bg-gradient-to-r from-red-500 to-rose-500 text-white hover:bg-red-600">Выйти</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 
   // ── Mobile Row ──────────────────────────────────────────────────────────────
