@@ -46,10 +46,10 @@ export function AdminDashboard() {
   const adminRole = ((typeof sessionStorage !== 'undefined' && sessionStorage.getItem('ovora_admin_role')) || 'super-admin') as AdminRole;
   // cargo-admin/avia-admin видят только свою платформу — их JWT не проходит
   // requireRole на эндпоинтах другой платформы (см. CLAUDE.md RBAC).
-  const availablePlatforms: AdminPlatform[] =
+  const availablePlatforms: AdminPlatform[] = useMemo(() =>
     adminRole === 'cargo-admin' ? ['cargo'] :
     adminRole === 'avia-admin'  ? ['avia']  :
-    ['cargo', 'avia'];
+    ['cargo', 'avia'], [adminRole]);
   const [platform, setPlatform] = useState<AdminPlatform>(availablePlatforms[0]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<{
@@ -116,7 +116,7 @@ export function AdminDashboard() {
     }
   };
 
-  useEffect(() => { if (availablePlatforms.includes('cargo')) load(); else setLoading(false); }, []);
+  useEffect(() => { if (availablePlatforms.includes('cargo')) load(); else setLoading(false); }, [availablePlatforms]);
 
   useEffect(() => {
     if (platform === 'avia' && !aviaLoaded) loadAvia();

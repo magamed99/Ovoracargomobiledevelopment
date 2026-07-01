@@ -198,7 +198,7 @@ export function SenderTripsPage() {
       }
       setCargoOffersMap(offersMap);
     } catch {}
-  }, [currentUser?.email]);
+  }, [currentUser?.email, isMountedRef]);
 
   // ── Main data load ─────────────────────────────────────────────────────────
   const loadData = useCallback(async (silent = false) => {
@@ -248,7 +248,7 @@ export function SenderTripsPage() {
     finally {
       if (isMountedRef.current && version === loadVersionRef.current) { setLoading(false); setIsRefreshing(false); }
     }
-  }, [currentUser?.email, loadCargos]);
+  }, [currentUser?.email, loadCargos, isMountedRef]);
 
   useEffect(() => { loadData(); }, [loadData]);
 

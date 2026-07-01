@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useUser } from '../contexts/UserContext';
 import { getUserPayments } from '../api/dataApi';
 import {
@@ -36,20 +36,20 @@ export function PaymentHistory() {
   const [payments, setPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!currentUser?.email) return;
     setLoading(true);
     try {
       const data = await getUserPayments(currentUser.email, userRole);
       setPayments(data);
     } catch { setPayments([]); } finally { setLoading(false); }
-  };
+  }, [currentUser?.email, userRole]);
 
   useEffect(() => {
     load();
     const iv = setInterval(load, 10000);
     return () => clearInterval(iv);
-  }, [currentUser?.email, userRole]);
+  }, [load]);
 
   const filteredPayments = filter === 'all' ? payments : payments.filter(p => p.type === filter);
   const totalIncome  = payments.filter(p => p.type === 'income').reduce((s, p) => s + Math.abs(p.amount), 0);

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Globe, Bell, Shield, LogOut, ChevronRight, ArrowLeft, Check, Smartphone, Info, Trash2, RefreshCw, Truck, Package, BellRing, MessageSquare, Navigation, KeyRound, Star, Volume2, Vibrate } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Switch } from './ui/switch';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from './ui/alert-dialog';
 import { useNavigate } from 'react-router';
 import { useLanguage } from '../context/LanguageContext';
 import { useUser } from '../contexts/UserContext';

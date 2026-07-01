@@ -43,14 +43,14 @@ function CompletedTripDetail({ trip, isDark }: { trip: any; isDark: boolean }) {
   const navigate = useNavigate();
   const userRole = sessionStorage.getItem('userRole') || 'sender';
   // Фикс 4/6: полный объект driver с email для чата
-  const driver = trip.driver || {
+  const driver = useMemo(() => trip.driver || {
     name: trip.driverName || 'Водитель',
     email: trip.driverEmail || '',
     avatar: trip.driverAvatar || '',
     rating: trip.driverRating ?? 5.0,
     trips: 1,
     verified: false,
-  };
+  }, [trip.driver, trip.driverName, trip.driverEmail, trip.driverAvatar, trip.driverRating]);
   // Фикс 6: текущий пользователь нужен для чата
   const { user: currentUser } = useUser();
 
