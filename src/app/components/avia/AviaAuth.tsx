@@ -442,6 +442,7 @@ export function AviaAuth() {
 
                 {error && (
                   <motion.p
+                    role="alert"
                     initial={{ opacity: 0, y: -4 }}
                     animate={{ opacity: 1, y: 0 }}
                     style={{ color: '#f87171', fontSize: 13, marginTop: 12 }}
