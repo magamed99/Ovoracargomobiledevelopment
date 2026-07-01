@@ -942,6 +942,42 @@ async function purgeExpiredTrips(): Promise<number> {
   return expired.length;
 }
 
+// Отменённые груз-объявления отправителя (ovora:cargo:) — тот же ретеншн,
+// что и у поездок водителя. У cargo нет статуса 'completed' (доставка
+// отслеживается на стороне поездки) — очищаем только 'cancelled'.
+async function purgeExpiredCargos(): Promise<number> {
+  const cutoff = Date.now() - TRIP_RETENTION_MS;
+  const cargos: any[] = await kv.getByPrefix('ovora:cargo:');
+  const expired = cargos.filter((cg: any) => {
+    if (!cg || cg.status !== 'cancelled') return false;
+    const cancelledAt = cg.deletedAt || cg.updatedAt;
+    return cancelledAt && new Date(cancelledAt).getTime() < cutoff;
+  });
+  if (expired.length === 0) return 0;
+
+  for (const cargo of expired) {
+    const cargoId = cargo.id;
+    try {
+      const offers: any[] = await kv.getByPrefix(`ovora:cargo-offer:${cargoId}:`);
+      for (const offer of offers) {
+        if (!offer?.offerId) continue;
+        await kv.del(`ovora:cargo-offer:${cargoId}:${offer.offerId}`).catch(() => {});
+        if (offer.driverEmail) await kv.del(`ovora:drivercargooffers:${offer.driverEmail}:${offer.offerId}`).catch(() => {});
+        if (offer.senderEmail) await kv.del(`ovora:sendercargooffers:${offer.senderEmail}:${offer.offerId}`).catch(() => {});
+      }
+
+      if (cargo.senderEmail) await kv.del(`ovora:sendercargos:${cargo.senderEmail}:${cargoId}`).catch(() => {});
+
+      await kv.del(`ovora:cargo:${cargoId}`);
+
+      console.log(`[purge] Груз ${cargoId} удалён (отменён ${cargo.deletedAt || cargo.updatedAt})`);
+    } catch (err) {
+      console.log(`[purge] Не удалось удалить груз ${cargoId}:`, err);
+    }
+  }
+  return expired.length;
+}
+
 // Throttled fire-and-forget trigger — вызывается из часто запрашиваемых эндпоинтов,
 // без cron-инфраструктуры. Не блокирует ответ и не чаще раза в сутки.
 function maybeTriggerTripPurge(): void {
@@ -955,6 +991,8 @@ function maybeTriggerTripPurge(): void {
       await kv.set('ovora:meta:lastTripPurge', new Date().toISOString());
       const purged = await purgeExpiredTrips();
       if (purged > 0) console.log(`[purge] Автоудаление: очищено ${purged} поездок старше 30 дней`);
+      const purgedCargos = await purgeExpiredCargos();
+      if (purgedCargos > 0) console.log(`[purge] Автоудаление: очищено ${purgedCargos} грузов старше 30 дней`);
     } catch (err) {
       console.log('[purge] Ошибка проверки автоудаления:', err);
     } finally {
