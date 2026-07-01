@@ -92,9 +92,6 @@ export function SettingsPage() {
             toast.error('Разрешение отклонено', { description: 'Включите уведомления в настройках браузера', duration: 5000 });
           }
         }
-      } catch {
-        toast.error('Ошибка при изменении настроек уведомлений');
-      } catch (err) {
         toast.error('Ошибка при изменении настроек уведомлений');
       } finally { setPushLoading(false); }
       return;
