@@ -231,6 +231,20 @@ export function ProfilePage() {
                 })}
               </div>
             </div>
+          ) : sessionStorage.getItem('isAuthenticated') === 'true' ? (
+            <div className="relative px-4 sm:px-5 pt-4 sm:pt-5 pb-5 sm:pb-6">
+              <div className="flex items-end gap-3 sm:gap-4">
+                {renderAvatar(72, 'text-2xl')}
+                <div className="flex-1 min-w-0 pb-1">
+                  <h2 className="text-[16px] sm:text-[18px] font-black text-white leading-tight">
+                    {sessionStorage.getItem('ovora_user_email')?.split('@')[0] || 'Пользователь'}
+                  </h2>
+                  <span className={`text-[11px] sm:text-[12px] font-bold ${isDriver ? 'text-emerald-400' : 'text-[#5ba3f5]'}`}>
+                    {isDriver ? t('profile_driver') : t('profile_sender')}
+                  </span>
+                </div>
+              </div>
+            </div>
           ) : renderLoadError()}
         </div>
 

@@ -40,9 +40,10 @@ export function AboutPage() {
   }, []);
 
   const formatStat = (v: number) => {
-    if (v === 0) return '0';
-    if (v < 1000) return `${v}+`;
-    return `${Math.floor(v / 1000)}K+`;
+    const n = Number(v);
+    if (!n || n === 0) return '0';
+    if (n < 1000) return `${n}+`;
+    return `${Math.floor(n / 1000)}K+`;
   };
 
   const displayStats = [
