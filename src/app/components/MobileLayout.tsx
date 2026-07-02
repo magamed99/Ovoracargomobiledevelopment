@@ -600,7 +600,7 @@ export function MobileLayout() {
   const location  = useLocation();
   const { theme: _theme } = useTheme();
   const { user }  = useUser();
-  const userRole  = user?.role || sessionStorage.getItem('userRole') || 'sender';
+  const userRole  = sessionStorage.getItem('userRole') || user?.role || 'sender';
   const userEmail = user?.email || sessionStorage.getItem('ovora_user_email') || '';
 
   const [chatUnread,    setChatUnread]    = useState(0);
